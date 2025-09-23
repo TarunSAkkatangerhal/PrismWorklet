@@ -1,26 +1,22 @@
-import React, { useEffect,useState } from "react";
-import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import samsungLogo from "../assets/prism_logo.png";
-import RequestUpdate from "../layouts/Requestupdates";
-import SuggestionModal from "../layouts/SuggestionModal";
-import InternReferralForm from "../layouts/Intern";
-import FeedBack from "../layouts/FeedBack"; 
 import ThemeToggleButton from '../components/ThemeToggleButton';
-
-import API from "../api"; // your axios instance configured with baseURL
-
-
+import Statistics from "../layouts/Statistics";
 
 import {
   Home, BarChart, GraduationCap, MessageSquare, Bell, Calendar, Folder,
   MessageCircle, Zap, Rocket, Key, Crown, BookOpen, Users as UsersIcon,
-  Award, RefreshCcw, Lightbulb, Briefcase, PlusCircle, Bot, Users, LayoutGrid, Columns
+  RefreshCcw, Lightbulb, Briefcase, PlusCircle, Bot, Users, LayoutGrid, Columns, X, ClipboardCheck, LogOut
 } from "lucide-react";
 
 import SidebarItem from "../components/SidebarItem";
 import LevelBadge from "../components/LevelBadge";
 import StatCard from "../components/StatCard";
 import ActivityButton from "../components/ActivityButton";
+import LeftSidebar from "../components/Left";
+import RightSidebar from "../components/Right";
 
 const LEVEL_COUNTS = { spark: 5, lead: 10, core: 15, master: 30 };
 const STATS = { worklets: 7, mentees: 35, badges: 2 };
@@ -32,126 +28,365 @@ const levels = [
   { name: 'MASTER', Icon: Crown, color: 'text-purple-700' },
 ];
 
-export default function Dashboard() {
-
-const [user, setUser] = useState(null);
-
-useEffect(() => {
-  const fetchUser = async () => {
-    try {
-      const token = localStorage.getItem("access_token");
-      if (!token) return;
-
-      const res = await API.get("/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUser(res.data);
-    } catch (err) {
-      console.error("Failed to fetch user info", err);
+// Helper functions for the API calls
+const fetchMentorWorklets = async () => {
+  try {
+    const token = localStorage.getItem("access_token");
+    const userEmail = localStorage.getItem("user_email");
+    
+    if (!token || !userEmail) {
+      throw new Error("Authentication required");
     }
-  };
 
-  fetchUser();
-}, []);
-
-
-  const navigate = useNavigate();
-  const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
-  const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false);
-  const [isInternModalOpen, setIsInternModalOpen] = useState(false);
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-  const [currentUserLevel, setCurrentUserLevel] = useState(1);
-  const [layout, setLayout] = useState('grid'); // State for layout: 'grid' or 'horizontal'
-
-  const workletsData = [
-    {
-      id: 1,
-      title: "25TST04WT",
-      status: "Ongoing",
-      progress: 60,
-      description: "AI-driven sentiment analysis for customer feedback.",
-      imageUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop",
-      startDate: "Aug 1, 2025",
-      endDate: "Dec 15, 2025",
-      students: ["Alice Johnson", "Bob Williams", "Charlie Brown"],
-    },
-    {
-      id: 2,
-      title: "25TST05SRM",
-      status: "Ongoing",
-      progress: 70,
-      description: "Cross-platform mobile app for internal comms.",
-      imageUrl: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop",
-      startDate: "Sep 1, 2025",
-      endDate: "Jan 30, 2026",
-      students: ["Diana Prince", "Clark Kent"],
-    },
-    {
-      id: 3,
-      title: "24ARC01RV",
-      status: "Ongoing",
-      progress: 95,
-      description: "Cloud infrastructure migration to AWS with CI/CD.",
-      imageUrl: "https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=400&auto=format&fit=crop",
-      startDate: "Jul 15, 2025",
-      endDate: "Oct 20, 2025",
-      students: ["Bruce Wayne", "Peter Parker", "Tony Stark", "Steve Rogers", "Natasha Romanoff", "Thor Odinson", "Wanda Maximoff"],
-    },
-    {
-      id: 4,
-      title: "25DES02XI",
-      status: "Ongoing",
-      progress: 25,
-      description: "UI/UX redesign for the main customer portal.",
-      imageUrl: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?q=80&w=400&auto=format&fit=crop",
-      startDate: "Aug 20, 2025",
-      endDate: "Nov 10, 2025",
-      students: ["Carol Danvers", "Hope van Dyne"],
-    },
-    {
-      id: 5,
-      title: "25SEC03LP",
-      status: "Ongoing",
-      progress: 40,
-      description: "End-to-end encryption for messaging service.",
-      imageUrl: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=400&auto=format&fit=crop",
-      startDate: "Sep 10, 2025",
-      endDate: "Feb 1, 2026",
-      students: ["Vision", "Scott Lang", "Sam Wilson"],
-    },
-    {
-      id: 6,
-      title: "25DAT06MU",
-      status: "Ongoing",
-      progress: 85,
-      description: "Data warehousing solution for sales analytics.",
-      imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop",
-      startDate: "Jun 5, 2025",
-      endDate: "Sep 30, 2025",
-      students: ["Loki Laufeyson", "Bucky Barnes"],
-    },
-  ];
-
-  const handleNavigation = (path) => {
-    if (path === "/request-update") {
-      setIsRequestUpdateOpen(true);
-    } else if (path === "/share-suggestion") {
-      setIsSuggestionModalOpen(true);
-    } else if (path === "/internship-referral") {
-      setIsInternModalOpen(true);
-    } else {
-      try {
-        console.log('Navigating to:', path);
-        navigate(path);
-      } catch (error) {
-        console.error('Navigation error:', error);
+    // First, get the current user's ID
+    const userResponse = await axios.get("http://localhost:8000/auth/profile", {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
       }
-    }
-  };
+    });
 
-  const handleSidebarNavigation = (path) => {
-    handleNavigation(path);
+    if (!userResponse.data?.id) {
+      throw new Error("User ID not found");
+    }
+
+    const userId = userResponse.data.id;
+
+    // Use the new association-based endpoint to get mentor's ongoing worklets
+    const response = await axios.get(
+      `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
+      {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      }
+    );
+    
+    return response.data?.ongoing_worklets || [];
+  } catch (error) {
+    console.error("Error fetching mentor worklets:", error);
+    
+    // Fallback to old API if new association API is not available
+    try {
+      const userEmail = localStorage.getItem("user_email");
+      const token = localStorage.getItem("access_token");
+      
+      const response = await axios.get(
+        `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      return response.data || [];
+    } catch (fallbackError) {
+      console.error("Fallback API also failed:", fallbackError);
+      return [];
+    }
+  }
+};
+
+const fetchStudentsForWorklet = async (workletId) => {
+  try {
+    const token = localStorage.getItem("access_token");
+    
+    if (!token) {
+      throw new Error("Authentication token not found");
+    }
+
+    // Try using the new association-based endpoint first
+    try {
+      const response = await axios.get(
+        `http://localhost:8000/api/associations/worklet/${workletId}`,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      // Extract students from the association response
+      return response.data?.students || [];
+    } catch (associationError) {
+      console.log("Association API not available, using fallback");
+      
+      // Fallback to old students endpoint
+      const response = await axios.get(
+        `http://localhost:8000/worklets/${workletId}/students`,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      return response.data || [];
+    }
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    return [];
+  }
+};
+
+// Helper function to transform API data to match the expected format
+const transformWorkletData = (apiWorklets, studentsData = {}) => {
+  return apiWorklets.map((worklet, index) => {
+    // Handle both old API format and new association API format
+    let students = [];
+    let progress = 0;
+    let workletData = worklet;
+    
+    // Check if this is from the new association API (has mentor_progress, completion_status, etc.)
+    if (worklet.id && worklet.cert_id) {
+      // New association API format
+      students = worklet.students || studentsData[worklet.id] || [];
+      progress = worklet.percentage_completion || worklet.mentor_progress || 0;
+    } else {
+      // Old API format - fallback
+      students = studentsData[worklet.id] || [];
+      progress = worklet.percentage_completion || 0;
+    }
+    
+    const notificationCount = 0; // Can be enhanced later with real notification system
+    
+    // Use actual dates from worklet or fallback to current date
+    const startDate = worklet.start_date ? new Date(worklet.start_date) : new Date();
+    const endDate = worklet.end_date ? new Date(worklet.end_date) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
+    
+    // Determine quality based on progress and completion status
+    let quality = "Good"; // default
+    if (worklet.completion_status === "Completed" || progress >= 90) {
+      quality = "Excellence";
+    } else if (worklet.completion_status === "On Hold" || worklet.risk_status === "High Risk" || progress < 50) {
+      quality = "Needs Attention";
+    }
+    
+    // Handle status mapping from association API
+    let status = "Ongoing";
+    if (worklet.completion_status) {
+      // New association API provides completion_status
+      if (worklet.completion_status === "In Progress" || worklet.completion_status === "Not Started") {
+        status = "Ongoing";
+      } else {
+        status = worklet.completion_status;
+      }
+    } else if (worklet.status) {
+      // Old API format
+      status = worklet.status;
+    }
+    
+    return {
+      id: worklet.id,
+      title: worklet.cert_id || `Worklet ${worklet.id}`,
+      status: status,
+      progress: progress,
+      description: worklet.description || worklet.problem_statement || "No description available",
+      imageUrl: null, // Remove stock images - will handle this in the component
+      startDate: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      endDate: endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      students: Array.isArray(students) ? students.map(s => typeof s === 'string' ? s : s.name) : [],
+      notificationCount: notificationCount,
+      quality: quality,
+      college: worklet.college || "Unknown College",
+      team: worklet.team || "Unknown Team",
+      cert_id: worklet.cert_id,
+      expectations: worklet.expectations,
+      prerequisites: worklet.prerequisites,
+      // Additional fields from association API
+      mentor_progress: worklet.mentor_progress,
+      completion_status: worklet.completion_status,
+      assigned_at: worklet.assigned_at,
+      notes: worklet.notes,
+      student_count: worklet.student_count || (Array.isArray(students) ? students.length : 0)
+    };
+  });
+};
+
+// Helper functions for the initials-based avatar
+const getInitials = (name) => {
+  if (!name) return '';
+  const nameParts = name.split(' ');
+  if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
+  return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+};
+
+const generateColorFromName = (name) => {
+  const colors = ['#0077b6', '#0096c7', '#48cae4', '#90e0ef', '#ade8f4'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash % colors.length)];
+};
+
+// Fetch mentor statistics
+const fetchMentorStatistics = async () => {
+  try {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    const response = await fetch('http://localhost:8000/api/dashboard/mentor-statistics', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch statistics: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching mentor statistics:', error);
+    return null;
+  }
+};
+
+// ++ 1. Dashboard component
+export default function Dashboard() {
+  // Get user email from localStorage
+  const userEmail = localStorage.getItem("user_email") || "User";
+  const [userName, setUserName] = useState(localStorage.getItem("user_name") || "");
+  const [loadingName, setLoadingName] = useState(true);
+  const [nameError, setNameError] = useState(false);
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/");
   };
+  const navigate = useNavigate();
+  const [currentUserLevel, setCurrentUserLevel] = useState(1);
+  const [layout, setLayout] = useState('grid');
+  const [worklets, setWorklets] = useState([]);
+  const [isLoadingWorklets, setIsLoadingWorklets] = useState(true);
+  const [userProfileData, setUserProfileData] = useState(null);
+  
+  // Mentor statistics state
+  const [mentorStats, setMentorStats] = useState(null);
+  const [isLoadingMentorStats, setIsLoadingMentorStats] = useState(true);
+
+  // Consolidated user profile fetch
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const accessToken = localStorage.getItem("access_token");
+      if (!accessToken) {
+        setNameError(true);
+        setLoadingName(false);
+        return;
+      }
+
+      try {
+        setLoadingName(true);
+        setNameError(false);
+        
+        // Use dedicated profile endpoint
+        const response = await axios.get("http://localhost:8000/auth/profile", {
+          headers: { 
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (response.data) {
+          // Set user name and profile data
+          if (response.data.name) {
+            setUserName(response.data.name);
+            localStorage.setItem("user_name", response.data.name);
+          }
+          
+          // Set complete profile data (includes mentor_profile if available)
+          setUserProfileData(response.data);
+        } else {
+          console.log("No data in response:", response.data);
+          setNameError(true);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error.response || error);
+        setNameError(true);
+      } finally {
+        setLoadingName(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  // Fetch worklets on component mount
+  useEffect(() => {
+    const loadWorklets = async () => {
+      setIsLoadingWorklets(true);
+      try {
+        const apiWorklets = await fetchMentorWorklets();
+        
+        if (apiWorklets.length > 0) {
+          // Check if the API returned worklets with students already included (new association API)
+          const hasStudentsIncluded = apiWorklets.some(w => w.students && Array.isArray(w.students));
+          
+          let studentsData = {};
+          
+          if (!hasStudentsIncluded) {
+            // Old API format - need to fetch students separately for each worklet
+            for (const worklet of apiWorklets) {
+              const students = await fetchStudentsForWorklet(worklet.id);
+              studentsData[worklet.id] = students;
+            }
+          }
+          
+          // Transform the data to match the expected format
+          const transformedWorklets = transformWorkletData(apiWorklets, studentsData);
+          setWorklets(transformedWorklets);
+        } else {
+          // No worklets found for this mentor
+          console.log("No worklets found for this mentor");
+          setWorklets([]);
+        }
+      } catch (error) {
+        console.error("Error loading worklets:", error);
+        // Show empty state instead of fallback data
+        setWorklets([]);
+      } finally {
+        setIsLoadingWorklets(false);
+      }
+    };
+    
+    loadWorklets();
+  }, []);
+
+  // Fetch mentor statistics
+  useEffect(() => {
+    const loadMentorStats = async () => {
+      setIsLoadingMentorStats(true);
+      try {
+        const stats = await fetchMentorStatistics();
+        if (stats) {
+          setMentorStats(stats);
+          console.log("📊 Dashboard mentor stats loaded:", stats); // Debug log
+        }
+      } catch (error) {
+        console.error("Error loading mentor statistics:", error);
+      } finally {
+        setIsLoadingMentorStats(false);
+      }
+    };
+    
+    loadMentorStats();
+  }, []);
+
+  // Filter to show only ongoing worklets in the dashboard (exclude 100% completed)
+  const workletsData = worklets.filter(worklet => 
+    (worklet.status === "Ongoing" || worklet.status === "ongoing") && 
+    worklet.progress < 100
+  );
 
   const LevelMilestone = ({ level, index }) => {
     const levelsToGo = index - currentUserLevel;
@@ -176,24 +411,13 @@ useEffect(() => {
       </div>
     );
   };
-  
+
   const progressPercentage = (currentUserLevel / (levels.length - 1)) * 100;
 
   return (
-    <div className={`flex h-screen w-full bg-slate-50 text-gray-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200 ${(isRequestUpdateOpen || isSuggestionModalOpen || isInternModalOpen || isFeedbackOpen) ? 'overflow-hidden' : ''}`}>
+    <div className={`flex h-screen w-full bg-slate-50 text-gray-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200 `}>
       {/* Left Sidebar */}
-      <aside className="w-30 lg:w-30 bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black flex flex-col py-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <nav className="flex flex-col gap-6 items-center lg:items-center">
-          <SidebarItem icon={<Home className="w-5 h-5" />} label="Home" onClick={() => handleSidebarNavigation("/home")} />
-          <SidebarItem icon={<BarChart className="w-5 h-5" />} label="Statistics" onClick={() => handleSidebarNavigation("/statistics")} />
-          <SidebarItem icon={<GraduationCap className="w-5 h-5" />} label="Colleges" onClick={() => handleSidebarNavigation("/colleges")} />
-          <SidebarItem icon={<MessageSquare className="w-5 h-5" />} label="Chats" onClick={() => handleSidebarNavigation("/chats")} />
-          <SidebarItem icon={<Bell className="w-5 h-5" />} label="Updates" onClick={() => handleSidebarNavigation("/updates")} />
-          <SidebarItem icon={<Calendar className="w-5 h-5" />} label="Meetings" onClick={() => handleSidebarNavigation("/meetings")} />
-          <SidebarItem icon={<Folder className="w-5 h-5" />} label="Portfolio" onClick={() => handleSidebarNavigation("/portfolio")} />
-          <SidebarItem icon={<MessageCircle className="w-5 h-5" />} label="Feedbacks" onClick={() => handleSidebarNavigation("/feedbacks")} />
-        </nav>
-      </aside>
+      <LeftSidebar />
 
       {/* Main Content */}
       <main className="flex-1 px-8 py-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -201,61 +425,94 @@ useEffect(() => {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-4xl font-bold mb-4 text-blue-900 dark:text-white">
-            {user ? user.name : "Loading..."}
+              {loadingName
+                ? "Loading..."
+                : userName || "User"}
             </h1>
             <p className="text-sm text-gray-500 dark:text-slate-400">
-            {user ? `${user.role} / PRISM` : "Loading..."}
+              PRISM / {userProfileData?.role || "Mentor"}
             </p>
-
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggleButton />
-            <img
-              src={samsungLogo}
-              alt="PRISM"
-              className="h-20 opacity-90"
-            />
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="text-sm font-medium">Logout</span>
+            </button>
+            <img src={samsungLogo} alt="PRISM" className="h-20 opacity-90" />
           </div>
         </div>
 
         {/* Profile box */}
         <div className="mt-4 bg-white border border-gray-200 rounded-2xl shadow-sm p-4 max-w-xl dark:bg-slate-800 dark:border-slate-700">
           <div className="flex items-center gap-4">
-            <img
-              src="https://images.unsplash.com/photo-1607746882042-944635dfe10e?q=80&w=200&auto=format&fit=crop"
-              alt="Author"
-              className="w-24 h-24 rounded-xl object-cover transition-all duration-300 shadow-md cursor-pointer hover:scale-110 hover:shadow-2xl hover:ring-4 hover:ring-blue-400 focus:scale-110 focus:shadow-2xl focus:ring-4 focus:ring-purple-400"
-              tabIndex={0}
-            />
+            {/* Add a wrapping div with the 'group' class */}
+            <div className="relative group">
+              <Link to="/profile">
+                {userProfileData?.mentor_profile?.avatar_url || userProfileData?.avatar_url ? (
+                  <img
+                    src={userProfileData?.mentor_profile?.avatar_url || userProfileData?.avatar_url}
+                    alt="Author"
+                    className="w-24 h-24 rounded-xl object-cover transition-all duration-300 shadow-md cursor-pointer hover:scale-110 hover:shadow-2xl hover:ring-4 hover:ring-blue-400 dark:bg-slate-800 dark:border-slate-700"
+                    tabIndex={0}
+                  />
+                ) : (
+                  <div
+                    className="w-24 h-24 rounded-xl flex items-center justify-center text-white font-bold text-4xl cursor-pointer transition-all duration-300 shadow-md hover:scale-110 hover:shadow-2xl hover:ring-4 hover:ring-blue-400"
+                    style={{ backgroundColor: generateColorFromName(userProfileData?.name || "User") }}
+                  >
+                    <span>{getInitials(userProfileData?.name || "User")}</span>
+                  </div>
+                )}
+              </Link>
+              {/* This is the tooltip span that appears on hover */}
+              <span className="absolute -top-10 left-1/2 -translate-x-1/2
+                   bg-gray-700 text-gray-100 text-xs font-medium
+                   rounded-md px-3 py-1.5 whitespace-nowrap
+                   opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                   dark:bg-slate-600 dark:text-slate-50
+                   border border-gray-600 dark:border-slate-500 shadow-md">
+                Click to update profile
+              </span>
+            </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Software Developer
+                    {userProfileData?.name || userName || "User"}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-slate-400">
-                    Turning ideas into impact at PRISM
+                    {userProfileData?.mentor_profile?.qualification || userProfileData?.role || "Mentor"}
                   </div>
-                </div>
-                <div className="hidden sm:block text-xs text-gray-500 dark:text-slate-400">
-                  Author
+                  {userProfileData?.mentor_profile?.bio && (
+                    <div className="text-sm text-gray-600 dark:text-slate-300 mt-1">
+                      {userProfileData.mentor_profile.bio.replace(/"/g, '')}
+                    </div>
+                  )}
+                  {userProfileData?.mentor_profile?.location && (
+                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                      📍 {userProfileData.mentor_profile.location}
+                    </div>
+                  )}
                 </div>
               </div>
-
               <div className="mt-3 grid grid-cols-4 gap-2">
                 <LevelBadge
-                  icon={<Rocket className="w-4 h-4" />}
+                  icon={<Rocket className="w-4 h-4 " />}
                   label="Lead"
                   value={LEVEL_COUNTS.lead}
-                  color="text-purple-700 bg-purple-50"
-                  
+                  color="text-purple-700 bg-purple-50 dark:bg-slate-900/30"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        {/* --- ADDITION 4 of 4: The old static block is REPLACED with this dynamic one --- */}
+
+        {/* Level Progress Bar */}
         <div className="relative mt-6 w-full max-w-2xl">
           <div className="h-2 w-full bg-gray-200 rounded-full shadow-inner dark:bg-slate-700">
             <div
@@ -271,176 +528,170 @@ useEffect(() => {
         </div>
 
         {/* Stats */}
-<div className="mt-6 flex gap-4 flex-wrap">
-  <div className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
-    <div
-      className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer"
-      onClick={() => handleNavigation('/worklets')}>
-      <StatCard
-        value={STATS.worklets}
-        label="Worklets"
-        icon={<BookOpen className="w-5 h-5" />}
-        accent="from-blue-50 to-white hover:from-blue-100 hover:to-blue-50 dark:from-gray-800 dark:to-gray-800/50 dark:hover:from-gray-700 dark:hover:to-gray-700/50 transition-transform duration-300 hover:scale-105 hover:shadow-lg"
-      />
-    </div>
-  </div>
-  <div className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
-    <StatCard
-      value={STATS.mentees}
-      label="Mentees"
-      icon={<UsersIcon className="w-5 h-5" />}
-      accent="from-indigo-50 to-white hover:from-indigo-100 hover:to-indigo-50 dark:from-gray-800 dark:to-gray-800/50 dark:hover:from-gray-700 dark:hover:to-gray-700/50"
-    />
-  </div>
-</div>
-       {/* My Worklets */}
+        <div className="mt-6 flex gap-4 flex-wrap">
+          <div className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
+            <div
+              className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer"
+              onClick={() => navigate('/worklets')}>
+              <StatCard
+                value={isLoadingWorklets ? '...' : worklets.length}
+                label="My Worklets"
+                icon={<BookOpen className="w-5 h-5" />}
+                accent="from-blue-50 to-white hover:from-blue-100 hover:to-blue-50 dark:from-gray-800 dark:to-gray-800/50 dark:hover:from-gray-700 dark:hover:to-gray-700/50 transition-transform duration-300 hover:scale-105 hover:shadow-lg"
+              />
+            </div>
+          </div>
+          <div className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
+            <StatCard
+              value={isLoadingMentorStats ? '...' : (mentorStats?.engagement_data?.["My Students"] || 0)}
+              label="My Mentees"
+              icon={<UsersIcon className="w-5 h-5" />}
+              accent="from-indigo-50 to-white hover:from-indigo-100 hover:to-indigo-50 dark:from-gray-800 dark:to-gray-800/50 dark:hover:from-gray-700 dark:hover:to-gray-700/50"
+            />
+          </div>
+        </div>
+
+        {/* My Worklets */}
         <div className="mt-10">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold bg-blue-900 animate-shimmer">My Worklets</h2>
-            <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-lg">
+            <h2 className="text-2xl font-bold bg-blue-900 animate-shimmer">Ongoing Worklets</h2>
+            <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-lg dark:bg-slate-900">
               <button
                 onClick={() => setLayout('grid')}
-                className={`p-1.5 rounded-md transition-colors ${
-                  layout === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
-                }`}
+                className={`p-1.5 rounded-md transition-colors ${layout === 'grid' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                  }`}
                 aria-label="Grid View">
                 <LayoutGrid size={20} />
               </button>
               <button
                 onClick={() => setLayout('horizontal')}
-                className={`p-1.5 rounded-md transition-colors ${
-                  layout === 'horizontal' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
-                }`}
+                className={`p-1.5 rounded-md transition-colors ${layout === 'horizontal' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                  }`}
                 aria-label="Horizontal View">
                 <Columns size={20} />
               </button>
             </div>
           </div>
 
-          <div
-            className={
-              layout === 'grid'
-                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'
-                : 'flex overflow-x-auto gap-8 pb-4' // pb-4 provides space for the scrollbar
-            }>
-            {workletsData.map((worklet) => (
-              <WorkletCard key={worklet.id} worklet={worklet} layout={layout} />
-            ))}
-          </div>
+          {isLoadingWorklets ? (
+            // Loading state with skeleton cards
+            <div
+              className={
+                layout === 'grid'
+                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'
+                  : 'flex overflow-x-auto gap-8 pb-4'
+              }>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="w-full aspect-video bg-gray-200 animate-pulse rounded-2xl dark:bg-slate-700"></div>
+              ))}
+            </div>
+          ) : (
+            <div
+              className={
+                layout === 'grid'
+                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'
+                  : 'flex overflow-x-auto gap-8 pb-4 overflow-y-hidden [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-blue-400/50 [&::-webkit-scrollbar-thumb]:rounded-full'
+              }>
+              {workletsData.map((worklet) => (
+                <WorkletCard key={worklet.id} worklet={worklet} layout={layout} navigate={navigate} />
+              ))}
+            </div>
+          )}
         </div>
       </main>
-      
-      {/* Right Sidebar */}
-      <aside className="w-64 bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black shadow-lg px-4 py-6 flex flex-col justify-between overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <div>
-          <button
-            className="w-full bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold rounded-xl py-2 mb-4 flex items-center justify-center gap-2 text-xl dark:bg-blue-900/50 dark:hover:bg-blue-800/60 dark:text-blue-200"
-            onClick={() => handleNavigation("/new-worklet")}
-          >
-            <PlusCircle className="w-5 h-10" /> <span className="text-2xl">New Worklet</span>
-          </button>
-          <h2 className="text-2xl font-bold mb-4 text-blue-900 dark:text-white">Activities</h2>
-          <ActivityButton
-            icon={<RefreshCcw className="w-5 h-10 text-blue-600" />}
-            label={<span className="text-lg font-semibold">Request Update</span>}
-            onClick={() => handleNavigation("/request-update")}
-          />
-          <ActivityButton
-            icon={<Lightbulb className="w-5 h-10 text-sky-500" />}
-            label={<span className="text-lg font-semibold">Share Suggestion</span>}
-            onClick={() => handleNavigation("/share-suggestion")}
-          />
-          <ActivityButton
-            icon={<Calendar className="w-5 h-10 text-blue-600" />}
-            label={<span className="text-lg font-semibold">Schedule Meeting</span>}
-            onClick={() => handleNavigation("/schedule-meeting")}
-          />
-          <ActivityButton
-            icon={<Briefcase className="w-5 h-10 text-purple-600" />}
-            label={<span className="text-lg font-semibold">Internship Referral</span>}
-            onClick={() => handleNavigation("/internship-referral")}
-          />
-          <ActivityButton
-            icon={<MessageSquare className="w-5 h-10 text-indigo-600" />}
-            label={<span className="text-lg font-semibold">Submit Feedback</span>}
-            onClick={() => setIsFeedbackOpen(true)}
-          />
-        </div>
-        <div className="text-center">
-          <button
-            onClick={() => handleNavigation("/ray")}
-            className="group relative mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 
-                      hover:from-purple-500 hover:to-blue-500 flex items-center justify-center 
-                      text-lg font-bold text-white shadow transition-all duration-200 
-                      hover:shadow-lg transform hover:scale-105 cursor-pointer overflow-hidden"
-            aria-label="RAY Support Bot"
-          >
-            <span className="absolute transition-opacity duration-200 opacity-100 group-hover:opacity-0">
-              <Bot className="w-8 h-8" />
-            </span>
-            <span className="absolute transition-opacity duration-500 opacity-0 group-hover:opacity-100">
-              RAY
-            </span>
-          </button>
-          <p className="text-sm text-gray-600 mt-1 dark:text-slate-400">Support</p>
-        </div>
-      </aside>
 
-      {/* Modals */}
-      <RequestUpdate
-        isOpen={isRequestUpdateOpen}
-        onClose={() => setIsRequestUpdateOpen(false)}
-      />
-      <SuggestionModal
-        isOpen={isSuggestionModalOpen}
-        onClose={() => setIsSuggestionModalOpen(false)}
-      />
-      {isFeedbackOpen && (
-        <FeedBack onClose={() => setIsFeedbackOpen(false)} />
-      )}
-      {isInternModalOpen && (
-        <div className="fixed inset-0 flex items-start justify-center bg-black bg-opacity-40 z-50 p-4 overflow-y-auto">
-          <div className="relative w-full max-w-3xl bg-white rounded-xl mt-10 mb-10">
-            <div className="sticky top-0 right-0 flex justify-end bg-white rounded-t-xl p-2">
-              <button
-                onClick={() => setIsInternModalOpen(false)}
-                className="text-3xl text-purple-700 hover:text-purple-900 font-bold z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-4">
-              <InternReferralForm />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Right Sidebar */}
+      <RightSidebar />
     </div>
   );
 }
 
-// Reusable Worklet Card Component - Updated to handle different layouts
-function WorkletCard({ worklet, layout }) {
-  // Dynamically set classes based on the layout prop
+
+// --- CORRECTED WORKLET CARD COMPONENT ---
+function WorkletCard({ worklet, layout, navigate }) {
   const containerClasses = layout === 'grid'
-    ? 'w-full' // In grid view, card takes up the full width of its column
-    : 'w-80 flex-shrink-0'; // In horizontal view, card has a fixed width and doesn't shrink
+    ? 'w-full'
+    : 'w-80 flex-shrink-0';
+
+  const calculateRemainingDays = (endDateStr) => {
+    const endDate = new Date(endDateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    const diffTime = endDate - today;
+    if (diffTime < 0) {
+      return { days: 0, label: "Past Due" };
+    }
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return { days: diffDays, label: `${diffDays} days left` };
+  };
+
+  const remaining = calculateRemainingDays(worklet.endDate);
+
+  const qualityStyles = {
+    Excellence: 'bg-green-500/80',
+    Good: 'bg-blue-500/80',
+    'Needs Attention': 'bg-red-500/80',
+    Default: 'bg-gray-500/80',
+  };
+
+  const handleCardClick = () => {
+    navigate(`/worklet/${worklet.id}`);
+  };
+
+  const handleNotificationClick = (event) => {
+    event.stopPropagation();
+    navigate(`/worklet/${worklet.id}/notifications`);
+  };
 
   return (
     <div
+      onClick={handleCardClick}
       className={`group relative aspect-video cursor-pointer overflow-hidden rounded-2xl shadow-lg transition-all duration-500 ease-in-out hover:scale-105 ${containerClasses}`}>
-      {/* Background Image */}
-      <img
-        src={worklet.imageUrl}
-        alt={worklet.title}
-        className="h-full w-full object-cover transition-all duration-500"
-      />
 
-      {/* Permanent dark overlay for readability */}
+      {/* Dynamic Background instead of stock image */}
+      <div className="h-full w-full bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 relative">
+        {/* Worklet Info Background */}
+        <div className="absolute inset-0 p-4 flex flex-col justify-center items-center text-white/20">
+          <div className="text-6xl font-bold mb-2">{worklet.cert_id || worklet.title}</div>
+          <div className="text-sm uppercase tracking-wider">{worklet.team}</div>
+          <div className="text-xs mt-1">{worklet.college}</div>
+        </div>
+        
+        {/* Pattern overlay for visual interest */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="h-full w-full" style={{
+            backgroundImage: `radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                            radial-gradient(circle at 40% 40%, rgba(120, 255, 198, 0.3) 0%, transparent 50%)`
+          }}></div>
+        </div>
+      </div>
+
       <div className="absolute inset-0 bg-black/50"></div>
 
-      {/* Normal State Content (Fades out on hover) */}
+      {worklet.notificationCount > 0 && (
+        <div
+          onClick={handleNotificationClick}
+          className="absolute top-3 right-3 group/bell z-20"
+        >
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+          <span className="relative flex items-center justify-center h-6 w-6 rounded-full bg-red-500 text-white">
+            <Bell size={14} />
+          </span>
+          <div className="absolute top-full right-0 mt-1 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover/bell:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+            {worklet.notificationCount} new update{worklet.notificationCount > 1 ? 's' : ''}
+          </div>
+        </div>
+      )}
+
+      {/* Normal State Content */}
       <div className="absolute inset-0 flex flex-col justify-end p-4 text-white transition-opacity duration-300 group-hover:opacity-0">
+        <div className="mb-2">
+          <span className="text-xs bg-white/20 px-2 py-1 rounded-full">{worklet.status}</span>
+          <span className="text-xs bg-blue-500/60 px-2 py-1 rounded-full ml-2">{worklet.team}</span>
+        </div>
         <h3 className="text-lg font-bold">{worklet.title}</h3>
         <p className="text-sm text-gray-300 line-clamp-2">{worklet.description}</p>
         <div className="mt-4">
@@ -456,27 +707,67 @@ function WorkletCard({ worklet, layout }) {
         </div>
       </div>
 
-      {/* Hover State Content (Fades in on hover with scrolling) */}
-      <div className="absolute inset-0 flex flex-col justify-start p-4 text-white opacity-0 transition-opacity duration-300 delay-150 group-hover:opacity-100 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cyan-400/50 [&::-webkit-scrollbar-thumb]:rounded-full">
-        <h3 className="text-lg font-bold">{worklet.title}</h3>
-        <div className="mt-2 flex items-center gap-2 text-xs text-gray-300">
-          <Calendar size={14} />
-          <span>
-            {worklet.startDate} - {worklet.endDate}
-          </span>
-        </div>
-        <div className="mt-4 flex-1">
-          {' '}
-          {/* flex-1 allows this div to take remaining space */}
-          <div className="flex items-center gap-2 font-semibold text-sm">
-            <Users size={16} />
-            <h4>Assigned Students</h4>
+      {/* Hover State Content */}
+      <div className="absolute inset-0 flex text-white opacity-0 transition-opacity duration-300 delay-150 group-hover:opacity-100 pointer-events-none">
+
+        {/* SCROLLABLE AREA - ADDED pointer-events-auto */}
+        <div className="flex-grow p-4 overflow-y-auto pointer-events-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cyan-400/50 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <h3 className="text-lg font-bold">{worklet.title}</h3>
+          <div className="mt-1 text-xs text-blue-300">{worklet.college}</div>
+          
+          <div className="mt-2 flex items-center gap-2 text-xs text-gray-300">
+            <Calendar size={14} />
+            <span>{worklet.startDate} - {worklet.endDate}</span>
           </div>
-          <ul className="mt-1 list-disc list-inside text-xs text-gray-200 space-y-1">
-            {worklet.students.map((student) => (
-              <li key={student}>{student}</li>
-            ))}
-          </ul>
+          
+          {worklet.expectations && (
+            <div className="mt-3">
+              <h4 className="text-sm font-semibold text-yellow-300">Expectations:</h4>
+              <p className="text-xs text-gray-200 line-clamp-2">{worklet.expectations}</p>
+            </div>
+          )}
+          
+          {worklet.students.length > 0 ? (
+            <div className="mt-3">
+              <div className="flex items-center gap-2 font-semibold text-sm">
+                <Users size={16} />
+                <h4>Assigned Students ({worklet.students.length})</h4>
+              </div>
+              <ul className="mt-1 list-disc list-inside text-xs text-gray-200 space-y-1">
+                {worklet.students.map((student) => (
+                  <li key={student}>{student}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <div className="flex items-center gap-2 font-semibold text-sm">
+                <Users size={16} />
+                <h4>Assigned Students (0)</h4>
+              </div>
+              <p className="mt-1 text-xs text-gray-300 italic">No students assigned to this worklet</p>
+            </div>
+          )}
+          
+          {worklet.students.length === 0 && (
+            <div className="mt-3">
+              <div className="flex items-center gap-2 font-semibold text-sm text-gray-400">
+                <Users size={16} />
+                <h4>No students assigned yet</h4>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right side panel */}
+        <div className="w-28 flex-shrink-0 bg-black/40 flex flex-col items-center justify-center text-center p-2 transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out">
+          <span className={`px-2 py-1 rounded-md text-xs font-bold text-white ${qualityStyles[worklet.quality] || qualityStyles.Default}`}>
+            {worklet.quality}
+          </span>
+          <div className="mt-4">
+            <p className="text-3xl font-bold">{remaining.days}</p>
+            <p className="text-xs text-gray-300">{remaining.label}</p>
+          </div>
         </div>
       </div>
     </div>

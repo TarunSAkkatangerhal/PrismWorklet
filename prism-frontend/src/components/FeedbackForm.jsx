@@ -1,16 +1,28 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function SuggestionModal({ isOpen, onClose }) {
+export default function FeedbackForm({ isOpen, onClose }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
-  const [suggestionTitle, setSuggestionTitle] = useState("");
-  const [suggestionContent, setSuggestionContent] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [feedbackType, setFeedbackType] = useState("");
+  const [feedbackContent, setFeedbackContent] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
+
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const feedbackTypes = [
+    { value: "positive", label: "Positive Feedback", color: "text-green-600", bgColor: "bg-green-50" },
+    { value: "constructive", label: "Constructive Feedback", color: "text-yellow-600", bgColor: "bg-yellow-50" },
+    { value: "milestone", label: "Milestone Achievement", color: "text-blue-600", bgColor: "bg-blue-50" }
+  ];
 
   useEffect(() => {
     if (isOpen) {
@@ -64,7 +76,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
       return;
     }
 
-    if (!suggestionTitle.trim() || !suggestionContent.trim()) {
+    if (!selectedMonth || !feedbackType || !feedbackContent.trim()) {
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
@@ -74,15 +86,16 @@ export default function SuggestionModal({ isOpen, onClose }) {
       setLoading(true);
       const token = localStorage.getItem("access_token");
 
-      const suggestionData = {
-        worklet_identifier: selectedWorklet,  // Now using cert_id string instead of integer
-        suggestion_title: suggestionTitle.trim(),
-        suggestion_content: suggestionContent.trim()
+      const feedbackData = {
+        worklet_id: parseInt(selectedWorklet),
+        month: months.indexOf(selectedMonth) + 1, // Convert month name to number (1-12)
+        feedback_type: feedbackType,
+        feedback_text: feedbackContent.trim() // Backend expects 'feedback_text', not 'feedback_content'
       };
 
       const response = await axios.post(
-        "http://localhost:8000/worklets/submit-suggestion-flexible",
-        suggestionData,
+        "http://localhost:8000/worklets/submit-feedback",
+        feedbackData,
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -91,12 +104,13 @@ export default function SuggestionModal({ isOpen, onClose }) {
         }
       );
 
-      console.log("Suggestion submitted successfully:", response.data);
+      console.log("Feedback submitted successfully:", response.data);
       
       // Reset form
       setSelectedWorklet("");
-      setSuggestionTitle("");
-      setSuggestionContent("");
+      setSelectedMonth("");
+      setFeedbackType("");
+      setFeedbackContent("");
       
       // Show success popup
       setShowSuccessPopup(true);
@@ -106,7 +120,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
       }, 3000);
 
     } catch (error) {
-      console.error("Error submitting suggestion:", error);
+      console.error("Error submitting feedback:", error);
       setShowErrorPopup(true);
       setTimeout(() => setShowErrorPopup(false), 3000);
     } finally {
@@ -116,8 +130,9 @@ export default function SuggestionModal({ isOpen, onClose }) {
 
   const handleClose = () => {
     setSelectedWorklet("");
-    setSuggestionTitle("");
-    setSuggestionContent("");
+    setSelectedMonth("");
+    setFeedbackType("");
+    setFeedbackContent("");
     setError(null);
     onClose();
   };
@@ -133,10 +148,10 @@ export default function SuggestionModal({ isOpen, onClose }) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              � Share Suggestion
+              📝 Submit Feedback
             </h2>
             <p className="text-gray-600 dark:text-gray-300 mt-1">
-              Share valuable suggestions with all students in the selected worklet
+              Send feedback to all students in the selected worklet
             </p>
           </div>
           <button
@@ -178,7 +193,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
               >
                 <option value="">Choose a worklet...</option>
                 {worklets.map((worklet) => (
-                  <option key={worklet.id} value={worklet.cert_id}>
+                  <option key={worklet.id} value={worklet.id}>
                     {worklet.cert_id} - {worklet.description || worklet.title}
                   </option>
                 ))}
@@ -188,35 +203,74 @@ export default function SuggestionModal({ isOpen, onClose }) {
             {/* Month Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Suggestion Title *
+                Feedback Month *
               </label>
-              <input
-                type="text"
-                value={suggestionTitle}
-                onChange={(e) => setSuggestionTitle(e.target.value)}
-                placeholder="Brief title for your suggestion..."
-                maxLength={100}
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-              <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {suggestionTitle.length}/100 characters
-              </div>
+              >
+                <option value="">Select month...</option>
+                {months.map((month) => (
+                  <option key={month} value={month}>
+                    {month}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Feedback Type Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Suggestion Details *
+                Feedback Type *
+              </label>
+              <div className="grid grid-cols-1 gap-3">
+                {feedbackTypes.map((type) => (
+                  <label
+                    key={type.value}
+                    className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                      feedbackType === type.value
+                        ? `border-blue-500 ${type.bgColor} ${type.color}`
+                        : "border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="feedbackType"
+                      value={type.value}
+                      checked={feedbackType === type.value}
+                      onChange={(e) => setFeedbackType(e.target.value)}
+                      className="sr-only"
+                    />
+                    <div className="flex items-center">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        feedbackType === type.value ? "border-blue-500" : "border-gray-300"
+                      }`}>
+                        {feedbackType === type.value && (
+                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        )}
+                      </div>
+                      <span className="ml-3 font-medium">{type.label}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Feedback Content */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Feedback Content *
               </label>
               <textarea
-                value={suggestionContent}
-                onChange={(e) => setSuggestionContent(e.target.value)}
-                placeholder="Enter your detailed suggestion here..."
+                value={feedbackContent}
+                onChange={(e) => setFeedbackContent(e.target.value)}
+                placeholder="Enter your detailed feedback here..."
                 rows={6}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
               />
               <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {suggestionContent.length} characters
+                {feedbackContent.length} characters
               </div>
             </div>
 
@@ -231,12 +285,12 @@ export default function SuggestionModal({ isOpen, onClose }) {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="bg-cyan-600 text-white px-6 py-2 rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
               >
                 {loading && (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 )}
-                {loading ? "Sharing..." : "Share Suggestion"}
+                {loading ? "Submitting..." : "Submit Feedback"}
               </button>
             </div>
           </div>
@@ -250,9 +304,9 @@ export default function SuggestionModal({ isOpen, onClose }) {
           <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full transform animate-bounce">
             {/* Success Icon */}
             <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center dark:bg-cyan-900">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900">
                 <svg 
-                  className="w-8 h-8 text-cyan-600 dark:text-cyan-400" 
+                  className="w-8 h-8 text-green-600 dark:text-green-400" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -270,10 +324,10 @@ export default function SuggestionModal({ isOpen, onClose }) {
             {/* Success Message */}
             <div className="text-center">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                💡 Suggestion Shared!
+                🎉 Feedback Sent!
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Your suggestion has been shared successfully!
+                Your feedback has been sent successfully!
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 All students in the worklet will receive an email notification.
@@ -284,7 +338,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
             <div className="mt-6">
               <div className="w-full bg-gray-200 rounded-full h-1 dark:bg-gray-700">
                 <div 
-                  className="bg-cyan-600 h-1 rounded-full animate-pulse"
+                  className="bg-green-600 h-1 rounded-full animate-pulse"
                   style={{
                     width: '100%',
                     animation: 'progress 3s linear forwards'
@@ -329,7 +383,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
                 Please fill in all required fields.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Worklet, title, and suggestion content are required.
+                Worklet, month, feedback type, and content are required.
               </p>
             </div>
           </div>
@@ -366,7 +420,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
                 ❌ Submission Failed
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Failed to share suggestion. Please try again.
+                Failed to submit feedback. Please try again.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Check your connection and try again.

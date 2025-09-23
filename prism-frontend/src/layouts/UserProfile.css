@@ -1,0 +1,121 @@
+.profile-page-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; 
+  min-height: 100vh;
+  position: relative;
+  color: #fff;
+  padding: 5rem 1rem;
+}
+
+/* The updated, official-looking background */
+.dynamic-background {
+  position: fixed; 
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* MODIFIED: Changed to a professional dark blue gradient */
+  background: linear-gradient(45deg, #2555e5, #b9bdcb, #3a506b);
+  background-size: 400% 400%;
+  /* MODIFIED: Slowed down the animation for a more subtle effect */
+  animation: prism-effect 25s ease infinite;
+  z-index: 1;
+}
+
+@keyframes prism-effect {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.profile-card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 400px;
+  padding: 2.5rem;
+  background: rgba(22, 22, 22, 0.25);
+  backdrop-filter: blur(15px) saturate(180%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.125);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  text-align: center;
+  margin: 0;
+}
+
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  margin-bottom: 1rem;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  object-fit: cover;
+}
+.profile-avatar:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
+.initials-avatar { display: flex; align-items: center; justify-content: center; color: #fff; }
+.initials-avatar span { font-size: 3rem; font-weight: 600; }
+
+.profile-name { font-size: 1.8rem; font-weight: 600; margin: 0; }
+.profile-handle { font-size: 1rem; color: #d1d1d1; margin: 0.25rem 0 1.5rem 0; }
+.profile-bio { font-size: 0.95rem; line-height: 1.5; color: #f0f0f0; margin-bottom: 2rem; }
+.profile-actions { display: flex; justify-content: center; gap: 1rem; }
+.btn { padding: 0.75rem 1.5rem; border: none; border-radius: 50px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+.btn.primary { background-color: #fff; color: #111; }
+.btn.primary:hover { background-color: #e0e0e0; transform: translateY(-2px); }
+.btn.secondary { background-color: rgba(255, 255, 255, 0.15); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
+.btn.secondary:hover { background-color: rgba(255, 255, 255, 0.25); transform: translateY(-2px); }
+.edit-button { position: absolute; top: 1.5rem; right: 1.5rem; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; }
+.edit-button:hover { background: rgba(255, 255, 255, 0.3); transform: scale(1.1); }
+.profile-details { margin-top: 1.5rem; margin-bottom: 2rem; text-align: left; display: flex; flex-direction: column; gap: 0.8rem; color: #e0e0e0; }
+.detail-item { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; }
+.detail-item svg { flex-shrink: 0; opacity: 0.8; }
+.detail-item a { color: #a7c5ff; text-decoration: none; transition: color 0.2s; }
+.detail-item a:hover { color: #fff; text-decoration: underline; }
+
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); padding: 1rem; }
+.modal-content {
+  position: relative;
+  background: rgba(22, 22, 22, 0.5);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.125);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  width: 100%;
+  max-width: 1100px;
+  padding: 2.5rem;
+  animation: fadeIn 0.3s ease-out;
+  /* ++ Add these two lines back to enable scrolling ++ */
+  max-height: 90vh; /* Limits the modal's height to 90% of the screen */
+  overflow-y: auto; /* Adds a scrollbar ONLY if the content overflows */
+}
+.close-modal-button:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+.edit-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem 1.5rem; }
+.form-group { display: flex; flex-direction: column; }
+.form-group.full-width, .avatar-picker.full-width { grid-column: 1 / -1; }
+.form-group label { font-size: 0.8rem; font-weight: 500; margin-bottom: 0.4rem; color: #d1d1d1; }
+.form-group input, .form-group textarea { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 0.75rem; color: #fff; font-size: 1rem; transition: all 0.2s ease; }
+.form-group input:focus, .form-group textarea:focus { outline: none; border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 0 10px rgba(76, 142, 255, 0.5); }
+.form-group textarea { min-height: 120px; resize: vertical; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; grid-column: 1 / -1; }
+
+.avatar-picker { margin-bottom: 2rem; }
+.avatar-picker label { font-size: 0.8rem; font-weight: 500; margin-bottom: 0.75rem; color: #d1d1d1; display: block; }
+.avatar-selection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 0.75rem; }
+.avatar-option { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; cursor: pointer; border: 3px solid transparent; transition: all 0.2s ease-in-out; }
+.avatar-option:hover { transform: scale(1.05); border-color: rgba(255, 255, 255, 0.5); }
+.avatar-option.selected { border-color: #fff; box-shadow: 0 0 15px rgba(255, 255, 255, 0.6); transform: scale(1.05); }
+.remove-photo { background-color: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; color: #d1d1d1; }
+.remove-photo:hover { color: #fff; background-color: rgba(255, 255, 255, 0.2); }
+.modal-content h2 {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 2rem;
+  font-size: 1.5rem;
+  /* ++ Add padding to prevent overlap with the close button ++ */
+  padding: 0 2.5rem; 
+}

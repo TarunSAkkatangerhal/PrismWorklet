@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/static/css/main.e329e7bf.css",
+    "main.js": "/static/js/main.b25ac7f6.js",
+    "static/media/logo.jpeg": "/static/media/logo.1725d34ce6bab9108539.jpeg",
+    "static/media/prism_logo.png": "/static/media/prism_logo.12198346316557760d02.png",
+    "index.html": "/index.html",
+    "main.e329e7bf.css.map": "/static/css/main.e329e7bf.css.map",
+    "main.b25ac7f6.js.map": "/static/js/main.b25ac7f6.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e329e7bf.css",
+    "static/js/main.b25ac7f6.js"
+  ]
+}

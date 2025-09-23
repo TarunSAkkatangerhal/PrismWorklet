@@ -1,10 +1,57 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { STATUS_OPTIONS, statusIcons } from "../components/data";
 
 const Feedback = ({ onClose }) => {
-  const [workletId, setWorkletId] = useState("25TST04VIT");
+  const [workletId, setWorkletId] = useState("");
   const [month, setMonth] = useState("2");
   const [feedback, setFeedback] = useState("");
   const [connectType, setConnectType] = useState("");
+  const [worklets, setWorklets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch worklets from backend
+  useEffect(() => {
+    const fetchWorklets = async () => {
+      try {
+        setLoading(true);
+        const userEmail = localStorage.getItem("user_email");
+        const token = localStorage.getItem("access_token");
+        
+        if (!userEmail || !token) {
+          throw new Error("User information not found");
+        }
+
+        const response = await axios.get(
+          `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          }
+        );
+        
+        const ongoingWorklets = (response.data || []).filter(worklet => 
+          worklet.status === 'Ongoing'
+        );
+        
+        setWorklets(ongoingWorklets);
+        
+        // Set first worklet as default if available
+        if (ongoingWorklets.length > 0) {
+          setWorkletId(ongoingWorklets[0].id.toString());
+        }
+      } catch (error) {
+        console.error("Error fetching worklets:", error);
+        setWorklets([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorklets();
+  }, []);
 
   const handleSubmit = () => {
     const data = {
@@ -40,14 +87,19 @@ const Feedback = ({ onClose }) => {
           {/* ++ Dark theme styles added to label ++ */}
           <label className="text-sm font-medium dark:text-slate-300">Select Worklet ID</label>
           <select
-            value={workletId}
-            onChange={(e) => setWorkletId(e.target.value)}
-            // ++ Dark theme styles added to select input ++
-            className="w-full border rounded-lg px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:focus:ring-blue-500"
-          >
-            <option value="25TST04VIT">25TST04VIT</option>
-            <option value="25ABC01XYZ">25ABC01XYZ</option>
-          </select>
+          // ++ Dark theme styles added to dropdown ++
+          className="w-full border rounded-lg p-2 mb-4 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+          value={workletId}
+          onChange={(e) => setWorkletId(e.target.value)}
+          disabled={loading}
+        >
+          <option value="">-- Select --</option>
+          {worklets.map((worklet) => (
+            <option key={worklet.id} value={worklet.id}>
+              {worklet.cert_id}
+            </option>
+          ))}
+        </select>
         </div>
 
         {/* Month */}
