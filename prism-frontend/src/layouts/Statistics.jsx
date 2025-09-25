@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Users, CheckCircle, Download } from 'lucide-react';
 import LeftSidebar from "../components/Left";
-
+import { ThemeContext } from '../context/ThemeContext'
 // Animation styles component
 const AnimationStyles = () => (
   <style>{`
@@ -87,6 +87,7 @@ const Bar = ({ value, label, maxValue, color, delay }) => {
 
 // Main Statistics Dashboard component
 const StatisticsDashboard = () => {
+  // ThemeContext is imported, but static styles object is used below
   const [statisticsData, setStatisticsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -173,26 +174,20 @@ const StatisticsDashboard = () => {
   }, []);
 
   // Calculate derived stats from real-time data
-  const stats = useMemo(() => {
-    if (!statisticsData) {
-      return {
-        statusCounts: {},
-        totalStudents: 0,
-        totalWorklets: 0,
-        performanceCounts: {}
-      };
-    }
-
-    const calculatedStats = {
+  let stats = {
+    statusCounts: {},
+    totalStudents: 0,
+    totalWorklets: 0,
+    performanceCounts: {}
+  };
+  if (statisticsData) {
+    stats = {
       statusCounts: statisticsData.status_counts || {},
       totalStudents: statisticsData.engagement_data?.["My Students"] || 0,
       totalWorklets: statisticsData.engagement_data?.["My Worklets"] || 0,
       performanceCounts: statisticsData.performance_counts || {}
     };
-    
-    console.log("📈 Calculated stats:", calculatedStats); // Debug calculated stats
-    return calculatedStats;
-  }, [statisticsData]);
+  }
 
   // Use real-time data with proper field mapping
   const engagementData = statisticsData?.engagement_data || {
@@ -240,8 +235,8 @@ const StatisticsDashboard = () => {
   return (
     <>
       <AnimationStyles />
-      <div style={styles.pageContainer}>
-        <div><LeftSidebar /></div>
+  <div style={styles.pageContainer} className="hide-scrollbar bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100">
+        <div style={styles.sidebarWrapper} className="hide-scrollbar"><LeftSidebar /></div>
         <main style={styles.mainContent}>
           <header style={styles.header}>
             <div style={styles.headerLeft}>

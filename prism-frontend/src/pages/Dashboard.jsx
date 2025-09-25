@@ -651,7 +651,7 @@ function WorkletCard({ worklet, layout, navigate }) {
       className={`group relative aspect-video cursor-pointer overflow-hidden rounded-2xl shadow-lg transition-all duration-500 ease-in-out hover:scale-105 ${containerClasses}`}>
 
       {/* Dynamic Background instead of stock image */}
-      <div className="h-full w-full bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 relative">
+      <div className="h-full w-full bg-gradient-to-br from-blue-400 via-purple-400 to-indigo-700 relative">
         {/* Worklet Info Background */}
         <div className="absolute inset-0 p-4 flex flex-col justify-center items-center text-white/20">
           <div className="text-6xl font-bold mb-2">{worklet.cert_id || worklet.title}</div>
