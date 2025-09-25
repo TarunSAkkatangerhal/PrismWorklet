@@ -56,11 +56,10 @@ export default function Ray() {
     { icon: <Home className="w-5 h-5" />, label: 'Home', path: '/home' },
     { icon: <BarChart className="w-5 h-5" />, label: 'Statistics', path: '/statistics' },
     { icon: <GraduationCap className="w-5 h-5" />, label: 'Colleges', path: '/colleges' },
-    { icon: <MessageSquare className="w-5 h-5" />, label: 'Chats', path: '/chats' },
-    { icon: <Bell className="w-5 h-5" />, label: 'Updates', path: '/updates' },
+  // Removed Chats and Updates per request
     { icon: <Calendar className="w-5 h-5" />, label: 'Meetings', path: '/meetings' },
     { icon: <Folder className="w-5 h-5" />, label: 'Portfolio', path: '/portfolio' },
-    { icon: <MessageCircle className="w-5 h-5" />, label: 'Feedbacks', path: '/feedbacks' }
+  // Removed Feedbacks per request
   ];
 
   if (opening) {

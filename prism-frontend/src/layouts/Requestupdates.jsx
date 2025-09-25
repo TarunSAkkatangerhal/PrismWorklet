@@ -15,45 +15,46 @@ export default function RequestUpdate({ isOpen, onClose }) {
       try {
         setLoading(true);
         setError(null);
-        const userEmail = localStorage.getItem("user_email");
         const token = localStorage.getItem("access_token");
-        
-        console.log("Fetching worklets for:", userEmail); // Debug log
-        
-        if (!userEmail || !token) {
+        const userEmail = localStorage.getItem("user_email");
+
+        if (!token) {
           console.error("Missing user email or token");
           setError("User information not found. Please log in again.");
           setLoading(false);
           return;
         }
 
-        console.log("Making API request..."); // Debug log
+        // Get current user's ID via profile endpoint
+        const userResp = await axios.get("http://localhost:8000/auth/profile", {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        const userId = userResp?.data?.id;
+        if (!userId) {
+          setError("Unable to determine user ID. Please re-login.");
+          setLoading(false);
+          return;
+        }
+
+        // Use association-based endpoint for mentor's ongoing worklets
         const response = await axios.get(
-          `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
+          `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
           {
-            headers: { 
+            headers: {
               'Authorization': `Bearer ${token}`,
               'Accept': 'application/json'
             }
           }
         );
-        
-        console.log("Full API response:", response); // Debug log
-        
-        if (response.data) {
-          console.log("Worklets received:", response.data); // Debug log
-          if (Array.isArray(response.data)) {
-            setWorklets(response.data);
-            if (response.data.length === 0) {
-              setError("No worklets found for this mentor");
-            }
-          } else {
-            console.error("Invalid response format:", response.data);
-            setError("Invalid response format from server");
-          }
-        } else {
-          console.error("No data in response");
-          setError("No data received from server");
+
+        const data = response?.data?.ongoing_worklets || [];
+        setWorklets(Array.isArray(data) ? data : []);
+        if ((data || []).length === 0) {
+          setError("No worklets found for this mentor");
         }
       } catch (err) {
         console.error("Detailed error:", {
@@ -62,11 +63,7 @@ export default function RequestUpdate({ isOpen, onClose }) {
           status: err.response?.status,
           data: err.response?.data
         });
-        setError(
-          err.response?.data?.detail || 
-          err.response?.message || 
-          "Failed to load worklets. Please try again."
-        );
+        setError(err.response?.data?.detail || "Failed to load worklets. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -137,29 +134,24 @@ export default function RequestUpdate({ isOpen, onClose }) {
               onClick={() => {
                 setError(null);
                 setLoading(true);
-                const userEmail = localStorage.getItem("user_email");
-                if (userEmail) {
-                  const token = localStorage.getItem("access_token");
-                  axios.get(
-                    `http://localhost:8000/worklets/mentor/${userEmail}/worklets`,
-                    {
-                      headers: { 
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                      }
-                    }
-                  )
-                  .then(response => {
-                    console.log("Retry response:", response.data);
-                    setWorklets(response.data);
-                    setLoading(false);
-                  })
-                  .catch(err => {
-                    console.error("Retry error:", err);
-                    setError(err.response?.data?.detail || "Failed to load worklets");
-                    setLoading(false);
+                const token = localStorage.getItem("access_token");
+                axios.get("http://localhost:8000/auth/profile", {
+                  headers: { Authorization: `Bearer ${token}` }
+                }).then(userResp => {
+                  const userId = userResp?.data?.id;
+                  if (!userId) throw new Error("User ID not found");
+                  return axios.get(`http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`, {
+                    headers: { Authorization: `Bearer ${token}` }
                   });
-                }
+                }).then(response => {
+                  const data = response?.data?.ongoing_worklets || [];
+                  setWorklets(Array.isArray(data) ? data : []);
+                  setLoading(false);
+                }).catch(err => {
+                  console.error("Retry error:", err);
+                  setError(err.response?.data?.detail || "Failed to load worklets");
+                  setLoading(false);
+                });
               }}
               className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
@@ -177,7 +169,7 @@ export default function RequestUpdate({ isOpen, onClose }) {
               {worklets.length > 0 ? (
                 worklets.map((worklet) => (
                   <option key={worklet.id} value={worklet.cert_id}>
-                    {worklet.cert_id} - {worklet.description?.substring(0, 50)}
+                    {worklet.cert_id} - {worklet.description?.substring(0, 50) || ''}
                   </option>
                 ))
               ) : (

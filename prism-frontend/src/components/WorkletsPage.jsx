@@ -25,25 +25,24 @@ export default function WorkletsPage() {
     const fetchWorklets = async () => {
       try {
         setLoading(true);
-        const userEmail = localStorage.getItem("user_email");
         const token = localStorage.getItem("access_token");
-        
-        if (!userEmail || !token) {
+        if (!token) {
           throw new Error("User information not found");
         }
-
+        // Get user id first
+        const userResp = await axios.get("http://localhost:8000/auth/profile", {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        });
+        const userId = userResp?.data?.id;
+        if (!userId) throw new Error("User ID not found");
         const response = await axios.get(
-          `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
-          {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            }
-          }
+          `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
+          { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
         );
         
         // Transform backend data to match expected format
-        const transformedData = (response.data || []).map((worklet, index) => {
+  const list = response?.data?.ongoing_worklets || [];
+  const transformedData = list.map((worklet, index) => {
           const imageUrls = [
             "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop",
             "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop",
@@ -56,8 +55,8 @@ export default function WorkletsPage() {
           return {
             id: worklet.id,
             title: worklet.cert_id,
-            status: worklet.status || "Ongoing",
-            progress: worklet.percentage_completion || 0,
+            status: worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing'),
+            progress: worklet.percentage_completion || worklet.mentor_progress || 0,
             description: worklet.description || "No description available",
             imageUrl: imageUrls[index % imageUrls.length],
             startDate: worklet.start_date ? new Date(worklet.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",

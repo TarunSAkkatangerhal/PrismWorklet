@@ -104,7 +104,9 @@ export default function Login() {
         localStorage.setItem("access_token", response.data.access_token);
         localStorage.setItem("refresh_token", response.data.refresh_token);
         localStorage.setItem("user_email", email);
-        localStorage.setItem("user_name", name);
+        // Use the server-returned user object to persist name
+        const serverUser = response.data.user || {};
+        localStorage.setItem("user_name", serverUser.name || "");
         setMessage("Login successful!");
         navigate("/home");
       } else {
@@ -179,7 +181,8 @@ const handleSignup = async (e) => {
       localStorage.setItem("access_token", loginResponse.data.access_token);
       localStorage.setItem("refresh_token", loginResponse.data.refresh_token);
       localStorage.setItem("user_email", email);
-      localStorage.setItem("user_name", name);
+      const serverUser = loginResponse.data.user || {};
+      localStorage.setItem("user_name", serverUser.name || name || "");
       setMessage("Login successful!");
       navigate("/home");
     } else {

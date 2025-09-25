@@ -259,11 +259,7 @@ export default function Dashboard() {
   const [userName, setUserName] = useState(localStorage.getItem("user_name") || "");
   const [loadingName, setLoadingName] = useState(true);
   const [nameError, setNameError] = useState(false);
-  // Logout handler
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/");
-  };
+
   const navigate = useNavigate();
   const [currentUserLevel, setCurrentUserLevel] = useState(1);
   const [layout, setLayout] = useState('grid');
@@ -435,13 +431,6 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggleButton />
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm font-medium">Logout</span>
-            </button>
             <img src={samsungLogo} alt="PRISM" className="h-20 opacity-90" />
           </div>
         </div>
@@ -449,34 +438,21 @@ export default function Dashboard() {
         {/* Profile box */}
         <div className="mt-4 bg-white border border-gray-200 rounded-2xl shadow-sm p-4 max-w-xl dark:bg-slate-800 dark:border-slate-700">
           <div className="flex items-center gap-4">
-            {/* Add a wrapping div with the 'group' class */}
-            <div className="relative group">
-              <Link to="/profile">
-                {userProfileData?.mentor_profile?.avatar_url || userProfileData?.avatar_url ? (
-                  <img
-                    src={userProfileData?.mentor_profile?.avatar_url || userProfileData?.avatar_url}
-                    alt="Author"
-                    className="w-24 h-24 rounded-xl object-cover transition-all duration-300 shadow-md cursor-pointer hover:scale-110 hover:shadow-2xl hover:ring-4 hover:ring-blue-400 dark:bg-slate-800 dark:border-slate-700"
-                    tabIndex={0}
-                  />
-                ) : (
-                  <div
-                    className="w-24 h-24 rounded-xl flex items-center justify-center text-white font-bold text-4xl cursor-pointer transition-all duration-300 shadow-md hover:scale-110 hover:shadow-2xl hover:ring-4 hover:ring-blue-400"
-                    style={{ backgroundColor: generateColorFromName(userProfileData?.name || "User") }}
-                  >
-                    <span>{getInitials(userProfileData?.name || "User")}</span>
-                  </div>
-                )}
-              </Link>
-              {/* This is the tooltip span that appears on hover */}
-              <span className="absolute -top-10 left-1/2 -translate-x-1/2
-                   bg-gray-700 text-gray-100 text-xs font-medium
-                   rounded-md px-3 py-1.5 whitespace-nowrap
-                   opacity-0 group-hover:opacity-100 transition-opacity duration-200
-                   dark:bg-slate-600 dark:text-slate-50
-                   border border-gray-600 dark:border-slate-500 shadow-md">
-                Click to update profile
-              </span>
+            <div>
+              {userProfileData?.mentor_profile?.avatar_url || userProfileData?.avatar_url ? (
+                <img
+                  src={userProfileData?.mentor_profile?.avatar_url || userProfileData?.avatar_url}
+                  alt="Author"
+                  className="w-24 h-24 rounded-xl object-cover shadow-md dark:bg-slate-800 dark:border-slate-700"
+                />
+              ) : (
+                <div
+                  className="w-24 h-24 rounded-xl flex items-center justify-center text-white font-bold text-4xl shadow-md"
+                  style={{ backgroundColor: generateColorFromName(userProfileData?.name || "User") }}
+                >
+                  <span>{getInitials(userProfileData?.name || "User")}</span>
+                </div>
+              )}
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">

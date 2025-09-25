@@ -135,7 +135,7 @@ function EvaluateModal({ isOpen, onClose }) {
 
       // Submit evaluation (we'll create this endpoint)
       await axios.post(
-        'http://localhost:8000/evaluations',
+        'http://localhost:8000/evaluations/submit',
         evaluationPayload,
         {
           headers: { 
@@ -214,7 +214,7 @@ function EvaluateModal({ isOpen, onClose }) {
                 {completedWorklets.length > 0 ? (
                   completedWorklets.map(worklet => (
                     <option key={worklet.id} value={worklet.id}>
-                      {worklet.cert_id} - {worklet.college}
+                      {worklet.cert_id} {worklet.domain ? `- ${worklet.domain}` : ''}
                     </option>
                   ))
                 ) : (
@@ -233,8 +233,9 @@ function EvaluateModal({ isOpen, onClose }) {
                   {selectedWorkletDetails.description || "No description available"}
                 </p>
                 <div className="text-sm text-gray-600 dark:text-gray-300">
-                  <strong>College:</strong> {selectedWorkletDetails.college}<br/>
-                  <strong>Completion:</strong> {selectedWorkletDetails.percentage_completion}%<br/>
+                  {selectedWorkletDetails.domain && (<><strong>Domain:</strong> {selectedWorkletDetails.domain}<br/></>)}
+                  {selectedWorkletDetails.start_date && (<><strong>Start:</strong> {selectedWorkletDetails.start_date}<br/></>)}
+                  {selectedWorkletDetails.end_date && (<><strong>End:</strong> {selectedWorkletDetails.end_date}<br/></>)}
                   <strong>Students:</strong> {selectedWorkletDetails.students?.map(s => s.name).join(', ') || 'Loading...'}
                 </div>
               </div>

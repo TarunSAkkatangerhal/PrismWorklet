@@ -34,33 +34,28 @@ export default function FeedbackForm({ isOpen, onClose }) {
     try {
       setLoading(true);
       setError(null);
-      const userEmail = localStorage.getItem("user_email");
       const token = localStorage.getItem("access_token");
-      
-      if (!userEmail || !token) {
+      if (!token) {
         setError("User information not found. Please log in again.");
         setLoading(false);
         return;
       }
-
-      const response = await axios.get(
-        `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
-      );
-      
-      if (response.data && Array.isArray(response.data)) {
-        setWorklets(response.data);
-        if (response.data.length === 0) {
-          setError("No worklets found for this mentor");
-        }
-      } else {
-        setError("Failed to load worklets");
+      const userResp = await axios.get("http://localhost:8000/auth/profile", {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+      const userId = userResp?.data?.id;
+      if (!userId) {
+        setError("Unable to determine user ID. Please re-login.");
+        setLoading(false);
+        return;
       }
+      const response = await axios.get(
+        `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
+        { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
+      );
+      const data = response?.data?.ongoing_worklets || [];
+      setWorklets(Array.isArray(data) ? data : []);
+      if ((data || []).length === 0) setError("No worklets found for this mentor");
     } catch (error) {
       console.error("Error fetching worklets:", error);
       setError("Failed to load worklets. Please try again.");
@@ -87,10 +82,10 @@ export default function FeedbackForm({ isOpen, onClose }) {
       const token = localStorage.getItem("access_token");
 
       const feedbackData = {
-        worklet_id: parseInt(selectedWorklet),
-        month: months.indexOf(selectedMonth) + 1, // Convert month name to number (1-12)
+        worklet_id: parseInt(selectedWorklet, 10),
+        month: selectedMonth, // backend expects a string; send the month name
         feedback_type: feedbackType,
-        feedback_text: feedbackContent.trim() // Backend expects 'feedback_text', not 'feedback_content'
+        feedback_content: feedbackContent.trim() // backend expects 'feedback_content'
       };
 
       const response = await axios.post(
