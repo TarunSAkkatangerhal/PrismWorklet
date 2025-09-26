@@ -23,33 +23,7 @@ export default function Login() {
     }
   }, [navigate]);
 
-  // Axios interceptor for automatic token refresh
-  useEffect(() => {
-    const interceptor = axios.interceptors.response.use(
-      response => response,
-      async error => {
-        const originalRequest = error.config;
-        if (error.response && error.response.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
-          const refreshToken = localStorage.getItem("refresh_token");
-          if (refreshToken) {
-            try {
-              const res = await axios.post("http://localhost:8000/auth/refresh", { refresh_token: refreshToken });
-              localStorage.setItem("access_token", res.data.access_token);
-              localStorage.setItem("refresh_token", res.data.refresh_token);
-              originalRequest.headers["Authorization"] = `Bearer ${res.data.access_token}`;
-              return axios(originalRequest);
-            } catch (refreshError) {
-              localStorage.clear();
-              navigate("/");
-            }
-          }
-        }
-        return Promise.reject(error);
-      }
-    );
-    return () => axios.interceptors.response.eject(interceptor);
-  }, [navigate]);
+  // Global axios refresh logic is configured in src/index.tsx; no local interceptor here
   const [page, setPage] = useState("login"); // 'login', 'signup', 'home'
   const [email, setEmail] = useState("");
   const [name, setName] = useState(""); // New state for name
