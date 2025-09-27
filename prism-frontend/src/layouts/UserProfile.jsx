@@ -131,8 +131,8 @@ const UserProfile = ({ userData, onProfileUpdate }) => {
         const updatedData = {
           ...editedData,
           name: response.data.user.name,
-          qualification: response.data.user.team || response.data.user.role,
-          location: response.data.user.college || 'Samsung PRISM',
+          qualification: response.data.user.team,
+          location: response.data.user.college,
           bio: `${response.data.user.role} at ${response.data.user.college || 'PRISM'}`,
         };
         setRealUserData(updatedData);
