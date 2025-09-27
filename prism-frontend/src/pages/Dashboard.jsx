@@ -1,550 +1,362 @@
-import axios from "axios";
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import samsungLogo from "../assets/prism_logo.png";
-import ThemeToggleButton from '../components/ThemeToggleButton';
-import Statistics from "../layouts/Statistics";
+import axios from 'axios'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import LeftSidebar from '../components/Left'
+import RightSidebar from '../components/Right'
+import StatCard from '../components/StatCard'
+
+import samsungLogo from '../assets/prism_logo.png' // Replaced with a placeholder URL
 
 import {
-  Home, BarChart, GraduationCap, MessageSquare, Bell, Calendar, Folder,
-  MessageCircle, Zap, Rocket, Key, Crown, BookOpen, Users as UsersIcon,
-  RefreshCcw, Lightbulb, Briefcase, PlusCircle, Bot, Users, LayoutGrid, Columns, X, ClipboardCheck, LogOut
-} from "lucide-react";
+  Bell,
+  Calendar,
+  MapPin,
+  Zap,
+  Rocket,
+  Key,
+  Crown,
+  BookOpen,
+  Users as UsersIcon,
+  Users,
+  LayoutGrid,
+  Columns,
+} from 'lucide-react'
 
-import SidebarItem from "../components/SidebarItem";
-import LevelBadge from "../components/LevelBadge";
-import StatCard from "../components/StatCard";
-import ActivityButton from "../components/ActivityButton";
-import LeftSidebar from "../components/Left";
-import RightSidebar from "../components/Right";
+// --- DUMMY DATA WITH NEW ID FORMAT AND MORE WORKLETS ---
+const DUMMY_WORKLETS = [
+  {
+    id: 'AI201B',
+    title: 'AI-Powered Predictive Analytics Engine',
+    status: 'Ongoing',
+    progress: 75,
+    description:
+      'Develop a scalable engine for real-time sales forecasting using machine learning models and historical data.',
+    startDate: 'Sep 1, 2025',
+    endDate: 'Dec 15, 2025',
+    students: ['Alice Johnson', 'Bob Williams', 'Charlie Brown', 'Diana Miller', 'Edward Green', 'Fiona White'],
+    notificationCount: 2,
+    quality: 'Excellence',
+    college: 'Cambridge institute of Technology',
+    team: 'Data Science',
+    cert_id: 'AI-201',
+    student_count: 6,
+  },
+  {
+    id: 'MD305C',
+    title: 'Cross-Platform Mobile Application Framework',
+    status: 'Ongoing',
+    progress: 40,
+    description: 'Build a new framework to streamline mobile app development across both iOS and Android platforms.',
+    startDate: 'Aug 15, 2025',
+    endDate: 'Nov 30, 2025',
+    students: ['Eve Davis', 'Frank White'],
+    notificationCount: 0,
+    quality: 'Good',
+    college: 'MIT',
+    team: 'Mobile Dev',
+    cert_id: 'MD-305',
+    student_count: 2,
+  },
+  {
+    id: '25KT23M',
+    title: 'IoT Smart Home Hub Integration',
+    status: 'Ongoing',
+    progress: 25,
+    description: 'Integrate a new set of smart sensors into the existing IoT home automation ecosystem.',
+    startDate: 'Oct 1, 2025',
+    endDate: 'Jan 20, 2026',
+    students: ['Grace Taylor', 'Heidi Clark', 'Ivan Rodriguez'],
+    notificationCount: 0,
+    quality: 'Needs Attention',
+    college: 'Carnegie Mellon',
+    team: 'IoT Core',
+    cert_id: 'IOT-112',
+    student_count: 3,
+  },
+  {
+    id: 'CS404A',
+    title: 'Cloud Infrastructure Security Audit',
+    status: 'Ongoing',
+    progress: 92,
+    description:
+      'Perform a comprehensive security audit and vulnerability assessment of the current AWS infrastructure.',
+    startDate: 'Jul 20, 2025',
+    endDate: 'Oct 10, 2025',
+    students: ['Judy Green', 'Kevin Hall'],
+    notificationCount: 5,
+    quality: 'Excellence',
+    college: 'UC Berkeley',
+    team: 'CyberSecurity',
+    cert_id: 'CS-404',
+    student_count: 2,
+  },
+  {
+    id: 'ML551X', // New Dummy Worklet
+    title: 'Decentralized Federated Learning Platform',
+    status: 'Ongoing',
+    progress: 15,
+    description:
+      'Design and implement a platform for federated machine learning without a centralized server, ensuring data privacy.',
+    startDate: 'Sep 20, 2025',
+    endDate: 'Feb 28, 2026',
+    students: ['Leo Martinez', 'Mia Garcia', 'Noah Hernandez'],
+    notificationCount: 0,
+    quality: 'Good',
+    college: 'IIT Bombay',
+    team: 'ML Research',
+    cert_id: 'ML-551',
+    student_count: 3,
+  },
+  {
+    id: 'FS902Y', // New Dummy Worklet
+    title: 'Next-Gen Quantum Computing Simulation',
+    status: 'Ongoing',
+    progress: 55,
+    description: 'Develop a high-performance simulator for quantum algorithms to test hardware viability.',
+    startDate: 'Jul 1, 2025',
+    endDate: 'Dec 20, 2025',
+    students: ['Olivia Wilson', 'Peter Jones', 'Quinn Davis', 'Rachel Moore'],
+    notificationCount: 1,
+    quality: 'Good',
+    college: 'BITS Pilani',
+    team: 'Quantum AI',
+    cert_id: 'QC-902',
+    student_count: 4,
+  },
+  {
+    id: 'DV778Z', // New Dummy Worklet
+    title: 'AR Navigation SDK for Urban Environments',
+    status: 'Ongoing',
+    progress: 85,
+    description:
+      'Build an SDK for augmented reality navigation that can be integrated into third-party mobile applications.',
+    startDate: 'Jun 15, 2025',
+    endDate: 'Oct 15, 2025',
+    students: ['Sam Brown', 'Tina Smith'],
+    notificationCount: 0,
+    quality: 'Excellence',
+    college: 'IIIT Hyderabad',
+    team: 'AR/VR Dev',
+    cert_id: 'DV-778',
+    student_count: 2,
+  },
+  {
+    id: 'UX101D',
+    title: 'Next-Gen UI/UX Design System',
+    status: 'Completed', // This will be filtered out
+    progress: 100,
+    description: 'Create a new, unified design system for all company web properties to ensure brand consistency.',
+    startDate: 'Jun 1, 2025',
+    endDate: 'Sep 15, 2025',
+    students: ['Mallory King', 'Nancy Adams'],
+    notificationCount: 0,
+    quality: 'Excellence',
+    college: 'RISD',
+    team: 'Design',
+    cert_id: 'UX-101',
+    student_count: 2,
+  },
+]
 
-const LEVEL_COUNTS = { spark: 5, lead: 10, core: 15, master: 30 };
-const STATS = { worklets: 7, mentees: 35, badges: 2 };
+const LEVEL_COUNTS = { spark: 5, lead: 10, core: 15, master: 30 }
 
 const levels = [
-  { name: 'SPARK', Icon: Zap, color: 'text-yellow-600' },
-  { name: 'LEAD', Icon: Rocket, color: 'text-blue-700' },
-  { name: 'CORE', Icon: Key, color: 'text-green-700' },
-  { name: 'MASTER', Icon: Crown, color: 'text-purple-700' },
-];
+  { name: 'SPARK', Icon: Zap, color: 'text-yellow-500' },
+  { name: 'LEAD', Icon: Rocket, color: 'text-blue-500' },
+  { name: 'CORE', Icon: Key, color: 'text-green-500' },
+  { name: 'MASTER', Icon: Crown, color: 'text-purple-500' },
+]
 
-// Helper functions for the API calls
-const fetchMentorWorklets = async () => {
-  try {
-    const token = localStorage.getItem("access_token");
-    const userEmail = localStorage.getItem("user_email");
-    
-    if (!token || !userEmail) {
-      throw new Error("Authentication required");
-    }
-
-    // First, get the current user's ID
-    const userResponse = await axios.get("http://localhost:8000/auth/profile", {
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!userResponse.data?.id) {
-      throw new Error("User ID not found");
-    }
-
-    const userId = userResponse.data.id;
-
-    // Use the new association-based endpoint to get mentor's ongoing worklets
-    const response = await axios.get(
-      `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
-      {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      }
-    );
-    
-    return response.data?.ongoing_worklets || [];
-  } catch (error) {
-    console.error("Error fetching mentor worklets:", error);
-    
-    // Fallback to old API if new association API is not available
-    try {
-      const userEmail = localStorage.getItem("user_email");
-      const token = localStorage.getItem("access_token");
-      
-      const response = await axios.get(
-        `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
-      );
-      
-      return response.data || [];
-    } catch (fallbackError) {
-      console.error("Fallback API also failed:", fallbackError);
-      return [];
-    }
-  }
-};
-
-const fetchStudentsForWorklet = async (workletId) => {
-  try {
-    const token = localStorage.getItem("access_token");
-    
-    if (!token) {
-      throw new Error("Authentication token not found");
-    }
-
-    // Try using the new association-based endpoint first
-    try {
-      const response = await axios.get(
-        `http://localhost:8000/api/associations/worklet/${workletId}`,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
-      );
-      
-      // Extract students from the association response
-      return response.data?.students || [];
-    } catch (associationError) {
-      console.log("Association API not available, using fallback");
-      
-      // Fallback to old students endpoint
-      const response = await axios.get(
-        `http://localhost:8000/worklets/${workletId}/students`,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
-      );
-      
-      return response.data || [];
-    }
-  } catch (error) {
-    console.error("Error fetching students:", error);
-    return [];
-  }
-};
-
-// Helper function to transform API data to match the expected format
-const transformWorkletData = (apiWorklets, studentsData = {}) => {
-  return apiWorklets.map((worklet, index) => {
-    // Handle both old API format and new association API format
-    let students = [];
-    let progress = 0;
-    let workletData = worklet;
-    
-    // Check if this is from the new association API (has mentor_progress, completion_status, etc.)
-    if (worklet.id && worklet.cert_id) {
-      // New association API format
-      students = worklet.students || studentsData[worklet.id] || [];
-      progress = worklet.percentage_completion || worklet.mentor_progress || 0;
-    } else {
-      // Old API format - fallback
-      students = studentsData[worklet.id] || [];
-      progress = worklet.percentage_completion || 0;
-    }
-    
-    const notificationCount = 0; // Can be enhanced later with real notification system
-    
-    // Use actual dates from worklet or fallback to current date
-    const startDate = worklet.start_date ? new Date(worklet.start_date) : new Date();
-    const endDate = worklet.end_date ? new Date(worklet.end_date) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
-    
-    // Determine quality based on progress and completion status
-    let quality = "Good"; // default
-    if (worklet.completion_status === "Completed" || progress >= 90) {
-      quality = "Excellence";
-    } else if (worklet.completion_status === "On Hold" || worklet.risk_status === "High Risk" || progress < 50) {
-      quality = "Needs Attention";
-    }
-    
-    // Handle status mapping from association API
-    let status = "Ongoing";
-    if (worklet.completion_status) {
-      // New association API provides completion_status
-      if (worklet.completion_status === "In Progress" || worklet.completion_status === "Not Started") {
-        status = "Ongoing";
-      } else {
-        status = worklet.completion_status;
-      }
-    } else if (worklet.status) {
-      // Old API format
-      status = worklet.status;
-    }
-    
-    return {
-      id: worklet.id,
-      title: worklet.cert_id || `Worklet ${worklet.id}`,
-      status: status,
-      progress: progress,
-      description: worklet.description || worklet.problem_statement || "No description available",
-      imageUrl: null, // Remove stock images - will handle this in the component
-      startDate: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      endDate: endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      students: Array.isArray(students) ? students.map(s => typeof s === 'string' ? s : s.name) : [],
-      notificationCount: notificationCount,
-      quality: quality,
-      college: worklet.college || "Unknown College",
-      team: worklet.team || "Unknown Team",
-      cert_id: worklet.cert_id,
-      expectations: worklet.expectations,
-      prerequisites: worklet.prerequisites,
-      // Additional fields from association API
-      mentor_progress: worklet.mentor_progress,
-      completion_status: worklet.completion_status,
-      assigned_at: worklet.assigned_at,
-      notes: worklet.notes,
-      student_count: worklet.student_count || (Array.isArray(students) ? students.length : 0)
-    };
-  });
-};
-
-// Helper functions for the initials-based avatar
+// Helper functions (getInitials, generateColorFromName, etc. remain the same)
 const getInitials = (name) => {
-  if (!name) return '';
-  const nameParts = name.split(' ');
-  if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
-  return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
-};
+  if (!name) return ''
+  const nameParts = name.split(' ')
+  if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase()
+  return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase()
+}
 
 const generateColorFromName = (name) => {
-  const colors = ['#0077b6', '#0096c7', '#48cae4', '#90e0ef', '#ade8f4'];
-  let hash = 0;
+  const colors = ['#0077b6', '#0096c7', '#48cae4', '#90e0ef', '#ade8f4']
+  let hash = 0
   for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
   }
-  return colors[Math.abs(hash % colors.length)];
-};
+  return colors[Math.abs(hash % colors.length)]
+}
 
-// Fetch mentor statistics
-const fetchMentorStatistics = async () => {
-  try {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const response = await fetch('http://localhost:8000/api/dashboard/mentor-statistics', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch statistics: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching mentor statistics:', error);
-    return null;
-  }
-};
-
-// ++ 1. Dashboard component
 export default function Dashboard() {
-  // Get user email from localStorage
-  const userEmail = localStorage.getItem("user_email") || "User";
-  const [userName, setUserName] = useState(localStorage.getItem("user_name") || "");
-  const [loadingName, setLoadingName] = useState(true);
-  const [nameError, setNameError] = useState(false);
+  const userEmail = localStorage.getItem('user_email') || 'User'
+  const [userName, setUserName] = useState(localStorage.getItem('user_name') || 'Jane Doe')
+  const [loadingName, setLoadingName] = useState(false) // Set to false for demo
+  const [nameError, setNameError] = useState(false)
 
-  const navigate = useNavigate();
-  const [currentUserLevel, setCurrentUserLevel] = useState(1);
-  const [layout, setLayout] = useState('grid');
-  const [worklets, setWorklets] = useState([]);
-  const [isLoadingWorklets, setIsLoadingWorklets] = useState(true);
-  const [userProfileData, setUserProfileData] = useState(null);
-  
-  // Mentor statistics state
-  const [mentorStats, setMentorStats] = useState(null);
-  const [isLoadingMentorStats, setIsLoadingMentorStats] = useState(true);
+  const navigate = useNavigate()
+  const [currentUserLevel, setCurrentUserLevel] = useState(1)
+  const [layout, setLayout] = useState(() => {
+    return localStorage.getItem('worklet_layout') || 'horizontal'
+  })
+  const [worklets, setWorklets] = useState([])
+  const [isLoadingWorklets, setIsLoadingWorklets] = useState(true)
+  const [userProfileData, setUserProfileData] = useState({
+    // Dummy profile data
+    name: 'Jane Doe',
+    role: 'Senior Mentor',
+    mentor_profile: {
+      qualification: 'Lead Software Engineer, AI Division',
+      // bio property removed
+      location: 'Bengaluru, India',
+      avatar_url: null, // Set to null to show initials-based avatar
+    },
+  })
 
-  // Consolidated user profile fetch
+  const [mentorStats, setMentorStats] = useState({
+    // Dummy stats data
+    engagement_data: { 'My Students': 35 },
+  })
+  const [isLoadingMentorStats, setIsLoadingMentorStats] = useState(false)
+
+  // Use dummy data instead of API calls for demonstration
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      const accessToken = localStorage.getItem("access_token");
-      if (!accessToken) {
-        setNameError(true);
-        setLoadingName(false);
-        return;
-      }
+    setIsLoadingWorklets(true)
+    // Simulate API fetch delay
+    setTimeout(() => {
+      setWorklets(DUMMY_WORKLETS)
+      setIsLoadingWorklets(false)
+    }, 1000) // 1-second delay
+  }, [])
 
-      try {
-        setLoadingName(true);
-        setNameError(false);
-        
-        // Use dedicated profile endpoint
-        const response = await axios.get("http://localhost:8000/auth/profile", {
-          headers: { 
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/json'
-          }
-        });
-
-        if (response.data) {
-          // Set user name and profile data
-          if (response.data.name) {
-            setUserName(response.data.name);
-            localStorage.setItem("user_name", response.data.name);
-          }
-          
-          // Set complete profile data (includes mentor_profile if available)
-          setUserProfileData(response.data);
-        } else {
-          console.log("No data in response:", response.data);
-          setNameError(true);
-        }
-      } catch (error) {
-        console.error("Error fetching user profile:", error.response || error);
-        setNameError(true);
-      } finally {
-        setLoadingName(false);
-      }
-    };
-
-    fetchUserProfile();
-  }, []);
-
-  // Fetch worklets on component mount
-  useEffect(() => {
-    const loadWorklets = async () => {
-      setIsLoadingWorklets(true);
-      try {
-        const apiWorklets = await fetchMentorWorklets();
-        
-        if (apiWorklets.length > 0) {
-          // Check if the API returned worklets with students already included (new association API)
-          const hasStudentsIncluded = apiWorklets.some(w => w.students && Array.isArray(w.students));
-          
-          let studentsData = {};
-          
-          if (!hasStudentsIncluded) {
-            // Old API format - need to fetch students separately for each worklet
-            for (const worklet of apiWorklets) {
-              const students = await fetchStudentsForWorklet(worklet.id);
-              studentsData[worklet.id] = students;
-            }
-          }
-          
-          // Transform the data to match the expected format
-          const transformedWorklets = transformWorkletData(apiWorklets, studentsData);
-          setWorklets(transformedWorklets);
-        } else {
-          // No worklets found for this mentor
-          console.log("No worklets found for this mentor");
-          setWorklets([]);
-        }
-      } catch (error) {
-        console.error("Error loading worklets:", error);
-        // Show empty state instead of fallback data
-        setWorklets([]);
-      } finally {
-        setIsLoadingWorklets(false);
-      }
-    };
-    
-    loadWorklets();
-  }, []);
-
-  // Fetch mentor statistics
-  useEffect(() => {
-    const loadMentorStats = async () => {
-      setIsLoadingMentorStats(true);
-      try {
-        const stats = await fetchMentorStatistics();
-        if (stats) {
-          setMentorStats(stats);
-          console.log("📊 Dashboard mentor stats loaded:", stats); // Debug log
-        }
-      } catch (error) {
-        console.error("Error loading mentor statistics:", error);
-      } finally {
-        setIsLoadingMentorStats(false);
-      }
-    };
-    
-    loadMentorStats();
-  }, []);
-
-  // Filter to show only ongoing worklets in the dashboard (exclude 100% completed)
-  const workletsData = worklets.filter(worklet => 
-    (worklet.status === "Ongoing" || worklet.status === "ongoing") && 
-    worklet.progress < 100
-  );
+  // Filter for ongoing worklets
+  const workletsData = worklets.filter(
+    (worklet) => worklet.status?.toLowerCase() === 'ongoing' && worklet.progress < 100
+  )
 
   const LevelMilestone = ({ level, index }) => {
-    const levelsToGo = index - currentUserLevel;
-    let tooltipText = '';
-
-    if (levelsToGo > 0) {
-      tooltipText = `${levelsToGo} level${levelsToGo > 1 ? 's' : ''} to reach ${level.name}`;
-    } else if (levelsToGo === 0) {
-      tooltipText = index === levels.length - 1 ? 'Highest level achieved! ✨' : 'You are here';
-    } else {
-      tooltipText = 'Milestone achieved ✔️';
-    }
-
+    const levelsToGo = index - currentUserLevel
+    let tooltipText = ''
+    if (levelsToGo > 0) tooltipText = `${levelsToGo} level${levelsToGo > 1 ? 's' : ''} to reach ${level.name}`
+    else if (levelsToGo === 0) tooltipText = index === levels.length - 1 ? 'Highest level achieved! ✨' : 'You are here'
+    else tooltipText = 'Milestone achieved ✔️'
     return (
       <div className="relative group">
-        <span className="flex items-center gap-1 cursor-pointer">
+        <span className="flex items-center gap-1.5 cursor-pointer">
           <level.Icon className={`w-4 h-4 ${level.color}`} /> {level.name}
         </span>
         <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
           {tooltipText}
         </span>
       </div>
-    );
-  };
+    )
+  }
 
-  const progressPercentage = (currentUserLevel / (levels.length - 1)) * 100;
+  const progressPercentage = (currentUserLevel / (levels.length - 1)) * 100
 
   return (
-    <div className={`flex h-screen w-full bg-slate-50 text-gray-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200 `}>
-      {/* Left Sidebar */}
+    <div className="flex h-screen w-full bg-slate-100 text-slate-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200">
       <LeftSidebar />
 
-      {/* Main Content */}
-      <main className="flex-1 px-8 py-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {/* Header */}
-        <div className="flex justify-between items-start">
+      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
+        <header className="flex justify-between items-center mb-[3vh]">
           <div>
-            <h1 className="text-4xl font-bold mb-4 text-blue-900 dark:text-white">
-              {loadingName
-                ? "Loading..."
-                : userName || "User"}
+            <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-slate-900 dark:text-white">
+              Welcome back, {userName.split(' ')[0]}! 👋
             </h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400">
-              PRISM / {userProfileData?.role || "Mentor"}
-            </p>
+            <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">Here's your snapshot for today.</p>
           </div>
-          <div className="flex items-center gap-4">
-            <ThemeToggleButton />
-            <img src={samsungLogo} alt="PRISM" className="h-20 opacity-90" />
+          <div className="flex items-center gap-[1vw]">
+            <img src={samsungLogo} alt="PRISM" className="h-[clamp(2.5rem,4vw,3.5rem)] opacity-90" />
           </div>
-        </div>
+        </header>
 
-        {/* Profile box */}
-        <div className="mt-4 bg-white border border-gray-200 rounded-2xl shadow-sm p-4 max-w-xl dark:bg-slate-800 dark:border-slate-700">
-          <div className="flex items-center gap-4">
-            <div>
-              {userProfileData?.mentor_profile?.avatar_url || userProfileData?.avatar_url ? (
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw]">
+          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-[1.5vw] dark:bg-slate-800 dark:border-slate-700">
+            <div className="flex items-start gap-[1.2vw]">
+              {userProfileData?.mentor_profile?.avatar_url ? (
                 <img
-                  src={userProfileData?.mentor_profile?.avatar_url || userProfileData?.avatar_url}
+                  src={userProfileData.mentor_profile.avatar_url}
                   alt="Author"
-                  className="w-24 h-24 rounded-xl object-cover shadow-md dark:bg-slate-800 dark:border-slate-700"
+                  className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full object-cover shadow-md cursor-pointer hover:ring-4 hover:ring-blue-200 dark:hover:ring-blue-800 transition-all"
+                  onClick={() => navigate('/profile/view')}
                 />
               ) : (
                 <div
-                  className="w-24 h-24 rounded-xl flex items-center justify-center text-white font-bold text-4xl shadow-md"
-                  style={{ backgroundColor: generateColorFromName(userProfileData?.name || "User") }}
+                  className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full flex items-center justify-center text-white font-bold text-[clamp(1.5rem,2.5vw,2rem)] shadow-md flex-shrink-0 cursor-pointer hover:ring-4 hover:ring-blue-200 dark:hover:ring-blue-800 transition-all"
+                  style={{ backgroundColor: generateColorFromName(userProfileData?.name || 'User') }}
+                  onClick={() => navigate('/profile/view')}
                 >
-                  <span>{getInitials(userProfileData?.name || "User")}</span>
+                  <span>{getInitials(userProfileData?.name || 'User')}</span>
                 </div>
               )}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {userProfileData?.name || userName || "User"}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-slate-400">
-                    {userProfileData?.mentor_profile?.qualification || userProfileData?.role || "Mentor"}
-                  </div>
-                  {userProfileData?.mentor_profile?.bio && (
-                    <div className="text-sm text-gray-600 dark:text-slate-300 mt-1">
-                      {userProfileData.mentor_profile.bio.replace(/"/g, '')}
-                    </div>
-                  )}
-                  {userProfileData?.mentor_profile?.location && (
-                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                      📍 {userProfileData.mentor_profile.location}
-                    </div>
-                  )}
-                </div>
+              <div className="flex-1">
+                <h2 className="text-[clamp(1.125rem,1.8vw,1.5rem)] font-bold text-slate-900 dark:text-white">{userProfileData?.name}</h2>
+                <p className="text-[clamp(0.875rem,1.1vw,1rem)] font-medium text-blue-600 dark:text-blue-400">
+                  {userProfileData?.mentor_profile?.qualification}
+                </p>
+                {userProfileData?.mentor_profile?.location && (
+                  <p className="text-[clamp(0.75rem,0.9vw,0.875rem)] text-slate-500 dark:text-slate-400 mt-[0.5vw] flex items-center gap-[0.4vw]">
+                    <MapPin className="w-[clamp(0.75rem,1vw,1rem)] h-[clamp(0.75rem,1vw,1rem)]" />
+                    {userProfileData.mentor_profile.location}
+                  </p>
+                )}
               </div>
-              <div className="mt-3 grid grid-cols-4 gap-2">
-                <LevelBadge
-                  icon={<Rocket className="w-4 h-4 " />}
-                  label="Lead"
-                  value={LEVEL_COUNTS.lead}
-                  color="text-purple-700 bg-purple-50 dark:bg-slate-900/30"
-                />
+            </div>
+            <div className="relative mt-[1.5vw]">
+              <div className="h-[0.5vw] w-full bg-slate-200 rounded-full shadow-inner dark:bg-slate-700">
+                <div
+                  className="h-[0.5vw] bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercentage}%` }}></div>
+              </div>
+              <div className="flex justify-between text-[clamp(0.75rem,0.9vw,0.875rem)] mt-[0.5vw] text-slate-600 font-medium dark:text-slate-400">
+                {levels.map((level, index) => (
+                  <LevelMilestone key={level.name} level={level} index={index} />
+                ))}
               </div>
             </div>
           </div>
-        </div>
 
-
-        {/* Level Progress Bar */}
-        <div className="relative mt-6 w-full max-w-2xl">
-          <div className="h-2 w-full bg-gray-200 rounded-full shadow-inner dark:bg-slate-700">
-            <div
-              className="h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
-              style={{ width: `${progressPercentage}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between text-[13px] mt-2 text-gray-600 font-medium dark:text-slate-400">
-            {levels.map((level, index) => (
-              <LevelMilestone key={level.name} level={level} index={index} />
-            ))}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="mt-6 flex gap-4 flex-wrap">
-          <div className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
-            <div
-              className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer"
-              onClick={() => navigate('/worklets')}>
+          <div className="space-y-[1vw]">
+            <div onClick={() => navigate('/worklets')} className="cursor-pointer">
               <StatCard
                 value={isLoadingWorklets ? '...' : worklets.length}
-                label="My Worklets"
-                icon={<BookOpen className="w-5 h-5" />}
-                accent="from-blue-50 to-white hover:from-blue-100 hover:to-blue-50 dark:from-gray-800 dark:to-gray-800/50 dark:hover:from-gray-700 dark:hover:to-gray-700/50 transition-transform duration-300 hover:scale-105 hover:shadow-lg"
+                label="Total Worklets"
+                icon={<BookOpen className="w-[clamp(1.25rem,1.8vw,2rem)] h-[clamp(1.25rem,1.8vw,2rem)] text-blue-500" />}
+                accent="from-blue-50 to-white hover:border-blue-300 dark:from-slate-800/50 dark:to-slate-800/20 dark:hover:border-blue-600"
               />
             </div>
-          </div>
-          <div className="transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
             <StatCard
-              value={isLoadingMentorStats ? '...' : (mentorStats?.engagement_data?.["My Students"] || 0)}
-              label="My Mentees"
-              icon={<UsersIcon className="w-5 h-5" />}
-              accent="from-indigo-50 to-white hover:from-indigo-100 hover:to-indigo-50 dark:from-gray-800 dark:to-gray-800/50 dark:hover:from-gray-700 dark:hover:to-gray-700/50"
+              value={isLoadingMentorStats ? '...' : mentorStats?.engagement_data?.['My Students']}
+              label="Active Mentees"
+              icon={<UsersIcon className="w-[clamp(1.25rem,1.8vw,2rem)] h-[clamp(1.25rem,1.8vw,2rem)] text-indigo-500" />}
+              accent="from-indigo-50 to-white hover:border-indigo-300 dark:from-slate-800/50 dark:to-slate-800/20 dark:hover:border-indigo-600"
             />
           </div>
-        </div>
+        </section>
 
         {/* My Worklets */}
-        <div className="mt-10">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold bg-blue-900 animate-shimmer">Ongoing Worklets</h2>
-            <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-lg dark:bg-slate-900">
+        <div className="mt-[3vh]">
+          <div className="flex justify-between items-center mb-[1.5vh]">
+            <h2 className="text-[clamp(1.5rem,2.5vw,2rem)] font-bold bg-blue-900 animate-shimmer">Ongoing Worklets</h2>
+            <div className="flex items-center gap-[0.2vw] p-[0.3vw] bg-gray-200 rounded-lg dark:bg-slate-900">
               <button
-                onClick={() => setLayout('grid')}
-                className={`p-1.5 rounded-md transition-colors ${layout === 'grid' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
-                  }`}
+                onClick={() => {
+                  setLayout('grid')
+                  localStorage.setItem('worklet_layout', 'grid')
+                }}
+                className={`p-[0.4vw] rounded-md transition-colors ${
+                  layout === 'grid' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                }`}
                 aria-label="Grid View">
-                <LayoutGrid size={20} />
+                <LayoutGrid size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} />
               </button>
               <button
-                onClick={() => setLayout('horizontal')}
-                className={`p-1.5 rounded-md transition-colors ${layout === 'horizontal' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
-                  }`}
+                onClick={() => {
+                  setLayout('horizontal')
+                  localStorage.setItem('worklet_layout', 'horizontal')
+                }}
+                className={`p-[0.4vw] rounded-md transition-colors ${
+                  layout === 'horizontal' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                }`}
                 aria-label="Horizontal View">
-                <Columns size={20} />
+                <Columns size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} />
               </button>
             </div>
           </div>
@@ -554,19 +366,21 @@ export default function Dashboard() {
             <div
               className={
                 layout === 'grid'
-                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'
+                  ? 'grid grid-cols-3 gap-8'
                   : 'flex overflow-x-auto gap-8 pb-4'
               }>
               {[1, 2, 3].map((i) => (
-                <div key={i} className="w-full aspect-video bg-gray-200 animate-pulse rounded-2xl dark:bg-slate-700"></div>
+                <div
+                  key={i}
+                  className="w-full aspect-video bg-gray-200 animate-pulse rounded-2xl dark:bg-slate-700"></div>
               ))}
             </div>
           ) : (
             <div
               className={
                 layout === 'grid'
-                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'
-                  : 'flex overflow-x-auto gap-8 pb-4 overflow-y-hidden [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-blue-400/50 [&::-webkit-scrollbar-thumb]:rounded-full'
+                  ? 'grid grid-cols-3 gap-[clamp(1rem,2vw,2rem)]'
+                  : 'flex overflow-x-auto gap-[clamp(1rem,2vw,2rem)] pb-[1vh] overflow-y-hidden [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-blue-400/50 [&::-webkit-scrollbar-thumb]:rounded-full'
               }>
               {workletsData.map((worklet) => (
                 <WorkletCard key={worklet.id} worklet={worklet} layout={layout} navigate={navigate} />
@@ -579,173 +393,275 @@ export default function Dashboard() {
       {/* Right Sidebar */}
       <RightSidebar />
     </div>
-  );
+  )
 }
 
-
-// --- CORRECTED WORKLET CARD COMPONENT ---
+// --- UPDATED WORKLET CARD COMPONENT ---
 function WorkletCard({ worklet, layout, navigate }) {
-  const containerClasses = layout === 'grid'
-    ? 'w-full'
-    : 'w-80 flex-shrink-0';
+  const containerClasses = layout === 'grid' ? 'w-full' : 'w-[clamp(18rem,25vw,22rem)] flex-shrink-0'
+
+  // Professional corporate background colors based on worklet quality
+  const getBackgroundGradient = () => {
+    const progress = worklet.progress || 0
+    const quality = worklet.quality || 'Default'
+    
+    switch (quality) {
+      case 'Excellence':
+        return `linear-gradient(135deg, 
+          #1e3a8a 0%, 
+          #1e40af 25%, 
+          #1d4ed8 50%, 
+          #2563eb 75%, 
+          #3b82f6 100%)`
+      case 'Good':
+        return `linear-gradient(135deg, 
+          #065f46 0%, 
+          #047857 25%, 
+          #059669 50%, 
+          #10b981 75%, 
+          #34d399 100%)`
+      case 'Needs Attention':
+        return `linear-gradient(135deg, 
+          #7c2d12 0%, 
+          #9a3412 25%, 
+          #c2410c 50%, 
+          #ea580c 75%, 
+          #f97316 100%)`
+      default:
+        return `linear-gradient(135deg, 
+          #374151 0%, 
+          #4b5563 25%, 
+          #6b7280 50%, 
+          #9ca3af 75%, 
+          #d1d5db 100%)`
+    }
+  }
 
   const calculateRemainingDays = (endDateStr) => {
-    const endDate = new Date(endDateStr);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    endDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(endDateStr)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    endDate.setHours(0, 0, 0, 0)
 
-    const diffTime = endDate - today;
+    const diffTime = endDate - today
     if (diffTime < 0) {
-      return { days: 0, label: "Past Due" };
+      return { days: 0, label: 'Past Due' }
     }
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return { days: diffDays, label: `${diffDays} days left` };
-  };
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return { days: diffDays, label: `${diffDays} days left` }
+  }
 
-  const remaining = calculateRemainingDays(worklet.endDate);
+  const remaining = calculateRemainingDays(worklet.endDate)
 
   const qualityStyles = {
     Excellence: 'bg-green-500/80',
     Good: 'bg-blue-500/80',
     'Needs Attention': 'bg-red-500/80',
     Default: 'bg-gray-500/80',
-  };
+  }
 
   const handleCardClick = () => {
-    navigate(`/worklet/${worklet.id}`);
-  };
+    navigate(`/worklet/${worklet.id}`)
+  }
 
   const handleNotificationClick = (event) => {
-    event.stopPropagation();
-    navigate(`/worklet/${worklet.id}/notifications`);
-  };
+    event.stopPropagation()
+    // Only navigate if there are actual notifications
+    if (worklet.notificationCount > 0) {
+      navigate(`/worklet/${worklet.id}/notifications`)
+    }
+  }
+
+  const truncateText = (text, maxLength = 33) => {
+    if (text.length <= maxLength) return text
+    return text.substring(0, maxLength) + '...'
+  }
+
+  const hasNotifications = worklet.notificationCount > 0
+  const notificationTooltip = hasNotifications
+    ? `${worklet.notificationCount} new update${worklet.notificationCount > 1 ? 's' : ''}`
+    : 'No new updates'
 
   return (
     <div
       onClick={handleCardClick}
       className={`group relative aspect-video cursor-pointer overflow-hidden rounded-2xl shadow-lg transition-all duration-500 ease-in-out hover:scale-105 ${containerClasses}`}>
-
-      {/* Dynamic Background instead of stock image */}
-      <div className="h-full w-full bg-gradient-to-br from-blue-400 via-purple-400 to-indigo-700 relative">
-        {/* Worklet Info Background */}
-        <div className="absolute inset-0 p-4 flex flex-col justify-center items-center text-white/20">
-          <div className="text-6xl font-bold mb-2">{worklet.cert_id || worklet.title}</div>
-          <div className="text-sm uppercase tracking-wider">{worklet.team}</div>
-          <div className="text-xs mt-1">{worklet.college}</div>
+      {/* Enhanced Dynamic Background */}
+      <div className="h-full w-full relative overflow-hidden">
+        {/* Main Animated Gradient Background */}
+        <div 
+          className="absolute inset-0 animate-gradient-shift transition-all duration-700 group-hover:scale-110"
+          style={{
+            background: getBackgroundGradient(),
+            backgroundSize: '200% 200%'
+          }}
+        />
+        
+        {/* Subtle Professional Elements */}
+        <div className="absolute inset-0 opacity-15">
+          <div className="absolute w-16 h-16 rounded-full bg-white/8 animate-float-slow" 
+               style={{ top: '15%', left: '15%', animationDelay: '0s' }} />
+          <div className="absolute w-12 h-12 rounded-full bg-white/10 animate-float-medium" 
+               style={{ top: '65%', right: '25%', animationDelay: '2s' }} />
+          <div className="absolute w-8 h-8 rounded-full bg-white/6 animate-float-fast" 
+               style={{ bottom: '20%', left: '40%', animationDelay: '4s' }} />
         </div>
         
-        {/* Pattern overlay for visual interest */}
+        {/* Professional Geometric Pattern */}
         <div className="absolute inset-0 opacity-10">
+          <div
+            className="h-full w-full"
+            style={{
+              backgroundImage: `
+                linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%)
+              `,
+              backgroundSize: '20px 20px',
+              backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
+            }}>
+          </div>
+        </div>
+        
+        {/* Subtle Professional Shimmer */}
+        <div 
+          className="absolute inset-0 opacity-8 group-hover:opacity-15 transition-opacity duration-500"
+          style={{
+            background: `linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%)`,
+            transform: 'translateX(-100%)',
+            animation: 'shimmer 6s infinite linear'
+          }}
+        />
+        
+        {/* Professional Grid Lines */}
+        <div className="absolute inset-0 opacity-5">
           <div className="h-full w-full" style={{
-            backgroundImage: `radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-                            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-                            radial-gradient(circle at 40% 40%, rgba(120, 255, 198, 0.3) 0%, transparent 50%)`
-          }}></div>
+            backgroundImage: `
+              linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px)
+            `,
+            backgroundSize: '40px 40px'
+          }} />
         </div>
       </div>
 
-      <div className="absolute inset-0 bg-black/50"></div>
+      {/* Professional overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/30 to-black/20 group-hover:from-black/30 group-hover:via-black/20 group-hover:to-black/10 transition-all duration-500"></div>
 
-      {worklet.notificationCount > 0 && (
-        <div
-          onClick={handleNotificationClick}
-          className="absolute top-3 right-3 group/bell z-20"
-        >
+      {/* --- MODIFIED NOTIFICATION ICON --- */}
+      <div onClick={handleNotificationClick} className="absolute top-[1vw] right-[1vw] group/bell z-20">
+        {hasNotifications && (
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-          <span className="relative flex items-center justify-center h-6 w-6 rounded-full bg-red-500 text-white">
-            <Bell size={14} />
-          </span>
-          <div className="absolute top-full right-0 mt-1 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover/bell:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-            {worklet.notificationCount} new update{worklet.notificationCount > 1 ? 's' : ''}
-          </div>
+        )}
+        <span
+          className={`relative flex items-center justify-center h-[clamp(1.25rem,2vw,1.75rem)] w-[clamp(1.25rem,2vw,1.75rem)] rounded-full text-white ${
+            hasNotifications ? 'bg-red-500' : 'bg-white/20'
+          }`}>
+          <Bell size={Math.max(12, Math.min(18, window.innerWidth * 0.012))} />
+        </span>
+        <div className="absolute top-full right-0 mt-[0.25vw] w-max px-[0.5vw] py-[0.25vw] text-[clamp(0.6rem,0.8vw,0.75rem)] bg-slate-800 text-white rounded opacity-0 group-hover/bell:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+          {notificationTooltip}
         </div>
-      )}
+      </div>
 
-      {/* Normal State Content */}
-      <div className="absolute inset-0 flex flex-col justify-end p-4 text-white transition-opacity duration-300 group-hover:opacity-0">
-        <div className="mb-2">
-          <span className="text-xs bg-white/20 px-2 py-1 rounded-full">{worklet.status}</span>
-          <span className="text-xs bg-blue-500/60 px-2 py-1 rounded-full ml-2">{worklet.team}</span>
+      {/* --- STATUS AND COLLEGE BADGES AT TOP --- */}
+      <div className="absolute top-0 left-0 right-0 p-[clamp(0.75rem,1.5vw,1.25rem)] text-white transition-opacity duration-300 group-hover:opacity-0 z-10">
+        <div className="flex flex-wrap gap-[0.375vw] mb-[0.75vw]">
+          <span className="text-[clamp(0.65rem,0.85vw,0.8rem)] text-white bg-slate-900/80 backdrop-blur-md px-[0.6vw] py-[0.3vw] rounded-full font-bold shadow-xl border-2 border-white/30 whitespace-nowrap">{worklet.status}</span>
+          <span 
+            className="text-[clamp(0.65rem,0.85vw,0.8rem)] text-white bg-indigo-600/90 backdrop-blur-md px-[0.6vw] py-[0.3vw] rounded-full font-bold shadow-xl border-2 border-white/30 whitespace-nowrap"
+            title={worklet.college}
+          >
+            {truncateText(worklet.college)}
+          </span>
         </div>
-        <h3 className="text-lg font-bold">{worklet.title}</h3>
-        <p className="text-sm text-gray-300 line-clamp-2">{worklet.description}</p>
-        <div className="mt-4">
-          <div className="flex justify-between text-xs font-medium text-cyan-200">
+        {/* PROBLEM STATEMENT with comfortable font size */}
+        <h3 className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold leading-tight">{worklet.title}</h3>
+      </div>
+
+      {/* --- PROGRESS BAR AT BOTTOM --- */}
+      <div className="absolute bottom-0 left-0 right-0 p-[clamp(0.75rem,1.5vw,1.25rem)] text-white transition-opacity duration-300 group-hover:opacity-0">
+        <div>
+          <div className="flex justify-between text-[clamp(0.6rem,0.8vw,0.75rem)] font-medium text-cyan-200">
             <span>Progress</span>
             <span>{worklet.progress}%</span>
           </div>
-          <div className="mt-1 h-2 w-full rounded-full bg-white/20">
+          <div className="mt-[0.25vw] h-[0.4vw] w-full rounded-full bg-white/20">
             <div
-              className="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500"
+              className="h-[0.4vw] rounded-full bg-gradient-to-r from-cyan-400 to-blue-500"
               style={{ width: `${worklet.progress}%` }}></div>
           </div>
         </div>
       </div>
 
-      {/* Hover State Content */}
-      <div className="absolute inset-0 flex text-white opacity-0 transition-opacity duration-300 delay-150 group-hover:opacity-100 pointer-events-none">
+      {/* --- MODIFIED HOVER STATE CONTENT --- */}
+      <div className="absolute inset-0 flex text-white opacity-0 transition-opacity duration-300 delay-150 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
+        <div 
+          className="flex-grow p-[clamp(0.75rem,1.5vw,1.25rem)] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cyan-400/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cyan-400/70"
+          onWheel={(e) => {
+            e.stopPropagation();
+            // Allow scrolling within this container only
+            const element = e.currentTarget;
+            const { scrollTop, scrollHeight, clientHeight } = element;
+            
+            // Prevent parent scroll only if we're not at boundaries
+            if ((e.deltaY > 0 && scrollTop + clientHeight < scrollHeight) || 
+                (e.deltaY < 0 && scrollTop > 0)) {
+              e.preventDefault();
+            }
+          }}
+        >
+          {/* ID is now displayed on hover instead of title */}
+          <h3 className="text-[clamp(1rem,1.8vw,1.5rem)] font-mono font-bold text-cyan-300">{worklet.id}</h3>
+          <div className="mt-[0.25vw] text-[clamp(0.6rem,0.8vw,0.75rem)] text-blue-300">{worklet.college}</div>
 
-        {/* SCROLLABLE AREA - ADDED pointer-events-auto */}
-        <div className="flex-grow p-4 overflow-y-auto pointer-events-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cyan-400/50 [&::-webkit-scrollbar-thumb]:rounded-full">
-          <h3 className="text-lg font-bold">{worklet.title}</h3>
-          <div className="mt-1 text-xs text-blue-300">{worklet.college}</div>
-          
-          <div className="mt-2 flex items-center gap-2 text-xs text-gray-300">
-            <Calendar size={14} />
-            <span>{worklet.startDate} - {worklet.endDate}</span>
+          {/* DESCRIPTION is now displayed on hover */}
+          <p className="mt-[0.75vw] text-[clamp(0.75rem,1vw,0.875rem)] text-gray-200">{worklet.description}</p>
+
+          <div className="mt-[0.75vw] flex items-center gap-[0.5vw] text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-300">
+            <Calendar size={Math.max(12, Math.min(16, window.innerWidth * 0.012))} />
+            <span>
+              {worklet.startDate} - {worklet.endDate}
+            </span>
           </div>
-          
-          {worklet.expectations && (
-            <div className="mt-3">
-              <h4 className="text-sm font-semibold text-yellow-300">Expectations:</h4>
-              <p className="text-xs text-gray-200 line-clamp-2">{worklet.expectations}</p>
-            </div>
-          )}
-          
+
           {worklet.students.length > 0 ? (
-            <div className="mt-3">
-              <div className="flex items-center gap-2 font-semibold text-sm">
-                <Users size={16} />
-                <h4>Assigned Students ({worklet.students.length})</h4>
+            <div className="mt-[0.75vw]">
+              <div className="flex items-center gap-[0.5vw] font-semibold text-[clamp(0.75rem,1vw,0.875rem)]">
+                <Users size={Math.max(14, Math.min(18, window.innerWidth * 0.014))} />
+                <h4>Assigned Students</h4>
               </div>
-              <ul className="mt-1 list-disc list-inside text-xs text-gray-200 space-y-1">
+              <ul className="mt-[0.25vw] list-disc list-inside text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-200 space-y-[0.15vw]">
                 {worklet.students.map((student) => (
                   <li key={student}>{student}</li>
                 ))}
               </ul>
             </div>
           ) : (
-            <div className="mt-3">
-              <div className="flex items-center gap-2 font-semibold text-sm">
-                <Users size={16} />
-                <h4>Assigned Students (0)</h4>
-              </div>
-              <p className="mt-1 text-xs text-gray-300 italic">No students assigned to this worklet</p>
-            </div>
-          )}
-          
-          {worklet.students.length === 0 && (
-            <div className="mt-3">
-              <div className="flex items-center gap-2 font-semibold text-sm text-gray-400">
-                <Users size={16} />
+            <div className="mt-[0.75vw]">
+              <div className="flex items-center gap-[0.5vw] font-semibold text-[clamp(0.75rem,1vw,0.875rem)] text-gray-400">
+                <Users size={Math.max(14, Math.min(18, window.innerWidth * 0.014))} />
                 <h4>No students assigned yet</h4>
               </div>
             </div>
           )}
         </div>
 
-        {/* Right side panel */}
-        <div className="w-28 flex-shrink-0 bg-black/40 flex flex-col items-center justify-center text-center p-2 transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out">
-          <span className={`px-2 py-1 rounded-md text-xs font-bold text-white ${qualityStyles[worklet.quality] || qualityStyles.Default}`}>
+        {/* Right side panel remains the same */}
+        <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center justify-center text-center p-[0.5vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out">
+          <span
+            className={`px-[0.5vw] py-[0.25vw] rounded-md text-[clamp(0.6rem,0.8vw,0.75rem)] font-bold text-white ${
+              qualityStyles[worklet.quality] || qualityStyles.Default
+            }`}>
             {worklet.quality}
           </span>
-          <div className="mt-4">
-            <p className="text-3xl font-bold">{remaining.days}</p>
-            <p className="text-xs text-gray-300">{remaining.label}</p>
+          <div className="mt-[1vw]">
+            <p className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold">{remaining.days}</p>
+            <p className="text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-300">{remaining.label}</p>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

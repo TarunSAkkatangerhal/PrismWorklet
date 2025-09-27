@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import Dashboard from "./pages/Dashboard";
-import UserProfile from "./layouts/UserProfile";
+import ProfileView from "./layouts/ProfileView";
+import ProfileEdit from "./layouts/ProfileEdit";
 import RequestUpdate from "./layouts/Requestupdates";
 import Ray from "./layouts/Ray";
 import WorkletsPage from "./components/WorkletsPage";
@@ -49,7 +49,9 @@ export default function App() {
               <Routes>
                 <Route path="/home" element={<Dashboard />} />
                 <Route path="/statistics" element={<StatisticsDashboard />} />
-                <Route path="/profile" element={<UserProfile userData={userData} onProfileUpdate={setUserData} />} />
+                <Route path="/profile" element={<ProfileEdit userData={userData} onProfileUpdate={setUserData} />} />
+                <Route path="/profile/view" element={<ProfileView userData={userData} />} />
+                <Route path="/profile/edit" element={<ProfileEdit userData={userData} onProfileUpdate={setUserData} />} />
                 <Route path="/request-update" element={<RequestUpdate />} />
                 <Route path="/ray" element={<Ray />} />
                 <Route path="/worklets" element={<WorkletsPage />} />

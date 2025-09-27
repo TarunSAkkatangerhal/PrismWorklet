@@ -9,14 +9,14 @@ export default function ThemeToggleButton() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-full transition-colors duration-300
+      className="p-[clamp(0.5rem,1vw,0.75rem)] rounded-full transition-colors duration-300
                  bg-gray-200 hover:bg-gray-300
                  dark:bg-gray-700 dark:hover:bg-gray-600"
     >
       {theme === 'light' ? (
-        <Moon className="w-5 h-5 text-gray-800" />
+        <Moon className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-gray-800" />
       ) : (
-        <Sun className="w-5 h-5 text-yellow-400" />
+        <Sun className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-yellow-400" />
       )}
     </button>
   );

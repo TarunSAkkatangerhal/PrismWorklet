@@ -144,23 +144,23 @@ export default function WorkletsPage() {
       </nav>
 
       {/* --- MAIN CONTENT AREA --- */}
-      <main className="flex-1 p-8 overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-400">{activeTab} Worklets</h2>
+      <main className="flex-1 p-[2vw] overflow-y-auto">
+        <div className="flex justify-between items-center mb-[2vh]">
+            <h2 className="text-[clamp(1.5rem,2.5vw,2rem)] font-bold text-blue-900 dark:text-blue-400">{activeTab} Worklets</h2>
             {/* Layout Toggle */}
-            <div className="flex items-center gap-1 p-1 bg-gray-200 dark:bg-gray-700 rounded-lg">
-                <button onClick={() => setLayout('grid')} className={`p-1.5 rounded-md transition-colors ${layout === 'grid' ? 'bg-white text-indigo-600 shadow-sm dark:bg-indigo-600 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white'}`} aria-label="Grid View">
-                    <LayoutGrid size={20} />
+            <div className="flex items-center gap-[0.2vw] p-[0.3vw] bg-gray-200 dark:bg-gray-700 rounded-lg">
+                <button onClick={() => setLayout('grid')} className={`p-[0.4vw] rounded-md transition-colors ${layout === 'grid' ? 'bg-white text-indigo-600 shadow-sm dark:bg-indigo-600 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white'}`} aria-label="Grid View">
+                    <LayoutGrid size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} />
                 </button>
-                <button onClick={() => setLayout('list')} className={`p-1.5 rounded-md transition-colors ${layout === 'list' ? 'bg-white text-indigo-600 shadow-sm dark:bg-indigo-600 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white'}`} aria-label="List View">
-                    <List size={20} />
+                <button onClick={() => setLayout('list')} className={`p-[0.4vw] rounded-md transition-colors ${layout === 'list' ? 'bg-white text-indigo-600 shadow-sm dark:bg-indigo-600 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white'}`} aria-label="List View">
+                    <List size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} />
                 </button>
             </div>
         </div>
         
         <div className={layout === 'grid' 
-          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" 
-          : "flex flex-col gap-4"
+          ? "grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-[clamp(1rem,2vw,2rem)]" 
+          : "flex flex-col gap-[1vh]"
         }>
           {filteredWorklets.length > 0 ? (
             filteredWorklets.map((worklet) => (
@@ -185,20 +185,20 @@ export default function WorkletsPage() {
 const WorkletGridItem = ({ worklet }) => (
   <Link to={`/worklet/${worklet.id}`}>
     <div className="bg-white dark:bg-gray-800 dark:border dark:border-gray-700 rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden group h-full">
-      <img src={worklet.imageUrl} alt={worklet.title} className="h-40 w-full object-cover group-hover:scale-105 transition-transform duration-300"/>
-      <div className="p-5">
-        <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 truncate">{worklet.title}</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 h-10 overflow-hidden">{worklet.description}</p>
-        <div className="mt-4 flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
-          <span className="flex items-center gap-1.5"><Calendar size={14}/> {worklet.startDate} - {worklet.endDate}</span>
+      <img src={worklet.imageUrl} alt={worklet.title} className="h-[clamp(8rem,12vw,10rem)] w-full object-cover group-hover:scale-105 transition-transform duration-300"/>
+      <div className="p-[clamp(1rem,1.5vw,1.25rem)]">
+        <h3 className="font-bold text-[clamp(1rem,1.2vw,1.125rem)] text-gray-900 dark:text-gray-100 truncate">{worklet.title}</h3>
+        <p className="text-[clamp(0.75rem,0.9vw,0.875rem)] text-gray-600 dark:text-gray-400 mt-[0.25vw] h-[2.5em] overflow-hidden">{worklet.description}</p>
+        <div className="mt-[1vw] flex justify-between items-center text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-500 dark:text-gray-400">
+          <span className="flex items-center gap-[0.4vw]"><Calendar size={Math.max(12, Math.min(16, window.innerWidth * 0.01))}/> {worklet.startDate} - {worklet.endDate}</span>
           <span className="font-semibold">{worklet.progress}%</span>
         </div>
-        <div className="mt-2 h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full">
-          <div className="h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full" style={{width: `${worklet.progress}%`}}></div>
+        <div className="mt-[0.5vw] h-[0.4vw] w-full bg-gray-200 dark:bg-gray-700 rounded-full">
+          <div className="h-[0.4vw] bg-gradient-to-r from-blue-500 to-purple-600 rounded-full" style={{width: `${worklet.progress}%`}}></div>
         </div>
-        <div className="mt-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"><Users size={16}/> Assigned Students</div>
-          <ul className="mt-2 list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+        <div className="mt-[1vw]">
+          <div className="flex items-center gap-[0.5vw] text-[clamp(0.75rem,0.9vw,0.875rem)] font-semibold text-gray-700 dark:text-gray-300"><Users size={Math.max(14, Math.min(18, window.innerWidth * 0.012))}/> Assigned Students</div>
+          <ul className="mt-[0.5vw] list-disc list-inside text-[clamp(0.75rem,0.9vw,0.875rem)] text-gray-600 dark:text-gray-400 space-y-[0.2vw]">
             {worklet.students.slice(0, 2).map((student) => (<li key={student}>{student}</li>))}
             {worklet.students.length > 2 && <li className="text-gray-400">...and {worklet.students.length - 2} more</li>}
           </ul>
@@ -213,36 +213,36 @@ const WorkletListItem = ({ worklet }) => (
     <Link to={`/worklet/${worklet.id}`}>
         {/* --- CHANGE 2: Added entry animation and a subtle "lift" on hover --- */}
         <div className="bg-white dark:bg-gray-800 dark:border dark:border-gray-700 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 flex items-center group transform hover:scale-[1.01] animate-fade-in">
-            <img src={worklet.imageUrl} alt={worklet.title} className="h-full w-40 object-cover flex-shrink-0 rounded-l-lg hidden sm:block"/>
-            <div className="p-5 flex-grow">
+            <img src={worklet.imageUrl} alt={worklet.title} className="h-full w-[clamp(8rem,12vw,10rem)] object-cover flex-shrink-0 rounded-l-lg hidden sm:block"/>
+            <div className="p-[clamp(1rem,1.5vw,1.25rem)] flex-grow">
                 <div className="flex justify-between items-start">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 truncate pr-4">{worklet.title}</h3>
-                    <span className="text-xs font-semibold text-indigo-600 bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-500/20 px-3 py-1 rounded-full flex-shrink-0">{worklet.status}</span>
+                    <h3 className="font-bold text-[clamp(1rem,1.2vw,1.125rem)] text-gray-900 dark:text-gray-100 truncate pr-[1vw]">{worklet.title}</h3>
+                    <span className="text-[clamp(0.6rem,0.8vw,0.75rem)] font-semibold text-indigo-600 bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-500/20 px-[0.75vw] py-[0.25vw] rounded-full flex-shrink-0">{worklet.status}</span>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 hidden md:block">{worklet.description}</p>
-                <div className="mt-4">
-                    <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Progress</span>
-                        <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{worklet.progress}%</span>
+                <p className="text-[clamp(0.75rem,0.9vw,0.875rem)] text-gray-600 dark:text-gray-400 mt-[0.25vw] hidden md:block">{worklet.description}</p>
+                <div className="mt-[1vw]">
+                    <div className="flex justify-between items-center mb-[0.25vw]">
+                        <span className="text-[clamp(0.6rem,0.8vw,0.75rem)] font-medium text-gray-500 dark:text-gray-400">Progress</span>
+                        <span className="text-[clamp(0.6rem,0.8vw,0.75rem)] font-bold text-indigo-600 dark:text-indigo-400">{worklet.progress}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-[0.4vw]">
                         {/* --- CHANGE 3: Matched progress bar color to theme and added animation --- */}
-                        <div className="bg-indigo-600 h-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${worklet.progress}%` }}></div>
+                        <div className="bg-indigo-600 h-[0.4vw] rounded-full transition-all duration-500 ease-out" style={{ width: `${worklet.progress}%` }}></div>
                     </div>
                 </div>
                 {/* --- CHANGE 4: Reworked the metadata section for better readability --- */}
-                <div className="mt-4 flex flex-wrap items-center text-xs text-gray-500 dark:text-gray-400 gap-x-4 gap-y-2">
+                <div className="mt-[1vw] flex flex-wrap items-center text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-500 dark:text-gray-400 gap-x-[1vw] gap-y-[0.5vh]">
                     {/* --- CHANGE 1: Reduced icon size from 14 to 12 --- */}
-                    <span className="flex items-center gap-1.5">
-                        <Users size={12}/> 
+                    <span className="flex items-center gap-[0.4vw]">
+                        <Users size={Math.max(10, Math.min(14, window.innerWidth * 0.008))}/> 
                         {/* Simplified text and handled pluralization */}
                         {worklet.students.length} Student{worklet.students.length !== 1 ? 's' : ''}
                     </span>
                     {/* Added a subtle separator for clarity on larger screens */}
                     <span className="hidden sm:inline text-gray-300 dark:text-gray-600">•</span>
                      {/* --- CHANGE 1: Reduced icon size from 14 to 12 --- */}
-                    <span className="flex items-center gap-1.5">
-                        <Calendar size={12}/> 
+                    <span className="flex items-center gap-[0.4vw]">
+                        <Calendar size={Math.max(10, Math.min(14, window.innerWidth * 0.008))}/> 
                         {worklet.startDate} - {worklet.endDate}
                     </span>
                 </div>

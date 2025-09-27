@@ -111,15 +111,15 @@ export default function RequestUpdate({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
       <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="bg-white p-6 rounded-2xl shadow-lg w-96 relative z-10 dark:bg-slate-800">
+      <div className="bg-white p-[clamp(1rem,2vw,1.5rem)] rounded-2xl shadow-lg w-[clamp(20rem,28vw,24rem)] relative z-10 dark:bg-slate-800">
         <button
-          className="absolute top-2 right-2 text-3xl text-purple-700 hover:text-purple-900 font-bold z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors dark:text-purple-300 dark:hover:text-purple-200 dark:hover:bg-slate-700"
+          className="absolute top-[clamp(0.5rem,1vw,0.75rem)] right-[clamp(0.5rem,1vw,0.75rem)] text-[clamp(1.25rem,2vw,1.5rem)] text-purple-700 hover:text-purple-900 font-bold z-10 w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors dark:text-purple-300 dark:hover:text-purple-200 dark:hover:bg-slate-700"
           onClick={onClose}
         >
           ×
         </button>
 
-        <h2 className="text-lg font-semibold mb-4 dark:text-white">Select Worklet</h2>
+        <h2 className="text-[clamp(1rem,1.5vw,1.25rem)] font-semibold mb-[clamp(0.75rem,1.5vh,1rem)] dark:text-white">Select Worklet</h2>
 
         {loading ? (
           <div className="text-center py-4 dark:text-white">
@@ -161,7 +161,7 @@ export default function RequestUpdate({ isOpen, onClose }) {
         ) : (
           <>
             <select
-              className="w-full border rounded-lg p-2 mb-4 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+              className="w-full border rounded-lg p-[clamp(0.5rem,1vw,0.75rem)] mb-[clamp(0.75rem,1.5vh,1rem)] text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-slate-700 dark:text-white dark:border-slate-600"
               value={selectedWorklet}
               onChange={(e) => setSelectedWorklet(e.target.value)}
             >
@@ -178,7 +178,7 @@ export default function RequestUpdate({ isOpen, onClose }) {
             </select>
 
             <button
-              className="w-full bg-blue-500 text-white py-2 rounded-lg shadow hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-500 text-white py-[clamp(0.5rem,1vh,0.75rem)] rounded-lg shadow hover:bg-blue-600 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleRequestUpdate}
               disabled={!selectedWorklet || loading}
             >
@@ -192,12 +192,12 @@ export default function RequestUpdate({ isOpen, onClose }) {
       {showSuccessPopup && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
           <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full transform animate-bounce">
+          <div className="bg-white rounded-2xl shadow-2xl p-[clamp(1.5rem,3vw,2rem)] mx-[clamp(0.75rem,2vw,1rem)] relative z-10 dark:bg-slate-800 max-w-[clamp(20rem,30vw,24rem)] w-full transform animate-bounce">
             {/* Success Icon */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900">
+            <div className="flex items-center justify-center mb-[clamp(1rem,2vh,1.5rem)]">
+              <div className="w-[clamp(3rem,5vw,4rem)] h-[clamp(3rem,5vw,4rem)] bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900">
                 <svg 
-                  className="w-8 h-8 text-green-600 dark:text-green-400" 
+                  className="w-[clamp(1.5rem,2.5vw,2rem)] h-[clamp(1.5rem,2.5vw,2rem)] text-green-600 dark:text-green-400" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"

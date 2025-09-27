@@ -138,14 +138,14 @@ export default function FeedbackForm({ isOpen, onClose }) {
     <div className="fixed inset-0 flex items-center justify-center z-50">
       <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" onClick={handleClose}></div>
       
-      <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl p-[clamp(1.5rem,3vw,2rem)] mx-[clamp(0.75rem,2vw,1rem)] relative z-10 dark:bg-slate-800 max-w-[clamp(24rem,35vw,32rem)] w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-[clamp(1rem,2vh,1.5rem)]">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold text-gray-900 dark:text-white">
               📝 Submit Feedback
             </h2>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">
+            <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-gray-600 dark:text-gray-300 mt-[clamp(0.25rem,0.5vh,0.5rem)]">
               Send feedback to all students in the selected worklet
             </p>
           </div>
@@ -153,38 +153,38 @@ export default function FeedbackForm({ isOpen, onClose }) {
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-[clamp(1.25rem,1.8vw,1.5rem)] h-[clamp(1.25rem,1.8vw,1.5rem)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {loading && !worklets.length ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600 dark:text-gray-300">Loading worklets...</span>
+          <div className="flex items-center justify-center py-[clamp(1.5rem,3vh,2rem)]">
+            <div className="animate-spin rounded-full h-[clamp(1.5rem,2.5vw,2rem)] w-[clamp(1.5rem,2.5vw,2rem)] border-b-2 border-blue-600"></div>
+            <span className="ml-[clamp(0.5rem,1vw,0.75rem)] text-gray-600 text-[clamp(0.875rem,1.2vw,1rem)] dark:text-gray-300">Loading worklets...</span>
           </div>
         ) : error ? (
-          <div className="text-center py-8">
-            <div className="text-red-600 dark:text-red-400 mb-4">⚠️ {error}</div>
+          <div className="text-center py-[clamp(1.5rem,3vh,2rem)]">
+            <div className="text-red-600 dark:text-red-400 mb-[clamp(0.75rem,1.5vh,1rem)] text-[clamp(0.875rem,1.2vw,1rem)]">⚠️ {error}</div>
             <button
               onClick={fetchWorklets}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="bg-blue-600 text-white px-[clamp(0.75rem,1.5vw,1rem)] py-[clamp(0.5rem,1vh,0.75rem)] rounded-lg hover:bg-blue-700 transition-colors text-[clamp(0.875rem,1.2vw,1rem)]"
             >
               Retry
             </button>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-[clamp(1rem,2vh,1.5rem)]">
             {/* Worklet Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
                 Select Worklet *
               </label>
               <select
                 value={selectedWorklet}
                 onChange={(e) => setSelectedWorklet(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="">Choose a worklet...</option>
                 {worklets.map((worklet) => (
@@ -197,7 +197,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
 
             {/* Month Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
                 Feedback Month *
               </label>
               <select

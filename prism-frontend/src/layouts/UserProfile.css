@@ -119,3 +119,13 @@
   /* ++ Add padding to prevent overlap with the close button ++ */
   padding: 0 2.5rem; 
 }
+
+/* Hide scrollbar for webkit browsers */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}

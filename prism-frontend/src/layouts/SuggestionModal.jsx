@@ -176,13 +176,13 @@ export default function SuggestionModal({ isOpen, onClose }) {
           <div className="space-y-6">
             {/* Worklet Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
                 Select Worklet *
               </label>
               <select
                 value={selectedWorklet}
                 onChange={(e) => setSelectedWorklet(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="">Choose a worklet...</option>
                 {worklets.map((worklet) => (
@@ -195,7 +195,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
 
             {/* Month Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
                 Suggestion Title *
               </label>
               <input
