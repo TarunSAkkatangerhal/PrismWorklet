@@ -472,7 +472,7 @@ function WorkletCard({ worklet, layout, navigate }) {
     }
   }
 
-  const truncateText = (text, maxLength = 33) => {
+  const truncateText = (text, maxLength = 25) => {
     if (text.length <= maxLength) return text
     return text.substring(0, maxLength) + '...'
   }
