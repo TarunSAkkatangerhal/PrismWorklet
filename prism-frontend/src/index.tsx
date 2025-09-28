@@ -45,9 +45,12 @@ import "./index.css";
         const doRefresh = async () => {
           const refresh = localStorage.getItem("refresh_token");
           if (!refresh) throw new Error("No refresh token");
-          const res = await axios.post(`${API_BASE}/auth/refresh`, { refresh_token: refresh });
-          const newAccess = res?.data?.access_token;
-          const newRefresh = res?.data?.refresh_token;
+          const res = await axios.post<{ access_token: string; refresh_token: string }>(
+            `${API_BASE}/auth/refresh`,
+            { refresh_token: refresh }
+          );
+          const newAccess = res.data.access_token;
+          const newRefresh = res.data.refresh_token;
           if (!newAccess || !newRefresh) throw new Error("Invalid refresh response");
           localStorage.setItem("access_token", newAccess);
           localStorage.setItem("refresh_token", newRefresh);
