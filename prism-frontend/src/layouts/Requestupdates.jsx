@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function RequestUpdate({ isOpen, onClose }) {
+export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedWorklet }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -73,6 +73,20 @@ export default function RequestUpdate({ isOpen, onClose }) {
       fetchWorklets();
     }
   }, [isOpen]);
+
+  // Auto-select worklet if preSelectedWorklet is provided
+  useEffect(() => {
+    if (preSelectedWorklet && worklets.length > 0) {
+      // Find the worklet in the list that matches the preSelectedWorklet ID
+      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
+      if (foundWorklet) {
+        setSelectedWorklet(foundWorklet.id);
+      } else if (preSelectedWorklet.id) {
+        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
+        setSelectedWorklet(preSelectedWorklet.id);
+      }
+    }
+  }, [preSelectedWorklet, worklets]);
 
   const handleRequestUpdate = async () => {
     if (!selectedWorklet) {

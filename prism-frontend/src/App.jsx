@@ -2,16 +2,24 @@ import { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import Dashboard from "./pages/Dashboard";
-import ProfileView from "./layouts/ProfileView";
-import ProfileEdit from "./layouts/ProfileEdit";
 import RequestUpdate from "./layouts/Requestupdates";
 import Ray from "./layouts/Ray";
 import WorkletsPage from "./components/WorkletsPage";
 import WorkletDetailPage from './components/WorkletDetailsPage';
 import Login from "./components/login";
 import StatisticsDashboard from "./layouts/Statistics";
+import MeetingPage from "./layouts/meeting";
+import MentorWorkletView from "./pages/MentorWorkletView"; 
+import StudentWorkletView from "./pages/StudentWorkletView";
+import LeftSidebar from "./components/Left";
+import Portfolio from "./components/portfolio";
+// --- UPDATED & NEW IMPORTS ---
+// Replaced ProfileEdit and ProfileView with the new components.
+// Make sure these paths are correct for your project structure.
 
-// ProtectedRoute component
+import SettingsPage from "./layouts/SettingsPage";
+
+// --- ProtectedRoute component (no changes needed) ---
 function ProtectedRoute({ children }) {
   const accessToken = localStorage.getItem("access_token");
   const refreshToken = localStorage.getItem("refresh_token");
@@ -22,21 +30,9 @@ function ProtectedRoute({ children }) {
   return <Navigate to="/" replace />;
 }
 
-// The single source of truth for user data
-const initialUserData = {
-  avatarUrl: null,
-  name: 'Mary Christian',
-  handle: '@mary_prism',
-  bio: 'PRISM / Tech Strategy, Software Developer. Turning ideas into impact.',
-  qualification: 'Software Developer',
-  dob: '1992-11-24',
-  location: 'Bengaluru, India',
-  website: 'https://mary.dev',
-};
-
 export default function App() {
-  // The user data state is managed here
-  const [userData, setUserData] = useState(initialUserData);
+  // The userData state is no longer needed here, as the new UserProfile 
+  // component fetches its own data. This simplifies the App component.
 
   return (
     <ThemeProvider>
@@ -47,11 +43,9 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Routes>
+                {/* --- Your Existing Routes --- */}
                 <Route path="/home" element={<Dashboard />} />
                 <Route path="/statistics" element={<StatisticsDashboard />} />
-                <Route path="/profile" element={<ProfileEdit userData={userData} onProfileUpdate={setUserData} />} />
-                <Route path="/profile/view" element={<ProfileView userData={userData} />} />
-                <Route path="/profile/edit" element={<ProfileEdit userData={userData} onProfileUpdate={setUserData} />} />
                 <Route path="/request-update" element={<RequestUpdate />} />
                 <Route path="/ray" element={<Ray />} />
                 <Route path="/worklets" element={<WorkletsPage />} />
@@ -59,6 +53,21 @@ export default function App() {
                 <Route path="/share-suggestion" element={<Dashboard />} />
                 <Route path="/internship-referral" element={<Dashboard />} />
                 <Route path="/submit-feedback" element={<Dashboard />} />
+                <Route path="/Left" element={<LeftSidebar/>}/>
+                {/* --- Meeting Platform Routes --- */}
+                <Route path="/meeting/:channelId" element={<MeetingPage />} />
+                <Route path="/mentor/worklet/:workletId" element={<MentorWorkletView />} />
+                <Route path="/student/worklet/:workletId" element={<StudentWorkletView />} />
+                <Route path="portfolio" element={<Portfolio/>}/>
+
+                {/* --- UPDATED PROFILE & SETTINGS ROUTES --- */}
+
+                
+                {/* Added the new dedicated settings route. */}
+                <Route path="/settings" element={<SettingsPage />} />
+                
+                {/* Removed redundant /profile/view and /profile/edit routes for clarity. */}
+
               </Routes>
             </ProtectedRoute>
           }

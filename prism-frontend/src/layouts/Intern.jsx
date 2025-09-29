@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Loader2, CheckCircle2, Send, Download, FileText } from "lucide-react";
 import axios from "axios";
 
-// ----------------------------------------------------------------------------------
+// -----------  }, [formData.studentName, students]);
+
+  // ----------------------------------------------------------------------------------
 // 1. API FUNCTIONS 
 // ----------------------------------------------------------------------------------
 
@@ -130,7 +132,7 @@ const initialFormData = {
   reason: "",
 };
 
-export default function InternReferralForm() {
+export default function InternReferralForm({ workletId, preSelectedWorklet }) {
   const [formData, setFormData] = useState(initialFormData);
   const [status, setStatus] = useState("idle");
   const [submittedData, setSubmittedData] = useState(null);
@@ -177,6 +179,20 @@ export default function InternReferralForm() {
       }));
     }
   }, [formData.studentName, students]);
+
+  // Auto-select worklet if preSelectedWorklet is provided
+  useEffect(() => {
+    if (preSelectedWorklet && worklets.length > 0) {
+      // Find the worklet in the list that matches the preSelectedWorklet ID
+      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
+      if (foundWorklet) {
+        setFormData(prev => ({ ...prev, workletId: foundWorklet.id }));
+      } else if (preSelectedWorklet.id) {
+        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
+        setFormData(prev => ({ ...prev, workletId: preSelectedWorklet.id }));
+      }
+    }
+  }, [preSelectedWorklet, worklets]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

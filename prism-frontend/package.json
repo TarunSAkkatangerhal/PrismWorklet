@@ -5,10 +5,12 @@
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
+    "@floating-ui/react": "^0.27.16",
     "@headlessui/react": "^2.2.9",
     "@tremor/react": "^3.18.7",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
+    "agora-react-uikit": "^1.2.0",
     "axios": "^1.12.2",
     "date-fns": "^2.30.0",
     "emoji-picker-react": "^4.13.3",

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { STATUS_OPTIONS, statusIcons } from "../components/data";
 
-const Feedback = ({ onClose }) => {
-  const [workletId, setWorkletId] = useState("");
+const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => {
+  const [workletId, setWorkletId] = useState(propWorkletId || "");
   const [month, setMonth] = useState("2");
   const [feedback, setFeedback] = useState("");
   const [connectType, setConnectType] = useState("");
@@ -52,6 +52,20 @@ const Feedback = ({ onClose }) => {
 
     fetchWorklets();
   }, []);
+
+  // Auto-select worklet if preSelectedWorklet is provided
+  useEffect(() => {
+    if (preSelectedWorklet && worklets.length > 0) {
+      // Find the worklet in the list that matches the preSelectedWorklet ID
+      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
+      if (foundWorklet) {
+        setWorkletId(foundWorklet.id.toString());
+      } else if (preSelectedWorklet.id) {
+        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
+        setWorkletId(preSelectedWorklet.id.toString());
+      }
+    }
+  }, [preSelectedWorklet, worklets]);
 
   const handleSubmit = () => {
     const data = {

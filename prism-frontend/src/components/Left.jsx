@@ -1,70 +1,153 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import {
-  Home,
-  BarChart,
-  GraduationCap,
-  MessageSquare,
-  Bell,
-  Calendar,
-  Folder,
-  MessageCircle,
-  User as UserIcon,
-  LogOut,
-} from 'lucide-react';
+import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
+
+import { ThemeContext } from '../context/ThemeContext';
 import SidebarItem from './SidebarItem';
 import profilePic from '../assets/profilePic.jpg';
 
+// --- PORTAL COMPONENT IS NOW DEFINED INSIDE THIS FILE ---
+const Portal = ({ children }) => {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        // Ensure the portal root element exists
+        let portalRoot = document.getElementById('portal-root');
+        if (!portalRoot) {
+            portalRoot = document.createElement('div');
+            portalRoot.id = 'portal-root';
+            document.body.appendChild(portalRoot);
+        }
+
+        return () => setMounted(false);
+    }, []);
+
+    const portalRoot = typeof document !== 'undefined' ? document.getElementById('portal-root') : null;
+
+    return mounted && portalRoot ? createPortal(children, portalRoot) : null;
+};
+// --- END OF PORTAL DEFINITION ---
+
+
+// Reusable Settings Menu Item
+const SettingsMenuItem = ({ icon, title, subtitle, onClick, colorClass = 'text-blue-500' }) => (
+    <button onClick={onClick} className="w-full flex items-center p-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200">
+        <div className={`p-2 rounded-full bg-opacity-10 ${colorClass.replace('text-', 'bg-')} mr-3`}>
+            {React.cloneElement(icon, { className: `w-5 h-5 ${colorClass}` })}
+        </div>
+        <div>
+            <h3 className="font-semibold text-sm text-slate-800 dark:text-white">{title}</h3>
+            {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
+        </div>
+    </button>
+);
+
+
 const LeftSidebar = () => {
-  const navigate = useNavigate();
-  const [imgError, setImgError] = useState(false);
+    const navigate = useNavigate();
+    const [imgError, setImgError] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const handleLogout = () => {
-    try {
-      ['access_token', 'refresh_token', 'user_email', 'user_name'].forEach((k) => localStorage.removeItem(k));
-    } finally {
-      navigate('/');
-    }
-  };
+    // Use global theme state from context
+    const { isDarkMode, toggleTheme } = useContext(ThemeContext);
 
-  return (
-    <aside className="w-[clamp(5rem,8vw,7.5rem)] bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black flex flex-col py-[1vh] overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <nav className="flex flex-col gap-[2vh] items-center">
-        <SidebarItem icon={<Home className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)]" />} label="Home" onClick={() => navigate('/home')} />
-        <SidebarItem icon={<BarChart className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)]" />} label="Statistics" onClick={() => navigate('/statistics')} />
-        <SidebarItem icon={<GraduationCap className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)]" />} label="Colleges" onClick={() => navigate('/colleges')} />
-  {/** Removed Chats and Updates per request */}
-        <SidebarItem icon={<Calendar className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)]" />} label="Meetings" onClick={() => navigate('/meetings')} />
-        <SidebarItem icon={<Folder className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)]" />} label="Portfolio" onClick={() => navigate('/portfolio')} />
-  {/** Removed Feedbacks per request */}
-      </nav>
+    // Floating UI hook for robust menu positioning
+    const { x, y, refs, strategy } = useFloating({
+        whileElementsMounted: autoUpdate,
+        placement: 'right-end',
+        middleware: [offset(16), flip(), shift()],
+    });
 
-      {/* Profile button at bottom-left */}
-      <div className="mt-auto px-[0.5vw] pt-[1vh] pb-[0.5vh]">
-        <button
-          onClick={() => navigate('/profile')}
-          className="w-full flex items-center justify-center rounded-2xl p-[0.75vw] transition-all duration-200 dark:bg-slate-800/40 backdrop-blur-sm"
-          aria-label="Go to profile"
-        >
-          <div className="relative">
-            {!imgError ? (
-              <img
-                src={profilePic}
-                alt="Profile"
-                className="w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] rounded-full object-cover shadow-md"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div className="w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-md">
-                <UserIcon className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-white" />
-              </div>
-            )}
+    // Event handlers
+    const handleLogout = () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('user_name');
+        localStorage.removeItem('user_email');
+        navigate('/');
+    };
+    const handleAboutUs = () => {
+        alert('About PRISM: Professional Resource and Internship Support Management.');
+        setIsSettingsOpen(false);
+    };
 
-          </div>
-        </button>
-      </div>
-    </aside>
-  );
+    // Effect to close menu on outside click
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (refs.domReference.current && !refs.domReference.current.contains(event.target) &&
+                refs.floating.current && !refs.floating.current.contains(event.target)) {
+                setIsSettingsOpen(false);
+            }
+        };
+        if (isSettingsOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isSettingsOpen, refs]);
+
+    return (
+        <aside className="w-[clamp(5rem,8vw,7.5rem)] bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black flex flex-col py-[1vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <nav className="flex flex-col gap-[2vh] items-center">
+                <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
+                <SidebarItem icon={<BarChart size={20} />} label="Statistics" onClick={() => navigate('/statistics')} />
+                <SidebarItem icon={<GraduationCap size={20} />} label="Colleges" onClick={() => navigate('/colleges')} />
+                <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} />
+                <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
+            </nav>
+
+            <div className="mt-auto px-[0.5vw] pt-[1vh] pb-[0.5vh]">
+                <button
+                    ref={refs.setReference}
+                    onClick={() => setIsSettingsOpen(prev => !prev)}
+                    className="w-full flex items-center justify-center rounded-2xl p-[0.75vw] transition-all duration-200 hover:bg-black/10 dark:hover:bg-white/10"
+                    aria-label="Open Settings"
+                >
+                    <div className="relative">
+                        {!imgError ? (
+                            <img src={profilePic} alt="Profile" className="w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] rounded-full object-cover shadow-md" onError={() => setImgError(true)} />
+                        ) : (
+                            <div className="w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-md">
+                                <Settings className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-white" />
+                            </div>
+                        )}
+                    </div>
+                </button>
+            </div>
+
+            <AnimatePresence>
+                {isSettingsOpen && (
+                    <Portal>
+                        <motion.div
+                            ref={refs.setFloating}
+                            style={{
+                                position: strategy,
+                                top: y ?? 0,
+                                left: x ?? 0,
+                            }}
+                            className="w-64 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-2 z-50"
+                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                        >
+                            <div className="space-y-1">
+                                <SettingsMenuItem icon={isDarkMode ? <Sun /> : <Moon />} title="Appearance" subtitle={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} onClick={toggleTheme} colorClass="text-purple-500" />
+                                <SettingsMenuItem icon={<Info />} title="About PRISM" subtitle="Learn more about our mission" onClick={handleAboutUs} colorClass="text-amber-500" />
+                                <div className="px-1 pt-1"><hr className="border-slate-200 dark:border-slate-700" /></div>
+                                <SettingsMenuItem icon={<LogOut />} title="Sign Out" onClick={handleLogout} colorClass="text-red-500" />
+                            </div>
+                        </motion.div>
+                    </Portal>
+                )}
+            </AnimatePresence>
+        </aside>
+    );
 };
 
 export default LeftSidebar;

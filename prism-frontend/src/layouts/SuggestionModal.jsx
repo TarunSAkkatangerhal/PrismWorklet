@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function SuggestionModal({ isOpen, onClose }) {
+export default function SuggestionModal({ isOpen, onClose, workletId, preSelectedWorklet }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
   const [suggestionTitle, setSuggestionTitle] = useState("");
   const [suggestionContent, setSuggestionContent] = useState("");
@@ -17,6 +17,20 @@ export default function SuggestionModal({ isOpen, onClose }) {
       fetchWorklets();
     }
   }, [isOpen]);
+
+  // Auto-select worklet if preSelectedWorklet is provided
+  useEffect(() => {
+    if (preSelectedWorklet && worklets.length > 0) {
+      // Find the worklet in the list that matches the preSelectedWorklet ID
+      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
+      if (foundWorklet) {
+        setSelectedWorklet(foundWorklet.id);
+      } else if (preSelectedWorklet.id) {
+        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
+        setSelectedWorklet(preSelectedWorklet.id);
+      }
+    }
+  }, [preSelectedWorklet, worklets]);
 
   const fetchWorklets = async () => {
     try {
