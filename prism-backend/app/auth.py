@@ -177,16 +177,26 @@ def set_password(password_data: schemas.SetPassword, db: Session = Depends(get_d
 # Updated login to return tokens, user info, and user profile
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """Login endpoint with optional role (scope) verification.
+    If the frontend supplies a role in OAuth2 scope, ensure it matches the persisted user role.
+    This prevents a user from attempting to log in as a different role.
+    """
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_verified:
         raise HTTPException(status_code=401, detail="Email not verified")
 
-    access = create_access_token({"sub": user.email, "role": user.role, "user_id": user.id})
-    refresh = create_refresh_token({"sub": user.email, "role": user.role, "user_id": user.id})
+    # OAuth2PasswordRequestForm provides scopes via .scopes list
+    if form_data.scopes:
+        requested_role = form_data.scopes[0]  # we only expect one role as scope
+        if requested_role and requested_role.lower() != user.role.lower():
+            raise HTTPException(status_code=403, detail="Role mismatch: unauthorized for requested role")
 
-    # Fetch user profile from user_profiles table
+    token_payload = {"sub": user.email, "role": user.role, "user_id": user.id}
+    access = create_access_token(token_payload)
+    refresh = create_refresh_token(token_payload)
+
     profile = None
     if user.profile:
         profile = {

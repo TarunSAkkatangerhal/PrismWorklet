@@ -11,22 +11,14 @@ const fetchWorkletsFromAPI = async () => {
   try {
     const userEmail = localStorage.getItem("user_email");
     const token = localStorage.getItem("access_token");
-    
-    if (!userEmail || !token) {
-      throw new Error("User information not found");
-    }
-
-    const response = await axios.get(
-      `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
-      {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      }
-    );
-    
-    return response.data || [];
+    if (!userEmail || !token) throw new Error("User information not found");
+    const response = await axios.get(`http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    const payload = response.data;
+    // Endpoint returns an object: { worklets: [...], total_worklets, total_mentees }
+    if (Array.isArray(payload)) return payload; // backward compatibility if it ever returned a list
+    return Array.isArray(payload?.worklets) ? payload.worklets : [];
   } catch (error) {
     console.error("Error fetching worklets:", error);
     return [];
@@ -38,22 +30,12 @@ const fetchMentorWorklets = async () => {
   try {
     const userEmail = localStorage.getItem("user_email");
     const token = localStorage.getItem("access_token");
-    
-    if (!userEmail || !token) {
-      throw new Error("User information not found");
-    }
-
-    const response = await axios.get(
-      `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
-      {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      }
-    );
-    
-    return response.data || [];
+    if (!userEmail || !token) throw new Error("User information not found");
+    const response = await axios.get(`http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    const payload = response.data;
+    return Array.isArray(payload?.worklets) ? payload.worklets : (Array.isArray(payload) ? payload : []);
   } catch (error) {
     console.error("Error fetching mentor worklets:", error);
     return [];
@@ -147,12 +129,12 @@ export default function InternReferralForm() {
     const loadWorklets = async () => {
       setIsLoadingWorklets(true);
       const fetchedWorklets = await fetchMentorWorklets();
-      setWorklets(fetchedWorklets);
+      setWorklets(Array.isArray(fetchedWorklets) ? fetchedWorklets : []);
       setIsLoadingWorklets(false);
       
       // Calculate total student count across all worklets
       let totalStudents = 0;
-      for (const worklet of fetchedWorklets) {
+      for (const worklet of (Array.isArray(fetchedWorklets) ? fetchedWorklets : [])) {
         try {
           const workletStudents = await fetchStudentsFromAPI(worklet.id);
           totalStudents += workletStudents.length;
@@ -305,7 +287,7 @@ export default function InternReferralForm() {
               <option value="" disabled>
                 {isLoadingWorklets ? "Loading worklets..." : "Select a Worklet ID"}
               </option>
-              {worklets.map((worklet) => (
+              {Array.isArray(worklets) && worklets.map((worklet) => (
                 <option key={worklet.id} value={worklet.id}>
                   {worklet.cert_id} - {worklet.description || worklet.title}
                 </option>

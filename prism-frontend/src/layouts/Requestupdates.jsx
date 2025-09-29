@@ -51,8 +51,10 @@ export default function RequestUpdate({ isOpen, onClose }) {
           }
         );
 
-        const data = response?.data?.ongoing_worklets || [];
-        setWorklets(Array.isArray(data) ? data : []);
+  const raw = response?.data?.ongoing_worklets || [];
+  // Explicitly ensure only ongoing worklets are shown (defensive filter)
+  const data = Array.isArray(raw) ? raw.filter(w => (w.status || 'Ongoing').toLowerCase() === 'ongoing') : [];
+  setWorklets(data);
         if ((data || []).length === 0) {
           setError("No worklets found for this mentor");
         }
@@ -98,7 +100,7 @@ export default function RequestUpdate({ isOpen, onClose }) {
       setTimeout(() => {
         setShowSuccessPopup(false);
         onClose();
-      }, 2500);
+      }, 2000); // show for 2 seconds
     } catch (err) {
       console.error("Error requesting update:", err);
       setShowErrorPopup(true);
@@ -218,7 +220,7 @@ export default function RequestUpdate({ isOpen, onClose }) {
                 🎉 Success!
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Update request sent successfully!
+                Request update sent successfully!
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Students will be notified via email.

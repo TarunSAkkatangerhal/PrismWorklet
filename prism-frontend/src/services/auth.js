@@ -11,7 +11,13 @@ export const login = async (email, password, role) => {
   }
 
   const response = await API.post("/auth/login", params);
-  return response.data;
+  const data = response.data;
+  try {
+    if (data?.user?.role) {
+      localStorage.setItem('user_role', data.user.role);
+    }
+  } catch (_) { /* ignore storage errors */ }
+  return data;
 };
 export const getCurrentUser = async () => {
   const response = await API.get("/auth/me");
