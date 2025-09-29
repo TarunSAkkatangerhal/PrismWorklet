@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Award, Star, Trophy, Gift } from 'lucide-react';
+import { X, Award, Star, Trophy, Gift, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
 
 function EvaluateModal({ isOpen, onClose }) {
@@ -24,6 +24,19 @@ function EvaluateModal({ isOpen, onClose }) {
     comments: '',
     feedback: ''
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  // Keep an interval to refresh selected worklet details for 'live' data
+  useEffect(() => {
+    if (!selectedWorklet) return;
+    const interval = setInterval(() => {
+      refreshSelectedWorkletDetails(selectedWorklet, { silent: true });
+    }, 20000); // refresh every 20s
+    return () => clearInterval(interval);
+  }, [selectedWorklet]);
 
   // Fetch completed worklets when modal opens
   useEffect(() => {
@@ -35,30 +48,24 @@ function EvaluateModal({ isOpen, onClose }) {
   const fetchCompletedWorklets = async () => {
     try {
       setLoading(true);
-      const userEmail = localStorage.getItem("user_email");
-      const token = localStorage.getItem("access_token");
-      
-      if (!userEmail || !token) {
-        throw new Error("User information not found");
-      }
-
-      // Fetch completed worklets for the mentor
-      const response = await axios.get(
-        `http://localhost:8000/worklets/completed/${encodeURIComponent(userEmail)}`,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
-      );
-      
-      // Filter for completed worklets (you might need to add status field to backend)
-      // For now, we'll use percentage_completion >= 100 as completed
-      const completed = response.data || [];
-      setCompletedWorklets(completed);
+      setFetchError(null);
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('Missing token');
+      // Resolve mentor id
+      const profileResp = await axios.get('http://localhost:8000/auth/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const mentorId = profileResp?.data?.id;
+      if (!mentorId) throw new Error('Unable to resolve mentor id');
+      // Get all worklets including completed
+      const assocResp = await axios.get(`http://localhost:8000/api/associations/mentor/${mentorId}/all-worklets`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+      const completed = assocResp?.data?.completed_worklets || [];
+      setCompletedWorklets(Array.isArray(completed) ? completed : []);
     } catch (error) {
-      console.error("Error fetching completed worklets:", error);
+      console.error('Error fetching completed worklets:', error?.response?.data || error.message);
+      setFetchError(error.message || 'Failed to load completed worklets');
       setCompletedWorklets([]);
     } finally {
       setLoading(false);
@@ -67,33 +74,37 @@ function EvaluateModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const refreshSelectedWorkletDetails = async (workletId, { silent = false } = {}) => {
+    if (!workletId) return;
+    try {
+      if (!silent) setDetailsLoading(true);
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('Missing token');
+      // Fetch fresh association-based details for the worklet (mentors + students etc.)
+      const resp = await axios.get(`http://localhost:8000/api/associations/worklet/${workletId}` ,{
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+      const baseInfo = completedWorklets.find(w => w.id === parseInt(workletId));
+      // Merge so new data overwrites stale fields
+      setSelectedWorkletDetails({
+        ...(baseInfo || {}),
+        ...(resp?.data || {})
+      });
+    } catch (err) {
+      console.error('Live detail fetch failed', err?.response?.data || err.message);
+    } finally {
+      if (!silent) setDetailsLoading(false);
+    }
+  };
+
   const handleWorkletSelect = async (workletId) => {
     setSelectedWorklet(workletId);
-    if (workletId) {
-      try {
-        const token = localStorage.getItem("access_token");
-        // Fetch students for the selected worklet
-        const response = await axios.get(
-          `http://localhost:8000/worklets/${workletId}/students`,
-          {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            }
-          }
-        );
-        
-        const workletInfo = completedWorklets.find(w => w.id === parseInt(workletId));
-        setSelectedWorkletDetails({
-          ...workletInfo,
-          students: response.data || []
-        });
-      } catch (error) {
-        console.error("Error fetching worklet details:", error);
-      }
-    } else {
+    if (!workletId) {
       setSelectedWorkletDetails(null);
+      return;
     }
+    // Initial immediate fetch
+    refreshSelectedWorkletDetails(workletId);
   };
 
   const handleInputChange = (field, value) => {
@@ -122,8 +133,15 @@ function EvaluateModal({ isOpen, onClose }) {
       return;
     }
 
+    // Basic validation: ensure at least one rating or innovation/feedback present
+    const hasAny = evaluationData.performance_rating || evaluationData.completion_quality || evaluationData.teamwork_rating || evaluationData.innovation_score || evaluationData.feedback || evaluationData.comments;
+    if (!hasAny) {
+      alert('Provide at least one rating, score, or feedback comment.');
+      return;
+    }
+
     try {
-      setLoading(true);
+      setSubmitting(true);
       const token = localStorage.getItem("access_token");
       
       const evaluationPayload = {
@@ -144,9 +162,12 @@ function EvaluateModal({ isOpen, onClose }) {
           }
         }
       );
-      
-      alert(`Evaluation submitted successfully for ${selectedWorkletDetails?.cert_id}!`);
-      onClose();
+      setShowSuccess(true);
+      // Auto close after short delay
+      setTimeout(() => {
+        setShowSuccess(false);
+        onClose();
+      }, 2000);
       
       // Reset form
       setSelectedWorklet('');
@@ -169,10 +190,10 @@ function EvaluateModal({ isOpen, onClose }) {
         feedback: ''
       });
     } catch (error) {
-      console.error("Error submitting evaluation:", error);
-      alert("Failed to submit evaluation. Please try again.");
+      console.error('Error submitting evaluation:', error?.response?.data || error.message);
+      alert('Failed to submit evaluation. Please try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -199,6 +220,9 @@ function EvaluateModal({ isOpen, onClose }) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
+            {fetchError && (
+              <div className="p-3 rounded-md bg-red-100 text-red-700 text-sm dark:bg-red-900 dark:text-red-200">{fetchError}</div>
+            )}
             {/* Worklet Selection */}
             <div className="mb-6">
               <label htmlFor="worklet-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -225,18 +249,44 @@ function EvaluateModal({ isOpen, onClose }) {
 
             {/* Selected Worklet Details */}
             {selectedWorkletDetails && (
-              <div className="bg-blue-50 dark:bg-slate-700 p-4 rounded-lg mb-6">
-                <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-white">
-                  {selectedWorkletDetails.cert_id}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                  {selectedWorkletDetails.description || "No description available"}
-                </p>
-                <div className="text-sm text-gray-600 dark:text-gray-300">
-                  {selectedWorkletDetails.domain && (<><strong>Domain:</strong> {selectedWorkletDetails.domain}<br/></>)}
-                  {selectedWorkletDetails.start_date && (<><strong>Start:</strong> {selectedWorkletDetails.start_date}<br/></>)}
-                  {selectedWorkletDetails.end_date && (<><strong>End:</strong> {selectedWorkletDetails.end_date}<br/></>)}
-                  <strong>Students:</strong> {selectedWorkletDetails.students?.map(s => s.name).join(', ') || 'Loading...'}
+              <div className="bg-blue-50 dark:bg-slate-700 p-4 rounded-lg mb-6 relative">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1 text-gray-900 dark:text-white">
+                      {selectedWorkletDetails.cert_id}{' '}
+                      {selectedWorkletDetails.status && (
+                        <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-200 text-blue-800 dark:bg-blue-600 dark:text-white">
+                          {selectedWorkletDetails.status}
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                      {selectedWorkletDetails.description || 'No description available'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => refreshSelectedWorkletDetails(selectedWorklet)}
+                    className="text-xs bg-white dark:bg-slate-600 border border-blue-300 dark:border-slate-500 text-blue-700 dark:text-blue-200 px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-slate-500 transition-colors flex items-center gap-1"
+                    disabled={detailsLoading}
+                    title="Refresh details"
+                  >
+                    {detailsLoading ? (
+                      <span className="flex items-center gap-1"><span className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></span>Updating</span>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7 7 0 111.5 11.798.999.999 0 111-1.732A5 5 0 106 7.101V9a1 1 0 01-2 0V3a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                        Refresh
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                  {selectedWorkletDetails.domain && (<div><strong>Domain:</strong> {selectedWorkletDetails.domain}</div>)}
+                  {selectedWorkletDetails.start_date && (<div><strong>Start:</strong> {selectedWorkletDetails.start_date}</div>)}
+                  {selectedWorkletDetails.end_date && (<div><strong>End:</strong> {selectedWorkletDetails.end_date}</div>)}
+                  <div><strong>Students:</strong> {Array.isArray(selectedWorkletDetails.students) && selectedWorkletDetails.students.length > 0 ? selectedWorkletDetails.students.map(s => s.name).join(', ') : (detailsLoading ? 'Updating...' : 'None')}</div>
+                  {selectedWorkletDetails.college && (<div><strong>College:</strong> {selectedWorkletDetails.college}</div>)}
                 </div>
               </div>
             )}
@@ -459,10 +509,10 @@ function EvaluateModal({ isOpen, onClose }) {
               </button>
               <button
                 type="submit"
-                disabled={!selectedWorklet || loading}
+                disabled={!selectedWorklet || loading || submitting}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition-colors disabled:bg-blue-300 dark:disabled:bg-blue-800 flex items-center gap-2"
               >
-                {loading ? (
+                {submitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     Submitting...
@@ -476,6 +526,14 @@ function EvaluateModal({ isOpen, onClose }) {
               </button>
             </div>
           </form>
+        )}
+        {showSuccess && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg">
+            <div className="bg-white dark:bg-slate-700 p-6 rounded-xl shadow-xl flex flex-col items-center gap-3">
+              <CheckCircle2 className="w-12 h-12 text-green-600 dark:text-green-400" />
+              <p className="text-green-700 dark:text-green-300 font-semibold">Evaluation submitted!</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

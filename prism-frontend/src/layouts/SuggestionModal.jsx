@@ -54,8 +54,9 @@ export default function SuggestionModal({ isOpen, onClose }) {
         }
       );
 
-      const data = response?.data?.ongoing_worklets || [];
-      setWorklets(Array.isArray(data) ? data : []);
+  const raw = response?.data?.ongoing_worklets || [];
+  const data = Array.isArray(raw) ? raw.filter(w => (w.status || 'Ongoing').toLowerCase() === 'ongoing') : [];
+  setWorklets(data);
       if ((data || []).length === 0) setError("No worklets found for this mentor");
     } catch (error) {
       console.error("Error fetching worklets:", error);
@@ -111,7 +112,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
       setTimeout(() => {
         setShowSuccessPopup(false);
         onClose();
-      }, 3000);
+      }, 2000); // show for 2 seconds
 
     } catch (error) {
       console.error("Error submitting suggestion:", error);
@@ -281,7 +282,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
                 💡 Suggestion Shared!
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Your suggestion has been shared successfully!
+                Suggestion submitted successfully!
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 All students in the worklet will receive an email notification.

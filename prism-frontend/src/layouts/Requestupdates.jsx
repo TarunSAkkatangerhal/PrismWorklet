@@ -5,6 +5,8 @@ export default function RequestUpdate({ isOpen, onClose }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(false);
+  // loading = fetching worklets; isSubmitting = sending the request-update action
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
@@ -84,6 +86,7 @@ export default function RequestUpdate({ isOpen, onClose }) {
     }
 
     try {
+      setIsSubmitting(true);
       const token = localStorage.getItem("access_token");
       await axios.post(
         `http://localhost:8000/worklets/${selectedWorklet}/request-update`,
@@ -105,6 +108,8 @@ export default function RequestUpdate({ isOpen, onClose }) {
       console.error("Error requesting update:", err);
       setShowErrorPopup(true);
       setTimeout(() => setShowErrorPopup(false), 3000);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -182,9 +187,16 @@ export default function RequestUpdate({ isOpen, onClose }) {
             <button
               className="w-full bg-blue-500 text-white py-[clamp(0.5rem,1vh,0.75rem)] rounded-lg shadow hover:bg-blue-600 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleRequestUpdate}
-              disabled={!selectedWorklet || loading}
+              disabled={!selectedWorklet || loading || isSubmitting}
             >
-              {loading ? "Sending..." : "Request Update"}
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Sending...
+                </span>
+              ) : (
+                "Request Update"
+              )}
             </button>
           </>
         )}

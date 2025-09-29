@@ -259,7 +259,9 @@ def get_mentor_ongoing_worklets(
             "students": [{
                 "id": student.id,
                 "name": student.name,
-                "email": student.email
+                "email": student.email,
+                "college": getattr(student, 'college', None),
+                "college_id": getattr(student, 'college_id', None)
             } for student in students],
             "student_count": len(students),
             "assigned_at": None,
@@ -338,7 +340,9 @@ def get_mentor_all_worklets(
             "students": [{
                 "id": student.id,
                 "name": student.name,
-                "email": student.email
+                "email": student.email,
+                "college": getattr(student, 'college', None),
+                "college_id": getattr(student, 'college_id', None)
             } for student in students],
             "student_count": len(students),
         }
