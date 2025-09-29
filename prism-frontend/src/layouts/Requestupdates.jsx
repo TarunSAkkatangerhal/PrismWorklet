@@ -5,6 +5,8 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
   const [selectedWorklet, setSelectedWorklet] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(false);
+  // loading = fetching worklets; isSubmitting = sending the request-update action
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
@@ -51,8 +53,10 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
           }
         );
 
-        const data = response?.data?.ongoing_worklets || [];
-        setWorklets(Array.isArray(data) ? data : []);
+  const raw = response?.data?.ongoing_worklets || [];
+  // Explicitly ensure only ongoing worklets are shown (defensive filter)
+  const data = Array.isArray(raw) ? raw.filter(w => (w.status || 'Ongoing').toLowerCase() === 'ongoing') : [];
+  setWorklets(data);
         if ((data || []).length === 0) {
           setError("No worklets found for this mentor");
         }
@@ -96,6 +100,7 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
     }
 
     try {
+      setIsSubmitting(true);
       const token = localStorage.getItem("access_token");
       await axios.post(
         `http://localhost:8000/worklets/${selectedWorklet}/request-update`,
@@ -112,11 +117,13 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
       setTimeout(() => {
         setShowSuccessPopup(false);
         onClose();
-      }, 2500);
+      }, 2000); // show for 2 seconds
     } catch (err) {
       console.error("Error requesting update:", err);
       setShowErrorPopup(true);
       setTimeout(() => setShowErrorPopup(false), 3000);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -194,9 +201,16 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
             <button
               className="w-full bg-blue-500 text-white py-[clamp(0.5rem,1vh,0.75rem)] rounded-lg shadow hover:bg-blue-600 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleRequestUpdate}
-              disabled={!selectedWorklet || loading}
+              disabled={!selectedWorklet || loading || isSubmitting}
             >
-              {loading ? "Sending..." : "Request Update"}
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Sending...
+                </span>
+              ) : (
+                "Request Update"
+              )}
             </button>
           </>
         )}
@@ -232,7 +246,7 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
                 🎉 Success!
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Update request sent successfully!
+                Request update sent successfully!
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Students will be notified via email.

@@ -1,6 +1,6 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.models import Worklet, User
+from app.models import Worklet, User, UserWorkletAssociation
 from app.schemas import WorkletCreate, WorkletUpdate, WorkletResponse
 from app.database import get_db
 from typing import List, Optional
@@ -80,41 +80,77 @@ def delete_worklet(worklet_id: int, db: Session = Depends(get_db)):
 
 # ----------------- Mentor Worklets -----------------
 @router.get("/mentor/{mentor_email}/worklets")
-def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db)):
+def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_ongoing: bool = False):
     try:
-        # Find mentor
         mentor = db.query(User).filter(User.email == mentor_email, User.role == "Mentor").first()
         if not mentor:
             raise HTTPException(status_code=404, detail="Mentor not found")
-        
-        # Get worklets assigned to this mentor using mentor_id
-        worklets = db.query(Worklet).filter(Worklet.mentor_id == mentor.id).all()
-        
-        # Convert to dict format matching actual database schema
+
+        # Robust join to get all worklets for which this user is a mentor
+        query = db.query(Worklet).join(UserWorkletAssociation, Worklet.id == UserWorkletAssociation.worklet_id)
+        query = query.filter(UserWorkletAssociation.user_id == mentor.id, UserWorkletAssociation.role_in_worklet == "Mentor")
+        if only_ongoing:
+            query = query.filter(Worklet.status == "Ongoing")
+        worklets = query.all()
+
         worklets_data = []
+        mentee_set = set()
         for worklet in worklets:
+            student_assocs = db.query(UserWorkletAssociation).filter(
+                UserWorkletAssociation.worklet_id == worklet.id,
+                UserWorkletAssociation.role_in_worklet == "Student"
+            ).all()
+            student_ids = [assoc.user_id for assoc in student_assocs]
+            students = []
+            if student_ids:
+                students = [u.name for u in db.query(User).filter(User.id.in_(student_ids)).all() if u.name]
+                for s in students:
+                    mentee_set.add(s)
+
+            percentage_completion = getattr(worklet, "percentage_completion", None)
+            if percentage_completion is None:
+                if worklet.start_date and worklet.end_date:
+                    total_days = (worklet.end_date - worklet.start_date).days or 1
+                    elapsed_days = (datetime.utcnow().date() - worklet.start_date).days
+                    percentage_completion = max(0, min(100, int((elapsed_days / total_days) * 100)))
+                else:
+                    percentage_completion = 0
+
+            if worklet.status == "Completed":
+                quality = "Excellence"
+            elif percentage_completion >= 70:
+                quality = "Excellence"
+            elif percentage_completion >= 30:
+                quality = "Good"
+            else:
+                quality = "Needs Attention"
+
             worklets_data.append({
                 "id": worklet.id,
                 "cert_id": worklet.cert_id,
+                "title": getattr(worklet, "title", None),
                 "description": worklet.description,
                 "status": worklet.status,
-                "team": worklet.team,
-                "college": worklet.college,
-                "problem_statement": worklet.problem_statement,
-                "expectations": worklet.expectations,
-                "prerequisites": worklet.prerequisites,
-                "percentage_completion": worklet.percentage_completion,
+                "team": getattr(worklet, "team", None),
+                "college": getattr(worklet, "college", None),
+                "problem_statement": getattr(worklet, "problem_statement", None),
+                "expectations": getattr(worklet, "expectations", None),
+                "prerequisites": getattr(worklet, "prerequisites", None),
+                "percentage_completion": percentage_completion,
+                "quality": quality,
+                "students": students,
                 "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
                 "end_date": worklet.end_date.isoformat() if worklet.end_date else None
             })
-        
-        return worklets_data
-        
+
+        return {
+            "worklets": worklets_data,
+            "total_worklets": len(worklets_data),
+            "total_mentees": len(mentee_set)
+        }
     except Exception as e:
         print(f"Error fetching mentor worklets: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-    # Placeholder until associations are refactored to new schema
-    return []
 
 # ----------------- Students for Worklet -----------------
 @router.get("/{worklet_identifier}/students")

@@ -1,5 +1,6 @@
 // prism-frontend/src/services/auth.js
-import API from "../api";
+import axios from "axios";
+const BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 // pass role as a parameter
 export const login = async (email, password, role) => {
@@ -10,11 +11,19 @@ export const login = async (email, password, role) => {
     params.append("scope", role); // send role in OAuth2 "scope"
   }
 
-  const response = await API.post("/auth/login", params);
-  return response.data;
+  const response = await axios.post(`${BASE}/auth/login`, params, {
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
+  const data = response.data;
+  try {
+    if (data?.user?.role) {
+      localStorage.setItem('user_role', data.user.role);
+    }
+  } catch (_) { /* ignore storage errors */ }
+  return data;
 };
 export const getCurrentUser = async () => {
-  const response = await API.get("/auth/me");
+  const response = await axios.get(`${BASE}/auth/me`);
   return response.data;
 };
 
@@ -23,7 +32,7 @@ export const refreshToken = async () => {
   const refresh_token = localStorage.getItem("refresh_token");
   if (!refresh_token) throw new Error("No refresh token found");
 
-  const response = await API.post("/auth/refresh", { refresh_token });
+  const response = await axios.post(`${BASE}/auth/refresh`, { refresh_token });
   const { access_token } = response.data;
 
   localStorage.setItem("access_token", access_token);
@@ -33,19 +42,19 @@ export const refreshToken = async () => {
 
 // Request OTP for sign-up
 export const requestOtp = async (name, email, role) => {
-  const response = await API.post("/auth/request-otp", { name, email, role });
+  const response = await axios.post(`${BASE}/auth/request-otp`, { name, email, role });
   return response.data;
 };
 
 // Verify OTP
 export const verifyOtp = async (email, otp_code) => {
-  const response = await API.post("/auth/verify-otp", { email, otp_code });
+  const response = await axios.post(`${BASE}/auth/verify-otp`, { email, otp_code });
   return response.data;
 };
 
 // Set password after OTP verification
 export const setPassword = async (email, password) => {
-  const response = await API.post("/auth/set-password", { email, password });
+  const response = await axios.post(`${BASE}/auth/set-password`, { email, password });
   return response.data;
 };
 
@@ -53,8 +62,8 @@ export const setPassword = async (email, password) => {
 
 export const setAuthToken = (token) => {
   if (token) {
-    API.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   } else {
-    delete API.defaults.headers.common["Authorization"];
+    delete axios.defaults.headers.common["Authorization"];
   }
 };

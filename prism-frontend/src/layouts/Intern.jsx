@@ -8,82 +8,63 @@ import axios from "axios";
 // 1. API FUNCTIONS 
 // ----------------------------------------------------------------------------------
 
-// API function to fetch worklets from backend
-const fetchWorkletsFromAPI = async () => {
-  try {
-    const userEmail = localStorage.getItem("user_email");
-    const token = localStorage.getItem("access_token");
-    
-    if (!userEmail || !token) {
-      throw new Error("User information not found");
-    }
+// (Deprecated fetchWorkletsFromAPI removed: now using association endpoint exclusively)
 
-    const response = await axios.get(
-      `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
-      {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      }
-    );
-    
-    return response.data || [];
-  } catch (error) {
-    console.error("Error fetching worklets:", error);
-    return [];
-  }
-};
-
-// API function to fetch mentor worklets
+// Association-based fetch for mentor worklets (includes embedded students with email)
 const fetchMentorWorklets = async () => {
   try {
-    const userEmail = localStorage.getItem("user_email");
     const token = localStorage.getItem("access_token");
-    
-    if (!userEmail || !token) {
-      throw new Error("User information not found");
-    }
-
-    const response = await axios.get(
-      `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
-      {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      }
-    );
-    
-    return response.data || [];
-  } catch (error) {
-    console.error("Error fetching mentor worklets:", error);
+    if (!token) throw new Error("Missing auth token");
+    const profile = await axios.get('http://localhost:8000/auth/profile', { headers: { 'Authorization': `Bearer ${token}` } });
+    const mentorId = profile?.data?.id;
+    if (!mentorId) throw new Error('Could not resolve mentor id');
+    const resp = await axios.get(`http://localhost:8000/api/associations/mentor/${mentorId}/all-worklets`, { headers: { 'Authorization': `Bearer ${token}` } });
+    return Array.isArray(resp?.data?.all_worklets) ? resp.data.all_worklets : [];
+  } catch (e) {
+    console.error('Association worklets fetch failed', e?.response?.data || e.message);
     return [];
   }
 };
 
-const fetchStudentsFromAPI = async (workletId) => {
+const fetchStudentsFromAPI = async (workletIdentifier) => {
+  if (!workletIdentifier) return [];
+  const token = localStorage.getItem("access_token");
+  if (!token) return [];
+  const base = "http://localhost:8000";
+  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
+  const primaryUrl = `${base}/worklets/${encodeURIComponent(workletIdentifier)}/students`;
   try {
-    const userEmail = localStorage.getItem("user_email");
-    const token = localStorage.getItem("access_token");
-    
-    if (!userEmail || !token) {
-      throw new Error("User information not found");
-    }
-
-    const response = await axios.get(
-      `http://localhost:8000/worklets/${workletId}/students`,
-      {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
+    let response = await axios.get(primaryUrl, { headers });
+    let data = Array.isArray(response.data) ? response.data : [];
+    if (data.length === 0) {
+      // Fallback attempt: try cert-specific endpoint (works even if identifier was numeric but represents cert)
+      const fallbackUrl = `${base}/worklets/cert/${encodeURIComponent(workletIdentifier)}/students`;
+      try {
+        const fallbackResp = await axios.get(fallbackUrl, { headers });
+        const fbData = Array.isArray(fallbackResp.data) ? fallbackResp.data : [];
+        if (fbData.length > 0) {
+          console.info("Fetched students via fallback cert endpoint", fbData);
+          data = fbData;
         }
+      } catch (innerErr) {
+        // swallow fallback error, keep original data
+        console.warn("Fallback cert fetch failed", innerErr?.response?.status);
       }
-    );
-    
-    return response.data || [];
+    }
+    return data;
   } catch (error) {
-    console.error("Error fetching students:", error);
+    // If primary call 404, still try fallback
+    if (error?.response?.status === 404) {
+      try {
+        const fallbackUrl = `${base}/worklets/cert/${encodeURIComponent(workletIdentifier)}/students`;
+        const fallbackResp = await axios.get(fallbackUrl, { headers });
+        return Array.isArray(fallbackResp.data) ? fallbackResp.data : [];
+      } catch (innerErr) {
+        console.error("Both primary & fallback student fetch failed", innerErr?.response?.status);
+      }
+    } else {
+      console.error("Error fetching students:", error?.response?.status, error?.message);
+    }
     return [];
   }
 };
@@ -139,7 +120,9 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
   const [worklets, setWorklets] = useState([]);
   const [isLoadingWorklets, setIsLoadingWorklets] = useState(true);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [totalStudentCount, setTotalStudentCount] = useState(0);
+  const [selectedWorkletObj, setSelectedWorkletObj] = useState(null);
+  // Students actually shown in dropdown (may come from selected worklet object or API fetch)
+  const [displayStudents, setDisplayStudents] = useState([]);
   const { students, isLoading: areStudentsLoading } = useWorkletStudents(
     formData.workletId
   );
@@ -149,36 +132,73 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
     const loadWorklets = async () => {
       setIsLoadingWorklets(true);
       const fetchedWorklets = await fetchMentorWorklets();
-      setWorklets(fetchedWorklets);
+      setWorklets(Array.isArray(fetchedWorklets) ? fetchedWorklets : []);
       setIsLoadingWorklets(false);
-      
-      // Calculate total student count across all worklets
-      let totalStudents = 0;
-      for (const worklet of fetchedWorklets) {
-        try {
-          const workletStudents = await fetchStudentsFromAPI(worklet.id);
-          totalStudents += workletStudents.length;
-        } catch (error) {
-          console.error(`Error fetching students for worklet ${worklet.id}:`, error);
-        }
-      }
-      setTotalStudentCount(totalStudents);
     };
     
     loadWorklets();
   }, []);
 
-  // Auto-fill student details when student is selected
+  // Decide which students to display & enrich; prefer embedded list but fetch richer data when only names are present
   useEffect(() => {
-    if (formData.studentName && students.length > 0) {
-      const student = students.find((s) => s.name === formData.studentName);
-      setFormData((prev) => ({
-        ...prev,
-        studentEmail: student?.email || "",
-        studentCollege: student?.college || student?.university || "",
+    if (selectedWorkletObj && Array.isArray(selectedWorkletObj.students) && selectedWorkletObj.students.length > 0) {
+      const normalized = selectedWorkletObj.students.map(st => typeof st === 'string' ? { name: st, email: '', college: '', college_id: null } : ({
+        name: st.name || '',
+        email: st.email || '',
+        college: st.college || st.university || '',
+        college_id: st.college_id ?? null
       }));
+      setDisplayStudents(normalized);
+    } else {
+      // fallback to fetched students for the chosen worklet id
+      const normalizedFetched = students.map(st => ({
+        name: st.name || '',
+        email: st.email || '',
+        college: st.college || st.university || '',
+        college_id: st.college_id ?? null
+      }));
+      setDisplayStudents(normalizedFetched);
     }
-  }, [formData.studentName, students]);
+  }, [selectedWorkletObj, students]);
+
+  // Attempt enrichment via cert_id if current list lacks emails
+  useEffect(() => {
+    const enrich = async () => {
+      if (!selectedWorkletObj) return;
+      const missingEmails = displayStudents.length > 0 && displayStudents.every(s => !s.email);
+      if (!missingEmails) return; // already have emails
+      const identifier = selectedWorkletObj.cert_id || selectedWorkletObj.id;
+      const enriched = await fetchStudentsFromAPI(identifier);
+      if (Array.isArray(enriched) && enriched.length > 0) {
+        // Merge by name
+        setDisplayStudents(prev => prev.map(st => {
+          const found = enriched.find(e => e.name === st.name);
+          return found ? {
+            name: found.name || st.name,
+            email: found.email || st.email,
+            college: found.college || found.university || st.college
+          } : st;
+        }));
+      }
+    };
+    enrich();
+  }, [selectedWorkletObj, displayStudents]);
+
+  // Auto-fill student details when student is selected (use displayStudents)
+  useEffect(() => {
+    if (formData.studentName && displayStudents.length > 0) {
+      // Case-insensitive match fallback
+      const student = displayStudents.find((s) => s.name === formData.studentName) ||
+        displayStudents.find((s) => s.name.toLowerCase() === formData.studentName.toLowerCase());
+      if (student) {
+        setFormData((prev) => ({
+          ...prev,
+            studentEmail: student.email || '',
+            studentCollege: student.college || ''
+        }));
+      }
+    }
+  }, [formData.studentName, displayStudents]);
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
@@ -202,6 +222,9 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
         newState.studentName = "";
         newState.studentEmail = "";
         newState.studentCollege = "";
+        // Track selected worklet object for potential future enhancements
+        const selected = (Array.isArray(worklets) ? worklets : []).find(w => String(w.id ?? w.cert_id) === String(value));
+        setSelectedWorkletObj(selected || null);
       }
       return newState;
     });
@@ -280,33 +303,6 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
             <input type="email" value={currentMentor.mentorEmail} readOnly className="border rounded-md p-2 w-full bg-gray-100 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600" />
           </div>
 
-          {/* Stats Display */}
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-700 dark:to-slate-600 rounded-lg p-4 mb-6 border border-blue-200 dark:border-slate-500">
-            <div className="flex justify-center items-center gap-8">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {isLoadingWorklets ? (
-                    <div className="animate-pulse bg-blue-200 dark:bg-slate-500 rounded w-8 h-8 mx-auto"></div>
-                  ) : (
-                    worklets.length
-                  )}
-                </div>
-                <div className="text-sm font-medium text-gray-700 dark:text-slate-300">Total Worklets</div>
-              </div>
-              <div className="w-px h-12 bg-blue-200 dark:bg-slate-500"></div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
-                  {isLoadingWorklets ? (
-                    <div className="animate-pulse bg-cyan-200 dark:bg-slate-500 rounded w-8 h-8 mx-auto"></div>
-                  ) : (
-                    totalStudentCount
-                  )}
-                </div>
-                <div className="text-sm font-medium text-gray-700 dark:text-slate-300">Total Students</div>
-              </div>
-            </div>
-          </div>
-
           {/* Student Info Section */}
           <h2 className="font-bold text-blue-600 dark:text-blue-400 mb-2">PRISM Mentee Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -319,31 +315,43 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
               disabled={isLoadingWorklets}
             >
               <option value="" disabled>
-                {isLoadingWorklets ? "Loading worklets..." : "Select a Worklet ID"}
+                {isLoadingWorklets ? "Loading worklets..." : "Select a Worklet"}
               </option>
-              {worklets.map((worklet) => (
-                <option key={worklet.id} value={worklet.id}>
-                  {worklet.cert_id} - {worklet.description || worklet.title}
-                </option>
-              ))}
+              {(Array.isArray(worklets) ? worklets : []).map((worklet) => {
+                const value = worklet.id ?? worklet.cert_id; // fallback to cert_id if id missing
+                return (
+                  <option key={value} value={value}>
+                    {(worklet.cert_id || value)} - {(worklet.description || worklet.title || 'No description')}
+                  </option>
+                );
+              })}
             </select>
 
             <select 
               name="studentName" 
               value={formData.studentName} 
               onChange={handleChange} 
-              disabled={!formData.workletId || areStudentsLoading} 
+              disabled={!formData.workletId || (areStudentsLoading && displayStudents.length === 0)} 
               required 
               className="border rounded-md p-2 w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
             >
               <option value="" disabled>
-                {!formData.workletId ? "First, select a worklet" : areStudentsLoading ? "Loading students..." : "Select a Student"}
+                {!formData.workletId
+                  ? "First, select a worklet"
+                  : (areStudentsLoading && displayStudents.length === 0)
+                    ? "Loading students..."
+                    : displayStudents.length === 0
+                      ? "No students found"
+                      : "Select a Student"}
               </option>
-              {students.map((student) => (
-                <option key={student.name || student.email} value={student.name}>
-                  {student.name}
-                </option>
-              ))}
+              {displayStudents.map((student) => {
+                if (!student || !student.name) return null;
+                return (
+                  <option key={student.email || student.name} value={student.name}>
+                    {student.name}
+                  </option>
+                );
+              })}
             </select>
 
             <input type="email" value={formData.studentEmail} placeholder="Student Email (auto-filled)" readOnly className="border rounded-md p-2 w-full bg-gray-100 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600" />

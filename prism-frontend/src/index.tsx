@@ -11,20 +11,24 @@ import "./index.css";
 
   // Attach Authorization header on every request if available
   axios.interceptors.request.use((config) => {
-    const access = localStorage.getItem("access_token");
-    if (access && config && config.headers && !config.headers["Authorization"]) {
-      config.headers["Authorization"] = `Bearer ${access}`;
-    }
+    try {
+      const access = localStorage.getItem("access_token");
+      if (access) {
+        config.headers = config.headers || {};
+        if (!config.headers["Authorization"]) {
+          config.headers["Authorization"] = `Bearer ${access}`;
+        }
+      }
+    } catch {}
     return config;
   });
 
   let isRefreshing = false;
-  let refreshPromise: Promise<any> | null = null;
-  const pendingQueue: Array<(token: string | null) => void> = [];
-
-  const processQueue = (token: string | null) => {
-    while (pendingQueue.length) {
-      const next = pendingQueue.shift();
+  let refreshPromise: Promise<string> | null = null;
+  const queue: Array<(token: string | null) => void> = [];
+  const flushQueue = (token: string | null) => {
+    while (queue.length) {
+      const next = queue.shift();
       if (next) next(token);
     }
   };
@@ -34,8 +38,6 @@ import "./index.css";
     async (error) => {
       const originalRequest = error?.config || {};
       const status = error?.response?.status;
-
-      // Don't try to refresh for auth endpoints themselves
       const url: string = originalRequest?.url || "";
       const isAuthEndpoint = url.includes("/auth/login") || url.includes("/auth/refresh");
 
@@ -46,12 +48,12 @@ import "./index.css";
           const refresh = localStorage.getItem("refresh_token");
           if (!refresh) throw new Error("No refresh token");
           const res = await axios.post(`${API_BASE}/auth/refresh`, { refresh_token: refresh });
-          const newAccess = res?.data?.access_token;
-          const newRefresh = res?.data?.refresh_token;
+          const newAccess = res.data?.access_token;
+          const newRefresh = res.data?.refresh_token;
           if (!newAccess || !newRefresh) throw new Error("Invalid refresh response");
           localStorage.setItem("access_token", newAccess);
           localStorage.setItem("refresh_token", newRefresh);
-          return newAccess;
+          return newAccess as string;
         };
 
         try {
@@ -59,7 +61,7 @@ import "./index.css";
             isRefreshing = true;
             refreshPromise = doRefresh()
               .then((token) => {
-                processQueue(token);
+                flushQueue(token);
                 return token;
               })
               .finally(() => {
@@ -69,13 +71,11 @@ import "./index.css";
           }
 
           const token = await (refreshPromise as Promise<string>);
-          // Retry original request with new token
           originalRequest.headers = originalRequest.headers || {};
           originalRequest.headers["Authorization"] = `Bearer ${token}`;
           return axios(originalRequest);
         } catch (e) {
-          processQueue(null);
-          // Clear auth and redirect to login
+          flushQueue(null);
           try { localStorage.clear(); } catch {}
           if (typeof window !== "undefined") {
             window.location.assign("/");

@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
 class Settings(BaseSettings):
+    react_app_api_url: str = "http://localhost:8000"
     model_config = ConfigDict(env_file=".env")
     
     PROJECT_NAME: str = "Samsung PRISM Backend"

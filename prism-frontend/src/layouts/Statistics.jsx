@@ -1,23 +1,11 @@
-import React, { useState, useEffect, useContext } from 'react'
-import {
-  ChevronDown,
-  Users,
-  CheckCircle,
-  Download,
-  TrendingUp,
-  BarChart3,
-  Activity,
-  Target,
-  Award,
-  Clock,
-  Zap,
-  GraduationCap,
-  FileText,
-  Shield,
-} from 'lucide-react'
-import LeftSidebar from '../components/Left'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ThemeContext } from '../context/ThemeContext'
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { ChevronDown, Users, CheckCircle, Download, TrendingUp, BarChart3, Activity, Target, Award, Clock, Zap,FileText,Shield,GraduationCap } from 'lucide-react';
+import LeftSidebar from "../components/Left";
+// import { ThemeContext } from '../context/ThemeContext'; // <-- Removed ThemeContext dependency
+import { motion, AnimatePresence } from 'framer-motion';
+import { ThemeContext } from '../context/ThemeContext';
+import { useContext } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -370,16 +358,14 @@ const ModernStatisticsDashboard = () => {
   // Load platform stats given current filters
   const loadPlatformStats = async (flt) => {
     try {
-      const params = new URLSearchParams()
-      if (flt?.year && flt.year !== 'All') params.set('year', flt.year)
-      if (flt?.group && flt.group !== 'All') params.set('domain', flt.group)
-      if (flt?.part && flt.part !== 'All') params.set('college', flt.part)
-      const url = `http://localhost:8000/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`
-      const res = await fetch(url)
-      if (res.ok) {
-        const json = await res.json()
-        setStatisticsData(json)
-      }
+      const params = new URLSearchParams();
+      if (flt?.year && flt.year !== 'All') params.set('year', flt.year);
+      if (flt?.group && flt.group !== 'All') params.set('domain', flt.group);
+      if (flt?.part && flt.part !== 'All') params.set('college', flt.part);
+      const url = `http://localhost:8000/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await axios.get(url);
+      const json = res.data;
+      setStatisticsData(json);
     } catch (e) {
       console.error('Failed to load platform stats', e)
     }
