@@ -1,4 +1,6 @@
 import axios from 'axios'
+import { getMentorWorklets, getMentorOngoingWorkletsById, getMentorAllWorkletsById } from '../services/worklets'
+import { getCurrentUser } from '../services/auth'
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import LeftSidebar from '../components/Left'
@@ -185,9 +187,8 @@ const generateColorFromName = (name) => {
 }
 
 export default function Dashboard() {
-  const userEmail = localStorage.getItem('user_email') || 'User'
-  const [userName, setUserName] = useState(localStorage.getItem('user_name') || 'Jane Doe')
-  const [loadingName, setLoadingName] = useState(false) // Set to false for demo
+  const [userName, setUserName] = useState('')
+  const [loadingName, setLoadingName] = useState(true)
   const [nameError, setNameError] = useState(false)
 
   const navigate = useNavigate()
@@ -196,34 +197,121 @@ export default function Dashboard() {
     return localStorage.getItem('worklet_layout') || 'horizontal'
   })
   const [worklets, setWorklets] = useState([])
+  const [totalWorkletsCount, setTotalWorkletsCount] = useState(0)
   const [isLoadingWorklets, setIsLoadingWorklets] = useState(true)
-  const [userProfileData, setUserProfileData] = useState({
-    // Dummy profile data
-    name: 'Jane Doe',
-    role: 'Senior Mentor',
-    mentor_profile: {
-      qualification: 'Lead Software Engineer, AI Division',
-      // bio property removed
-      location: 'Bengaluru, India',
-      avatar_url: null, // Set to null to show initials-based avatar
-    },
-  })
+  const [userProfileData, setUserProfileData] = useState(null)
 
-  const [mentorStats, setMentorStats] = useState({
-    // Dummy stats data
-    engagement_data: { 'My Students': 35 },
-  })
-  const [isLoadingMentorStats, setIsLoadingMentorStats] = useState(false)
+  const [mentorStats, setMentorStats] = useState({ engagement_data: { 'My Students': 0 } })
+  const [isLoadingMentorStats, setIsLoadingMentorStats] = useState(true)
 
-  // Use dummy data instead of API calls for demonstration
+  // Fetch current user once
   useEffect(() => {
-    setIsLoadingWorklets(true)
-    // Simulate API fetch delay
-    setTimeout(() => {
-      setWorklets(DUMMY_WORKLETS)
-      setIsLoadingWorklets(false)
-    }, 1000) // 1-second delay
+    let cancelled = false
+    const loadUser = async () => {
+      setLoadingName(true)
+      try {
+        const me = await getCurrentUser()
+        if (cancelled) return
+        setUserProfileData(me)
+        setUserName(me.name || me.email?.split('@')[0] || 'User')
+        localStorage.setItem('user_email', me.email)
+        localStorage.setItem('user_name', me.name || '')
+      } catch (e) {
+        if (!cancelled) {
+          setNameError(true)
+          setUserName('User')
+        }
+      } finally {
+        if (!cancelled) setLoadingName(false)
+      }
+    }
+    loadUser()
+    return () => { cancelled = true }
   }, [])
+
+  // Fetch real-time worklets for the logged-in mentor
+  useEffect(() => {
+    let cancelled = false
+    const fetchMentorWorklets = async () => {
+      setIsLoadingWorklets(true)
+      try {
+        // Prefer associations endpoint (same as WorkletsPage) for canonical ongoing worklets list
+        if (!userProfileData?.id) throw new Error('Mentor user id missing')
+        // Fetch ongoing subset for display
+        const assocData = await getMentorOngoingWorkletsById(userProfileData.id)
+        // Fetch aggregate (all worklets) for totals
+        const allData = await getMentorAllWorkletsById(userProfileData.id)
+        const list = assocData?.ongoing_worklets || []
+        // Normalize each worklet and preserve student names from backend
+        const normalized = list.map((worklet, index) => {
+          const progressVal = worklet.percentage_completion || worklet.mentor_progress || worklet.progress || 0
+          const imageUrls = [
+            'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?q=80&w=400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop'
+          ]
+          // Derive status to match WorkletsPage logic
+          const status = worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing')
+          // Derive quality (stable quick heuristic)
+          const qualityChoices = ['Excellence','Good','Needs Attention']
+          const quality = qualityChoices[index % qualityChoices.length]
+          // Extract student names (fallback to email if name missing)
+          const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : []
+          return {
+            id: worklet.id,
+            title: worklet.cert_id || worklet.title || 'Untitled Worklet',
+            status,
+            progress: progressVal,
+            description: worklet.description || 'No description available',
+            startDate: worklet.start_date ? new Date(worklet.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
+            endDate: worklet.end_date ? new Date(worklet.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
+            students: studentNames,
+            notificationCount: 0,
+            quality,
+            college: worklet.college || 'Unknown College',
+            team: worklet.team || worklet.domain || 'General'
+          }
+        })
+        if (!cancelled) {
+          // Only show ongoing subset on dashboard
+          const ongoing = normalized.filter(w => w.status === 'Ongoing')
+          setWorklets(ongoing)
+          // Use backend aggregate from all-worklets response; fallback to ongoing response; then fallback to local uniq calculation
+          let mentees = allData?.total_mentees ?? assocData?.total_mentees
+          if (mentees === undefined) {
+            const uniqueStudentIds = new Set()
+            list.forEach(w => {
+              if (Array.isArray(w.students)) {
+                w.students.forEach(s => {
+                  if (s && (s.id !== undefined && s.id !== null)) uniqueStudentIds.add(s.id)
+                  else if (s?.email) uniqueStudentIds.add(s.email)
+                })
+              }
+            })
+            mentees = uniqueStudentIds.size
+          }
+          setMentorStats({ engagement_data: { 'My Students': mentees } })
+          // Store total worklets (all statuses) for StatCard display by temporarily attaching to state length derivation
+          // We'll override worklets.length usage by storing count separately if needed
+          setTotalWorkletsCount(allData?.total_worklets ?? ongoing.length)
+          setIsLoadingMentorStats(false)
+        }
+      } catch (e) {
+        console.error('Failed to load mentor worklets', e)
+        if (!cancelled) {
+          setWorklets([])
+          setIsLoadingMentorStats(false)
+        }
+      } finally {
+        if (!cancelled) setIsLoadingWorklets(false)
+      }
+    }
+    if (userProfileData) fetchMentorWorklets()
+    return () => { cancelled = true }
+  }, [userProfileData])
 
   // Filter for ongoing worklets
   const workletsData = worklets.filter(
@@ -258,7 +346,7 @@ export default function Dashboard() {
         <header className="flex justify-between items-center mb-[3vh]">
           <div>
             <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-slate-900 dark:text-white">
-              Welcome back, {userName.split(' ')[0]}! 👋
+              {loadingName ? 'Loading...' : `Welcome back, ${userName.split(' ')[0]}! 👋`}
             </h1>
             <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">Here's your snapshot for today.</p>
           </div>
@@ -287,10 +375,12 @@ export default function Dashboard() {
                 </div>
               )}
               <div className="flex-1">
-                <h2 className="text-[clamp(1.125rem,1.8vw,1.5rem)] font-bold text-slate-900 dark:text-white">{userProfileData?.name}</h2>
-                <p className="text-[clamp(0.875rem,1.1vw,1rem)] font-medium text-blue-600 dark:text-blue-400">
-                  {userProfileData?.mentor_profile?.qualification}
-                </p>
+                <h2 className="text-[clamp(1.125rem,1.8vw,1.5rem)] font-bold text-slate-900 dark:text-white">{userProfileData?.name || userName}</h2>
+                {userProfileData?.mentor_profile?.qualification && (
+                  <p className="text-[clamp(0.875rem,1.1vw,1rem)] font-medium text-blue-600 dark:text-blue-400">
+                    {userProfileData?.mentor_profile?.qualification}
+                  </p>
+                )}
                 {userProfileData?.mentor_profile?.location && (
                   <p className="text-[clamp(0.75rem,0.9vw,0.875rem)] text-slate-500 dark:text-slate-400 mt-[0.5vw] flex items-center gap-[0.4vw]">
                     <MapPin className="w-[clamp(0.75rem,1vw,1rem)] h-[clamp(0.75rem,1vw,1rem)]" />
@@ -316,7 +406,7 @@ export default function Dashboard() {
           <div className="space-y-[1vw]">
             <div onClick={() => navigate('/worklets')} className="cursor-pointer">
               <StatCard
-                value={isLoadingWorklets ? '...' : worklets.length}
+                value={isLoadingWorklets ? '...' : totalWorkletsCount}
                 label="Total Worklets"
                 icon={<BookOpen className="w-[clamp(1.25rem,1.8vw,2rem)] h-[clamp(1.25rem,1.8vw,2rem)] text-blue-500" />}
                 accent="from-blue-50 to-white hover:border-blue-300 dark:from-slate-800/50 dark:to-slate-800/20 dark:hover:border-blue-600"

@@ -226,7 +226,23 @@ def get_mentor_ongoing_worklets(
         ).all()
         
         students = [sa.user for sa in student_associations]
+        # Collect unique student ids across all worklets for total mentee count
+        # Initialize the set if not already
+        if 'all_student_ids' not in locals():
+            all_student_ids = set()
+        for s in students:
+            if s.id is not None:
+                all_student_ids.add(s.id)
         
+        # Determine college from first student (all students share same college per requirement) or fallback to mentor
+        worklet_college = None
+        for s in students:
+            if getattr(s, 'college', None):
+                worklet_college = s.college
+                break
+        if worklet_college is None:
+            worklet_college = mentor.college
+
         worklet_data = {
             "id": worklet.id,
             "cert_id": worklet.cert_id,
@@ -234,6 +250,9 @@ def get_mentor_ongoing_worklets(
             "title": worklet.title,
             "domain": getattr(worklet, "domain", None),
             "status": worklet.status,
+            "start_date": getattr(worklet, 'start_date', None),
+            "end_date": getattr(worklet, 'end_date', None),
+            "college": worklet_college,
             "students": [{
                 "id": student.id,
                 "name": student.name,
@@ -250,7 +269,92 @@ def get_mentor_ongoing_worklets(
         "mentor_id": mentor_id,
         "mentor_name": mentor.name,
         "ongoing_worklets": ongoing_worklets,
-        "total_ongoing": len(ongoing_worklets)
+        "total_ongoing": len(ongoing_worklets),
+        # total_worklets currently same as total_ongoing because we do not filter out completed ones here
+        "total_worklets": len(ongoing_worklets),
+        "total_mentees": len(all_student_ids) if 'all_student_ids' in locals() else 0
+    }
+
+@router.get("/mentor/{mentor_id}/all-worklets")
+def get_mentor_all_worklets(
+    mentor_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get all worklets (any status) for a specific mentor with aggregates.
+    Returns:
+      - ongoing_worklets: subset with status Ongoing
+      - completed_worklets: subset with status Completed
+      - total_worklets: count of all
+      - total_mentees: distinct students across all worklets mentored
+    """
+
+    mentor = db.query(User).filter(and_(User.id == mentor_id, User.role == "Mentor")).first()
+    if not mentor:
+        raise HTTPException(status_code=404, detail="Mentor not found")
+
+    associations = db.query(UserWorkletAssociation).filter(
+        and_(
+            UserWorkletAssociation.user_id == mentor_id,
+            UserWorkletAssociation.role_in_worklet == WorkletRoleEnum.mentor.value
+        )
+    ).all()
+
+    all_worklets = []
+    all_student_ids: set[int] = set()
+
+    for assoc in associations:
+        worklet = assoc.worklet
+        # Students for this worklet
+        student_associations = db.query(UserWorkletAssociation).filter(
+            and_(
+                UserWorkletAssociation.worklet_id == worklet.id,
+                UserWorkletAssociation.role_in_worklet == WorkletRoleEnum.student.value
+            )
+        ).all()
+        students = [sa.user for sa in student_associations]
+        for s in students:
+            if s.id is not None:
+                all_student_ids.add(s.id)
+        # Determine college from first student or fallback to mentor
+        worklet_college = None
+        for s in students:
+            if getattr(s, 'college', None):
+                worklet_college = s.college
+                break
+        if worklet_college is None:
+            worklet_college = mentor.college
+        worklet_data = {
+            "id": worklet.id,
+            "cert_id": worklet.cert_id,
+            "description": worklet.description,
+            "title": worklet.title,
+            "domain": getattr(worklet, "domain", None),
+            "status": worklet.status,
+            "start_date": getattr(worklet, 'start_date', None),
+            "end_date": getattr(worklet, 'end_date', None),
+            "college": worklet_college,
+            "students": [{
+                "id": student.id,
+                "name": student.name,
+                "email": student.email
+            } for student in students],
+            "student_count": len(students),
+        }
+        all_worklets.append(worklet_data)
+
+    ongoing = [w for w in all_worklets if (w.get("status") == "Ongoing")]
+    completed = [w for w in all_worklets if (w.get("status") == "Completed")]
+
+    return {
+        "mentor_id": mentor_id,
+        "mentor_name": mentor.name,
+        "all_worklets": all_worklets,
+        "ongoing_worklets": ongoing,
+        "completed_worklets": completed,
+        "total_worklets": len(all_worklets),
+        "total_ongoing": len(ongoing),
+        "total_completed": len(completed),
+        "total_mentees": len(all_student_ids)
     }
 
 @router.put("/{user_id}/{worklet_id}", response_model=UserWorkletAssociationResponse)
