@@ -16,6 +16,7 @@ from fastapi import BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError, ExpiredSignatureError
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 from sqlalchemy.orm import Session
 import os, random, string
 
@@ -26,13 +27,21 @@ from app.core.email_utils import send_otp_email, send_password_reset_email
 from app.core.redis_cache import redis_cache
 
 # --- Password Hashing ---
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use a unified context that can verify existing hashes (argon2 and bcrypt).
+# New hashes will be created with argon2 (first scheme).
+pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except UnknownHashError:
+        # Stored hash is in an unknown/legacy format; treat as invalid without crashing
+        return False
+    except Exception:
+        return False
 
 # --- JWT Setup ---
 SECRET_KEY = settings.SECRET_KEY or os.getenv("SECRET_KEY")

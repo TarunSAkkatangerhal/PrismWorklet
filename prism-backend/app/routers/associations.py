@@ -212,10 +212,13 @@ def get_mentor_ongoing_worklets(
         )
     ).all()
     
-    # Get worklets with additional details
+    # Get worklets with additional details (only Ongoing)
     ongoing_worklets = []
     for assoc in associations:
         worklet = assoc.worklet
+        # Only include worklets with status 'Ongoing'
+        if getattr(worklet, 'status', None) != 'Ongoing':
+            continue
         
         # Get students for this worklet
         student_associations = db.query(UserWorkletAssociation).filter(
@@ -270,7 +273,6 @@ def get_mentor_ongoing_worklets(
         "mentor_name": mentor.name,
         "ongoing_worklets": ongoing_worklets,
         "total_ongoing": len(ongoing_worklets),
-        # total_worklets currently same as total_ongoing because we do not filter out completed ones here
         "total_worklets": len(ongoing_worklets),
         "total_mentees": len(all_student_ids) if 'all_student_ids' in locals() else 0
     }
