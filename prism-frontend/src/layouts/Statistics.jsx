@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { ChevronDown, Users, CheckCircle, Download, TrendingUp, BarChart3, Activity, Target, Award, Clock, Zap } from 'lucide-react';
 import LeftSidebar from "../components/Left";
 // import { ThemeContext } from '../context/ThemeContext'; // <-- Removed ThemeContext dependency
@@ -288,11 +289,9 @@ const ModernStatisticsDashboard = () => {
       if (flt?.group && flt.group !== 'All') params.set('domain', flt.group);
       if (flt?.part && flt.part !== 'All') params.set('college', flt.part);
       const url = `http://localhost:8000/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const json = await res.json();
-        setStatisticsData(json);
-      }
+      const res = await axios.get(url);
+      const json = res.data;
+      setStatisticsData(json);
     } catch (e) {
       console.error('Failed to load platform stats', e);
     }

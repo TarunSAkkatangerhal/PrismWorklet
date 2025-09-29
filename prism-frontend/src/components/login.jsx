@@ -98,7 +98,7 @@ export default function Login() {
       return;
     }
     try {
-      const response = await axios.post("http://localhost:8000/auth/request-otp", { email });
+  const response = await axios.post("http://localhost:8000/auth/request-otp", { email });
       setOtpSent(true);
       setOtpVerified(false);
       setOtpInput("");

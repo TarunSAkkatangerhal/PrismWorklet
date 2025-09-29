@@ -54,13 +54,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def decode_token(token: str) -> dict:
@@ -70,6 +70,14 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Token has expired")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def require_access_token(token: str) -> dict:
+    """Decode token and ensure it is an access token."""
+    payload = decode_token(token)
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Access token required")
+    return payload
 
 
 # --- OTP Temp Store (Redis-backed, fallback to in-memory) ---
@@ -238,9 +246,28 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     }
 
 @router.post("/refresh")
-def refresh_tokens(payload: schemas.TokenRefreshRequest, db: Session = Depends(get_db)):
-    """Issue new access and refresh tokens given a valid refresh token."""
-    decoded = decode_token(payload.refresh_token)
+def refresh_tokens(request: Request, payload: Optional[schemas.TokenRefreshRequest] = None, db: Session = Depends(get_db)):
+    """Issue new access and refresh tokens given a valid refresh token.
+    Accepts token via JSON body {"refresh_token": "..."} or Authorization: Bearer <token> header.
+    """
+    # Extract token from body or Authorization header
+    raw_token = ""
+    if payload and getattr(payload, "refresh_token", None):
+        raw_token = (payload.refresh_token or "").strip()
+    if not raw_token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            raw_token = auth_header.split(" ", 1)[1].strip()
+    if not raw_token:
+        raise HTTPException(status_code=400, detail="Missing refresh token. Provide in JSON body or Authorization header.")
+
+    # Decode & validate refresh token
+    decoded = decode_token(raw_token)
+    # Backwards-compat: old tokens may not have a 'type' claim
+    tok_type = decoded.get("type", "refresh")
+    if tok_type != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid token type for refresh")
+
     user_email = decoded.get("sub")
     if not user_email:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -293,7 +320,7 @@ def reset_password(reset_data: schemas.ResetPassword, db: Session = Depends(get_
 @router.get("/me", response_model=schemas.UserResponse)
 async def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = decode_token(token)
+        payload = require_access_token(token)
         user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
@@ -317,7 +344,7 @@ async def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_
 @router.get("/profile")
 async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = decode_token(token)
+        payload = require_access_token(token)
         user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
@@ -367,7 +394,7 @@ async def update_my_profile(
     db: Session = Depends(get_db)
 ):
     try:
-        payload = decode_token(token)
+        payload = require_access_token(token)
         user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
