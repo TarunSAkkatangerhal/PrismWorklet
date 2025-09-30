@@ -142,6 +142,7 @@ class WorkletBase(BaseModel):
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    completed_date: Optional[date] = None
     status: Optional[WorkletStatusEnum] = WorkletStatusEnum.ongoing
     year: int
     domain: Optional[str] = None
@@ -155,6 +156,7 @@ class WorkletUpdate(BaseModel):
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    completed_date: Optional[date] = None
     status: Optional[WorkletStatusEnum] = None
     year: Optional[int] = None
     domain: Optional[str] = None
@@ -166,6 +168,7 @@ class WorkletResponse(BaseModel):
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    completed_date: Optional[date] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     year: int
