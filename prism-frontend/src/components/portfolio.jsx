@@ -84,32 +84,7 @@ const Portfolio = () => {
     }
   };
 
-  const badgeVariants = {
-    hidden: { scale: 0, rotate: -180 },
-    visible: {
-      scale: 1,
-      rotate: 0,
-      transition: {
-        type: "spring",
-        stiffness: 260,
-        damping: 20
-      }
-    },
-    hover: {
-      scale: 1.15,
-      rotate: [0, -5, 5, 0],
-      y: -10,
-      boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-      transition: { 
-        duration: 0.6,
-        rotate: {
-          repeat: Infinity,
-          duration: 2,
-          ease: "easeInOut"
-        }
-      }
-    }
-  };
+  // Removed animation variants for professional static design
 
   // Subtle floating animation variants (play once)
   const floatingVariants = {
@@ -145,40 +120,60 @@ const Portfolio = () => {
       title: "Trail Member",
       level: "Trail",
       year: "2023",
-      mentor: "Dr. Smith",
-      description: "Foundation level achievement in software development",
-      color: "from-blue-500 to-cyan-500",
-      glowColor: "shadow-blue-500/50"
+      category: "Development",
+      description: "Foundation level achievement in software development and basic programming principles.",
+      icon: Target,
+      primaryColor: "#3B82F6"
     },
     {
       id: 2,
       title: "Core Developer",
       level: "Core",
       year: "2024",
-      mentor: "Prof. Johnson",
-      description: "Advanced development skills and team leadership",
-      color: "from-purple-500 to-pink-500",
-      glowColor: "shadow-purple-500/50"
+      category: "Advanced Development",
+      description: "Advanced development skills and team leadership in complex project environments.",
+      icon: Code,
+      primaryColor: "#8B5CF6"
     },
     {
       id: 3,
-      title: "Leader",
+      title: "Project Leader",
       level: "Leader",
       year: "2024",
-      mentor: "Dr. Wilson",
-      description: "Project management and strategic thinking",
-      color: "from-orange-500 to-red-500",
-      glowColor: "shadow-orange-500/50"
+      category: "Leadership",
+      description: "Project management excellence and strategic thinking in cross-functional teams.",
+      icon: Users,
+      primaryColor: "#10B981"
     },
     {
       id: 4,
-      title: "Master",
+      title: "Innovation Master",
       level: "Master",
       year: "2025",
-      mentor: "Prof. Davis",
-      description: "Excellence in innovation and mentorship",
-      color: "from-yellow-400 to-orange-500",
-      glowColor: "shadow-yellow-500/50"
+      category: "Research & Innovation",
+      description: "Excellence in innovation, research, and mentorship of junior developers.",
+      icon: Rocket,
+      primaryColor: "#F59E0B"
+    },
+    {
+      id: 5,
+      title: "Security Expert",
+      level: "Expert",
+      year: "2024",
+      category: "Cybersecurity",
+      description: "Specialized expertise in cybersecurity protocols and secure system architecture.",
+      icon: Shield,
+      primaryColor: "#EF4444"
+    },
+    {
+      id: 6,
+      title: "Performance Optimizer",
+      level: "Specialist",
+      year: "2023",
+      category: "Performance",
+      description: "Exceptional skills in system optimization and performance enhancement strategies.",
+      icon: Zap,
+      primaryColor: "#F97316"
     }
   ];
 
@@ -280,54 +275,7 @@ const Portfolio = () => {
     }));
   };
 
-  // Badge component with flip animation
-  const BadgeCard = ({ badge, index }) => {
-    const [isFlipped, setIsFlipped] = useState(false);
-    
-    return (
-      <motion.div
-        variants={badgeVariants}
-        initial="hidden"
-        animate="visible"
-        whileHover="hover"
-        custom={index}
-        className="relative perspective-1000"
-        onMouseEnter={() => setIsFlipped(true)}
-        onMouseLeave={() => setIsFlipped(false)}
-      >
-        <motion.div
-          className="relative w-full h-48 lg:h-52 preserve-3d cursor-pointer"
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          {/* Front of badge */}
-          <div className={`absolute inset-0 backface-hidden rounded-2xl bg-gradient-to-br ${badge.color} p-6 lg:p-8 shadow-lg hover:${badge.glowColor} hover:shadow-2xl transition-all duration-300`}>
-            <div className="flex items-center justify-between mb-4">
-              <Award className="text-white" size={36} />
-              <span className="text-white/80 text-base font-medium">{badge.year}</span>
-            </div>
-            <h3 className="text-white font-bold text-xl lg:text-2xl mb-3">{badge.title}</h3>
-            <div className="flex items-center text-white/90">
-              <Star className="mr-2" size={18} />
-              <span className="text-base font-medium">{badge.level}</span>
-            </div>
-          </div>
-          
-          {/* Back of badge */}
-          <div className={`absolute inset-0 backface-hidden rotateY-180 rounded-2xl bg-gradient-to-br ${badge.color} p-6 lg:p-8 shadow-lg`}>
-            <div className="text-white">
-              <h4 className="font-bold text-lg mb-3">Details</h4>
-              <p className="text-base mb-3 leading-relaxed">{badge.description}</p>
-              <div className="border-t border-white/20 pt-3">
-                <p className="text-sm mb-1"><strong>Mentor:</strong> {badge.mentor}</p>
-                <p className="text-sm"><strong>Year:</strong> {badge.year}</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-    );
-  };
+
 
   // Animated table row component
   const AnimatedTableRow = ({ children, delay = 0, onClick, isExpanded }) => {
@@ -493,7 +441,7 @@ const Portfolio = () => {
         {isUploading && (
           <>
             <motion.div
-              className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-yellow-400 via-green-400 to-emerald-500 rounded-full"
+              className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-sky-400 via-green-400 to-emerald-500 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.3, ease: "easeOut" }}
@@ -604,9 +552,9 @@ const Portfolio = () => {
                 }}
               >
                 {i % 4 === 0 ? (
-                  <Star className="w-4 h-4 text-yellow-400" />
+                  <Star className="w-4 h-4 text-sky-400" />
                 ) : i % 4 === 1 ? (
-                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  <Trophy className="w-4 h-4 text-sky-500" />
                 ) : i % 4 === 2 ? (
                   <Award className="w-4 h-4 text-blue-400" />
                 ) : (
@@ -661,14 +609,14 @@ const Portfolio = () => {
               className="relative"
             >
               <motion.h1 
-                className="text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative"
+                className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5, duration: 0.8 }}
               >
                 {typewriterText}
                 <motion.span
-                  className="inline-block w-1 h-16 bg-gradient-to-b from-blue-500 to-purple-500 ml-2"
+                  className="inline-block w-1 h-10 bg-gradient-to-b from-blue-500 to-purple-500 ml-2"
                   animate={{ opacity: [0, 1, 0] }}
                   transition={{ duration: 1, repeat: Infinity }}
                 />
@@ -697,7 +645,7 @@ const Portfolio = () => {
                 <Sparkles className="text-yellow-500" size={20} />
               </motion.div>
               <motion.span
-                className="text-lg font-medium"
+                className="text-sm font-medium"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 3 }}
@@ -729,111 +677,108 @@ const Portfolio = () => {
 
           {/* Animated Statistics Section */}
           <motion.div
-            className="mb-16 relative"
+            className="mb-12 relative"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            <div className="grid md:grid-cols-4 gap-6 mb-12">
+            <div className="grid md:grid-cols-4 gap-4 mb-8">
               {[
                 { 
                   number: 50, 
                   suffix: "+", 
                   label: "Projects Completed",
                   icon: Code,
-                  color: "from-blue-500 to-cyan-500"
+                  accentColor: "indigo-500",
+                  description: "Successfully delivered"
                 },
                 { 
                   number: 3, 
                   suffix: "+", 
                   label: "Years Experience",
                   icon: Award,
-                  color: "from-purple-500 to-pink-500"
+                  accentColor: "blue-500",
+                  description: "Professional growth"
                 },
                 { 
                   number: 98, 
                   suffix: "%", 
                   label: "Client Satisfaction",
                   icon: Star,
-                  color: "from-yellow-500 to-orange-500"
+                  accentColor: "purple-500",
+                  description: "Happy customers"
                 },
                 { 
                   number: 24, 
                   suffix: "/7", 
                   label: "Available",
                   icon: Zap,
-                  color: "from-green-500 to-emerald-500"
+                  accentColor: "slate-500",
+                  description: "Always ready"
                 }
               ].map((stat, index) => (
                 <motion.div
                   key={index}
                   className="relative group"
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ 
-                    duration: 0.6, 
-                    delay: index * 0.1,
-                    type: "spring",
-                    stiffness: 200 
+                    duration: 0.5, 
+                    delay: index * 0.15,
+                    ease: "easeOut"
                   }}
                   whileHover={{ 
-                    y: -10,
-                    transition: { duration: 0.2 }
+                    scale: 1.02,
+                    transition: { duration: 0.3 }
                   }}
                 >
-                  <div className={`bg-gradient-to-br ${stat.color} p-6 rounded-2xl shadow-xl group-hover:shadow-2xl transition-all duration-300 relative overflow-hidden`}>
-                    {/* Static background pattern */}
-                    <div className="absolute inset-0 opacity-5">
-                      {[...Array(8)].map((_, i) => (
-                        <motion.div
-                          key={i}
-                          className="absolute w-1 h-1 bg-white rounded-full"
-                          style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
-                          }}
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 0.3 }}
-                          transition={{
-                            duration: 0.8,
-                            delay: index * 0.1 + i * 0.05
-                          }}
-                        />
-                      ))}
-                    </div>
+                  <div className="bg-white dark:bg-gray-800/50 backdrop-blur-lg p-4 rounded-2xl shadow-md hover:shadow-xl transition-all duration-500 border border-gray-200/20 dark:border-gray-700/30 relative overflow-hidden">
+                    {/* Animated accent line */}
+                    <motion.div
+                      className={`absolute top-0 left-0 h-1 bg-${stat.accentColor} rounded-full`}
+                      initial={{ width: 0 }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: 1, delay: index * 0.2 + 0.5 }}
+                    />
                     
-                    <div className="relative z-10 text-center text-white">
-                      <motion.div
-                        className="mb-4 inline-block"
-                        whileHover={{ rotate: 360, scale: 1.2 }}
-                        transition={{ duration: 0.6 }}
-                      >
-                        <stat.icon size={32} />
-                      </motion.div>
+                    {/* Floating background elements */}
+                    <div className="absolute -top-2 -right-2 w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-full opacity-20 blur-lg"></div>
+                    <div className="absolute -bottom-1 -left-1 w-8 h-8 bg-gradient-to-br from-indigo-100 to-blue-100 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-full opacity-30"></div>
+                    
+                    <div className="relative z-10">
+                      {/* Icon with modern background */}
+                      <div className={`w-10 h-10 bg-${stat.accentColor}/10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
+                        <stat.icon className={`text-${stat.accentColor} w-5 h-5`} />
+                      </div>
                       
+                      {/* Number with modern typography */}
                       <motion.div
-                        className="text-3xl font-bold mb-2"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: index * 0.2 + 0.5 }}
+                        className="text-2xl font-black text-gray-900 dark:text-white mb-1 leading-none"
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.2 + 0.8, duration: 0.6, type: "spring" }}
                       >
                         <AnimatedCounter 
                           target={stat.number} 
                           suffix={stat.suffix}
-                          duration={2000 + index * 200}
+                          duration={2500 + index * 300}
                         />
                       </motion.div>
                       
-                      <p className="text-white/90 text-sm font-medium">
+                      {/* Label and description */}
+                      <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 mb-1 uppercase tracking-wider">
                         {stat.label}
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                        {stat.description}
                       </p>
                     </div>
                     
-                    {/* Hover glow effect */}
+                    {/* Subtle hover overlay */}
                     <motion.div
-                      className="absolute inset-0 bg-white/20 rounded-2xl"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      whileHover={{ opacity: 1, scale: 1 }}
+                      className={`absolute inset-0 bg-gradient-to-br from-${stat.accentColor}/5 to-transparent rounded-2xl`}
+                      initial={{ opacity: 0 }}
+                      whileHover={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
                     />
                   </div>
@@ -844,23 +789,23 @@ const Portfolio = () => {
 
           {/* Enhanced Navigation Tabs */}
           <motion.div
-            className="flex flex-wrap justify-center mb-12 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-3xl p-3 shadow-2xl border border-white/20"
+            className="flex flex-wrap justify-center mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-2 shadow-lg border border-white/20"
             variants={itemVariants}
             initial="hidden"
             animate="visible"
           >
             {[
-              { id: 'achievements', label: 'Achievements', icon: Trophy, color: 'from-yellow-400 to-orange-500' },
+              { id: 'achievements', label: 'Achievements', icon: Trophy, color: 'from-sky-400 to-blue-500' },
               { id: 'papers', label: 'Papers Published', icon: FileText, color: 'from-blue-400 to-cyan-500' },
-              { id: 'patents', label: 'Patents Filed', icon: Shield, color: 'from-purple-400 to-pink-500' },
-              { id: 'commercializations', label: 'Commercializations', icon: Target, color: 'from-green-400 to-teal-500' }
+              { id: 'patents', label: 'Patents Filed', icon: Shield, color: 'from-violet-300 to-purple-500' },
+              { id: 'commercializations', label: 'Commercializations', icon: Target, color: 'from-purple-500 to-pink-400' }
             ].map((tab, index) => (
               <motion.button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center space-x-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-500 overflow-hidden ${
+                className={`relative flex items-center space-x-2 px-4 py-3 rounded-xl font-semibold transition-all duration-500 overflow-hidden ${
                   activeTab === tab.id
-                    ? `bg-gradient-to-r ${tab.color} text-white shadow-2xl`
+                    ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50'
                 }`}
                 whileHover={{ 
@@ -891,11 +836,11 @@ const Portfolio = () => {
                   } : {}}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <tab.icon size={20} />
+                  <tab.icon size={16} />
                 </motion.div>
                 
                 <motion.span
-                  className="text-sm lg:text-base"
+                  className="text-xs lg:text-sm"
                   animate={activeTab === tab.id ? {
                     scale: [1, 1.05, 1]
                   } : {}}
@@ -941,11 +886,65 @@ const Portfolio = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 justify-center"
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden"
               >
-                {badgesData.map((badge, index) => (
-                  <BadgeCard key={badge.id} badge={badge} index={index} />
-                ))}
+                <div className="p-4 bg-gradient-to-r from-sky-400 to-blue-500">
+                  <h2 className="text-2xl font-bold text-white flex items-center no-underline">
+                    <Trophy className="mr-2" size={30} />
+                    My Achievements
+                  </h2>
+                </div>
+                <div className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {badgesData.map((badge, index) => (
+                      <div
+                        key={badge.id}
+                        className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border-l-4 hover:shadow-md transition-all duration-300"
+                        style={{ borderLeftColor: badge.primaryColor }}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div 
+                            className="p-2 rounded-lg flex-shrink-0"
+                            style={{ backgroundColor: `${badge.primaryColor}20`, color: badge.primaryColor }}
+                          >
+                            <badge.icon size={20} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-base text-gray-900 dark:text-white mb-1">
+                              {badge.title}
+                            </h3>
+                            <p className="text-gray-600 dark:text-gray-300 text-xs mb-2 leading-relaxed">
+                              {badge.description}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">
+                                {badge.category}
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                {badge.level && (
+                                  <span 
+                                    className="px-2 py-1 rounded-full text-xs font-semibold"
+                                    style={{ 
+                                      backgroundColor: `${badge.primaryColor}20`,
+                                      color: badge.primaryColor
+                                    }}
+                                  >
+                                    {badge.level}
+                                  </span>
+                                )}
+                                {badge.year && (
+                                  <span className="text-xs text-gray-500">
+                                    {badge.year}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -958,9 +957,9 @@ const Portfolio = () => {
                 transition={{ duration: 0.5 }}
                 className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden"
               >
-                <div className="p-6 bg-gradient-to-r from-blue-500 to-purple-600">
-                  <h2 className="text-2xl font-bold text-white flex items-center">
-                    <FileText className="mr-3" size={28} />
+                <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-600">
+                  <h2 className="text-xl font-bold text-white flex items-center">
+                    <FileText className="mr-2" size={24} />
                     Papers Published
                   </h2>
                 </div>
@@ -968,11 +967,11 @@ const Portfolio = () => {
                   <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-6 py-4 text-left font-semibold">Title</th>
-                        <th className="px-6 py-4 text-left font-semibold">Journal</th>
-                        <th className="px-6 py-4 text-left font-semibold">Year</th>
-                        <th className="px-6 py-4 text-left font-semibold">Status</th>
-                        <th className="px-6 py-4 text-left font-semibold">Actions</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Title</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Journal</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Year</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -983,25 +982,25 @@ const Portfolio = () => {
                             onClick={() => toggleRowExpansion('papers', paper.id)}
                             isExpanded={expandedRows[`papers-${paper.id}`]}
                           >
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <div className="flex items-center">
                                 {expandedRows[`papers-${paper.id}`] ? (
-                                  <ChevronUp size={16} className="mr-2 text-gray-500" />
+                                  <ChevronUp size={14} className="mr-2 text-gray-500" />
                                 ) : (
-                                  <ChevronDown size={16} className="mr-2 text-gray-500" />
+                                  <ChevronDown size={14} className="mr-2 text-gray-500" />
                                 )}
                                 <div>
-                                  <div className="font-semibold text-gray-900 dark:text-white">
+                                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
                                     {paper.title}
                                   </div>
-                                  <div className="text-sm text-gray-500">{paper.authors}</div>
+                                  <div className="text-xs text-gray-500">{paper.authors}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.journal}</td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.year}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{paper.journal}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{paper.year}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 paper.status === 'Published'
                                   ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                   : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
@@ -1009,8 +1008,8 @@ const Portfolio = () => {
                                 {paper.status}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="flex space-x-2">
+                            <td className="px-4 py-3">
+                              <div className="flex space-x-1">
                                 <AnimatedUploadButton section="papers" id={paper.id} />
                                 <motion.button
                                   className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
@@ -1038,13 +1037,13 @@ const Portfolio = () => {
                                         {paper.abstract}
                                       </p>
                                     </div>
-                                    <div className="flex flex-wrap gap-4 text-sm">
+                                    <div className="flex flex-wrap gap-3 text-xs">
                                       <div className="flex items-center space-x-1">
-                                        <Eye size={16} className="text-blue-500" />
+                                        <Eye size={14} className="text-blue-500" />
                                         <span><strong>Citations:</strong> {paper.citations}</span>
                                       </div>
                                       <div className="flex items-center space-x-1">
-                                        <Star size={16} className="text-yellow-500" />
+                                        <Star size={14} className="text-yellow-500" />
                                         <span><strong>Impact Factor:</strong> {paper.impact}</span>
                                       </div>
                                     </div>
@@ -1070,9 +1069,9 @@ const Portfolio = () => {
                 transition={{ duration: 0.5 }}
                 className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden"
               >
-                <div className="p-6 bg-gradient-to-r from-purple-500 to-pink-600">
-                  <h2 className="text-2xl font-bold text-white flex items-center">
-                    <Shield className="mr-3" size={28} />
+                <div className="p-4 bg-gradient-to-r from-violet-400 to-purple-400">
+                  <h2 className="text-xl font-bold text-white flex items-center">
+                    <Shield className="mr-2" size={24} />
                     Patents Filed
                   </h2>
                 </div>
@@ -1080,11 +1079,11 @@ const Portfolio = () => {
                   <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-6 py-4 text-left font-semibold">Title</th>
-                        <th className="px-6 py-4 text-left font-semibold">Application No.</th>
-                        <th className="px-6 py-4 text-left font-semibold">Filing Date</th>
-                        <th className="px-6 py-4 text-left font-semibold">Status</th>
-                        <th className="px-6 py-4 text-left font-semibold">Actions</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Title</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Application No.</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Filing Date</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1095,27 +1094,27 @@ const Portfolio = () => {
                             onClick={() => toggleRowExpansion('patents', patent.id)}
                             isExpanded={expandedRows[`patents-${patent.id}`]}
                           >
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <div className="flex items-center">
                                 {expandedRows[`patents-${patent.id}`] ? (
-                                  <ChevronUp size={16} className="mr-2 text-gray-500" />
+                                  <ChevronUp size={14} className="mr-2 text-gray-500" />
                                 ) : (
-                                  <ChevronDown size={16} className="mr-2 text-gray-500" />
+                                  <ChevronDown size={14} className="mr-2 text-gray-500" />
                                 )}
                                 <div>
-                                  <div className="font-semibold text-gray-900 dark:text-white">
+                                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
                                     {patent.title}
                                   </div>
-                                  <div className="text-sm text-gray-500">{patent.inventors}</div>
+                                  <div className="text-xs text-gray-500">{patent.inventors}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300 font-mono text-sm">
+                            <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-mono text-xs">
                               {patent.applicationNo}
                             </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{patent.filingDate}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{patent.filingDate}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 patent.status === 'Filed'
                                   ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                                   : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
@@ -1123,7 +1122,7 @@ const Portfolio = () => {
                                 {patent.status}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <AnimatedUploadButton section="patents" id={patent.id} />
                             </td>
                           </AnimatedTableRow>
@@ -1171,9 +1170,9 @@ const Portfolio = () => {
                 transition={{ duration: 0.5 }}
                 className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden"
               >
-                <div className="p-6 bg-gradient-to-r from-green-500 to-teal-600">
-                  <h2 className="text-2xl font-bold text-white flex items-center">
-                    <Target className="mr-3" size={28} />
+                <div className="p-4 bg-gradient-to-r from-purple-500 to-pink-600">
+                  <h2 className="text-xl font-bold text-white flex items-center">
+                    <Target className="mr-2" size={24} />
                     Commercializations Done
                   </h2>
                 </div>
@@ -1181,11 +1180,11 @@ const Portfolio = () => {
                   <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-6 py-4 text-left font-semibold">Product</th>
-                        <th className="px-6 py-4 text-left font-semibold">Company</th>
-                        <th className="px-6 py-4 text-left font-semibold">Launch Date</th>
-                        <th className="px-6 py-4 text-left font-semibold">Revenue</th>
-                        <th className="px-6 py-4 text-left font-semibold">Actions</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Product</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Company</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Launch Date</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Revenue</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1196,30 +1195,30 @@ const Portfolio = () => {
                             onClick={() => toggleRowExpansion('commercializations', item.id)}
                             isExpanded={expandedRows[`commercializations-${item.id}`]}
                           >
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <div className="flex items-center">
                                 {expandedRows[`commercializations-${item.id}`] ? (
-                                  <ChevronUp size={16} className="mr-2 text-gray-500" />
+                                  <ChevronUp size={14} className="mr-2 text-gray-500" />
                                 ) : (
-                                  <ChevronDown size={16} className="mr-2 text-gray-500" />
+                                  <ChevronDown size={14} className="mr-2 text-gray-500" />
                                 )}
                                 <div>
-                                  <div className="font-semibold text-gray-900 dark:text-white">
+                                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
                                     {item.product}
                                   </div>
-                                  <div className="text-sm text-gray-500">{item.status}</div>
+                                  <div className="text-xs text-gray-500">{item.status}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{item.company}</td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{item.launchDate}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center space-x-2">
-                                <span className="font-semibold text-green-600">{item.revenue}</span>
-                                <span className="text-sm text-gray-500">({item.growth})</span>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{item.company}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{item.launchDate}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-1">
+                                <span className="text-sm font-semibold text-green-600">{item.revenue}</span>
+                                <span className="text-xs text-gray-500">({item.growth})</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <AnimatedUploadButton section="commercializations" id={item.id} />
                             </td>
                           </AnimatedTableRow>
