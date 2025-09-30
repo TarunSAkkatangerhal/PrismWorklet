@@ -49,6 +49,8 @@ import {
 // Modern color palettes and chart configurations
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316']
 const DARK_COLORS = ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#22D3EE', '#A3E635', '#FB923C']
+// Backend base URL
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000'
 
 // Helper function to get appropriate colors based on theme
 const getColors = (isDark) => (isDark ? DARK_COLORS : COLORS)
@@ -145,14 +147,14 @@ const generateMonthlyData = () => {
 }
 // Add this function with your other data generators
 // Replace your old function with this new 12-month version
-const generateWorkletStatusData = () => {
+const generateWorkletStatusData = (_selectedYear) => {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   return months.map((month, index) => ({
     month: month,
     completed: 12 + index * 2 + Math.floor(Math.random() * 5), // Steadily increasing trend
     ongoing: 25 - index + Math.floor(Math.random() * 6), // Decreasing trend as worklets get completed
     on_hold: Math.floor(Math.random() * 4), // Random, low numbers
-    dropped: Math.floor(Math.random() * 3), // Random, low numbers
+    // dropped removed per requirement
     terminated: Math.floor(Math.random() * 2), // Random, very low numbers
   }))
 }
@@ -196,6 +198,18 @@ const generateTrendData = () => [
   { week: 'W3', performance: 82, efficiency: 75, quality: 88 },
   { week: 'W4', performance: 85, efficiency: 80, quality: 90 },
 ]
+// Deterministic zero-filled last 12 months (fallback for monthly trends)
+const buildZeroMonthlySeries = () => {
+  const now = new Date()
+  const out = []
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+    d.setUTCMonth(d.getUTCMonth() - i)
+    const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' })
+    out.push({ month: label, worklets: 0, completed: 0, students: 0 })
+  }
+  return out
+}
 // Add this new data generation function
 const generatePerformanceBreakdown = () => ({
   mentor: {
@@ -244,74 +258,131 @@ const ModernStatisticsDashboard = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [mentorInfo, setMentorInfo] = useState(null)
-  const [filters, setFilters] = useState({ group: 'All', part: 'All', year: 'All' })
-  const [options, setOptions] = useState({ years: [], domains: [], colleges: [] })
+  const [filters, setFilters] = useState({ group: 'All', part: 'All', year: new Date().getFullYear().toString() })
+  const [options, setOptions] = useState({ years: [new Date().getFullYear().toString()], domains: [], colleges: [] })
   const [selectedMetric, setSelectedMetric] = useState('overview')
 
-  // Enhanced data fetching with modern sample data
+  // Enhanced data fetching wired to backend
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
         setLoading(true)
 
-        // Simulate API call with modern sample data
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        const token = localStorage.getItem('access_token')
+        const authHeaders = token
+          ? { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
+          : undefined
 
-        setStatisticsData({
+        // Fetch platform-wide totals
+        const platformRes = await axios.get(`${API_BASE}/api/dashboard/statistics`, { headers: { Accept: 'application/json' } })
+        const platform = platformRes?.data || {}
+        // Try mentor-specific stats; don't fail the whole fetch if unauthorized
+        let mentor = {}
+        try {
+          if (authHeaders) {
+            const mentorRes = await axios.get(`${API_BASE}/api/dashboard/mentor-statistics`, authHeaders)
+            mentor = mentorRes?.data || {}
+          }
+        } catch (e) {
+          console.warn('Mentor statistics unavailable (unauthorized or no data). Proceeding with platform data only.')
+        }
+
+        // Fetch monthly trends from backend (uses worklet start/end dates)
+        const monthlyResponse = await (async () => {
+          try {
+            if (!token) return buildZeroMonthlySeries()
+            const selectedYear = filters.year ? Number(filters.year) : undefined
+            const url = selectedYear ? `${API_BASE}/api/dashboard/mentor-monthly-trends?year=${selectedYear}` : `${API_BASE}/api/dashboard/mentor-monthly-trends`
+            const res = await axios.get(url, authHeaders)
+            return res?.data
+          } catch (e) {
+            console.error('Failed to fetch monthly trends:', e)
+            return { monthly: buildZeroMonthlySeries(), years: [new Date().getFullYear()] }
+          }
+        })()
+
+        let monthly = []
+        if (Array.isArray(monthlyResponse?.monthly)) {
+          monthly = [...monthlyResponse.monthly].sort((a, b) => {
+            if (typeof a.order === 'number' && typeof b.order === 'number') return a.order - b.order
+            if (a.month_key && b.month_key) return a.month_key.localeCompare(b.month_key)
+            return 0
+          })
+          console.debug('Monthly trends loaded:', monthly.length, 'points')
+        } else {
+          monthly = buildZeroMonthlySeries()
+        }
+
+        // Fetch status trends from backend
+        let statusTrends = []
+        try {
+          if (token) {
+            const selectedYear = filters.year && filters.year !== 'All' ? Number(filters.year) : undefined
+            const url = selectedYear
+              ? `${API_BASE}/api/dashboard/mentor-status-trends?year=${selectedYear}`
+              : `${API_BASE}/api/dashboard/mentor-status-trends`
+            const res = await axios.get(url, authHeaders)
+            const monthly = Array.isArray(res?.data?.monthly) ? res.data.monthly : []
+            statusTrends = [...monthly].sort((a, b) => (typeof a.order === 'number' && typeof b.order === 'number' ? a.order - b.order : 0))
+          }
+        } catch (e) {
+          console.warn('Status trends unavailable; falling back to generator.', e)
+          statusTrends = generateWorkletStatusData(filters.year)
+        }
+
+        // Build unified statistics object for the UI
+        const merged = {
           totals: {
-            total_mentors: 15,
-            total_students: 180,
-            total_worklets: 45,
-            ongoing_worklets: 18,
-            completed_worklets: 22,
-            completion_rate: 64,
+            // Platform totals (used for overview/export)
+            total_mentors: platform.total_mentors || 0,
+            total_students: platform.total_students || 0,
+            completion_rate: platform.completion_rate || 0,
+            platform_total_worklets: platform.total_worklets || 0,
+            platform_ongoing_worklets: platform.ongoing_worklets || 0,
+            platform_completed_worklets: platform.completed_worklets || 0,
+            // Mentor-specific for the top cards
+            total_worklets: mentor?.engagement_data?.['My Worklets'] ?? mentor?.mentor_info?.total_worklets ?? 0,
+            ongoing_worklets: mentor?.status_counts?.Ongoing ?? 0,
+            completed_worklets: mentor?.status_counts?.Completed ?? 0,
+            // Professor count has no backend yet; keep placeholder/static
             total_professors: 25,
             performance_score: 87,
             efficiency_rating: 92,
           },
           publications: {
-            // <-- Add new publications object
-            papers: 12,
-            patents: 7,
+            papers: mentor?.engagement_data?.['Papers Published'] ?? 0,
+            patents: mentor?.engagement_data?.['Patents Filed'] ?? 0,
           },
-          status_counts: {
-            Completed: 22,
-            'In Progress': 18,
-            'Pending Review': 5,
-            'On Hold': 2,
-            Approved: 8,
-          },
-
-          performance_counts: {
-            Excellent: 12,
-            'Very Good': 15,
-            Good: 8,
-            'Needs Improvement': 3,
-          },
-          risk_data: {
-            'Low Risk': 32,
-            'Medium Risk': 8,
-            'High Risk': 3,
-          },
-          monthly_data: generateMonthlyData(),
+          status_counts: mentor?.status_counts || {},
+          performance_counts: mentor?.performance_counts || {},
+          risk_data: mentor?.risk_data || {},
+          engagement_data: mentor?.engagement_data || {},
+          monthly_data: monthly,
           performance_radar: generatePerformanceData(),
           status_distribution: generateStatusData(isDarkMode),
-          trend_data: generateTrendData(),
-          worklet_status_data: generateWorkletStatusData(), // <-- Add this line
+          worklet_status_data: statusTrends,
           trend_data: generateTrendData(),
           performance_breakdown: generatePerformanceBreakdown(),
-        })
+        }
 
-        setMentorInfo({
-          name: localStorage.getItem('user_name') || 'Alex Thompson',
-          total_worklets: 12,
-          active_worklets: 8,
-          rating: 4.8,
-          experience: 'Senior Mentor',
-        })
+        setStatisticsData(merged)
 
+        // Set mentor info if available
+        if (mentor?.mentor_info) setMentorInfo(mentor.mentor_info)
+
+        // Merge years from monthly and status trends (if provided)
+        const monthlyYears = (monthlyResponse?.years || [])
+        let statusYears = []
+        try {
+          const yres = await axios.get(
+            `${API_BASE}/api/dashboard/mentor-status-trends${filters.year && filters.year !== 'All' ? `?year=${Number(filters.year)}` : ''}`,
+            authHeaders
+          )
+          statusYears = (yres?.data?.years || [])
+        } catch (_) {}
+        const years = Array.from(new Set([...monthlyYears, ...statusYears])).map(String)
         setOptions({
-          years: ['2025', '2024', '2023'],
+          years: years.length ? years : [new Date().getFullYear().toString()],
           domains: ['Full Stack', 'Data Science', 'Mobile Dev', 'DevOps'],
           colleges: ['MIT', 'Stanford', 'Berkeley', 'CMU'],
         })
@@ -326,11 +397,10 @@ const ModernStatisticsDashboard = () => {
     }
 
     fetchStatistics()
-    // Refresh data every 60 seconds for real-time updates
-    const interval = setInterval(fetchStatistics, 1000000)
-
+    // Periodic refresh (optional; currently very infrequent)
+    const interval = setInterval(fetchStatistics, 300000)
     return () => clearInterval(interval)
-  }, [isDarkMode])
+  }, [isDarkMode, filters.year])
   // Replace your old performanceChartData with this new version
   const performanceChartData = [
     {
@@ -382,11 +452,11 @@ const ModernStatisticsDashboard = () => {
         rows = [
           ['KPI', 'Value'],
           ...Object.entries({
-            'All Worklets': statisticsData?.totals?.total_worklets || 0,
+            'All Worklets': statisticsData?.totals?.platform_total_worklets || 0,
             'All Students': statisticsData?.totals?.total_students || 0,
             'Completion Rate (%)': statisticsData?.totals?.completion_rate || 0,
-            Ongoing: statisticsData?.totals?.ongoing_worklets || 0,
-            Completed: statisticsData?.totals?.completed_worklets || 0,
+            Ongoing: statisticsData?.totals?.platform_ongoing_worklets || 0,
+            Completed: statisticsData?.totals?.platform_completed_worklets || 0,
             'All Mentors': statisticsData?.totals?.total_mentors || 0,
           }),
         ]
@@ -424,13 +494,13 @@ const ModernStatisticsDashboard = () => {
     }
   }
 
-  // Platform overview KPIs
+  // Platform overview KPIs (use platform-level fields)
   const engagementData = {
-    'All Worklets': statisticsData?.totals?.total_worklets || 0,
+    'All Worklets': statisticsData?.totals?.platform_total_worklets || 0,
     'All Students': statisticsData?.totals?.total_students || 0,
     'Completion Rate': statisticsData?.totals?.completion_rate || 0,
-    Ongoing: statisticsData?.totals?.ongoing_worklets || 0,
-    Completed: statisticsData?.totals?.completed_worklets || 0,
+    Ongoing: statisticsData?.totals?.platform_ongoing_worklets || 0,
+    Completed: statisticsData?.totals?.platform_completed_worklets || 0,
     'All Mentors': statisticsData?.totals?.total_mentors || 0,
   }
 
@@ -491,6 +561,16 @@ const ModernStatisticsDashboard = () => {
       case 'performance':
         csvContent = 'Category,Score\n' + data.performance_radar.map((d) => `${d.subject},${d.userScore}`).join('\n')
         break
+      case 'monthly': {
+        const rows = [['Month', 'Worklets', 'Completed', 'Students'], ...(data.monthly_data || []).map(d => [d.month, d.worklets, d.completed, d.students])]
+        csvContent = rows.map(r => r.join(',')).join('\n')
+        break
+      }
+      case 'status_trends': {
+        const rows = [['Month', 'Completed', 'Ongoing', 'On Hold', 'Terminated'], ...(data.worklet_status_data || []).map(d => [d.month, d.completed ?? 0, d.ongoing ?? 0, d.on_hold ?? 0, d.terminated ?? 0])]
+        csvContent = rows.map(r => r.join(',')).join('\n')
+        break
+      }
       default:
         // Handle other cases or provide a default export
         return
@@ -560,7 +640,10 @@ const ModernStatisticsDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <AnimatedMetricCard
               title="Total Worklets"
-              value={statisticsData?.totals?.total_worklets || 0}
+              value={Math.max(
+                (statisticsData?.totals?.total_worklets || 0) - (statisticsData?.totals?.completed_worklets || 0),
+                0
+              )}
               subtitle="Tracked across all projects"
               icon={Target}
               color={getColors(isDarkMode)[0]}
@@ -636,7 +719,7 @@ const ModernStatisticsDashboard = () => {
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    📊 {statisticsData?.monthly_data?.length || 12} months of data available (Jan-Dec 2025)
+                    📊 {statisticsData?.monthly_data?.length || 12} months of data available
                   </p>
                   <button
                     onClick={() => {
@@ -667,7 +750,7 @@ const ModernStatisticsDashboard = () => {
               <div className="overflow-x-auto pb-4 custom-scrollbar">
                 <div className="min-w-[1200px]">
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={statisticsData?.monthly_data || generateMonthlyData()}>
+                      <LineChart data={statisticsData?.monthly_data || buildZeroMonthlySeries()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
                       <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
                       <YAxis stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
@@ -679,7 +762,8 @@ const ModernStatisticsDashboard = () => {
                         stroke={getColors(isDarkMode)[0]}
                         strokeWidth={3}
                         dot={(props) => {
-                          const isCurrentMonth = props.payload?.month === 'Sep 2025'
+                          const nowLabel = new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' })
+                          const isCurrentMonth = props.payload?.month === nowLabel
                           const colors = getColors(isDarkMode)
                           return (
                             <circle
@@ -700,7 +784,8 @@ const ModernStatisticsDashboard = () => {
                         stroke={getColors(isDarkMode)[1]}
                         strokeWidth={3}
                         dot={(props) => {
-                          const isCurrentMonth = props.payload?.month === 'Sep 2025'
+                          const nowLabel = new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' })
+                          const isCurrentMonth = props.payload?.month === nowLabel
                           const colors = getColors(isDarkMode)
                           return (
                             <circle
@@ -754,7 +839,6 @@ const ModernStatisticsDashboard = () => {
                       />
                       <Bar dataKey="ongoing" stackId="a" name="Ongoing" fill={getColors(isDarkMode)[0]} />
                       <Bar dataKey="on_hold" stackId="a" name="On Hold" fill={getColors(isDarkMode)[2]} />
-                      <Bar dataKey="dropped" stackId="a" name="Dropped" fill={getColors(isDarkMode)[7]} />
                       <Bar
                         dataKey="terminated"
                         stackId="a"
