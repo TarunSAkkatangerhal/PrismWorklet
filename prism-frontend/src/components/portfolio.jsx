@@ -113,131 +113,46 @@ const Portfolio = () => {
 
   // Removed glowVariants to prevent continuous animations
 
-  // Mock data
-  const badgesData = [
-    {
-      id: 1,
-      title: "Trail Member",
-      level: "Trail",
-      year: "2023",
-      category: "Development",
-      description: "Foundation level achievement in software development and basic programming principles.",
-      icon: Target,
-      primaryColor: "#3B82F6"
-    },
-    {
-      id: 2,
-      title: "Core Developer",
-      level: "Core",
-      year: "2024",
-      category: "Advanced Development",
-      description: "Advanced development skills and team leadership in complex project environments.",
-      icon: Code,
-      primaryColor: "#8B5CF6"
-    },
-    {
-      id: 3,
-      title: "Project Leader",
-      level: "Leader",
-      year: "2024",
-      category: "Leadership",
-      description: "Project management excellence and strategic thinking in cross-functional teams.",
-      icon: Users,
-      primaryColor: "#10B981"
-    },
-    {
-      id: 4,
-      title: "Innovation Master",
-      level: "Master",
-      year: "2025",
-      category: "Research & Innovation",
-      description: "Excellence in innovation, research, and mentorship of junior developers.",
-      icon: Rocket,
-      primaryColor: "#F59E0B"
-    },
-    {
-      id: 5,
-      title: "Security Expert",
-      level: "Expert",
-      year: "2024",
-      category: "Cybersecurity",
-      description: "Specialized expertise in cybersecurity protocols and secure system architecture.",
-      icon: Shield,
-      primaryColor: "#EF4444"
-    },
-    {
-      id: 6,
-      title: "Performance Optimizer",
-      level: "Specialist",
-      year: "2023",
-      category: "Performance",
-      description: "Exceptional skills in system optimization and performance enhancement strategies.",
-      icon: Zap,
-      primaryColor: "#F97316"
-    }
-  ];
+  // Removed legacy mock arrays - now pulling dynamic data from backend.
 
-  const papersData = [
-    {
-      id: 1,
-      title: "Machine Learning Applications in Healthcare",
-      authors: "John Doe, Jane Smith, Mary Christian",
-      journal: "IEEE Transactions on Medical Imaging",
-      year: "2024",
-      status: "Published",
-      citations: 15,
-      impact: "4.5",
-      abstract: "This paper explores the revolutionary applications of machine learning algorithms in modern healthcare diagnostics, focusing on image analysis and pattern recognition techniques."
-    },
-    {
-      id: 2,
-      title: "Quantum Computing for Cryptographic Security",
-      authors: "Mary Christian, Dr. Wilson, Prof. Adams",
-      journal: "Nature Quantum Information",
-      year: "2024",
-      status: "Under Review",
-      citations: 0,
-      impact: "8.2",
-      abstract: "An investigation into quantum-resistant cryptographic methods and their implementation in distributed systems."
-    }
-  ];
+  // Portfolio aggregated data
+  const [portfolioData, setPortfolioData] = useState({ mentor: null, achievements: [], papers: [], patents: [], commercializations: [], stats: null });
+  const [loadingPortfolio, setLoadingPortfolio] = useState(true);
+  const [portfolioError, setPortfolioError] = useState(null);
 
-  const patentsData = [
-    {
-      id: 1,
-      title: "AI-Powered Smart Home Security System",
-      inventors: "Mary Christian, Team Alpha",
-      applicationNo: "US2024/123456",
-      filingDate: "2024-03-15",
-      status: "Filed",
-      description: "An intelligent security system that uses computer vision and machine learning for threat detection and automated response.",
-      stage: "Examination"
-    },
-    {
-      id: 2,
-      title: "Blockchain-Based Identity Verification",
-      inventors: "Mary Christian, Dr. Johnson",
-      applicationNo: "US2024/789012",
-      filingDate: "2024-06-20",
-      status: "Pending",
-      description: "A decentralized identity verification system using blockchain technology for enhanced security and privacy.",
-      stage: "Initial Review"
-    }
-  ];
+  // Fetch mentor portfolio (single consolidated call)
+  useEffect(() => {
+    const loadPortfolio = async () => {
+      try {
+        setLoadingPortfolio(true);
+        setPortfolioError(null);
+        const token = localStorage.getItem('access_token');
+        const profRes = await fetch('http://localhost:8000/auth/profile', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!profRes.ok) throw new Error('Failed to load profile');
+        const profile = await profRes.json();
+        const resp = await fetch(`http://localhost:8000/api/portfolio/mentor/${profile.id}`);
+        if (!resp.ok) throw new Error('Failed to load portfolio data');
+        const data = await resp.json();
+        setPortfolioData(data);
+      } catch (e) {
+        console.error(e);
+        setPortfolioError(e.message);
+      } finally {
+        setLoadingPortfolio(false);
+      }
+    };
+    loadPortfolio();
+  }, []);
 
-  const commercializationsData = [
-    {
-      id: 1,
-      product: "EcoTrack Mobile App",
-      company: "GreenTech Solutions",
-      launchDate: "2024-01-15",
-      revenue: "$50,000",
-      users: "10,000+",
-      description: "A carbon footprint tracking application that helps users monitor and reduce their environmental impact.",
-      status: "Active",
-      growth: "+25%"
+  const resolveBadgeColor = (color) => (color && color.startsWith('#') ? color : '#3B82F6');
+
+  const achievementIcon = (type) => {
+    switch(type){
+      case 'Award': return Trophy;
+      case 'Recognition': return Star;
+      default: return Award;
     }
-  ];
+  };
 
   // Animation functions
   const triggerConfetti = () => {
@@ -675,206 +590,83 @@ const Portfolio = () => {
             </motion.div>
           </motion.div>
 
-          {/* Animated Statistics Section */}
-          <motion.div
-            className="mb-12 relative"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            <div className="grid md:grid-cols-4 gap-4 mb-8">
-              {[
-                { 
-                  number: 50, 
-                  suffix: "+", 
-                  label: "Projects Completed",
-                  icon: Code,
-                  accentColor: "indigo-500",
-                  description: "Successfully delivered"
-                },
-                { 
-                  number: 3, 
-                  suffix: "+", 
-                  label: "Years Experience",
-                  icon: Award,
-                  accentColor: "blue-500",
-                  description: "Professional growth"
-                },
-                { 
-                  number: 98, 
-                  suffix: "%", 
-                  label: "Client Satisfaction",
-                  icon: Star,
-                  accentColor: "purple-500",
-                  description: "Happy customers"
-                },
-                { 
-                  number: 24, 
-                  suffix: "/7", 
-                  label: "Available",
-                  icon: Zap,
-                  accentColor: "slate-500",
-                  description: "Always ready"
-                }
-              ].map((stat, index) => (
-                <motion.div
-                  key={index}
-                  className="relative group"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
-                    duration: 0.5, 
-                    delay: index * 0.15,
-                    ease: "easeOut"
-                  }}
-                  whileHover={{ 
-                    scale: 1.02,
-                    transition: { duration: 0.3 }
-                  }}
-                >
-                  <div className="bg-white dark:bg-gray-800/50 backdrop-blur-lg p-4 rounded-2xl shadow-md hover:shadow-xl transition-all duration-500 border border-gray-200/20 dark:border-gray-700/30 relative overflow-hidden">
-                    {/* Animated accent line */}
-                    <motion.div
-                      className={`absolute top-0 left-0 h-1 bg-${stat.accentColor} rounded-full`}
-                      initial={{ width: 0 }}
-                      animate={{ width: "100%" }}
-                      transition={{ duration: 1, delay: index * 0.2 + 0.5 }}
-                    />
-                    
-                    {/* Floating background elements */}
-                    <div className="absolute -top-2 -right-2 w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-full opacity-20 blur-lg"></div>
-                    <div className="absolute -bottom-1 -left-1 w-8 h-8 bg-gradient-to-br from-indigo-100 to-blue-100 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-full opacity-30"></div>
-                    
-                    <div className="relative z-10">
-                      {/* Icon with modern background */}
-                      <div className={`w-10 h-10 bg-${stat.accentColor}/10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
-                        <stat.icon className={`text-${stat.accentColor} w-5 h-5`} />
-                      </div>
-                      
-                      {/* Number with modern typography */}
-                      <motion.div
-                        className="text-2xl font-black text-gray-900 dark:text-white mb-1 leading-none"
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.2 + 0.8, duration: 0.6, type: "spring" }}
-                      >
-                        <AnimatedCounter 
-                          target={stat.number} 
-                          suffix={stat.suffix}
-                          duration={2500 + index * 300}
-                        />
-                      </motion.div>
-                      
-                      {/* Label and description */}
-                      <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 mb-1 uppercase tracking-wider">
-                        {stat.label}
-                      </h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                        {stat.description}
-                      </p>
-                    </div>
-                    
-                    {/* Subtle hover overlay */}
-                    <motion.div
-                      className={`absolute inset-0 bg-gradient-to-br from-${stat.accentColor}/5 to-transparent rounded-2xl`}
-                      initial={{ opacity: 0 }}
-                      whileHover={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
 
-          {/* Enhanced Navigation Tabs */}
+
+          {/* Compact 2x2 Navigation Grid - Top Right */}
           <motion.div
-            className="flex flex-wrap justify-center mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-2 shadow-lg border border-white/20"
-            variants={itemVariants}
-            initial="hidden"
-            animate="visible"
+            className="fixed top-4 right-4 z-20 grid grid-cols-2 gap-3 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl p-3 shadow-2xl border border-white/40 dark:border-gray-700/40"
+            initial={{ opacity: 0, x: 100, y: -50 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
           >
             {[
-              { id: 'achievements', label: 'Achievements', icon: Trophy, color: 'from-sky-400 to-blue-500' },
-              { id: 'papers', label: 'Papers Published', icon: FileText, color: 'from-blue-400 to-cyan-500' },
-              { id: 'patents', label: 'Patents Filed', icon: Shield, color: 'from-violet-300 to-purple-500' },
-              { id: 'commercializations', label: 'Commercializations', icon: Target, color: 'from-purple-500 to-pink-400' }
+              { id: 'achievements', icon: Trophy, color: 'from-violet-300 to-indigo-400' },
+              { id: 'papers', icon: FileText, color: 'from-indigo-400 to-blue-500' },
+              { id: 'patents', icon: Shield, color: 'from-blue-500 to-purple-400' },
+              { id: 'commercializations', icon: Target, color: 'from-purple-600 to-violet-700' }
             ].map((tab, index) => (
               <motion.button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center space-x-2 px-4 py-3 rounded-xl font-semibold transition-all duration-500 overflow-hidden ${
+                className={`relative w-12 h-12 rounded-xl transition-all duration-300 overflow-hidden group ${
                   activeTab === tab.id
-                    ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50'
+                    ? `bg-gradient-to-br ${tab.color} shadow-lg`
+                    : 'bg-gray-100/60 dark:bg-gray-700/60 hover:bg-gray-200/80 dark:hover:bg-gray-600/80'
                 }`}
                 whileHover={{ 
-                  scale: 1.08, 
-                  y: -2,
-                  transition: { type: "spring", stiffness: 400, damping: 10 }
+                  scale: 1.1,
+                  rotate: 5,
+                  transition: { duration: 0.2 }
                 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 + 3 }}
+                whileTap={{ scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.5, rotate: -180 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ delay: index * 0.15 + 0.4, duration: 0.6, type: "spring" }}
               >
-                {/* Ripple effect on click */}
+                {/* Active state glow */}
                 {activeTab === tab.id && (
                   <motion.div
-                    className="absolute inset-0 bg-white/20 rounded-2xl"
-                    initial={{ scale: 0, opacity: 1 }}
-                    animate={{ scale: 4, opacity: 0 }}
-                    transition={{ duration: 0.6 }}
+                    className="absolute inset-0 bg-white/25 rounded-xl"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.4, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
                   />
                 )}
                 
-                {/* Floating icon animation */}
-                <motion.div
-                  animate={activeTab === tab.id ? {
-                    rotate: [0, 10, -10, 0],
-                    y: [0, -2, 2, 0]
-                  } : {}}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <tab.icon size={16} />
-                </motion.div>
-                
-                <motion.span
-                  className="text-xs lg:text-sm"
-                  animate={activeTab === tab.id ? {
-                    scale: [1, 1.05, 1]
-                  } : {}}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  {tab.label}
-                </motion.span>
-                
-                {/* Active indicator */}
+                {/* Icon Only */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <motion.div
+                    animate={activeTab === tab.id ? {
+                      rotate: [0, 10, -10, 0],
+                      scale: [1, 1.2, 1]
+                    } : {}}
+                    transition={{ duration: 2.5, repeat: Infinity }}
+                  >
+                    <tab.icon 
+                      size={22} 
+                      className={`${
+                        activeTab === tab.id 
+                          ? 'text-white drop-shadow-sm' 
+                          : 'text-gray-600 dark:text-gray-300 group-hover:text-gray-800 dark:group-hover:text-gray-100'
+                      } transition-all duration-300`}
+                    />
+                  </motion.div>
+                </div>
+
+                {/* Active pulse ring */}
                 {activeTab === tab.id && (
                   <motion.div
-                    className="absolute bottom-0 left-1/2 w-8 h-1 bg-white/50 rounded-full"
-                    initial={{ width: 0, x: "-50%" }}
-                    animate={{ width: "2rem", x: "-50%" }}
-                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 border-2 border-white/50 rounded-xl"
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ 
+                      scale: [0.8, 1.1, 0.8],
+                      opacity: [0, 0.6, 0]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
                   />
                 )}
               </motion.button>
             ))}
-            
-            {/* Background indicator */}
-            <motion.div
-              className="absolute inset-0 -z-10"
-              animate={{
-                background: [
-                  "radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.1) 0%, transparent 50%)",
-                  "radial-gradient(circle at 75% 25%, rgba(147, 51, 234, 0.1) 0%, transparent 50%)",
-                  "radial-gradient(circle at 75% 75%, rgba(236, 72, 153, 0.1) 0%, transparent 50%)",
-                  "radial-gradient(circle at 25% 75%, rgba(34, 197, 94, 0.1) 0%, transparent 50%)",
-                  "radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.1) 0%, transparent 50%)"
-                ]
-              }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-            />
           </motion.div>
 
           {/* Content Sections */}
@@ -896,53 +688,47 @@ const Portfolio = () => {
                 </div>
                 <div className="p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {badgesData.map((badge, index) => (
+                    {loadingPortfolio && <div className="col-span-full text-center text-sm text-gray-500">Loading achievements...</div>}
+                    {portfolioError && <div className="col-span-full text-center text-sm text-red-500">{portfolioError}</div>}
+                    {!loadingPortfolio && portfolioData.achievements.length === 0 && <div className="col-span-full text-center text-sm text-gray-500">No achievements yet.</div>}
+                    {portfolioData.achievements.map((a) => {
+                      const IconComp = achievementIcon(a.type);
+                      const color = '#3B82F6';
+                      return (
                       <div
-                        key={badge.id}
+                        key={a.id}
                         className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border-l-4 hover:shadow-md transition-all duration-300"
-                        style={{ borderLeftColor: badge.primaryColor }}
+                        style={{ borderLeftColor: color }}
                       >
                         <div className="flex items-start space-x-3">
                           <div 
                             className="p-2 rounded-lg flex-shrink-0"
-                            style={{ backgroundColor: `${badge.primaryColor}20`, color: badge.primaryColor }}
+                            style={{ backgroundColor: `${color}20`, color: color }}
                           >
-                            <badge.icon size={20} />
+                            <IconComp size={20} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-base text-gray-900 dark:text-white mb-1">
-                              {badge.title}
+                              {a.title}
                             </h3>
                             <p className="text-gray-600 dark:text-gray-300 text-xs mb-2 leading-relaxed">
-                              {badge.description}
+                              {a.description}
                             </p>
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">
-                                {badge.category}
+                                {a.type}
                               </span>
                               <div className="flex items-center space-x-2">
-                                {badge.level && (
-                                  <span 
-                                    className="px-2 py-1 rounded-full text-xs font-semibold"
-                                    style={{ 
-                                      backgroundColor: `${badge.primaryColor}20`,
-                                      color: badge.primaryColor
-                                    }}
-                                  >
-                                    {badge.level}
-                                  </span>
-                                )}
-                                {badge.year && (
-                                  <span className="text-xs text-gray-500">
-                                    {badge.year}
-                                  </span>
+                                {a.year && (
+                                  <span className="text-xs text-gray-500">{a.year}</span>
                                 )}
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </motion.div>
@@ -975,7 +761,10 @@ const Portfolio = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {papersData.map((paper, index) => (
+                      {loadingPortfolio && <tr><td colSpan={5} className="text-center py-6 text-sm text-gray-500">Loading publications...</td></tr>}
+                      {portfolioError && <tr><td colSpan={5} className="text-center py-6 text-sm text-red-500">{portfolioError}</td></tr>}
+                      {!loadingPortfolio && portfolioData.papers.length === 0 && <tr><td colSpan={5} className="text-center py-6 text-sm text-gray-500">No papers found.</td></tr>}
+                      {portfolioData.papers.map((paper, index) => (
                         <React.Fragment key={paper.id}>
                           <AnimatedTableRow
                             delay={index * 0.1}
@@ -1040,11 +829,11 @@ const Portfolio = () => {
                                     <div className="flex flex-wrap gap-3 text-xs">
                                       <div className="flex items-center space-x-1">
                                         <Eye size={14} className="text-blue-500" />
-                                        <span><strong>Citations:</strong> {paper.citations}</span>
+                                        <span><strong>DOI:</strong> {paper.doi || '—'}</span>
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <Star size={14} className="text-yellow-500" />
-                                        <span><strong>Impact Factor:</strong> {paper.impact}</span>
+                                        <span><strong>Year:</strong> {paper.publication_year || '—'}</span>
                                       </div>
                                     </div>
                                   </div>
@@ -1080,14 +869,17 @@ const Portfolio = () => {
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Title</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Application No.</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Filing Date</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Application #</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Filing Year</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {patentsData.map((patent, index) => (
+                      {loadingPortfolio && <tr><td colSpan={5} className="text-center py-6 text-sm text-gray-500">Loading patents...</td></tr>}
+                      {portfolioError && <tr><td colSpan={5} className="text-center py-6 text-sm text-red-500">{portfolioError}</td></tr>}
+                      {!loadingPortfolio && portfolioData.patents.length === 0 && <tr><td colSpan={5} className="text-center py-6 text-sm text-gray-500">No patents recorded.</td></tr>}
+                      {portfolioData.patents.map((patent, index) => (
                         <React.Fragment key={patent.id}>
                           <AnimatedTableRow
                             delay={index * 0.1}
@@ -1110,9 +902,9 @@ const Portfolio = () => {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-mono text-xs">
-                              {patent.applicationNo}
+                              {patent.application_number || '—'}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{patent.filingDate}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{patent.filing_year || '—'}</td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 patent.status === 'Filed'
@@ -1145,7 +937,7 @@ const Portfolio = () => {
                                     <div className="flex items-center space-x-4 text-sm">
                                       <div className="flex items-center space-x-1">
                                         <Clock size={16} className="text-blue-500" />
-                                        <span><strong>Stage:</strong> {patent.stage}</span>
+                                        <span><strong>Stage:</strong> {patent.stage || '—'}</span>
                                       </div>
                                     </div>
                                   </div>
@@ -1180,15 +972,18 @@ const Portfolio = () => {
                   <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Product</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Company</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Launch Date</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Title</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Year</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Revenue</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Link</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {commercializationsData.map((item, index) => (
+                      {loadingPortfolio && <tr><td colSpan={5} className="text-center py-6 text-sm text-gray-500">Loading commercialization records...</td></tr>}
+                      {portfolioError && <tr><td colSpan={5} className="text-center py-6 text-sm text-red-500">{portfolioError}</td></tr>}
+                      {!loadingPortfolio && portfolioData.commercializations.length === 0 && <tr><td colSpan={5} className="text-center py-6 text-sm text-gray-500">No commercialization entries.</td></tr>}
+                      {portfolioData.commercializations.map((item, index) => (
                         <React.Fragment key={item.id}>
                           <AnimatedTableRow
                             delay={index * 0.1}
@@ -1204,20 +999,14 @@ const Portfolio = () => {
                                 )}
                                 <div>
                                   <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                                    {item.product}
+                                    {item.title}
                                   </div>
-                                  <div className="text-xs text-gray-500">{item.status}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{item.company}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{item.launchDate}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center space-x-1">
-                                <span className="text-sm font-semibold text-green-600">{item.revenue}</span>
-                                <span className="text-xs text-gray-500">({item.growth})</span>
-                              </div>
-                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{item.year || '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{item.revenue != null ? `$${item.revenue}` : '—'}</td>
+                            <td className="px-4 py-3 text-sm text-blue-600 dark:text-blue-400 underline">{item.link ? <a href={item.link} target="_blank" rel="noreferrer">Open</a> : '—'}</td>
                             <td className="px-4 py-3">
                               <AnimatedUploadButton section="commercializations" id={item.id} />
                             </td>
@@ -1240,12 +1029,12 @@ const Portfolio = () => {
                                     </div>
                                     <div className="flex flex-wrap gap-4 text-sm">
                                       <div className="flex items-center space-x-1">
-                                        <Users size={16} className="text-blue-500" />
-                                        <span><strong>Users:</strong> {item.users}</span>
+                                        <FileText size={16} className="text-blue-500" />
+                                        <span><strong>Year:</strong> {item.year || '—'}</span>
                                       </div>
                                       <div className="flex items-center space-x-1">
-                                        <Flame size={16} className="text-green-500" />
-                                        <span><strong>Growth:</strong> {item.growth}</span>
+                                        <ExternalLink size={16} className="text-green-500" />
+                                        <span><strong>Link:</strong> {item.link ? <a className="underline" href={item.link} target="_blank" rel="noreferrer">Open</a> : '—'}</span>
                                       </div>
                                     </div>
                                   </div>
