@@ -64,6 +64,7 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         "description": worklet.description,
         "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
         "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
+        "completed_date": worklet.completed_date.isoformat() if getattr(worklet, 'completed_date', None) else None,
         "created_at": worklet.created_at.isoformat() if worklet.created_at else None,
         "updated_at": worklet.updated_at.isoformat() if worklet.updated_at else None,
         "year": worklet.year,
@@ -155,6 +156,7 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
                 "students": students,
                 "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
                 "end_date": worklet.end_date.isoformat() if worklet.end_date else None
+                "completed_date": worklet.completed_date.isoformat() if getattr(worklet, 'completed_date', None) else None,
             })
 
         return {

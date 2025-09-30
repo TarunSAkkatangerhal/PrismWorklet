@@ -111,6 +111,7 @@ class Worklet(Base):
     description = Column(Text, nullable=True)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
+    completed_date = Column(Date, nullable=True)  # Newly added column to track actual completion
     status = Column(
         SAEnum("Approved", "Ongoing", "Completed", "Dropped", "On Hold", name="worklet_status_enum"),
         server_default="Ongoing",
