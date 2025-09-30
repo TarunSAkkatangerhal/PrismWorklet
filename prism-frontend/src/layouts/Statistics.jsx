@@ -650,7 +650,9 @@ const ModernStatisticsDashboard = () => {
             />
             <AnimatedMetricCard
               title="Completed"
-              value={statisticsData?.totals?.completed_worklets || 0}
+              value={
+                statisticsData?.totals?.platform_completed_worklets ?? statisticsData?.totals?.completed_worklets ?? 0
+              }
               subtitle="Successfully delivered"
               icon={CheckCircle}
               color={getColors(isDarkMode)[1]}
@@ -676,7 +678,9 @@ const ModernStatisticsDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <AnimatedMetricCard
               title="Ongoing Worklets"
-              value={statisticsData?.totals?.ongoing_worklets || 0}
+              value={
+                statisticsData?.totals?.platform_ongoing_worklets ?? statisticsData?.totals?.ongoing_worklets ?? 0
+              }
               subtitle="Currently in progress"
               icon={Activity}
               color={getColors(isDarkMode)[0]}
