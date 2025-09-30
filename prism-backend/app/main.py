@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app import auth
-from app.routers import worklets, health, dashboard, evaluations, associations
+from app.routers import worklets, health, dashboard, evaluations, associations, portfolio
 from app.core.config import settings
 from app.core.rate_limiter import RateLimiter
 from app.database import get_db
@@ -99,6 +99,7 @@ app.include_router(worklets.router, prefix="/worklets", tags=["worklets"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(evaluations.router, prefix="/evaluations", tags=["evaluations"])
 app.include_router(associations.router, prefix="/api", tags=["associations"])
+app.include_router(portfolio.router, prefix="/api/portfolio", tags=["portfolio"])
 
 # Startup and shutdown events
 @app.on_event("startup")
