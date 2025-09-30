@@ -8,6 +8,20 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from app.core.email_utils import send_activity_email
 
+# Helper utility to collect student recipients for a worklet
+def _get_students_for_worklet(db: Session, worklet_id: int):
+    """Return list of dicts with student name & email for given worklet id."""
+    students = (
+        db.query(User.name, User.email)
+        .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+        .filter(
+            UserWorkletAssociation.worklet_id == worklet_id,
+            UserWorkletAssociation.role_in_worklet == "Student",
+        )
+        .all()
+    )
+    return [{"name": s.name, "email": s.email} for s in students if s.email]
+
 router = APIRouter()
 
 @router.post("/", response_model=WorkletResponse, status_code=status.HTTP_201_CREATED)
@@ -243,19 +257,19 @@ def request_worklet_update_flexible(worklet_identifier: str, request_data: Reque
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Get students for this worklet
-    dummy_students = [
-        {"email": "john.doe@example.com", "name": "John Doe"},
-        {"email": "jane.smith@example.com", "name": "Jane Smith"}
-    ]
-    
-    # Send emails to students
-    student_emails = [student["email"] for student in dummy_students]
-    email_subject = f"Update Request for Worklet {worklet.cert_id}"
-    email_message = f"A mentor has requested an update for your worklet.\n\nMessage: {request_data.message}\nPriority: {request_data.priority}"
-    
-    email_sent = send_activity_email(student_emails, email_subject, email_message, "Request Update")
-    
+    # Fetch dynamic students
+    student_records = _get_students_for_worklet(db, worklet.id)
+    student_emails = [s["email"] for s in student_records]
+
+    email_sent = False
+    if student_emails:
+        email_subject = f"Update Request for Worklet {worklet.cert_id}"
+        email_message = (
+            f"A mentor has requested an update for your worklet.\n\n"
+            f"Message: {request_data.message}\nPriority: {request_data.priority}"
+        )
+        email_sent = send_activity_email(student_emails, email_subject, email_message, "Request Update")
+
     return {
         "message": "Update request submitted successfully",
         "worklet_identifier": worklet_identifier,
@@ -263,7 +277,8 @@ def request_worklet_update_flexible(worklet_identifier: str, request_data: Reque
         "request_data": request_data.dict(),
         "email_sent": email_sent,
         "students_notified": len(student_emails),
-        "timestamp": datetime.now().isoformat()
+        "student_emails": student_emails,
+        "timestamp": datetime.now().isoformat(),
     }
 
 # ----------------- Submit Feedback -----------------
@@ -281,29 +296,30 @@ def submit_feedback(feedback_data: FeedbackSchema, db: Session = Depends(get_db)
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Get students for this worklet
-    dummy_students = [
-        {"email": "john.doe@example.com", "name": "John Doe"},
-        {"email": "jane.smith@example.com", "name": "Jane Smith"}
-    ]
-    
-    # Send emails to students
-    student_emails = [student["email"] for student in dummy_students]
-    email_subject = f"Feedback for Worklet {worklet.cert_id}"
-    email_message = f"Your mentor has provided feedback for your worklet.\n\nFeedback Type: {feedback_data.feedback_type}\nFeedback: {feedback_data.feedback_content}"
-    if feedback_data.month:
-        email_message += f"\nMonth: {feedback_data.month}"
-    if feedback_data.rating:
-        email_message += f"\nRating: {feedback_data.rating}/5"
-    
-    email_sent = send_activity_email(student_emails, email_subject, email_message, "Submit Feedback")
-    
+    # Fetch dynamic students
+    student_records = _get_students_for_worklet(db, worklet.id)
+    student_emails = [s["email"] for s in student_records]
+
+    email_sent = False
+    if student_emails:
+        email_subject = f"Feedback for Worklet {worklet.cert_id}"
+        email_message = (
+            f"Your mentor has provided feedback for your worklet.\n\n"
+            f"Feedback Type: {feedback_data.feedback_type}\nFeedback: {feedback_data.feedback_content}"
+        )
+        if feedback_data.month:
+            email_message += f"\nMonth: {feedback_data.month}"
+        if feedback_data.rating:
+            email_message += f"\nRating: {feedback_data.rating}/5"
+        email_sent = send_activity_email(student_emails, email_subject, email_message, "Submit Feedback")
+
     return {
         "message": "Feedback submitted successfully",
         "feedback_data": feedback_data.dict(),
         "email_sent": email_sent,
         "students_notified": len(student_emails),
-        "timestamp": datetime.now().isoformat()
+        "student_emails": student_emails,
+        "timestamp": datetime.now().isoformat(),
     }
 
 # ----------------- Submit Suggestion -----------------
@@ -319,25 +335,26 @@ def submit_suggestion(suggestion_data: SuggestionSchema, db: Session = Depends(g
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Get students for this worklet
-    dummy_students = [
-        {"email": "john.doe@example.com", "name": "John Doe"},
-        {"email": "jane.smith@example.com", "name": "Jane Smith"}
-    ]
-    
-    # Send emails to students
-    student_emails = [student["email"] for student in dummy_students]
-    email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
-    email_message = f"A mentor has shared a suggestion for your worklet.\n\nTitle: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
-    
-    email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
-    
+    # Fetch dynamic students
+    student_records = _get_students_for_worklet(db, worklet.id)
+    student_emails = [s["email"] for s in student_records]
+
+    email_sent = False
+    if student_emails:
+        email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
+        email_message = (
+            f"A mentor has shared a suggestion for your worklet.\n\n"
+            f"Title: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
+        )
+        email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
+
     return {
         "message": "Suggestion submitted successfully",
         "suggestion_data": suggestion_data.dict(),
         "email_sent": email_sent,
         "students_notified": len(student_emails),
-        "timestamp": datetime.now().isoformat()
+        "student_emails": student_emails,
+        "timestamp": datetime.now().isoformat(),
     }
 
 # Flexible suggestion endpoint that accepts cert_id
@@ -365,30 +382,31 @@ def submit_suggestion_flexible(suggestion_data: SuggestionSchemaFlexible, db: Se
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Get students for this worklet
-    dummy_students = [
-        {"email": "john.doe@example.com", "name": "John Doe"},
-        {"email": "jane.smith@example.com", "name": "Jane Smith"}
-    ]
-    
-    # Send emails to students
-    student_emails = [student["email"] for student in dummy_students]
-    email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
-    email_message = f"A mentor has shared a suggestion for your worklet.\n\nTitle: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
-    
-    email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
-    
+    # Fetch dynamic students
+    student_records = _get_students_for_worklet(db, worklet.id)
+    student_emails = [s["email"] for s in student_records]
+
+    email_sent = False
+    if student_emails:
+        email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
+        email_message = (
+            f"A mentor has shared a suggestion for your worklet.\n\n"
+            f"Title: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
+        )
+        email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
+
     return {
         "message": "Suggestion submitted successfully",
         "suggestion_data": {
             "worklet_identifier": suggestion_data.worklet_identifier,
             "worklet_cert_id": worklet.cert_id,
             "suggestion_title": suggestion_data.suggestion_title,
-            "suggestion_content": suggestion_data.suggestion_content
+            "suggestion_content": suggestion_data.suggestion_content,
         },
         "email_sent": email_sent,
         "students_notified": len(student_emails),
-        "timestamp": datetime.now().isoformat()
+        "student_emails": student_emails,
+        "timestamp": datetime.now().isoformat(),
     }
 
 # ----------------- Completed Worklets for Mentor -----------------  
