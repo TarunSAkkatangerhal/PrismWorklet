@@ -22,150 +22,76 @@ def _send_email(to_email: str, subject: str, body_html: str, body_plain: str = N
 
 
 def send_otp_email(email: str, name: str, otp_code: str):
-        """Send OTP email (enhanced professional template)"""
-        subject = "Samsung PRISM • One-Time Verification Code"
+    """Send OTP email (professional HTML)"""
+    subject = "Your Samsung PRISM OTP Code"
 
-        body_plain = (
-                f"Hello {name},\n\n"
-                f"Your one-time verification code (OTP) is: {otp_code}\n"
-                "It is valid for 10 minutes. Do NOT share this code with anyone.\n\n"
-                "If you did not initiate this action, please ignore this email.\n\n"
-                "— Samsung PRISM Security"
-        )
+    body_plain = f"Hello {name},\n\nYour OTP code is: {otp_code}\nThis code will expire in 10 minutes.\n\nSamsung PRISM Team"
 
-        body_html = f"""
-        <html>
-            <body style='margin:0; padding:24px; background:#f5f7fb; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#1a1f29;'>
-                <table role='presentation' cellpadding='0' cellspacing='0' width='100%' style='max-width:640px; margin:0 auto; background:#ffffff; border-radius:16px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;'>
-                    <tr>
-                        <td style='background:linear-gradient(135deg,#003c8f,#1976d2); padding:28px 24px; text-align:center;'>
-                            <h1 style='margin:0; font-size:22px; color:#ffffff; letter-spacing:.5px; font-weight:600;'>Samsung PRISM Verification</h1>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style='padding:32px 28px 18px;'>
-                            <p style='font-size:15px; line-height:1.55; margin:0 0 16px;'>Hello <strong>{name}</strong>,</p>
-                            <p style='font-size:15px; line-height:1.55; margin:0 0 18px;'>Use the one-time verification code below to continue. This code is valid for <strong>10 minutes</strong>.</p>
-                            <div style='text-align:center; margin:28px 0;'>
-                                <div style='display:inline-block; background:#0d47a1; color:#ffffff; font-size:30px; letter-spacing:4px; font-weight:700; padding:18px 32px; border-radius:14px; font-family:Monaco,Consolas,monospace;'>
-                                    {otp_code}
-                                </div>
-                            </div>
-                            <p style='font-size:14px; line-height:1.55; margin:0 0 10px; color:#374151;'>For your security, never share this code with anyone – not even PRISM staff.</p>
-                            <p style='font-size:13px; background:#f1f5f9; padding:12px 16px; border-left:4px solid #2563eb; border-radius:6px; margin:20px 0 8px;'>If you did not request this code, you can safely ignore this email.</p>
-                            <p style='font-size:14px; line-height:1.55; margin:24px 0 0;'>Regards,<br><strong>Samsung PRISM Security Team</strong></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style='padding:18px 24px 28px;'>
-                            <p style='margin:0; font-size:11px; line-height:1.5; color:#6b7280; text-align:center;'>This is an automated message. Do not reply to this email.</p>
-                        </td>
-                    </tr>
-                </table>
-            </body>
-        </html>
-        """
-        _send_email(email, subject, body_html, body_plain)
+    body_html = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f6f9; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: #004aad; text-align: center;">Samsung PRISM OTP Verification</h2>
+            <p>Hello <b>{name}</b>,</p>
+            <p>Your one-time password (OTP) is:</p>
+            <p style="font-size: 22px; font-weight: bold; color: #004aad; text-align: center; padding: 10px; background: #f0f4ff; border-radius: 6px;">
+                {otp_code}
+            </p>
+            <p>This code will expire in <b>10 minutes</b>.</p>
+            <p style="margin-top: 20px;">Best regards,<br><b>Samsung PRISM Team</b></p>
+        </div>
+    </body>
+    </html>
+    """
+    _send_email(email, subject, body_html, body_plain)
 
 
 def send_password_reset_email(email: str, name: str, otp_code: str):
-        """Send password reset email (enhanced professional template)"""
-        subject = "Samsung PRISM • Password Reset Code"
+    """Send password reset email (professional HTML)"""
+    subject = "Samsung PRISM Password Reset"
 
-        body_plain = (
-                f"Hello {name},\n\n"
-                "A password reset was requested for your Samsung PRISM account.\n"
-                f"Reset code: {otp_code} (valid 10 minutes).\n\n"
-                "If you did not request this, please ignore this email.\n\n"
-                "— Samsung PRISM Support"
-        )
+    body_plain = f"Hello {name},\n\nYou requested a password reset. Your reset OTP is: {otp_code}\nThis code will expire in 10 minutes.\n\nIf not requested, ignore this email."
 
-        body_html = f"""
-        <html>
-            <body style='margin:0; padding:24px; background:#f5f7fa; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#1f2937;'>
-                <table role='presentation' cellpadding='0' cellspacing='0' width='100%' style='max-width:640px; margin:0 auto; background:#ffffff; border-radius:16px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;'>
-                    <tr>
-                        <td style='background:linear-gradient(135deg,#9d174d,#dc2626); padding:26px 24px; text-align:center;'>
-                            <h1 style='margin:0; font-size:22px; color:#ffffff; font-weight:600;'>Password Reset Request</h1>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style='padding:32px 30px 18px;'>
-                            <p style='font-size:15px; line-height:1.55; margin:0 0 16px;'>Hello <strong>{name}</strong>,</p>
-                            <p style='font-size:15px; line-height:1.55; margin:0 0 18px;'>A password reset was requested for your Samsung PRISM account. Use the secure reset code below within 10 minutes.</p>
-                            <div style='text-align:center; margin:28px 0;'>
-                                <div style='display:inline-block; background:#dc2626; color:#ffffff; font-size:30px; letter-spacing:4px; font-weight:700; padding:18px 32px; border-radius:14px; font-family:Monaco,Consolas,monospace;'>
-                                    {otp_code}
-                                </div>
-                            </div>
-                            <p style='font-size:13px; background:#fef2f2; padding:12px 16px; border-left:4px solid #dc2626; border-radius:6px; margin:8px 0 14px;'>If you did not request this change, no action is required. Your password remains unchanged.</p>
-                            <p style='font-size:14px; line-height:1.55; margin:24px 0 0;'>Regards,<br><strong>Samsung PRISM Support Team</strong></p>
-                        </td>
-                    </tr>
-                    <tr><td style='padding:18px 24px 28px;'><p style='margin:0; font-size:11px; line-height:1.5; color:#6b7280; text-align:center;'>This automated notification was sent to you because a reset process was initiated.</p></td></tr>
-                </table>
-            </body>
-        </html>
-        """
-        _send_email(email, subject, body_html, body_plain)
+    body_html = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f6f9; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: #e63946; text-align: center;">Password Reset Request</h2>
+            <p>Hello <b>{name}</b>,</p>
+            <p>You requested to reset your Samsung PRISM account password.</p>
+            <p>Your password reset OTP is:</p>
+            <p style="font-size: 22px; font-weight: bold; color: #e63946; text-align: center; padding: 10px; background: #fff0f0; border-radius: 6px;">
+                {otp_code}
+            </p>
+            <p>This code will expire in <b>10 minutes</b>.</p>
+            <p>If you didn’t request this, you can safely ignore this email.</p>
+            <p style="margin-top: 20px;">Best regards,<br><b>Samsung PRISM Team</b></p>
+        </div>
+    </body>
+    </html>
+    """
+    _send_email(email, subject, body_html, body_plain)
 
 
 def send_activity_email(emails: list, subject: str, message: str, activity_type: str):
-        """Send activity-related email to multiple students (enhanced professional HTML)."""
+    """Send activity-related email to multiple students (professional HTML)"""
+    for email in emails:
+        body_plain = f"Dear Student,\n\n{message}\n\nActivity Type: {activity_type}\n\nPlease log in to Samsung PRISM for more details.\n\nSamsung PRISM Team"
 
-        # Convert raw message newlines into HTML paragraphs for nicer rendering
-        def _format_message_html(text: str) -> str:
-                blocks = [b.strip() for b in text.split('\n') if b.strip()]
-                return "".join(f"<p style='margin:0 0 14px; line-height:1.55; font-size:14px;'>{block}</p>" for block in blocks) or "<p style='margin:0;'>No details provided.</p>"
-
-        formatted_html = _format_message_html(message)
-
-        for email in emails:
-                body_plain = (
-                        "Dear Student,\n\n"
-                        f"{message}\n\n"
-                        f"Activity Type: {activity_type}\n"
-                        "Please log in to Samsung PRISM for more details.\n\n"
-                        "— Samsung PRISM Team"
-                )
-
-                body_html = f"""
-                <html>
-                    <body style='margin:0; padding:22px; background:#f4f7fa; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111827;'>
-                        <table role='presentation' cellpadding='0' cellspacing='0' width='100%' style='max-width:660px; margin:0 auto; background:#ffffff; border-radius:18px; box-shadow:0 4px 18px rgba(0,0,0,0.07); overflow:hidden;'>
-                            <tr>
-                                <td style='background:linear-gradient(135deg,#0f3d91,#2563eb); padding:26px 26px 24px; text-align:center;'>
-                                    <h1 style='margin:0; font-size:21px; color:#ffffff; font-weight:600; letter-spacing:.5px;'>Samsung PRISM • {activity_type}</h1>
-                                    <div style='margin-top:6px; font-size:13px; color:#e0ecff; letter-spacing:.5px;'>{subject}</div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style='padding:34px 34px 10px;'>
-                                    <p style='margin:0 0 16px; font-size:14px; line-height:1.55;'>Dear Student,</p>
-                                    {formatted_html}
-                                    <div style='margin:24px 0 6px;'>
-                                        <table role='presentation' cellpadding='0' cellspacing='0' style='border-collapse:collapse;'>
-                                            <tr>
-                                                <td style='background:#eef5ff; color:#1e40af; font-size:12px; letter-spacing:.5px; font-weight:600; padding:6px 12px; border-radius:6px; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;'>ACTIVITY: {activity_type.upper()}</td>
-                                            </tr>
-                                        </table>
-                                    </div>
-                                    <p style='margin:22px 0 0; font-size:13px; line-height:1.55; color:#374151;'>Please log into <strong>Samsung PRISM</strong> to view full details and take any required action.</p>
-                                    <div style='text-align:center; margin:30px 0 8px;'>
-                                        <a href='https://https://www.samsungprism.com' style='display:inline-block; background:#2563eb; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 26px; border-radius:10px; box-shadow:0 2px 6px rgba(37,99,235,0.35);'>Open Dashboard</a>
-                                    </div>
-                                    <p style='margin:26px 0 0; font-size:14px; line-height:1.55;'>Regards,<br><strong>Samsung PRISM Team</strong></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style='padding:16px 28px 26px;'>
-                                    <p style='margin:0; font-size:11px; line-height:1.5; color:#6b7280; text-align:center;'>This is an automated notification related to your active worklet participation. Do not reply to this email.</p>
-                                </td>
-                            </tr>
-                        </table>
-                    </body>
-                </html>
-                """
-                _send_email(email, f"Samsung PRISM - {subject}", body_html, body_plain)
-        print(f"Activity emails sent to {len(emails)} recipients")
-        return True
+        body_html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f4f6f9; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                <h2 style="color: #1d3557; text-align: center;">Samsung PRISM - {subject}</h2>
+                <p>Dear Student,</p>
+                <p>{message}</p>
+                <p><b>Activity Type:</b> {activity_type}</p>
+                <p style="margin-top: 20px;">Please log into <b>Samsung PRISM</b> for more details.</p>
+                <p style="margin-top: 20px;">Best regards,<br><b>Samsung PRISM Team</b></p>
+            </div>
+        </body>
+        </html>
+        """
+        _send_email(email, f"Samsung PRISM - {subject}", body_html, body_plain)
+    print(f"Activity emails sent to {len(emails)} recipients")
+    return True

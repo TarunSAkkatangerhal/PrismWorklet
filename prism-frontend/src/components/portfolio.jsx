@@ -415,7 +415,7 @@ const Portfolio = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20 relative overflow-hidden">
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:bg-slate-900 relative overflow-hidden">
       <LeftSidebar />
       
       {/* Floating Particles Background */}
@@ -481,7 +481,7 @@ const Portfolio = () => {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 p-4 lg:p-8">
+      <div className="flex-1 p-4 lg:p-8 bg-transparent dark:bg-slate-900">
         <motion.div
           className="w-full max-w-none mx-auto px-4 lg:px-8"
           variants={containerVariants}
@@ -521,10 +521,10 @@ const Portfolio = () => {
 
             {/* Typewriter Header */}
             <motion.div
-              className="relative"
+              className="relative pb-2"
             >
               <motion.h1 
-                className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative"
+                className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 relative pb-1"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5, duration: 0.8 }}
@@ -536,18 +536,10 @@ const Portfolio = () => {
                   transition={{ duration: 1, repeat: Infinity }}
                 />
               </motion.h1>
-              
-              {/* Glowing Underline */}
-              <motion.div
-                className="absolute bottom-0 left-1/2 transform -translate-x-1/2 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: typewriterText.length > 0 ? "60%" : 0 }}
-                transition={{ duration: 1, delay: 2 }}
-              />
             </motion.div>
 
             <motion.div
-              className="flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-300 relative"
+              className="flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-100 relative"
               initial={{ scale: 0, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               transition={{ delay: 2.5, type: "spring", stiffness: 200 }}
@@ -668,6 +660,73 @@ const Portfolio = () => {
               </motion.button>
             ))}
           </motion.div>
+
+          {/* Statistics Cards Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Projects Completed */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                    <Rocket className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">50+</div>
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400">PROJECTS COMPLETED</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-500">Successfully delivered</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Years Experience */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                    <Award className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">3+</div>
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400">YEARS EXPERIENCE</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-500">Professional growth</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Papers Published */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                    <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">15+</div>
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400">PAPERS PUBLISHED</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-500">Research contributions</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Patents Filed */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-violet-100 dark:bg-violet-900/20 rounded-lg">
+                    <Shield className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">8+</div>
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400">PATENTS FILED</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-500">Innovation protected</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Content Sections */}
           <AnimatePresence mode="wait">

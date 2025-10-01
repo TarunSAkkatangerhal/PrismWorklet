@@ -1,26 +1,12 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.models import Worklet, User, UserWorkletAssociation
+from app.models import Worklet, User
 from app.schemas import WorkletCreate, WorkletUpdate, WorkletResponse
 from app.database import get_db
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from app.core.email_utils import send_activity_email
-
-# Helper utility to collect student recipients for a worklet
-def _get_students_for_worklet(db: Session, worklet_id: int):
-    """Return list of dicts with student name & email for given worklet id."""
-    students = (
-        db.query(User.name, User.email)
-        .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
-        .filter(
-            UserWorkletAssociation.worklet_id == worklet_id,
-            UserWorkletAssociation.role_in_worklet == "Student",
-        )
-        .all()
-    )
-    return [{"name": s.name, "email": s.email} for s in students if s.email]
 
 router = APIRouter()
 
@@ -64,7 +50,6 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         "description": worklet.description,
         "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
         "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
-        "completed_date": worklet.completed_date.isoformat() if getattr(worklet, 'completed_date', None) else None,
         "created_at": worklet.created_at.isoformat() if worklet.created_at else None,
         "updated_at": worklet.updated_at.isoformat() if worklet.updated_at else None,
         "year": worklet.year,
@@ -95,78 +80,41 @@ def delete_worklet(worklet_id: int, db: Session = Depends(get_db)):
 
 # ----------------- Mentor Worklets -----------------
 @router.get("/mentor/{mentor_email}/worklets")
-def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_ongoing: bool = False):
+def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db)):
     try:
+        # Find mentor
         mentor = db.query(User).filter(User.email == mentor_email, User.role == "Mentor").first()
         if not mentor:
             raise HTTPException(status_code=404, detail="Mentor not found")
-
-        # Robust join to get all worklets for which this user is a mentor
-        query = db.query(Worklet).join(UserWorkletAssociation, Worklet.id == UserWorkletAssociation.worklet_id)
-        query = query.filter(UserWorkletAssociation.user_id == mentor.id, UserWorkletAssociation.role_in_worklet == "Mentor")
-        if only_ongoing:
-            query = query.filter(Worklet.status == "Ongoing")
-        worklets = query.all()
-
+        
+        # Get worklets assigned to this mentor using mentor_id
+        worklets = db.query(Worklet).filter(Worklet.mentor_id == mentor.id).all()
+        
+        # Convert to dict format matching actual database schema
         worklets_data = []
-        mentee_set = set()
         for worklet in worklets:
-            student_assocs = db.query(UserWorkletAssociation).filter(
-                UserWorkletAssociation.worklet_id == worklet.id,
-                UserWorkletAssociation.role_in_worklet == "Student"
-            ).all()
-            student_ids = [assoc.user_id for assoc in student_assocs]
-            students = []
-            if student_ids:
-                students = [u.name for u in db.query(User).filter(User.id.in_(student_ids)).all() if u.name]
-                for s in students:
-                    mentee_set.add(s)
-
-            percentage_completion = getattr(worklet, "percentage_completion", None)
-            if percentage_completion is None:
-                if worklet.start_date and worklet.end_date:
-                    total_days = (worklet.end_date - worklet.start_date).days or 1
-                    elapsed_days = (datetime.utcnow().date() - worklet.start_date).days
-                    percentage_completion = max(0, min(100, int((elapsed_days / total_days) * 100)))
-                else:
-                    percentage_completion = 0
-
-            if worklet.status == "Completed":
-                quality = "Excellence"
-            elif percentage_completion >= 70:
-                quality = "Excellence"
-            elif percentage_completion >= 30:
-                quality = "Good"
-            else:
-                quality = "Needs Attention"
-
             worklets_data.append({
                 "id": worklet.id,
                 "cert_id": worklet.cert_id,
-                "title": getattr(worklet, "title", None),
                 "description": worklet.description,
                 "status": worklet.status,
-                "team": getattr(worklet, "team", None),
-                "college": getattr(worklet, "college", None),
-                "problem_statement": getattr(worklet, "problem_statement", None),
-                "expectations": getattr(worklet, "expectations", None),
-                "prerequisites": getattr(worklet, "prerequisites", None),
-                "percentage_completion": percentage_completion,
-                "quality": quality,
-                "students": students,
+                "team": worklet.team,
+                "college": worklet.college,
+                "problem_statement": worklet.problem_statement,
+                "expectations": worklet.expectations,
+                "prerequisites": worklet.prerequisites,
+                "percentage_completion": worklet.percentage_completion,
                 "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
-                    "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
-                "completed_date": worklet.completed_date.isoformat() if getattr(worklet, 'completed_date', None) else None,
+                "end_date": worklet.end_date.isoformat() if worklet.end_date else None
             })
-
-        return {
-            "worklets": worklets_data,
-            "total_worklets": len(worklets_data),
-            "total_mentees": len(mentee_set)
-        }
+        
+        return worklets_data
+        
     except Exception as e:
         print(f"Error fetching mentor worklets: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+    # Placeholder until associations are refactored to new schema
+    return []
 
 # ----------------- Students for Worklet -----------------
 @router.get("/{worklet_identifier}/students")
@@ -259,19 +207,19 @@ def request_worklet_update_flexible(worklet_identifier: str, request_data: Reque
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Fetch dynamic students
-    student_records = _get_students_for_worklet(db, worklet.id)
-    student_emails = [s["email"] for s in student_records]
-
-    email_sent = False
-    if student_emails:
-        email_subject = f"Update Request for Worklet {worklet.cert_id}"
-        email_message = (
-            f"A mentor has requested an update for your worklet.\n\n"
-            f"Message: {request_data.message}\nPriority: {request_data.priority}"
-        )
-        email_sent = send_activity_email(student_emails, email_subject, email_message, "Request Update")
-
+    # Get students for this worklet
+    dummy_students = [
+        {"email": "john.doe@example.com", "name": "John Doe"},
+        {"email": "jane.smith@example.com", "name": "Jane Smith"}
+    ]
+    
+    # Send emails to students
+    student_emails = [student["email"] for student in dummy_students]
+    email_subject = f"Update Request for Worklet {worklet.cert_id}"
+    email_message = f"A mentor has requested an update for your worklet.\n\nMessage: {request_data.message}\nPriority: {request_data.priority}"
+    
+    email_sent = send_activity_email(student_emails, email_subject, email_message, "Request Update")
+    
     return {
         "message": "Update request submitted successfully",
         "worklet_identifier": worklet_identifier,
@@ -279,8 +227,7 @@ def request_worklet_update_flexible(worklet_identifier: str, request_data: Reque
         "request_data": request_data.dict(),
         "email_sent": email_sent,
         "students_notified": len(student_emails),
-        "student_emails": student_emails,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat()
     }
 
 # ----------------- Submit Feedback -----------------
@@ -298,30 +245,29 @@ def submit_feedback(feedback_data: FeedbackSchema, db: Session = Depends(get_db)
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Fetch dynamic students
-    student_records = _get_students_for_worklet(db, worklet.id)
-    student_emails = [s["email"] for s in student_records]
-
-    email_sent = False
-    if student_emails:
-        email_subject = f"Feedback for Worklet {worklet.cert_id}"
-        email_message = (
-            f"Your mentor has provided feedback for your worklet.\n\n"
-            f"Feedback Type: {feedback_data.feedback_type}\nFeedback: {feedback_data.feedback_content}"
-        )
-        if feedback_data.month:
-            email_message += f"\nMonth: {feedback_data.month}"
-        if feedback_data.rating:
-            email_message += f"\nRating: {feedback_data.rating}/5"
-        email_sent = send_activity_email(student_emails, email_subject, email_message, "Submit Feedback")
-
+    # Get students for this worklet
+    dummy_students = [
+        {"email": "john.doe@example.com", "name": "John Doe"},
+        {"email": "jane.smith@example.com", "name": "Jane Smith"}
+    ]
+    
+    # Send emails to students
+    student_emails = [student["email"] for student in dummy_students]
+    email_subject = f"Feedback for Worklet {worklet.cert_id}"
+    email_message = f"Your mentor has provided feedback for your worklet.\n\nFeedback Type: {feedback_data.feedback_type}\nFeedback: {feedback_data.feedback_content}"
+    if feedback_data.month:
+        email_message += f"\nMonth: {feedback_data.month}"
+    if feedback_data.rating:
+        email_message += f"\nRating: {feedback_data.rating}/5"
+    
+    email_sent = send_activity_email(student_emails, email_subject, email_message, "Submit Feedback")
+    
     return {
         "message": "Feedback submitted successfully",
         "feedback_data": feedback_data.dict(),
         "email_sent": email_sent,
         "students_notified": len(student_emails),
-        "student_emails": student_emails,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat()
     }
 
 # ----------------- Submit Suggestion -----------------
@@ -337,26 +283,25 @@ def submit_suggestion(suggestion_data: SuggestionSchema, db: Session = Depends(g
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Fetch dynamic students
-    student_records = _get_students_for_worklet(db, worklet.id)
-    student_emails = [s["email"] for s in student_records]
-
-    email_sent = False
-    if student_emails:
-        email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
-        email_message = (
-            f"A mentor has shared a suggestion for your worklet.\n\n"
-            f"Title: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
-        )
-        email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
-
+    # Get students for this worklet
+    dummy_students = [
+        {"email": "john.doe@example.com", "name": "John Doe"},
+        {"email": "jane.smith@example.com", "name": "Jane Smith"}
+    ]
+    
+    # Send emails to students
+    student_emails = [student["email"] for student in dummy_students]
+    email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
+    email_message = f"A mentor has shared a suggestion for your worklet.\n\nTitle: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
+    
+    email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
+    
     return {
         "message": "Suggestion submitted successfully",
         "suggestion_data": suggestion_data.dict(),
         "email_sent": email_sent,
         "students_notified": len(student_emails),
-        "student_emails": student_emails,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat()
     }
 
 # Flexible suggestion endpoint that accepts cert_id
@@ -384,31 +329,30 @@ def submit_suggestion_flexible(suggestion_data: SuggestionSchemaFlexible, db: Se
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Fetch dynamic students
-    student_records = _get_students_for_worklet(db, worklet.id)
-    student_emails = [s["email"] for s in student_records]
-
-    email_sent = False
-    if student_emails:
-        email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
-        email_message = (
-            f"A mentor has shared a suggestion for your worklet.\n\n"
-            f"Title: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
-        )
-        email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
-
+    # Get students for this worklet
+    dummy_students = [
+        {"email": "john.doe@example.com", "name": "John Doe"},
+        {"email": "jane.smith@example.com", "name": "Jane Smith"}
+    ]
+    
+    # Send emails to students
+    student_emails = [student["email"] for student in dummy_students]
+    email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
+    email_message = f"A mentor has shared a suggestion for your worklet.\n\nTitle: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
+    
+    email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
+    
     return {
         "message": "Suggestion submitted successfully",
         "suggestion_data": {
             "worklet_identifier": suggestion_data.worklet_identifier,
             "worklet_cert_id": worklet.cert_id,
             "suggestion_title": suggestion_data.suggestion_title,
-            "suggestion_content": suggestion_data.suggestion_content,
+            "suggestion_content": suggestion_data.suggestion_content
         },
         "email_sent": email_sent,
         "students_notified": len(student_emails),
-        "student_emails": student_emails,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat()
     }
 
 # ----------------- Completed Worklets for Mentor -----------------  

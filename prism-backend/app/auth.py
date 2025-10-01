@@ -16,7 +16,6 @@ from fastapi import BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError, ExpiredSignatureError
 from passlib.context import CryptContext
-from passlib.exc import UnknownHashError
 from sqlalchemy.orm import Session
 import os, random, string
 
@@ -27,21 +26,13 @@ from app.core.email_utils import send_otp_email, send_password_reset_email
 from app.core.redis_cache import redis_cache
 
 # --- Password Hashing ---
-# Use a unified context that can verify existing hashes (argon2 and bcrypt).
-# New hashes will be created with argon2 (first scheme).
-pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except UnknownHashError:
-        # Stored hash is in an unknown/legacy format; treat as invalid without crashing
-        return False
-    except Exception:
-        return False
+    return pwd_context.verify(plain_password, hashed_password)
 
 # --- JWT Setup ---
 SECRET_KEY = settings.SECRET_KEY or os.getenv("SECRET_KEY")
@@ -54,13 +45,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def decode_token(token: str) -> dict:
@@ -70,14 +61,6 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Token has expired")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-
-
-def require_access_token(token: str) -> dict:
-    """Decode token and ensure it is an access token."""
-    payload = decode_token(token)
-    if payload.get("type") != "access":
-        raise HTTPException(status_code=401, detail="Access token required")
-    return payload
 
 
 # --- OTP Temp Store (Redis-backed, fallback to in-memory) ---
@@ -194,26 +177,16 @@ def set_password(password_data: schemas.SetPassword, db: Session = Depends(get_d
 # Updated login to return tokens, user info, and user profile
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """Login endpoint with optional role (scope) verification.
-    If the frontend supplies a role in OAuth2 scope, ensure it matches the persisted user role.
-    This prevents a user from attempting to log in as a different role.
-    """
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_verified:
         raise HTTPException(status_code=401, detail="Email not verified")
 
-    # OAuth2PasswordRequestForm provides scopes via .scopes list
-    if form_data.scopes:
-        requested_role = form_data.scopes[0]  # we only expect one role as scope
-        if requested_role and requested_role.lower() != user.role.lower():
-            raise HTTPException(status_code=403, detail="Role mismatch: unauthorized for requested role")
+    access = create_access_token({"sub": user.email, "role": user.role, "user_id": user.id})
+    refresh = create_refresh_token({"sub": user.email, "role": user.role, "user_id": user.id})
 
-    token_payload = {"sub": user.email, "role": user.role, "user_id": user.id}
-    access = create_access_token(token_payload)
-    refresh = create_refresh_token(token_payload)
-
+    # Fetch user profile from user_profiles table
     profile = None
     if user.profile:
         profile = {
@@ -246,28 +219,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     }
 
 @router.post("/refresh")
-def refresh_tokens(request: Request, payload: Optional[schemas.TokenRefreshRequest] = None, db: Session = Depends(get_db)):
-    """Issue new access and refresh tokens given a valid refresh token.
-    Accepts token via JSON body {"refresh_token": "..."} or Authorization: Bearer <token> header.
-    """
-    # Extract token from body or Authorization header
-    raw_token = ""
-    if payload and getattr(payload, "refresh_token", None):
-        raw_token = (payload.refresh_token or "").strip()
-    if not raw_token:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            raw_token = auth_header.split(" ", 1)[1].strip()
-    if not raw_token:
-        raise HTTPException(status_code=400, detail="Missing refresh token. Provide in JSON body or Authorization header.")
-
-    # Decode & validate refresh token
-    decoded = decode_token(raw_token)
-    # Backwards-compat: old tokens may not have a 'type' claim
-    tok_type = decoded.get("type", "refresh")
-    if tok_type != "refresh":
-        raise HTTPException(status_code=401, detail="Invalid token type for refresh")
-
+def refresh_tokens(payload: schemas.TokenRefreshRequest, db: Session = Depends(get_db)):
+    """Issue new access and refresh tokens given a valid refresh token."""
+    decoded = decode_token(payload.refresh_token)
     user_email = decoded.get("sub")
     if not user_email:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -320,7 +274,7 @@ def reset_password(reset_data: schemas.ResetPassword, db: Session = Depends(get_
 @router.get("/me", response_model=schemas.UserResponse)
 async def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = require_access_token(token)
+        payload = decode_token(token)
         user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
@@ -344,7 +298,7 @@ async def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_
 @router.get("/profile")
 async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = require_access_token(token)
+        payload = decode_token(token)
         user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
@@ -394,7 +348,7 @@ async def update_my_profile(
     db: Session = Depends(get_db)
 ):
     try:
-        payload = require_access_token(token)
+        payload = decode_token(token)
         user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")

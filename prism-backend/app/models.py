@@ -10,7 +10,6 @@
     Index,
     ForeignKey,
     UniqueConstraint,
-    DECIMAL,
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -111,7 +110,6 @@ class Worklet(Base):
     description = Column(Text, nullable=True)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
-    completed_date = Column(Date, nullable=True)  # Newly added column to track actual completion
     status = Column(
         SAEnum("Approved", "Ongoing", "Completed", "Dropped", "On Hold", name="worklet_status_enum"),
         server_default="Ongoing",
@@ -167,55 +165,3 @@ class Evaluation(Base):
 Index("ix_user_email", User.email, unique=True)
 Index("ix_worklet_cert_id", Worklet.cert_id, unique=True)
 Index("ix_user_worklet_association", UserWorkletAssociation.user_id, UserWorkletAssociation.worklet_id)
-
-"""
-Updated portfolio domain models to align with provided raw SQL schema:
-  achievements, papers, patents, commercializations
-Legacy Mentor* models removed to avoid creation of unused tables.
-"""
-
-class Achievement(Base):
-    __tablename__ = "achievements"
-    id = Column("achievement_id", Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
-    title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    year = Column(Integer, nullable=True)
-    type = Column(SAEnum("Award", "Recognition", "Other", name="achievement_type_enum"), nullable=False, server_default="Other")
-    link = Column(String(255), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-
-class Paper(Base):
-    __tablename__ = "papers"
-    id = Column("paper_id", Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
-    title = Column(String(255), nullable=False)
-    publication_year = Column(Integer, nullable=True)
-    journal = Column(String(255), nullable=True)
-    doi = Column(String(255), nullable=True)
-    link = Column(String(255), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-
-class Patent(Base):
-    __tablename__ = "patents"
-    id = Column("patent_id", Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
-    title = Column(String(255), nullable=False)
-    application_number = Column(String(100), nullable=True)
-    filing_year = Column(Integer, nullable=True)
-    status = Column(SAEnum("Filed", "Granted", "Published", name="patent_status_enum"), nullable=False, server_default="Filed")
-    link = Column(String(255), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-
-class Commercialization(Base):
-    __tablename__ = "commercializations"
-    id = Column("commercialization_id", Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
-    worklet_id = Column(Integer, ForeignKey("worklets.worklet_id", ondelete="SET NULL"), nullable=True)
-    title = Column(String(255), nullable=False)
-    year = Column(Integer, nullable=True)
-    revenue = Column(DECIMAL(12, 2), nullable=True)
-    description = Column(Text, nullable=True)
-    link = Column(String(255), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-
