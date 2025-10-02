@@ -245,107 +245,11 @@ const ModernStatisticsDashboard = () => {
   const [statisticsData, setStatisticsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [mentorInfo, setMentorInfo] = useState(null)
   const [filters, setFilters] = useState({ group: 'All', part: 'All', year: 'All' })
   const [options, setOptions] = useState({ years: [], domains: [], colleges: [] })
   const [selectedMetric, setSelectedMetric] = useState('overview')
   const [mentorStats, setMentorStats] = useState(null)
-
-  // Enhanced data fetching with modern sample data
-  useEffect(() => {
-    const fetchStatistics = async () => {
-      try {
-        setLoading(true)
-
-        // Load demo data quickly, then augment with mentor-specific stats if available
-
-        setStatisticsData({
-          totals: {
-            total_mentors: 15,
-            total_students: 180,
-            total_worklets: 45,
-            ongoing_worklets: 18,
-            completed_worklets: 22,
-            completion_rate: 64,
-            total_professors: 25,
-            performance_score: 87,
-            efficiency_rating: 92,
-          },
-          publications: {
-            // <-- Add new publications object
-            papers: 12,
-            patents: 7,
-          },
-          status_counts: {
-            Completed: 22,
-            'In Progress': 18,
-            'Pending Review': 5,
-            'On Hold': 2,
-            Approved: 8,
-          },
-
-          performance_counts: {
-            Excellent: 12,
-            'Very Good': 15,
-            Good: 8,
-            'Needs Improvement': 3,
-          },
-          risk_data: {
-            'Low Risk': 32,
-            'Medium Risk': 8,
-            'High Risk': 3,
-          },
-          monthly_data: generateMonthlyData(),
-          performance_radar: generatePerformanceData(),
-          status_distribution: generateStatusData(isDarkMode),
-          trend_data: generateTrendData(),
-          worklet_status_data: generateWorkletStatusData(), // <-- Add this line
-          trend_data: generateTrendData(),
-          performance_breakdown: generatePerformanceBreakdown(),
-        })
-
-        setMentorInfo({
-          name: localStorage.getItem('user_name') || 'Alex Thompson',
-          total_worklets: 12,
-          active_worklets: 8,
-          rating: 4.8,
-          experience: 'Senior Mentor',
-        })
-
-        // Try to fetch mentor-specific statistics
-        try {
-          const token = localStorage.getItem('access_token')
-          if (token) {
-            const res = await axios.get(`${API_BASE}/api/dashboard/mentor-statistics`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-            setMentorStats(res?.data || null)
-          }
-        } catch (e) {
-          console.warn('Mentor statistics not available, showing demo totals only.')
-        }
-
-        setOptions({
-          years: ['2025', '2024', '2023'],
-          domains: ['Full Stack', 'Data Science', 'Mobile Dev', 'DevOps'],
-          colleges: ['MIT', 'Stanford', 'Berkeley', 'CMU'],
-        })
-
-        setError(null)
-      } catch (err) {
-        console.error('Error fetching statistics:', err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchStatistics()
-    // Refresh data every 60 seconds for real-time updates
-    const interval = setInterval(fetchStatistics, 1000000)
-
-    return () => clearInterval(interval)
-  }, [isDarkMode])
+  
 
   // Load platform totals and trends from backend (driven by global year dropdown)
   useEffect(() => {
@@ -366,9 +270,9 @@ const ModernStatisticsDashboard = () => {
         const totals = totalsRes?.data || {}
         const monthly = monthlyRes?.data?.monthly || []
         const statusMonthly = statusRes?.data?.monthly || []
-        const yearsList = Array.from(new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])).sort()
-
-        setOptions((prev) => ({ ...prev, years: yearsList }))
+  const yearsList = Array.from(new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])).sort()
+  // Only show backend-provided years; do not add hardcoded ones
+  setOptions((prev) => ({ ...prev, years: yearsList }))
 
         setStatisticsData((prev) => ({
           ...(prev || {}),
@@ -382,25 +286,17 @@ const ModernStatisticsDashboard = () => {
         }))
       } catch (err) {
         console.error('Error loading dashboard data:', err)
-        if (!statisticsData) {
-          // Fallback demo if nothing loaded yet
-          setStatisticsData({
-            totals: {
-              total_mentors: 0,
-              total_students: 0,
-              total_worklets: 0,
-              ongoing_worklets: 0,
-              completed_worklets: 0,
-              completion_rate: 0,
-            },
-            monthly_data: generateMonthlyData(),
-            worklet_status_data: generateWorkletStatusData(),
-            publications: { papers: 0, patents: 0 },
-            performance_radar: generatePerformanceData(),
-            status_distribution: generateStatusData(isDarkMode),
-            performance_breakdown: generatePerformanceBreakdown(),
-          })
-        }
+        // Minimal safe fallback without introducing fake years
+        setStatisticsData((prev) => ({
+          ...(prev || {}),
+          totals: prev?.totals || { total_mentors: 0, total_students: 0, total_worklets: 0, ongoing_worklets: 0, completed_worklets: 0, completion_rate: 0 },
+          monthly_data: prev?.monthly_data || [],
+          worklet_status_data: prev?.worklet_status_data || [],
+          publications: prev?.publications || { papers: 0, patents: 0 },
+          performance_radar: prev?.performance_radar || generatePerformanceData(),
+          status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
+          performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
+        }))
         setError(err?.message || 'Failed to load data')
       } finally {
         setLoading(false)
@@ -630,7 +526,7 @@ const ModernStatisticsDashboard = () => {
               onChange={(e) => setFilters({ ...filters, year: e.target.value })}
               className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
               <option value="All">All Years</option>
-              {options.years.map((year) => (
+              {(options.years || []).map((year) => (
                 <option key={year} value={year}>
                   {year}
                 </option>
