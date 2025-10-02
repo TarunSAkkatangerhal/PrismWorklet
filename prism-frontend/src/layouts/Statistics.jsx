@@ -640,9 +640,10 @@ const ModernStatisticsDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <AnimatedMetricCard
               title="Total Worklets"
-              value={
-                (statisticsData?.totals?.platform_total_worklets ?? statisticsData?.totals?.total_worklets ?? 0)
-              }
+              value={Math.max(
+                (statisticsData?.totals?.total_worklets || 0) - (statisticsData?.totals?.completed_worklets || 0),
+                0
+              )}
               subtitle="Tracked across all projects"
               icon={Target}
               color={getColors(isDarkMode)[0]}
