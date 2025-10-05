@@ -8,7 +8,6 @@ import WorkletsPage from "./components/WorkletsPage";
 import WorkletDetailPage from './components/WorkletDetailsPage';
 import Login from "./components/login";
 import StatisticsDashboard from "./layouts/Statistics";
-import MeetingPage from "./layouts/meeting";
 import MentorWorkletView from "./pages/MentorWorkletView"; 
 import StudentWorkletView from "./pages/StudentWorkletView";
 import LeftSidebar from "./components/Left";
@@ -58,7 +57,6 @@ export default function App() {
                 <Route path="/Left" element={<LeftSidebar/>}/>
                 {/* --- Meeting Platform Routes --- */}
                 <Route path="/meeting" element={<Meetings />} />
-                <Route path="/meeting/:channelId" element={<MeetingPage />} />
                 <Route path="/mentor/worklet/:workletId" element={<MentorWorkletView />} />
                 <Route path="/student/worklet/:workletId" element={<StudentWorkletView />} />
                 <Route path="portfolio" element={<Portfolio/>}/>
