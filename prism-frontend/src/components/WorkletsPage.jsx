@@ -35,39 +35,46 @@ export default function WorkletsPage() {
         });
         const userId = userResp?.data?.id;
         if (!userId) throw new Error("User ID not found");
+        // Fetch ALL worklets so we can show Completed / On Hold etc.
         const response = await axios.get(
-          `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
+          `http://localhost:8000/api/associations/mentor/${userId}/all-worklets`,
           { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
         );
         
-        // Transform backend data to match expected format
-  const list = response?.data?.ongoing_worklets || [];
-  const transformedData = list.map((worklet, index) => {
-          const imageUrls = [
-            "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=400&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?q=80&w=400&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=400&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop"
-          ];
-          
+        // Transform backend data to match expected format (purely dynamic)
+  const list = response?.data?.all_worklets || response?.data?.ongoing_worklets || [];
+        const imageUrls = [
+          "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=400&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?q=80&w=400&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=400&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop"
+        ];
+
+        const transformedData = list.map((worklet, index) => {
+          let pct = typeof worklet.percentage_completion === 'number' ? worklet.percentage_completion : 0;
+          if ((worklet.status === 'Completed' || worklet.status === 'Approved') && pct < 100) {
+            pct = 100; // Normalize completed/approved to full progress if backend hasn't set it.
+          }
+          const studentNames = Array.isArray(worklet.students)
+            ? worklet.students.map(s => s.name || s).filter(Boolean)
+            : [];
           return {
             id: worklet.id,
-            title: worklet.cert_id,
-            status: worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing'),
-            progress: worklet.percentage_completion || worklet.mentor_progress || 0,
+            title: worklet.cert_id || worklet.title || `Worklet ${worklet.id}`,
+            status: worklet.status || 'Ongoing',
+            progress: pct,
             description: worklet.description || "No description available",
             imageUrl: imageUrls[index % imageUrls.length],
             startDate: worklet.start_date ? new Date(worklet.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
             endDate: worklet.end_date ? new Date(worklet.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
-            students: [], // Will be fetched separately if needed
-            notificationCount: Math.floor(Math.random() * 6),
-            quality: ["Excellence", "Good", "Needs Attention"][index % 3],
-            college: worklet.college
+            students: studentNames,
+            quality: worklet.quality || (pct >= 70 ? 'Excellence' : pct >= 30 ? 'Good' : 'Needs Attention'),
+            college: worklet.college || null
           };
         });
-        
+
         setWorkletsData(transformedData);
       } catch (error) {
         console.error("Error fetching worklets:", error);

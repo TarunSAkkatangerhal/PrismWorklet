@@ -55,8 +55,35 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
     
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
-    
-    # Convert to response format
+
+    # Derive percentage completion if not explicitly stored
+    percentage_completion = getattr(worklet, "percentage_completion", None)
+    if percentage_completion is None:
+        if worklet.start_date and worklet.end_date:
+            try:
+                total_days = (worklet.end_date - worklet.start_date).days or 1
+                elapsed_days = (datetime.utcnow().date() - worklet.start_date).days
+                if elapsed_days < 0:
+                    elapsed_days = 0
+                percentage_completion = max(0, min(100, int((elapsed_days / total_days) * 100)))
+            except Exception:
+                percentage_completion = 0
+        else:
+            percentage_completion = 0
+
+    if worklet.status == "Completed":
+        quality = "Excellence"
+    elif percentage_completion >= 70:
+        quality = "Excellence"
+    elif percentage_completion >= 30:
+        quality = "Good"
+    else:
+        quality = "Needs Attention"
+
+    # Collect students (names + emails) if associations exist
+    student_records = _get_students_for_worklet(db, worklet.id)
+    students = [s.get("name") for s in student_records if s.get("name")]  # names list for backward compat
+
     return {
         "id": worklet.id,
         "cert_id": worklet.cert_id,
@@ -69,6 +96,10 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         "year": worklet.year,
         "domain": worklet.domain,
         "status": worklet.status,
+        "percentage_completion": percentage_completion,
+        "quality": quality,
+        "students": students,
+        "student_count": len(students)
     }
 
 @router.put("/{worklet_id}", response_model=WorkletResponse)

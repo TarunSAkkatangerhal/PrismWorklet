@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import List, Optional
+from datetime import datetime
 from app.database import get_db
 from app.models import UserWorkletAssociation, User, Worklet
 from app.schemas import (
@@ -246,6 +247,31 @@ def get_mentor_ongoing_worklets(
         if worklet_college is None:
             worklet_college = mentor.college
 
+        # Derive percentage completion if not present
+        percentage_completion = getattr(worklet, 'percentage_completion', None)
+        if percentage_completion is None:
+            if getattr(worklet, 'start_date', None) and getattr(worklet, 'end_date', None):
+                try:
+                    total_days = (worklet.end_date - worklet.start_date).days or 1
+                    elapsed_days = (datetime.utcnow().date() - worklet.start_date).days
+                    if elapsed_days < 0:
+                        elapsed_days = 0
+                    percentage_completion = max(0, min(100, int((elapsed_days / total_days) * 100)))
+                except Exception:
+                    percentage_completion = 0
+            else:
+                percentage_completion = 0
+
+        # Quality heuristic mirroring worklets router logic
+        if getattr(worklet, 'status', None) == 'Completed':
+            quality = 'Excellence'
+        elif percentage_completion >= 70:
+            quality = 'Excellence'
+        elif percentage_completion >= 30:
+            quality = 'Good'
+        else:
+            quality = 'Needs Attention'
+
         worklet_data = {
             "id": worklet.id,
             "cert_id": worklet.cert_id,
@@ -256,6 +282,8 @@ def get_mentor_ongoing_worklets(
             "start_date": getattr(worklet, 'start_date', None),
             "end_date": getattr(worklet, 'end_date', None),
             "college": worklet_college,
+            "percentage_completion": percentage_completion,
+            "quality": quality,
             "students": [{
                 "id": student.id,
                 "name": student.name,
@@ -327,6 +355,30 @@ def get_mentor_all_worklets(
                 break
         if worklet_college is None:
             worklet_college = mentor.college
+        # Derive percentage completion if not present
+        percentage_completion = getattr(worklet, 'percentage_completion', None)
+        if percentage_completion is None:
+            if getattr(worklet, 'start_date', None) and getattr(worklet, 'end_date', None):
+                try:
+                    total_days = (worklet.end_date - worklet.start_date).days or 1
+                    elapsed_days = (datetime.utcnow().date() - worklet.start_date).days
+                    if elapsed_days < 0:
+                        elapsed_days = 0
+                    percentage_completion = max(0, min(100, int((elapsed_days / total_days) * 100)))
+                except Exception:
+                    percentage_completion = 0
+            else:
+                percentage_completion = 0
+
+        if getattr(worklet, 'status', None) == 'Completed':
+            quality = 'Excellence'
+        elif percentage_completion >= 70:
+            quality = 'Excellence'
+        elif percentage_completion >= 30:
+            quality = 'Good'
+        else:
+            quality = 'Needs Attention'
+
         worklet_data = {
             "id": worklet.id,
             "cert_id": worklet.cert_id,
@@ -337,6 +389,8 @@ def get_mentor_all_worklets(
             "start_date": getattr(worklet, 'start_date', None),
             "end_date": getattr(worklet, 'end_date', None),
             "college": worklet_college,
+            "percentage_completion": percentage_completion,
+            "quality": quality,
             "students": [{
                 "id": student.id,
                 "name": student.name,

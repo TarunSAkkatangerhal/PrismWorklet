@@ -1,7 +1,5 @@
 /*! decimal.js-light v2.5.1 https://github.com/MikeMcl/decimal.js-light/LICENCE */
 
-/*! formdata-polyfill. MIT License. Jimmy W?rting <https://jimmy.warting.se/opensource> */
-
 /**
  * @license React
  * react-dom.production.min.js

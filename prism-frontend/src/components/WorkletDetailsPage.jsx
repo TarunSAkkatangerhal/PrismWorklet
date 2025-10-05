@@ -95,31 +95,26 @@ export default function WorkletDetailPage() {
 
           const transformedWorklet = {
             id: response.data.id,
-            title: response.data.cert_id,
+            title: response.data.cert_id || response.data.title,
             status: response.data.status || 'Ongoing',
-            progress: response.data.percentage_completion || 0,
+            progress: typeof response.data.percentage_completion === 'number' ? response.data.percentage_completion : 0,
+            quality: response.data.quality || (response.data.percentage_completion >= 70 ? 'Excellence' : response.data.percentage_completion >= 30 ? 'Good' : 'Needs Attention'),
             description: response.data.description || 'No description available',
-            imageUrl: imageUrls[Math.floor(Math.random() * imageUrls.length)], // Random image
+            imageUrl: imageUrls[Math.floor(Math.random() * imageUrls.length)],
             startDate: response.data.start_date
-              ? new Date(response.data.start_date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
+              ? new Date(response.data.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
               : 'N/A',
             endDate: response.data.end_date
-              ? new Date(response.data.end_date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
+              ? new Date(response.data.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
               : 'N/A',
-            students: response.data.students || [], // Use actual students data or empty array
+            students: Array.isArray(response.data.students) ? response.data.students : [],
+            domain: response.data.domain || null,
+            year: response.data.year || null,
             college: response.data.college || 'Not specified',
             team: response.data.team || 'Not specified',
-            problem_statement: response.data.problem_statement || 'No problem statement provided',
-            expectations: response.data.expectations || 'No expectations specified',
-            prerequisites: response.data.prerequisites || 'No prerequisites specified',
+            problem_statement: response.data.problem_statement || null,
+            expectations: response.data.expectations || null,
+            prerequisites: response.data.prerequisites || null,
           }
 
           setWorklet(transformedWorklet)
@@ -127,31 +122,8 @@ export default function WorkletDetailPage() {
       } catch (error) {
         console.error('Error fetching worklet:', error)
 
-        // For demo purposes, load dummy data instead of showing error
-        const dummyWorklet = {
-          id: id || '1',
-          title: 'Full Stack Web Development Bootcamp',
-          status: 'Ongoing',
-          progress: 67,
-          description:
-            'A comprehensive full-stack web development program covering modern technologies including React, Node.js, databases, and deployment strategies. Students will build real-world projects and gain hands-on experience with industry-standard tools and practices.',
-          imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop',
-          startDate: 'Sep 15, 2024',
-          endDate: 'Dec 20, 2024',
-          students: ['Alice Johnson', 'Bob Smith', 'Carol Davis', 'David Wilson', 'Emma Brown', 'Frank Miller'],
-          college: 'Stanford University - Computer Science Department',
-          team: 'Web Development Team Alpha',
-          problem_statement:
-            'Develop a comprehensive learning platform that enables students to master full-stack web development through hands-on projects, mentorship, and real-world application scenarios. The platform should incorporate modern development practices, version control, testing, and deployment workflows.',
-          expectations:
-            'Students are expected to complete weekly coding assignments, participate in code reviews, contribute to team projects, and demonstrate proficiency in React, Node.js, Express, MongoDB, and modern development tools. By the end of the program, students should be able to build and deploy full-stack applications independently.',
-          prerequisites:
-            'Basic understanding of HTML, CSS, and JavaScript. Familiarity with programming concepts such as variables, functions, loops, and conditionals. Access to a computer with internet connection. Git and GitHub account setup is recommended but not required initially.',
-          github_repo: 'stanford-bootcamp/fullstack-web-development',
-          github_repo_url: 'https://github.com/stanford-bootcamp/fullstack-web-development',
-        }
-
-        setWorklet(dummyWorklet)
+        // If backend fails, display error instead of injecting static dummy content
+        setError('Failed to load worklet details')
 
         // Uncomment below to show actual errors instead of dummy data
         // if (error.response?.status === 404) {
@@ -259,6 +231,11 @@ export default function WorkletDetailPage() {
                 className="bg-gradient-to-r from-indigo-500 to-blue-600 h-full rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${worklet.progress}%` }}></div>
             </div>
+            {worklet.quality && (
+              <div className="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+                <Award size={14} className="text-yellow-500" /> Quality: {worklet.quality}
+              </div>
+            )}
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               {worklet.progress === 100 ? (
                 <>
@@ -291,6 +268,18 @@ export default function WorkletDetailPage() {
               <span className="text-gray-600 dark:text-gray-400">End Date</span>
               <span className="font-medium">{worklet.endDate}</span>
             </div>
+            {worklet.year && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Year</span>
+                <span className="font-medium">{worklet.year}</span>
+              </div>
+            )}
+            {worklet.domain && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Domain</span>
+                <span className="font-medium">{worklet.domain}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">Status</span>
               <span
@@ -471,9 +460,9 @@ export default function WorkletDetailPage() {
           {worklet.students.map((student, index) => (
             <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
               <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
-                {student.charAt(0).toUpperCase()}
+                {typeof student === 'string' ? student.charAt(0).toUpperCase() : (student.name || '?').charAt(0).toUpperCase()}
               </div>
-              <span className="text-gray-700 dark:text-gray-300 font-medium">{student}</span>
+              <span className="text-gray-700 dark:text-gray-300 font-medium">{typeof student === 'string' ? student : (student.name || 'Unnamed')}</span>
             </div>
           ))}
         </div>
