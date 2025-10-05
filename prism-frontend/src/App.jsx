@@ -12,7 +12,9 @@ import MeetingPage from "./layouts/meeting";
 import MentorWorkletView from "./pages/MentorWorkletView"; 
 import StudentWorkletView from "./pages/StudentWorkletView";
 import LeftSidebar from "./components/Left";
-import Portfolio from "./components/portfolio";
+import Portfolio from "./layouts/portfolio";
+import Colleges from "./layouts/Colleges";
+import Meetings from "./layouts/Meetings";
 // --- UPDATED & NEW IMPORTS ---
 // Replaced ProfileEdit and ProfileView with the new components.
 // Make sure these paths are correct for your project structure.
@@ -55,10 +57,12 @@ export default function App() {
                 <Route path="/submit-feedback" element={<Dashboard />} />
                 <Route path="/Left" element={<LeftSidebar/>}/>
                 {/* --- Meeting Platform Routes --- */}
+                <Route path="/meeting" element={<Meetings />} />
                 <Route path="/meeting/:channelId" element={<MeetingPage />} />
                 <Route path="/mentor/worklet/:workletId" element={<MentorWorkletView />} />
                 <Route path="/student/worklet/:workletId" element={<StudentWorkletView />} />
                 <Route path="portfolio" element={<Portfolio/>}/>
+                <Route path="/colleges" element={<Colleges />} />
 
                 {/* --- UPDATED PROFILE & SETTINGS ROUTES --- */}
 
