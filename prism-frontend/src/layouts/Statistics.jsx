@@ -51,8 +51,6 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
 const DARK_COLORS = ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#22D3EE', '#A3E635', '#FB923C']
 // Backend base URL
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000'
-// Backend base URL
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000'
 
 // Helper function to get appropriate colors based on theme
 const getColors = (isDark) => (isDark ? DARK_COLORS : COLORS)
@@ -266,7 +264,8 @@ const ModernStatisticsDashboard = () => {
 
   // Enhanced data fetching wired to backend
   useEffect(() => {
-    const loadAll = async () => {
+    // Renamed from loadAll to fetchStatistics so the calls below match
+    const fetchStatistics = async () => {
       try {
         setLoading(true)
 
@@ -408,9 +407,9 @@ const ModernStatisticsDashboard = () => {
         setLoading(false)
       }
     }
-
+    // Initial fetch
     fetchStatistics()
-    // Periodic refresh (optional; currently very infrequent)
+    // Periodic refresh (5 min)
     const interval = setInterval(fetchStatistics, 300000)
     return () => clearInterval(interval)
   }, [isDarkMode, filters.year])
