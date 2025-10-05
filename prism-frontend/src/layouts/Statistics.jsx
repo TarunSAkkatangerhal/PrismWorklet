@@ -51,6 +51,8 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
 const DARK_COLORS = ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#22D3EE', '#A3E635', '#FB923C']
 // Backend base URL
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000'
+// Backend base URL
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000'
 
 // Helper function to get appropriate colors based on theme
 const getColors = (isDark) => (isDark ? DARK_COLORS : COLORS)
@@ -264,7 +266,7 @@ const ModernStatisticsDashboard = () => {
 
   // Enhanced data fetching wired to backend
   useEffect(() => {
-    const fetchStatistics = async () => {
+    const loadAll = async () => {
       try {
         setLoading(true)
 
@@ -389,8 +391,19 @@ const ModernStatisticsDashboard = () => {
 
         setError(null)
       } catch (err) {
-        console.error('Error fetching statistics:', err)
-        setError(err.message)
+        console.error('Error loading dashboard data:', err)
+        // Minimal safe fallback without introducing fake years
+        setStatisticsData((prev) => ({
+          ...(prev || {}),
+          totals: prev?.totals || { total_mentors: 0, total_students: 0, total_worklets: 0, ongoing_worklets: 0, completed_worklets: 0, completion_rate: 0 },
+          monthly_data: prev?.monthly_data || [],
+          worklet_status_data: prev?.worklet_status_data || [],
+          publications: prev?.publications || { papers: 0, patents: 0 },
+          performance_radar: prev?.performance_radar || generatePerformanceData(),
+          status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
+          performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
+        }))
+        setError(err?.message || 'Failed to load data')
       } finally {
         setLoading(false)
       }
@@ -551,6 +564,16 @@ const ModernStatisticsDashboard = () => {
             .map(([k, v]) => `${k},${v}`)
             .join('\n')
         break
+      case 'monthly': {
+        const rows = (data.monthly_data || []).map((m) => [m.month, m.worklets, m.completed, m.students])
+        csvContent = ['Month,Worklets,Completed,Students', ...rows.map((r) => r.join(','))].join('\n')
+        break
+      }
+      case 'status_trends': {
+        const rows = (data.worklet_status_data || []).map((m) => [m.month, m.ongoing, m.completed, m.on_hold, m.terminated])
+        csvContent = ['Month,Ongoing,Completed,On Hold,Terminated', ...rows.map((r) => r.join(','))].join('\n')
+        break
+      }
       case 'status':
         csvContent =
           'Status,Count\n' +
@@ -619,7 +642,7 @@ const ModernStatisticsDashboard = () => {
               onChange={(e) => setFilters({ ...filters, year: e.target.value })}
               className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
               <option value="All">All Years</option>
-              {options.years.map((year) => (
+              {(options.years || []).map((year) => (
                 <option key={year} value={year}>
                   {year}
                 </option>
