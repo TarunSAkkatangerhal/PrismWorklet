@@ -63,12 +63,13 @@ class Token(BaseModel):
 class TokenRefreshRequest(BaseModel):
     refresh_token: str
 
+
+# For /forgot-password (request OTP for password reset)
 class ForgotPassword(BaseModel):
     email: EmailStr
 
 class ResetPassword(BaseModel):
     email: EmailStr
-    otp_code: str
     new_password: str
 
 class UserProfileUpdate(BaseModel):

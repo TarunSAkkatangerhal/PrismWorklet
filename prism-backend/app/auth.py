@@ -1,4 +1,5 @@
-﻿"""
+﻿
+"""
 app/auth.py
 
 Authentication & Authorization for Samsung PRISM Worklet Management System.
@@ -284,9 +285,10 @@ def refresh_tokens(request: Request, payload: Optional[schemas.TokenRefreshReque
 
 # 5. Forgot Password (Redis only)
 @router.post("/forgot-password")
-def forgot_password(forgot_data: schemas.ForgotPassword, db: Session = Depends(get_db)):
+def forgot_password(forgot_data: schemas.ForgotPassword, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == forgot_data.email).first()
     if not user:
+        # Do not send OTP if email is not registered
         return {"message": "If your email is registered, you will receive a reset OTP."}
 
     otp_code = generate_otp()
@@ -296,24 +298,41 @@ def forgot_password(forgot_data: schemas.ForgotPassword, db: Session = Depends(g
         "expiry": expiry.isoformat(),
         "verified": False
     })
+    background_tasks.add_task(send_password_reset_email, user.email, user.name, otp_code)
 
     send_password_reset_email(user.email, user.name, otp_code)
     return {"message": "If your email is registered, you will receive a reset OTP."}
 
-# 6. Reset Password (Redis only)
-@router.post("/reset-password")
-def reset_password(reset_data: schemas.ResetPassword, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == reset_data.email).first()
+
+# 6a. Reset Password OTP Verification
+@router.post("/reset-password-otp")
+def reset_password_otp(data: schemas.VerifyOTP, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    record = get_otp(reset_data.email)
-    if not record or record["otp"] != reset_data.otp_code or datetime.utcnow() > datetime.fromisoformat(record["expiry"]):
+    record = get_otp(data.email)
+    if not record or record["otp"] != data.otp_code or datetime.utcnow() > datetime.fromisoformat(record["expiry"]):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    # Mark OTP as verified
+    record["verified"] = True
+    set_otp(data.email, record)
+    return {"message": "OTP verified. You can now reset your password."}
 
-    user.password_hash = get_password_hash(reset_data.new_password)
+# 6b. Reset Password (no OTP check, just set password for email)
+@router.post("/reset-password")
+def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not hasattr(data, 'new_password') or not data.new_password:
+        raise HTTPException(status_code=400, detail="New password required")
+    # OTP must have been verified
+    otp_data = get_otp(data.email)
+    if not otp_data or not otp_data.get('verified'):
+        raise HTTPException(status_code=400, detail="OTP not verified. Please verify OTP before resetting password.")
+    user.password_hash = get_password_hash(data.new_password)
     db.commit()
-    del_otp(reset_data.email)
+    del_otp(data.email)
     return {"message": "Password reset successfully. You can now login."}
 
 # 7. Get Current User

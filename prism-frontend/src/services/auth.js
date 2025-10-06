@@ -1,6 +1,18 @@
-// prism-frontend/src/services/auth.js
+
 import axios from "axios";
 const BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
+
+// Verify OTP for forgot password (reset-password-otp)
+export const verifyResetPasswordOtp = async (email, otp_code) => {
+  const response = await axios.post(`${BASE}/auth/reset-password-otp`, { email, otp_code });
+  return response.data;
+};
+
+// Forgot Password: request OTP for password reset
+export const forgotPassword = async (email) => {
+  const response = await axios.post(`${BASE}/auth/forgot-password`, { email });
+  return response.data;
+};
 
 // pass role as a parameter
 export const login = async (email, password, role) => {
@@ -52,9 +64,17 @@ export const verifyOtp = async (email, otp_code) => {
   return response.data;
 };
 
+
 // Set password after OTP verification (backend requires email, name, role, password)
 export const setPassword = async (email, name, role, password) => {
   const response = await axios.post(`${BASE}/auth/set-password`, { email, name, role, password });
+  return response.data;
+};
+
+
+// Reset password for forgot password flow (email, otp_code, new_password)
+export const resetPassword = async ({ email, otp_code, new_password }) => {
+  const response = await axios.post(`${BASE}/auth/reset-password`, { email, otp_code, new_password });
   return response.data;
 };
 

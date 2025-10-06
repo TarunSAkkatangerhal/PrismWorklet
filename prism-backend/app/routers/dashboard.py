@@ -50,6 +50,7 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
             # Overall totals (no year filter)
             total_worklets = db.query(Worklet).count()
             completed_worklets = db.query(Worklet).filter(Worklet.status == "Completed").count()
+            # Only count worklets with status 'Ongoing'
             ongoing_worklets = db.query(Worklet).filter(Worklet.status == "Ongoing").count()
             total_mentors = db.query(User).filter(User.role == "Mentor").count()
             total_students = db.query(User).filter(User.role == "Student").count()
