@@ -428,6 +428,7 @@ export default function WorkletDetailPage() {
       </div>
     )
   }
+
   // --- TAB CONTENT COMPONENTS ---
   const OverviewTab = () => (
     <div className="space-y-6">
