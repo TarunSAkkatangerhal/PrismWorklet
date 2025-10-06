@@ -415,7 +415,7 @@ const Portfolio = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20 relative overflow-hidden">
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden">
       <LeftSidebar />
       
       {/* Floating Particles Background */}
@@ -524,26 +524,21 @@ const Portfolio = () => {
               className="relative"
             >
               <motion.h1 
-                className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative"
+                className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative leading-[1.25] pb-1 overflow-visible"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5, duration: 0.8 }}
               >
                 {typewriterText}
                 <motion.span
-                  className="inline-block w-1 h-10 bg-gradient-to-b from-blue-500 to-purple-500 ml-2"
+                  className="inline-block w-1 h-8 lg:h-10 bg-gradient-to-b from-blue-500 to-purple-500 ml-2 align-middle"
                   animate={{ opacity: [0, 1, 0] }}
                   transition={{ duration: 1, repeat: Infinity }}
                 />
               </motion.h1>
               
               {/* Glowing Underline */}
-              <motion.div
-                className="absolute bottom-0 left-1/2 transform -translate-x-1/2 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: typewriterText.length > 0 ? "60%" : 0 }}
-                transition={{ duration: 1, delay: 2 }}
-              />
+              
             </motion.div>
 
             <motion.div
@@ -565,7 +560,7 @@ const Portfolio = () => {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 3 }}
               >
-                Professional Portfolio & Accomplishments
+                Portfolio & Accomplishments
               </motion.span>
               <motion.div
                 initial={{ rotate: 0, scale: 0 }}
