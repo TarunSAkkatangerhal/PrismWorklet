@@ -1,18 +1,23 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import axios from "axios";
 import { 
   Calendar, 
   Users, 
   Home,
-  LayoutGrid, // Icon for Grid View
-  List        // Icon for List View
+  LayoutGrid,
+  List,
+  Star,
+  Clock,
+  TrendingUp,
+  Award,
+  Target
 } from "lucide-react";
 
 // --- IMPORT DATA FROM THE NEW FILE ---
 import { STATUS_OPTIONS, statusIcons } from "./data";
 
-// Add professional animations inline
+// Enhanced professional animations with modern motion design
 const animationStyles = `
   @keyframes gradient-shift {
     0%, 100% { background-position: 0% 50%; }
@@ -21,23 +26,62 @@ const animationStyles = `
   
   @keyframes float-slow {
     0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-10px) rotate(5deg); }
+    50% { transform: translateY(-12px) rotate(3deg); }
   }
   
   @keyframes float-medium {
     0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-8px) rotate(-3deg); }
+    50% { transform: translateY(-8px) rotate(-2deg); }
   }
   
   @keyframes float-fast {
     0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-6px) rotate(8deg); }
+    50% { transform: translateY(-6px) rotate(6deg); }
+  }
+
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+    50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.3); }
+  }
+
+  @keyframes card-hover {
+    0% { transform: translateY(0) scale(1); }
+    100% { transform: translateY(-8px) scale(1.02); }
   }
   
-  .animate-gradient-shift { animation: gradient-shift 8s ease infinite; }
-  .animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
-  .animate-float-medium { animation: float-medium 4s ease-in-out infinite; }
-  .animate-float-fast { animation: float-fast 3s ease-in-out infinite; }
+  .animate-gradient-shift { animation: gradient-shift 10s ease infinite; }
+  .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
+  .animate-float-medium { animation: float-medium 6s ease-in-out infinite; }
+  .animate-float-fast { animation: float-fast 4s ease-in-out infinite; }
+  .animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
+  .animate-shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: shimmer 2s ease-in-out infinite;
+  }
+  .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+  .hover-lift:hover { animation: card-hover 0.3s ease-out forwards; }
 `;
 
 // Inject styles
@@ -47,282 +91,309 @@ if (typeof document !== 'undefined') {
   document.head.appendChild(styleSheet);
 }
 
-// Pure utility helpers moved outside component for stable references
-const generateWorkletGradient = (quality) => {
-  switch (quality) {
-    case 'Excellence':
-      return `linear-gradient(135deg, 
-        #1e3a8a 0%, 
-        #1e40af 25%, 
-        #1d4ed8 50%, 
-        #2563eb 75%, 
-        #3b82f6 100%)`;
-    case 'Good':
-      return `linear-gradient(135deg, 
-        #065f46 0%, 
-        #047857 25%, 
-        #059669 50%, 
-        #10b981 75%, 
-        #34d399 100%)`;
-    case 'Needs Attention':
-      return `linear-gradient(135deg, 
-        #7c2d12 0%, 
-        #9a3412 25%, 
-        #c2410c 50%, 
-        #ea580c 75%, 
-        #f97316 100%)`;
-    default:
-      return `linear-gradient(135deg, 
-        #374151 0%, 
-        #4b5563 25%, 
-        #6b7280 50%, 
-        #9ca3af 75%, 
-        #d1d5db 100%)`;
-  }
-};
-
-const getCategoryAbbrev = (category) => {
-  const abbreviations = {
-    'Artificial Intelligence': 'AI',
-    'Web Development': 'WEB',
-    'Internet of Things': 'IOT',
-    'Cybersecurity': 'SEC',
-    'Blockchain': 'BC',
-    'Augmented Reality': 'AR',
-    'Machine Learning': 'ML',
-    'Robotics': 'ROB'
-  };
-  return abbreviations[category] || 'TECH';
-};
-
-// Extract numeric percentage from various backend formats (e.g. 72, '72', '72%', '0.72')
-const parsePercent = (val) => {
-  if (val === undefined || val === null) return null;
-  if (typeof val === 'number' && !isNaN(val)) return val;
-  if (typeof val === 'string') {
-    const match = val.match(/\d+(?:\.\d+)?/);
-    if (match) return parseFloat(match[0]);
-  }
-  return null;
-};
-
-const clamp01to100 = (num) => {
-  if (num === null || isNaN(num)) return 0;
-  // If backend sent fractional (<=1) treat as 0-1 scale
-  if (num <= 1) num = num * 100;
-  return Math.min(100, Math.max(0, num));
-};
-
 export default function WorkletsPage() {
-  const [workletsData, setWorkletsData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [activeTab, setActiveTab] = useState('Ongoing')
-  const [isHoverActive, setIsHoverActive] = useState(false)
-  const [layout, setLayout] = useState('grid') // 'grid' or 'list'
-  const [lastUpdated, setLastUpdated] = useState(null)
+  const location = useLocation();
+  const [workletsData, setWorkletsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("Ongoing");
+  const [isHoverActive, setIsHoverActive] = useState(false);
+  const [layout, setLayout] = useState("grid"); // 'grid' or 'list'
 
-  const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:8000') + '/api'
+  // Enhanced professional gradient backgrounds with modern color science
+  const generateWorkletGradient = (quality, progress) => {
+    const baseGradients = {
+      'Excellence': [
+        `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`,
+        `linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)`,
+        `linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)`,
+        `linear-gradient(135deg, #fa709a 0%, #fee140 100%)`
+      ],
+      'Good': [
+        `linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)`,
+        `linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)`,
+        `linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)`,
+        `linear-gradient(135deg, #96fbc4 0%, #f9f586 100%)`
+      ],
+      'Needs Attention': [
+        `linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)`,
+        `linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)`,
+        `linear-gradient(135deg, #ff512f 0%, #f09819 100%)`,
+        `linear-gradient(135deg, #e65c00 0%, #f9d423 100%)`
+      ],
+      default: [
+        `linear-gradient(135deg, #636363 0%, #a2a2a2 100%)`,
+        `linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%)`,
+        `linear-gradient(135deg, #757f9a 0%, #d7dde8 100%)`,
+        `linear-gradient(135deg, #485563 0%, #29323c 100%)`
+      ]
+    };
+    
+    const gradients = baseGradients[quality] || baseGradients.default;
+    const index = Math.floor(progress / 25) % gradients.length;
+    return gradients[index];
+  };
 
-  const getToken = useCallback(() => localStorage.getItem('access_token'), [])
+  // Enhanced category abbreviations with icons
+  const getCategoryData = (category) => {
+    const categoryMap = {
+      'Artificial Intelligence': { abbrev: 'AI', icon: '🤖', color: 'from-purple-500 to-pink-500' },
+      'Web Development': { abbrev: 'WEB', icon: '💻', color: 'from-blue-500 to-cyan-500' },
+      'Internet of Things': { abbrev: 'IOT', icon: '🌐', color: 'from-green-500 to-teal-500' },
+      'Cybersecurity': { abbrev: 'SEC', icon: '🛡️', color: 'from-red-500 to-orange-500' },
+      'Blockchain': { abbrev: 'BC', icon: '⛓️', color: 'from-yellow-500 to-orange-500' },
+      'Augmented Reality': { abbrev: 'AR', icon: '🥽', color: 'from-indigo-500 to-purple-500' },
+      'Machine Learning': { abbrev: 'ML', icon: '🧠', color: 'from-pink-500 to-rose-500' },
+      'Robotics': { abbrev: 'ROB', icon: '🤖', color: 'from-gray-500 to-slate-500' }
+    };
+    return categoryMap[category] || { abbrev: 'TECH', icon: '⚡', color: 'from-gray-400 to-gray-600' };
+  };
 
-  const authHeaders = useCallback(() => {
-    const t = getToken()
-    return t ? { headers: { Authorization: `Bearer ${t}` } } : { headers: {} }
-  }, [getToken])
-
-  const decodeJwt = useCallback((token) => {
-    try {
-      const [, payload] = token.split('.')
-      return JSON.parse(atob(payload))
-    } catch {
-      return null
-    }
-  }, [])
-
-  const resolveMentorId = useCallback(async () => {
-    const token = getToken()
-    if (token) {
-      const decoded = decodeJwt(token)
-      if (decoded?.user_id) return decoded.user_id
-    }
-    try {
-      const cached = localStorage.getItem('user')
-      if (cached) {
-        const parsed = JSON.parse(cached)
-        if (parsed?.id) return parsed.id
-      }
-    } catch (_) {}
-    try {
-      const res = await axios.get(`${API_BASE}/auth/me`, authHeaders())
-      if (res.data?.id) return res.data.id
-    } catch (e) {
-      console.warn('Failed to resolve mentor via /auth/me', e)
-    }
-    return null
-  }, [API_BASE, authHeaders, decodeJwt, getToken])
-
-  const transformWorklets = useCallback((items = []) =>
-    items
-      .map((w) => {
-        const id = w.id || w.worklet_id || w.cert_id || w.worklet_cert_id
-        if (!id) return null
-        const statusRaw = w.status || w.worklet_status || w.current_status || 'Ongoing'
-        const status = statusRaw === 'Approved' ? 'Completed' : statusRaw
-        // Pick the first available raw completion-like field
-        const completionSource = w.percentage_completion ?? w.progress ?? w.completion
-        const parsed = parsePercent(completionSource)
-        let progress
-        if (status.toLowerCase() === 'completed') {
-          // Only force 100 if backend didn't provide a usable percentage
-            progress = parsed === null ? 100 : clamp01to100(parsed)
-        } else {
-          progress = clamp01to100(parsed)
-        }
-        let students = Array.isArray(w.students) ? w.students : []
-        students = students.map((s) => (typeof s === 'string' ? s : (s?.name || s?.full_name || s?.username || 'Student')))
-        // Derive quality strictly from progress to enforce consistency (ignore backend quality field)
-        // Thresholds: 80+ Excellence, 50-79 Good, else Needs Attention
-        const quality = progress >= 80 ? 'Excellence' : (progress >= 50 ? 'Good' : 'Needs Attention')
-        const category = w.domain || w.category || 'Technology'
-        const start = w.start_date || w.startDate || w.assigned_at || null
-        const end = w.end_date || w.endDate || w.deadline || null
-        return {
-          id,
-          title: w.title || w.worklet_title || w.cert_id || 'Untitled Worklet',
-          status,
-          progress,
-          description: w.description || w.summary || 'No description provided.',
-          startDate: start ? new Date(start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
-          endDate: end ? new Date(end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
-          students,
-          notificationCount: w.notifications || 0,
-          quality,
-          college: w.college || w.institution || w.college_name || w.organization || 'Unknown College',
-          mentor: w.mentor || w.mentor_name || w.supervisor || 'Mentor',
-          category,
-          priority: w.priority || 'Medium',
-        }
-      })
-      .filter(Boolean)
-      .map((w) => ({
-        ...w,
-        gradient: generateWorkletGradient(w.quality),
-        categoryAbbrev: getCategoryAbbrev(w.category),
-        teamId: String(w.id).substring(0, 2).toUpperCase(),
-      })), [] )
-
-  const fetchWorklets = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const mentorId = await resolveMentorId()
-  if (!mentorId) throw new Error('Unable to resolve authenticated mentor id. Ensure you are logged in and a valid access token is present.')
-      let res
-      try {
-        res = await axios.get(`${API_BASE}/associations/mentor/${mentorId}/all-worklets`, authHeaders())
-      } catch (e) {
-        // Fallback to ongoing endpoint
-        res = await axios.get(`${API_BASE}/associations/mentor/${mentorId}/ongoing-worklets`, authHeaders())
-      }
-      const payload = res.data
-      const raw = Array.isArray(payload)
-        ? payload
-        : payload.all_worklets || payload.ongoing_worklets || payload.worklets || []
-      const transformed = transformWorklets(raw)
-      setWorkletsData(transformed)
-      setLastUpdated(new Date())
-    } catch (e) {
-      console.error('Worklets fetch failed:', e)
-      // Provide clearer guidance for token / auth issues
-      const message = /401|403/.test(String(e)) ? 'Authorization failed. Please re-login.' : (e.message || 'Failed to load worklets')
-      setError(message)
-      setWorkletsData([])
-    } finally {
-      setLoading(false)
-    }
-  }, [API_BASE, authHeaders, resolveMentorId, transformWorklets])
-
+  // Static worklets data for frontend development
   useEffect(() => {
-    fetchWorklets()
-  }, [fetchWorklets])
+    setLoading(true);
+    
+    // Simulate API loading delay
+    setTimeout(() => {
+      const staticWorklets = [
+        {
+          id: 'AI2024B1',
+          title: 'AI-Powered Predictive Analytics Engine',
+          status: 'Ongoing',
+          progress: 85,
+          description: 'Develop a scalable engine for real-time sales forecasting using machine learning models and historical data analysis.',
+          startDate: 'Sep 1, 2024',
+          endDate: 'Dec 15, 2024',
+          students: ['Alice Johnson', 'Bob Williams', 'Charlie Brown', 'Diana Miller'],
+          notificationCount: 3,
+          quality: 'Excellence',
+          college: 'VIT Vellore',
+          mentor: 'Dr. Sarah Chen',
+          category: 'Artificial Intelligence',
+          priority: 'High'
+        },
+        {
+          id: 'WD2024C2',
+          title: 'Cross-Platform Mobile Application Framework',
+          status: 'Ongoing',
+          progress: 62,
+          description: 'Build a comprehensive framework to streamline mobile app development across iOS and Android platforms with React Native.',
+          startDate: 'Aug 15, 2024',
+          endDate: 'Nov 30, 2024',
+          students: ['Eve Davis', 'Frank White', 'Grace Taylor'],
+          notificationCount: 1,
+          quality: 'Good',
+          college: 'MIT Cambridge',
+          mentor: 'Prof. Michael Rodriguez',
+          category: 'Web Development',
+          priority: 'Medium'
+        },
+        {
+          id: 'IOT2024D3',
+          title: 'IoT Smart Home Hub Integration',
+          status: 'Ongoing',
+          progress: 45,
+          description: 'Integrate advanced smart sensors into existing IoT home automation ecosystem with real-time monitoring capabilities.',
+          startDate: 'Oct 1, 2024',
+          endDate: 'Jan 20, 2025',
+          students: ['Heidi Clark', 'Ivan Rodriguez', 'Julia Martinez', 'Kevin Zhang', 'Lisa Park'],
+          notificationCount: 0,
+          quality: 'Needs Attention',
+          college: 'Stanford University',
+          mentor: 'Dr. Emily Watson',
+          category: 'Internet of Things',
+          priority: 'High'
+        },
+        {
+          id: 'CY2024E4',
+          title: 'Cloud Infrastructure Security Audit',
+          status: 'Completed',
+          progress: 100,
+          description: 'Comprehensive security audit and penetration testing of cloud infrastructure with detailed vulnerability assessment.',
+          startDate: 'Jul 10, 2024',
+          endDate: 'Sep 25, 2024',
+          students: ['Mark Thompson', 'Nina Patel'],
+          notificationCount: 0,
+          quality: 'Excellence',
+          college: 'IIT Bombay',
+          mentor: 'Prof. Rajesh Kumar',
+          category: 'Cybersecurity',
+          priority: 'Critical'
+        },
+        {
+          id: 'BC2024F5',
+          title: 'Blockchain Supply Chain Tracker',
+          status: 'Ongoing',
+          progress: 78,
+          description: 'Develop a transparent supply chain tracking system using blockchain technology for enhanced product authenticity.',
+          startDate: 'Sep 20, 2024',
+          endDate: 'Dec 30, 2024',
+          students: ['Oliver Smith', 'Priya Gupta', 'Quinn Johnson'],
+          notificationCount: 2,
+          quality: 'Excellence',
+          college: 'Carnegie Mellon',
+          mentor: 'Dr. Amanda Foster',
+          category: 'Blockchain',
+          priority: 'Medium'
+        },
+        {
+          id: 'AR2024G6',
+          title: 'Augmented Reality Learning Platform',
+          status: 'Ongoing',
+          progress: 35,
+          description: 'Create an immersive AR platform for interactive learning experiences in science and engineering education.',
+          startDate: 'Oct 15, 2024',
+          endDate: 'Feb 28, 2025',
+          students: ['Ryan Lee', 'Sophia Wilson', 'Thomas Brown', 'Uma Sharma'],
+          notificationCount: 1,
+          quality: 'Good',
+          college: 'SRM Chennai',
+          mentor: 'Prof. James Liu',
+          category: 'Augmented Reality',
+          priority: 'Low'
+        },
+        {
+          id: 'ML2024H7',
+          title: 'Machine Learning Healthcare Diagnostics',
+          status: 'Completed',
+          progress: 100,
+          description: 'AI-powered diagnostic tool for early disease detection using medical imaging and machine learning algorithms.',
+          startDate: 'Jun 1, 2024',
+          endDate: 'Aug 30, 2024',
+          students: ['Victoria Chang', 'William Davis', 'Xander Miller'],
+          notificationCount: 0,
+          quality: 'Excellence',
+          college: 'Harvard Medical',
+          mentor: 'Dr. Jennifer Adams',
+          category: 'Machine Learning',
+          priority: 'Critical'
+        },
+        {
+          id: 'RB2024I8',
+          title: 'Autonomous Robotics Navigation System',
+          status: 'Ongoing',
+          progress: 55,
+          description: 'Advanced autonomous navigation system for robotics applications using computer vision and sensor fusion.',
+          startDate: 'Sep 5, 2024',
+          endDate: 'Jan 15, 2025',
+          students: ['Yuki Tanaka', 'Zoe Anderson', 'Aaron Clark'],
+          notificationCount: 4,
+          quality: 'Good',
+          college: 'MIT RoboLab',
+          mentor: 'Prof. David Kim',
+          category: 'Robotics',
+          priority: 'High'
+        }
+      ];
+
+      // Add enhanced visual data to each worklet
+      const workletsWithVisuals = staticWorklets.map((worklet, index) => ({
+        ...worklet,
+        gradient: generateWorkletGradient(worklet.quality, worklet.progress),
+        categoryData: getCategoryData(worklet.category),
+        teamId: worklet.id.substring(0, 2), // Extract first 2 chars as team identifier
+        animationDelay: index * 100 // Staggered animations
+      }));
+      
+      setWorkletsData(workletsWithVisuals);
+      setLoading(false);
+    }, 800); // Simulate loading delay
+  }, []);
 
   const filteredWorklets = workletsData.filter(
-    (w) => w.status && w.status.toLowerCase() === activeTab.toLowerCase()
-  )
+    (w) => w.status === activeTab
+  );
+
+  // Calculate counts for all statuses for tooltips
+  const getStatusCount = (status) => {
+    return workletsData.filter(w => w.status === status).length;
+  };
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-slate-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <div className="w-14 h-14 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-600 dark:text-gray-400">Loading your worklets...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-screen bg-slate-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
-          <div className="max-w-md w-full bg-white dark:bg-slate-800 p-8 rounded-2xl shadow border border-gray-200 dark:border-slate-700 text-center">
-            <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">Failed to load worklets</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{error}</p>
-            <button
-              onClick={fetchWorklets}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
-            >
-              Retry
-            </button>
+      <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-black text-gray-800 dark:text-gray-200">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="text-xl font-semibold text-gray-700 dark:text-gray-300 animate-pulse">
+              Loading amazing worklets...
+            </div>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-      {/* --- SIDEBAR --- */}
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-black text-gray-800 dark:text-gray-200">
+      {/* --- ENHANCED SIDEBAR --- */}
       <nav 
-        className="w-20 bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black border-r border-purple-200/50 dark:border-slate-700/50 shadow-xl flex flex-col z-20"
+        className="w-20 transition-all duration-700 ease-in-out bg-gradient-to-b from-white/90 via-blue-50/90 to-indigo-100/90 dark:from-slate-800/90 dark:via-slate-900/90 dark:to-black/90 backdrop-blur-lg border-r border-blue-200/50 dark:border-slate-700/50 shadow-2xl flex flex-col z-20 relative overflow-hidden"
         onMouseEnter={() => setIsHoverActive(true)}
         onMouseLeave={() => setIsHoverActive(false)}
       >
-        <div className="h-20 flex items-center justify-center">
-            <div className="w-12 h-12 flex items-center justify-center rounded-lg">
-                <img src="https://play-lh.googleusercontent.com/e8F34JODgtXalC7mK09QocqhT5QCqDBPRPclFZmkcWZFc_oy2FCpofb5AFdyG_1hdg=w480-h960-rw" alt="Prism" className="object-contain"/>
+        {/* Animated background pattern */}
+        <div className="absolute inset-0 opacity-5 dark:opacity-10">
+          <div className="absolute top-10 left-2 w-8 h-8 bg-blue-500 rounded-lg animate-float-slow"></div>
+          <div className="absolute top-32 right-2 w-6 h-6 bg-purple-500 rounded-full animate-float-medium"></div>
+          <div className="absolute bottom-32 left-3 w-4 h-4 bg-indigo-500 rounded animate-float-fast"></div>
+        </div>
+
+        <div className="h-20 flex items-center justify-center relative z-10">
+            <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-purple-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110">
+                <img src="https://play-lh.googleusercontent.com/e8F34JODgtXalC7mK09QocqhT5QCqDBPRPclFZmkcWZFc_oy2FCpofb5AFdyG_1hdg=w480-h960-rw" alt="Prism" className="object-contain w-8 h-8"/>
             </div>
         </div>
-        <div className="flex-grow flex flex-col items-center justify-center space-y-4 w-full">
+        
+        <div className="flex-grow flex flex-col items-center justify-center space-y-6 w-full relative z-10">
           <Link
             to="/home"
-            className="relative w-full h-12 flex justify-center items-center text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 transition-all duration-200 rounded-lg hover:bg-black/10 dark:hover:bg-white/10"
+            className="relative w-full h-14 flex justify-center items-center text-slate-600 hover:text-white dark:text-slate-300 dark:hover:text-white transition-all duration-500 ease-out rounded-xl overflow-hidden group"
           >
-            <Home size={27} />
-            {isHoverActive && (
-              <div className="absolute left-full top-0 h-full flex items-center pl-4 pr-8 bg-gradient-to-r from-white/95 via-indigo-50/90 to-transparent dark:from-slate-800/95 dark:via-slate-900/90 dark:to-transparent rounded-r-lg shadow-lg animate-fade-in-right pointer-events-none backdrop-blur-sm">
-                <span className="text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap">Home</span>
-              </div>
-            )}
+            {/* Black Sweep Background Animation */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-gray-900 to-black transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-out rounded-xl"></div>
+            
+            <Home size={24} className="relative z-10 transition-all duration-300 group-hover:scale-125 drop-shadow-lg" />
+            
+            {/* Enhanced Label */}
+            <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-3 px-4 py-2 bg-black text-white text-sm font-bold rounded-lg shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-[100] pointer-events-none scale-95 group-hover:scale-100">
+              Home
+              {/* Arrow */}
+              <div className="absolute right-full top-1/2 transform -translate-y-1/2 w-0 h-0 border-t-4 border-b-4 border-r-6 border-transparent border-r-black"></div>
+            </div>
           </Link>
-          <div className="w-full space-y-2">
-            {STATUS_OPTIONS.map((status) => (
+          
+          <div className="w-full space-y-3">
+            {STATUS_OPTIONS.map((status, index) => (
               <button
                 key={status}
                 onClick={() => setActiveTab(status)}
-                className={`relative w-full h-12 flex justify-center items-center rounded-lg transition-all duration-200 ${
+                className={`relative w-full h-14 flex justify-center items-center rounded-xl transition-all duration-500 ease-out overflow-hidden group ${
                   activeTab === status
-                    ? "bg-white/20 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 shadow-lg"
-                    : "text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 hover:bg-black/10 dark:hover:bg-white/10"
+                    ? "bg-gradient-to-r from-blue-200/80 via-indigo-100/80 to-purple-100/80 dark:from-blue-800/80 dark:via-indigo-900/80 dark:to-purple-900/80 text-blue-700 dark:text-blue-300 shadow-xl border border-blue-300/50 dark:border-blue-700/50 scale-110"
+                    : "text-slate-600 hover:text-white dark:text-slate-300 dark:hover:text-white"
                 }`}
+                style={{ animationDelay: `${index * 100}ms` }}
               >
-                {statusIcons[status]}
-                {isHoverActive && (
-                  <div className="absolute left-full top-0 h-full flex items-center pl-4 pr-8 bg-gradient-to-r from-white/95 via-indigo-50/90 to-transparent dark:from-slate-800/95 dark:via-slate-900/90 dark:to-transparent rounded-r-lg shadow-lg animate-fade-in-right pointer-events-none backdrop-blur-sm">
-                    <span className="text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap">{status}</span>
-                  </div>
+                {/* Black Sweep Background Animation - only for non-active buttons */}
+                {activeTab !== status && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-black via-gray-900 to-black transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-out rounded-xl"></div>
                 )}
+                
+                <div className="relative z-10 transition-transform duration-300 group-hover:scale-125 drop-shadow-lg">
+                  {statusIcons[status]}
+                </div>
+                
+                {/* Enhanced Status Label */}
+                <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-3 px-4 py-2 bg-black text-white text-sm font-bold rounded-lg shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-[100] pointer-events-none scale-95 group-hover:scale-100">
+                  <span className="flex items-center gap-2">
+                    <span>{status}</span>
+                    <span className="text-xs bg-white/20 text-white px-2 py-1 rounded-full">
+                      {getStatusCount(status)}
+                    </span>
+                  </span>
+                  {/* Arrow */}
+                  <div className="absolute right-full top-1/2 transform -translate-y-1/2 w-0 h-0 border-t-4 border-b-4 border-r-6 border-transparent border-r-black"></div>
+                </div>
               </button>
             ))}
           </div>
@@ -330,70 +401,91 @@ export default function WorkletsPage() {
         <div className="h-20"></div>
       </nav>
 
-      {/* --- MAIN CONTENT AREA --- */}
-      <main className="flex-1 p-[2vw] overflow-y-auto">
-        {/* Professional Header matching Dashboard */}
-        <header className="flex justify-between items-center mb-[3vh]">
+      {/* --- ENHANCED MAIN CONTENT AREA --- */}
+      <main className="flex-1 p-[2vw] overflow-y-auto relative">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-5 dark:opacity-10 pointer-events-none">
+          <div className="absolute top-20 right-32 w-64 h-64 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-32 left-20 w-48 h-48 bg-gradient-to-br from-indigo-400 to-pink-600 rounded-full blur-3xl"></div>
+        </div>
+
+        {/* Enhanced Professional Header */}
+        <header className="flex justify-between items-center mb-[3vh] relative z-10">
           <div>
-            <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-slate-900 dark:text-white">
-              {activeTab} Worklets 🚀
+            <h1 className="text-[clamp(2rem,4vw,2.75rem)] font-black text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text relative">
+              {activeTab} Worklets ✨
             </h1>
-            <p className="text-slate-600 dark:text-slate-400 text-[clamp(0.875rem,1.5vw,1rem)] mt-1">
-              Managing and tracking {activeTab.toLowerCase()} project worklets across teams
-              {lastUpdated && (
-                <span className="block text-xs mt-1 text-gray-500 dark:text-gray-500">Updated {lastUpdated.toLocaleTimeString()}</span>
-              )}
+            <p className="text-slate-600 dark:text-slate-400 text-[clamp(1rem,1.8vw,1.125rem)] mt-2 font-medium">
+              Discover and track <span className="text-blue-600 dark:text-blue-400 font-semibold">{filteredWorklets.length}</span> {activeTab.toLowerCase()} projects across teams
             </p>
           </div>
           
-          {/* Enhanced Layout Toggle matching Dashboard */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={fetchWorklets}
-              className="px-3 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors"
-            >Refresh</button>
-            <div className="flex items-center gap-1 p-1 bg-white/50 dark:bg-slate-800/50 rounded-xl shadow-lg backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50">
+          {/* Enhanced Layout Toggle with Statistics */}
+          <div className="flex items-center gap-4">
+            {/* Quick Stats */}
+            <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-xl border border-blue-200/50 dark:border-slate-700/50 shadow-lg">
+              <div className="text-center">
+                <div className="text-sm font-bold text-blue-600 dark:text-blue-400">{filteredWorklets.length}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Projects</div>
+              </div>
+              <div className="w-px h-8 bg-slate-300 dark:bg-slate-600"></div>
+              <div className="text-center">
+                <div className="text-sm font-bold text-green-600 dark:text-green-400">
+                  {Math.round(filteredWorklets.reduce((acc, w) => acc + w.progress, 0) / Math.max(filteredWorklets.length, 1))}%
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Avg Progress</div>
+              </div>
+            </div>
+
+            {/* Layout Toggle */}
+            <div className="flex items-center gap-1 p-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-xl shadow-lg border border-blue-200/50 dark:border-slate-700/50">
               <button 
                 onClick={() => setLayout('grid')} 
-                className={`p-3 rounded-lg transition-all duration-200 ${
+                className={`p-3 rounded-lg transition-all duration-300 ${
                   layout === 'grid' 
-                    ? 'bg-blue-500 text-white shadow-md' 
-                    : 'text-slate-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-700 dark:text-slate-400 dark:hover:text-blue-400'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg scale-105' 
+                    : 'text-slate-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-700 dark:text-slate-400 dark:hover:text-blue-400 hover:scale-105'
                 }`} 
                 aria-label="Grid View"
               >
-                <LayoutGrid size={18} />
+                <LayoutGrid size={20} />
               </button>
               <button 
                 onClick={() => setLayout('list')} 
-                className={`p-3 rounded-lg transition-all duration-200 ${
+                className={`p-3 rounded-lg transition-all duration-300 ${
                   layout === 'list' 
-                    ? 'bg-blue-500 text-white shadow-md' 
-                    : 'text-slate-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-700 dark:text-slate-400 dark:hover:text-blue-400'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg scale-105' 
+                    : 'text-slate-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-700 dark:text-slate-400 dark:hover:text-blue-400 hover:scale-105'
                 }`} 
                 aria-label="List View"
               >
-                <List size={18} />
+                <List size={20} />
               </button>
             </div>
           </div>
         </header>
-        
+        {/* Enhanced Content Grid/List */}
         <div className={layout === 'grid' 
-          ? "grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-[clamp(1rem,2vw,2rem)]" 
-          : "flex flex-col gap-[1vh]"
+          ? "grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-[clamp(1.5rem,2.5vw,2.5rem)] relative z-10" 
+          : "flex flex-col gap-[clamp(1rem,1.5vw,1.5rem)] relative z-10"
         }>
           {filteredWorklets.length > 0 ? (
-            filteredWorklets.map((worklet) => (
+            filteredWorklets.map((worklet, index) => (
               layout === 'grid' ? (
-                <WorkletGridItem key={worklet.id} worklet={worklet} />
+                <div key={worklet.id}>
+                  <WorkletGridItem worklet={worklet} />
+                </div>
               ) : (
-                <WorkletListItem key={worklet.id} worklet={worklet} />
+                <div key={worklet.id}>
+                  <WorkletListItem worklet={worklet} />
+                </div>
               )
             ))
           ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 dark:text-gray-400">No worklets found for "{activeTab}".</p>
+            <div className="col-span-full text-center py-16">
+              <div className="text-6xl mb-4">🔍</div>
+              <p className="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">No worklets found</p>
+              <p className="text-gray-500 dark:text-gray-500">No {activeTab.toLowerCase()} projects available at the moment.</p>
             </div>
           )}
         </div>
@@ -406,145 +498,171 @@ export default function WorkletsPage() {
 const WorkletGridItem = ({ worklet }) => {
   const getQualityColor = (quality) => {
     switch (quality) {
-      case 'Excellence': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'Good': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'Needs Attention': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+      case 'Excellence': return 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 dark:from-emerald-900/30 dark:to-green-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700';
+      case 'Good': return 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-700';
+      case 'Needs Attention': return 'bg-gradient-to-r from-red-100 to-orange-100 text-red-800 dark:from-red-900/30 dark:to-orange-900/30 dark:text-red-300 border-red-200 dark:border-red-700';
+      default: return 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-800 dark:from-gray-900/30 dark:to-slate-900/30 dark:text-gray-300 border-gray-200 dark:border-gray-700';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'Critical': return 'bg-red-500';
-      case 'High': return 'bg-orange-500';
-      case 'Medium': return 'bg-yellow-500';
-      case 'Low': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'Critical': return 'bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/50';
+      case 'High': return 'bg-gradient-to-r from-orange-500 to-amber-600 shadow-orange-500/50';
+      case 'Medium': return 'bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-yellow-500/50';
+      case 'Low': return 'bg-gradient-to-r from-green-500 to-emerald-600 shadow-green-500/50';
+      default: return 'bg-gradient-to-r from-gray-500 to-slate-600 shadow-gray-500/50';
     }
+  };
+
+  const getProgressColor = (progress) => {
+    if (progress >= 80) return 'from-green-500 via-emerald-500 to-teal-500';
+    if (progress >= 60) return 'from-blue-500 via-indigo-500 to-purple-500';
+    if (progress >= 40) return 'from-yellow-500 via-orange-500 to-red-500';
+    return 'from-red-500 via-pink-500 to-rose-500';
   };
 
   return (
     <Link to={`/worklet/${worklet.id}`}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group h-full border border-gray-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 transform hover:scale-[1.02]">
-        {/* Header Section with Gradient */}
-        <div className="relative h-48" style={{ background: worklet.gradient }}>
-          {/* Clean Geometric Pattern */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-4 left-4 w-16 h-16 border border-white/20 rounded-lg rotate-12"></div>
-            <div className="absolute bottom-4 right-4 w-12 h-12 border border-white/15 rounded-full"></div>
-            <div className="absolute top-1/2 right-8 w-8 h-8 bg-white/10 rounded rotate-45"></div>
+      <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden group h-full border border-white/50 dark:border-slate-700/50 hover:border-blue-300/50 dark:hover:border-blue-600/50 transform hover:scale-[1.03] hover-lift relative">
+        {/* Enhanced Header Section with Gradient */}
+        <div className="relative h-52 overflow-hidden" style={{ background: worklet.gradient }}>
+          {/* Animated geometric patterns */}
+          <div className="absolute inset-0 opacity-15">
+            <div className="absolute top-6 left-6 w-20 h-20 border-2 border-white/30 rounded-xl rotate-12 animate-float-slow"></div>
+            <div className="absolute bottom-6 right-6 w-16 h-16 border-2 border-white/20 rounded-full animate-float-medium"></div>
+            <div className="absolute top-1/2 right-10 w-10 h-10 bg-white/15 rounded-lg rotate-45 animate-float-fast"></div>
+            <div className="absolute bottom-10 left-10 w-12 h-12 bg-white/10 rounded-full animate-float-slow"></div>
           </div>
+          
+          {/* Gradient overlay for depth */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
           
           {/* Team ID and Category */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-white">
-              <div className="text-4xl font-black mb-2 tracking-wider">
+              <div className="text-5xl font-black mb-3 tracking-wider drop-shadow-lg">
                 {worklet.teamId}
               </div>
-              <div className="text-sm font-medium tracking-[0.2em] uppercase opacity-80 bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                {worklet.categoryAbbrev}
+              <div className="text-2xl mb-2 drop-shadow-md">
+                {worklet.categoryData.icon}
+              </div>
+              <div className="text-sm font-bold tracking-[0.3em] uppercase opacity-90 bg-white/25 px-4 py-2 rounded-full backdrop-blur-sm border border-white/30">
+                {worklet.categoryData.abbrev}
               </div>
             </div>
           </div>
           
-          {/* Priority Indicator */}
-          <div className={`absolute top-3 left-3 w-3 h-3 ${getPriorityColor(worklet.priority)} rounded-full border-2 border-white shadow-lg`}></div>
+          {/* Enhanced Priority Indicator */}
+          <div className={`absolute top-4 left-4 w-4 h-4 ${getPriorityColor(worklet.priority)} rounded-full border-2 border-white shadow-lg animate-pulse`}></div>
           
           {/* Quality Badge */}
-          <div className={`absolute top-3 right-3 px-2 py-1 text-xs font-semibold rounded-full ${getQualityColor(worklet.quality)} border border-white/20 backdrop-blur-sm`}>
+          <div className={`absolute top-4 right-4 px-3 py-1.5 text-xs font-bold rounded-full ${getQualityColor(worklet.quality)} border backdrop-blur-sm shadow-lg`}>
             {worklet.quality}
           </div>
           
-          {/* Notification Badge */}
+          {/* Enhanced Notification Badge */}
           {worklet.notificationCount > 0 && (
-            <div className="absolute bottom-3 right-3 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-white shadow-lg">
+            <div className="absolute bottom-4 right-4 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center border-2 border-white shadow-xl animate-bounce">
               {worklet.notificationCount}
             </div>
           )}
         </div>
 
-        {/* Content */}
-        <div className="p-5">
+        {/* Enhanced Content */}
+        <div className="p-6">
           {/* Title and ID */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg">
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700">
                 {worklet.id}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
                 {worklet.category}
               </span>
             </div>
-            <h3 className="font-bold text-lg text-gray-900 dark:text-white leading-tight line-clamp-2">
+            <h3 className="font-black text-xl text-gray-900 dark:text-white leading-tight line-clamp-2 mb-1">
               {worklet.title}
             </h3>
           </div>
 
           {/* Description */}
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3 leading-relaxed">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-5 line-clamp-3 leading-relaxed">
             {worklet.description}
           </p>
 
-          {/* Progress Section */}
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
-              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{worklet.progress}%</span>
+          {/* Enhanced Progress Section */}
+          <div className="mb-5">
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={16} className="text-blue-500" />
+                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Progress</span>
+              </div>
+              <span className="text-lg font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {worklet.progress}%
+              </span>
             </div>
-            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden shadow-inner">
               <div 
-                className="h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out shadow-sm"
+                className={`h-3 bg-gradient-to-r ${getProgressColor(worklet.progress)} rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden`}
                 style={{width: `${worklet.progress}%`}}
-              ></div>
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+              </div>
             </div>
           </div>
 
-          {/* Timeline */}
-          <div className="mb-4 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+          {/* Enhanced Timeline */}
+          <div className="mb-5 p-4 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-slate-700/50 dark:to-slate-600/50 rounded-xl border border-gray-200 dark:border-slate-600">
             <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-              <div className="flex items-center gap-1">
-                <Calendar size={12}/>
-                <span>{worklet.startDate}</span>
+              <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-green-500"/>
+                <span className="font-semibold">{worklet.startDate}</span>
               </div>
-              <div className="flex-1 mx-2 border-t border-dashed border-gray-300 dark:border-gray-600"></div>
-              <div className="flex items-center gap-1">
-                <span>{worklet.endDate}</span>
-                <Calendar size={12}/>
+              <div className="flex-1 mx-4 border-t-2 border-dashed border-gray-300 dark:border-gray-600 relative">
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-blue-500 rounded-full"></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{worklet.endDate}</span>
+                <Calendar size={14} className="text-red-500"/>
               </div>
             </div>
           </div>
 
           {/* Students and College */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <Users size={14}/>
-                <span className="font-medium">{worklet.students.length} Students</span>
+              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <Users size={16} className="text-purple-500"/>
+                <span className="font-bold">{worklet.students.length} Students</span>
               </div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-24">
+              <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-32 font-medium bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
                 {worklet.college}
               </span>
             </div>
             
-            {/* Student Avatars */}
-            <div className="flex items-center gap-1">
+            {/* Enhanced Student Avatars */}
+            <div className="flex items-center gap-2">
               {worklet.students.slice(0, 4).map((student, index) => (
                 <div 
                   key={student}
-                  className="w-7 h-7 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-semibold border-2 border-white dark:border-slate-800 shadow-sm"
+                  className={`w-8 h-8 bg-gradient-to-br ${worklet.categoryData.color} rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white dark:border-slate-800 shadow-lg transform hover:scale-110 transition-transform duration-200`}
                   title={student}
                 >
                   {student.charAt(0)}
                 </div>
               ))}
               {worklet.students.length > 4 && (
-                <div className="w-7 h-7 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-300 text-xs font-semibold border-2 border-white dark:border-slate-800">
+                <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white dark:border-slate-800 shadow-lg">
                   +{worklet.students.length - 4}
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        {/* Hover effect overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
       </div>
     </Link>
   );
@@ -554,28 +672,35 @@ const WorkletGridItem = ({ worklet }) => {
 const WorkletListItem = ({ worklet }) => {
   const getQualityColor = (quality) => {
     switch (quality) {
-      case 'Excellence': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'Good': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'Needs Attention': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+      case 'Excellence': return 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 dark:from-emerald-900/30 dark:to-green-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700';
+      case 'Good': return 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-700';
+      case 'Needs Attention': return 'bg-gradient-to-r from-red-100 to-orange-100 text-red-800 dark:from-red-900/30 dark:to-orange-900/30 dark:text-red-300 border-red-200 dark:border-red-700';
+      default: return 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-800 dark:from-gray-900/30 dark:to-slate-900/30 dark:text-gray-300 border-gray-200 dark:border-gray-700';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'Critical': return 'bg-red-500';
-      case 'High': return 'bg-orange-500';
-      case 'Medium': return 'bg-yellow-500';
-      case 'Low': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'Critical': return 'bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/50';
+      case 'High': return 'bg-gradient-to-r from-orange-500 to-amber-600 shadow-orange-500/50';
+      case 'Medium': return 'bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-yellow-500/50';
+      case 'Low': return 'bg-gradient-to-r from-green-500 to-emerald-600 shadow-green-500/50';
+      default: return 'bg-gradient-to-r from-gray-500 to-slate-600 shadow-gray-500/50';
     }
+  };
+
+  const getProgressColor = (progress) => {
+    if (progress >= 80) return 'from-green-500 via-emerald-500 to-teal-500';
+    if (progress >= 60) return 'from-blue-500 via-indigo-500 to-purple-500';
+    if (progress >= 40) return 'from-yellow-500 via-orange-500 to-red-500';
+    return 'from-red-500 via-pink-500 to-rose-500';
   };
 
   return (
     <Link to={`/worklet/${worklet.id}`}>
-      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 flex items-center group border border-gray-200/50 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-600 transform hover:scale-[1.02] hover:bg-white dark:hover:bg-slate-800">
+      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 flex items-center group border border-white/50 dark:border-slate-700/50 hover:border-blue-300/50 dark:hover:border-blue-600/50 transform hover:scale-[1.02] hover-lift overflow-hidden relative">
         {/* Enhanced Gradient Section */}
-        <div className="relative hidden sm:block flex-shrink-0 h-32 w-40 rounded-l-xl overflow-hidden">
+        <div className="relative hidden sm:block flex-shrink-0 h-36 w-48 rounded-l-2xl overflow-hidden">
           <div 
             className="absolute inset-0 animate-gradient-shift"
             style={{ 
@@ -584,108 +709,121 @@ const WorkletListItem = ({ worklet }) => {
             }}
           />
           
-          {/* Minimal Geometric Elements */}
-          <div className="absolute inset-0 opacity-15">
-            <div className="absolute top-2 left-2 w-8 h-8 border border-white/20 rounded rotate-12"></div>
-            <div className="absolute bottom-2 right-2 w-6 h-6 bg-white/10 rounded-full"></div>
+          {/* Enhanced Geometric Elements */}
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-3 left-3 w-10 h-10 border-2 border-white/30 rounded-lg rotate-12 animate-float-slow"></div>
+            <div className="absolute bottom-3 right-3 w-8 h-8 bg-white/15 rounded-full animate-float-medium"></div>
+            <div className="absolute top-1/2 right-6 w-6 h-6 bg-white/10 rounded rotate-45 animate-float-fast"></div>
           </div>
           
-          {/* Clean Typography Design */}
+          {/* Enhanced Typography Design */}
           <div className="absolute inset-0 flex flex-col justify-center items-center">
             <div className="text-center text-white">
-              <div className="text-2xl font-black mb-1 tracking-wider transform group-hover:scale-110 transition-transform duration-300">
+              <div className="text-3xl font-black mb-2 tracking-wider transform group-hover:scale-110 transition-transform duration-300 drop-shadow-lg">
                 {worklet.teamId}
               </div>
-              <div className="text-xs font-medium tracking-[0.15em] uppercase opacity-80 bg-white/25 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                {worklet.category.split(' ')[0]}
+              <div className="text-xl mb-1 drop-shadow-md">
+                {worklet.categoryData.icon}
+              </div>
+              <div className="text-xs font-bold tracking-[0.2em] uppercase opacity-90 bg-white/30 px-3 py-1 rounded-full backdrop-blur-sm border border-white/40">
+                {worklet.categoryData.abbrev}
               </div>
             </div>
           </div>
           
-          {/* Priority Indicator */}
-          <div className={`absolute top-3 left-3 w-3 h-3 ${getPriorityColor(worklet.priority)} rounded-full border-2 border-white shadow-xl animate-pulse`}></div>
+          {/* Enhanced Priority Indicator */}
+          <div className={`absolute top-4 left-4 w-4 h-4 ${getPriorityColor(worklet.priority)} rounded-full border-2 border-white shadow-xl animate-pulse`}></div>
           
-          {/* Notification Badge */}
+          {/* Enhanced Notification Badge */}
           {worklet.notificationCount > 0 && (
-            <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border border-white shadow-lg">
+            <div className="absolute top-4 right-4 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-white shadow-xl animate-bounce">
               {worklet.notificationCount}
             </div>
           )}
         </div>
 
-        {/* Content Section */}
-        <div className="flex-grow p-5">
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex-grow pr-4">
-              {/* ID and Category */}
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg">
+        {/* Enhanced Content Section */}
+        <div className="flex-grow p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-grow pr-6">
+              {/* ID, Category and Quality */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700">
                   {worklet.id}
                 </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
                   {worklet.category}
                 </span>
-                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getQualityColor(worklet.quality)}`}>
+                <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${getQualityColor(worklet.quality)} border`}>
+                  <Star size={12} className="inline mr-1" />
                   {worklet.quality}
                 </span>
               </div>
               
               {/* Title */}
-              <h3 className="font-bold text-lg text-gray-900 dark:text-white line-clamp-1 mb-2">
+              <h3 className="font-black text-xl text-gray-900 dark:text-white line-clamp-1 mb-3">
                 {worklet.title}
               </h3>
               
               {/* Description */}
-              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3 hidden md:block">
+              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-4 hidden md:block leading-relaxed">
                 {worklet.description}
               </p>
             </div>
 
             {/* Status */}
-            <span className={`text-xs font-semibold px-3 py-1 rounded-full flex-shrink-0 ${
+            <span className={`text-xs font-bold px-4 py-2 rounded-full flex-shrink-0 border ${
               worklet.status === 'Ongoing' 
-                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' 
-                : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                ? 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-700' 
+                : 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 dark:from-green-900/30 dark:to-emerald-900/30 dark:text-green-300 border-green-200 dark:border-green-700'
             }`}>
+              <Clock size={12} className="inline mr-1" />
               {worklet.status}
             </span>
           </div>
 
-          {/* Progress Bar */}
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
-              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{worklet.progress}%</span>
+          {/* Enhanced Progress Bar */}
+          <div className="mb-5">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={14} className="text-blue-500" />
+                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Progress</span>
+              </div>
+              <span className="text-lg font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {worklet.progress}%
+              </span>
             </div>
-            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3 shadow-inner">
               <div 
-                className="h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out"
+                className={`h-3 bg-gradient-to-r ${getProgressColor(worklet.progress)} rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden`}
                 style={{width: `${worklet.progress}%`}}
-              ></div>
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+              </div>
             </div>
           </div>
 
-          {/* Bottom Info */}
+          {/* Enhanced Bottom Info */}
           <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-gray-600 dark:text-gray-400">
             {/* Left side - Students and College */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Users size={14}/>
-                <span>{worklet.students.length} Students</span>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <Users size={16} className="text-purple-500"/>
+                <span className="font-bold">{worklet.students.length} Students</span>
               </div>
               
-              <div className="hidden sm:flex items-center gap-1">
+              <div className="hidden sm:flex items-center gap-2">
                 {worklet.students.slice(0, 3).map((student, index) => (
                   <div 
                     key={student}
-                    className="w-6 h-6 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-semibold border border-white dark:border-slate-800"
+                    className={`w-7 h-7 bg-gradient-to-br ${worklet.categoryData.color} rounded-full flex items-center justify-center text-white text-xs font-bold border border-white dark:border-slate-800 shadow-lg transform hover:scale-110 transition-transform duration-200`}
                     title={student}
                   >
                     {student.charAt(0)}
                   </div>
                 ))}
                 {worklet.students.length > 3 && (
-                  <div className="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-300 text-xs font-semibold border border-white dark:border-slate-800">
+                  <div className="w-7 h-7 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-bold border border-white dark:border-slate-800 shadow-lg">
                     +{worklet.students.length - 3}
                   </div>
                 )}
@@ -693,12 +831,18 @@ const WorkletListItem = ({ worklet }) => {
             </div>
 
             {/* Right side - Timeline */}
-            <div className="flex items-center gap-2 text-xs">
-              <Calendar size={12}/>
-              <span>{worklet.startDate} - {worklet.endDate}</span>
+            <div className="flex items-center gap-3 text-xs bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-lg">
+              <Calendar size={14} className="text-green-500"/>
+              <span className="font-semibold">{worklet.startDate}</span>
+              <span className="text-slate-400">→</span>
+              <span className="font-semibold">{worklet.endDate}</span>
+              <Calendar size={14} className="text-red-500"/>
             </div>
           </div>
         </div>
+
+        {/* Hover effect overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-transparent to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
       </div>
     </Link>
   );
