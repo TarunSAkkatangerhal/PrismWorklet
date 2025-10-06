@@ -40,9 +40,9 @@ export const refreshToken = async () => {
 };
 
 
-// Request OTP for sign-up
-export const requestOtp = async (name, email, role) => {
-  const response = await axios.post(`${BASE}/auth/request-otp`, { name, email, role });
+// Request OTP for sign-up (backend currently only requires email; extra fields ignored)
+export const requestOtp = async (email) => {
+  const response = await axios.post(`${BASE}/auth/request-otp`, { email });
   return response.data;
 };
 
@@ -52,9 +52,9 @@ export const verifyOtp = async (email, otp_code) => {
   return response.data;
 };
 
-// Set password after OTP verification
-export const setPassword = async (email, password) => {
-  const response = await axios.post(`${BASE}/auth/set-password`, { email, password });
+// Set password after OTP verification (backend requires email, name, role, password)
+export const setPassword = async (email, name, role, password) => {
+  const response = await axios.post(`${BASE}/auth/set-password`, { email, name, role, password });
   return response.data;
 };
 

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useEffect } from "react";
 import axios from "axios";
-import { Routes, Route, Navigate } from "react-router-dom";
+// Removed unused Routes/Route/Navigate imports
 import { useNavigate } from "react-router-dom";
 import prismLogo from "../assets/logo.jpeg";
+import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as apiSetPassword } from "../services/auth";
 export default function Login() {
   const navigate = useNavigate();
   // Auto-login on page load if tokens exist
@@ -33,7 +34,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [role, setRole] = useState("student"); // default role
-  const simulatedOtp = "123456";
+  const simulatedOtp = "123456"; // placeholder (not used)
   // Function to show a temporary message
   const showMessage = (msg) => {
     setMessage(msg);
@@ -98,11 +99,11 @@ export default function Login() {
       return;
     }
     try {
-  const response = await axios.post("http://localhost:8000/auth/request-otp", { email });
+      const response = await apiRequestOtp(email);
       setOtpSent(true);
       setOtpVerified(false);
       setOtpInput("");
-      showMessage(response.data.message || "OTP sent to your email.");
+      showMessage(response.message || "OTP sent to your email.");
     } catch (error) {
       showMessage(error.response?.data?.detail || "Failed to send OTP.");
     }
@@ -115,12 +116,9 @@ export default function Login() {
       return;
     }
     try {
-      const response = await axios.post("http://localhost:8000/auth/verify-otp", {
-        email,
-        otp_code: otpInput
-      });
-  setOtpVerified(true);
-  showMessage(response.data.message || "OTP verified successfully! Please set your password.");
+      const response = await apiVerifyOtp(email, otpInput);
+      setOtpVerified(true);
+      showMessage(response.message || "OTP verified successfully! Please set your password.");
     } catch (error) {
       showMessage(error.response?.data?.detail || "Invalid OTP. Please try again.");
     }
@@ -129,27 +127,23 @@ export default function Login() {
   // Signup handler after OTP verification
 const handleSignup = async (e) => {
   e.preventDefault();
-  if (!email || !password || !role) {
+  if (!email || !password || !role || !name) {
     showMessage("Please fill all fields.");
     return;
   }
+  // Backend expects capitalized role values (Student, Mentor, Professor)
+  const normalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
   try {
-    const response = await axios.post("http://localhost:8000/auth/set-password", {
-      name,
-      email,
-      password,
-      role
-    });
-    showMessage(response.data.message || "Signup successful!");
+    const response = await apiSetPassword(email, name, normalizedRole, password);
+    showMessage(response.message || "Signup successful!");
     // Auto-login after signup
     const formData = new URLSearchParams();
     formData.append("username", email);
     formData.append("password", password);
-    formData.append("scope", role);
+    // Login scope expects lowercase to match earlier login form usage
+    formData.append("scope", normalizedRole.toLowerCase());
     const loginResponse = await axios.post("http://localhost:8000/auth/login", formData, {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
     if (loginResponse.data && loginResponse.data.access_token) {
       localStorage.setItem("access_token", loginResponse.data.access_token);
@@ -304,9 +298,9 @@ const handleSignup = async (e) => {
       className="mt-1 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
       required
     >
-  <option value="Student">Student</option>
-  <option value="Mentor">Mentor</option>
-  <option value="Professor">Professor</option>
+  <option value="student">Student</option>
+  <option value="mentor">Mentor</option>
+  <option value="professor">Professor</option>
     </select>
   </div>
 </div>
