@@ -1319,8 +1319,7 @@ export default function WorkletDetailPage() {
                 </div>
                 
                 {/* Project Title with Gradient */}
-                <h1 className="text-3xl xl:text-4xl font-bold bg-gradient-to-r from-gray-900 via-indigo-800 to-purple-800 
-                              dark:from-white dark:via-indigo-200 dark:to-purple-200 bg-clip-text text-transparent leading-tight">
+                <h1 className="text-3xl xl:text-4xl font-bold text-black dark:text-white leading-tight">
                   {worklet.title}
                 </h1>
                 

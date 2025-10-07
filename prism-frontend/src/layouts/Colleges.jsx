@@ -117,7 +117,7 @@ const Colleges = () => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold text-black dark:text-white">
                   College Management
                 </h1>
                 <p className="text-gray-600 dark:text-gray-300 mt-2">

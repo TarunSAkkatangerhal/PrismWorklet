@@ -176,7 +176,7 @@ export default function WorkletsPage() {
           <div className="mb-8 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20 dark:border-slate-700/50">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-3">
+                <h1 className="text-4xl font-bold text-black dark:text-white mb-3">
                   Worklets Overview
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400 text-lg">

@@ -524,7 +524,7 @@ const Portfolio = () => {
               className="relative"
             >
               <motion.h1 
-                className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent relative leading-[1.25] pb-1 overflow-visible"
+                className="text-3xl lg:text-4xl font-bold mb-4 text-black dark:text-white relative leading-[1.25] pb-1 overflow-visible"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5, duration: 0.8 }}

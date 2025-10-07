@@ -128,7 +128,7 @@ const Meetings = () => {
       <main className="flex-1 p-[clamp(1rem,2vw,2rem)] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
         {/* Header Section */}
         <div className="mb-[2vh]">
-          <h1 className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-[0.5vh]">
+          <h1 className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-black dark:text-white mb-[0.5vh]">
             My Meetings
           </h1>
           <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-600 dark:text-slate-400">
