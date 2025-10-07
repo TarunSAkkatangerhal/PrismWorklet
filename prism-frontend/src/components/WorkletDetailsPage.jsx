@@ -75,7 +75,10 @@ import {
   Layers,
   Grid,
   Moon,
-  Sun
+  Sun,
+  Plus,
+  MoreHorizontal,
+  ThumbsUp
 } from 'lucide-react'
 
 // --- Enhanced Activity Button Component ---
@@ -253,6 +256,40 @@ export default function WorkletDetailPage() {
   })
   const [activityFilter, setActivityFilter] = useState('all')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  
+  // --- MILESTONE STATE ---
+  const [milestones, setMilestones] = useState([
+    {
+      id: 1,
+      title: 'Mid-Review Milestone',
+      author: 'Tarun Akkatangerhal',
+      authorInitials: 'TA',
+      date: 'Oct 7, 2025, 2:59:07 PM',
+      observations: 'Frontend architecture completed with Redux integration. All UI components implemented and tested successfully.',
+      challenges: 'State management complexity resolved. Performance optimization completed through component refactoring.',
+      likes: 1,
+      status: 'current',
+      color: 'from-blue-500 to-purple-600'
+    },
+    {
+      id: 2,
+      title: 'Initial Planning & Setup',
+      author: 'Dr. Sarah Johnson',
+      authorInitials: 'DS',
+      date: 'Sep 15, 2024, 10:30:15 AM',
+      observations: 'Project foundation established. Team roles defined, development environment configured successfully.',
+      challenges: 'Technology stack finalization and resource allocation optimized after initial assessment.',
+      likes: 3,
+      status: 'completed',
+      color: 'from-green-500 to-teal-600'
+    }
+  ])
+  const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false)
+  const [newMilestone, setNewMilestone] = useState({
+    title: '',
+    observations: '',
+    challenges: ''
+  })
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -736,536 +773,305 @@ export default function WorkletDetailPage() {
     </div>
   )
 
-  const MilestoneTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-          <Target size={20} />
-          Project Milestones
-        </h3>
+  // --- ADD MILESTONE MODAL ---
+  const AddMilestoneModal = () => {
+    const [milestoneType, setMilestoneType] = useState('Weekly Meeting')
+    const [kpisAchieved, setKpisAchieved] = useState('')
+    const [nextSteps, setNextSteps] = useState('')
+    const [githubAccessible, setGithubAccessible] = useState(false)
+    const [fileUpdatedOnGithub, setFileUpdatedOnGithub] = useState(false)
 
-        <div className="space-y-4">
-          {/* Milestone Timeline */}
-          <div className="relative">
-            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-600"></div>
+    const handleSubmit = (e) => {
+      e.preventDefault()
+      if (!milestoneType.trim()) return
 
-            {/* Milestone 1 */}
-            <div className="relative flex items-start gap-4 pb-8">
-              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center relative z-10">
-                <CheckCircle2 size={16} className="text-white" />
-              </div>
-              <div className="flex-grow">
-                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-                  <h4 className="font-semibold text-green-900 dark:text-green-300 mb-1">Project Setup & Planning</h4>
-                  <p className="text-sm text-green-700 dark:text-green-400 mb-3">
-                    Initial project setup, requirements gathering, and team formation
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-500 mb-3">
-                    <Calendar size={12} />
-                    <span>Completed - Sep 20, 2024</span>
-                  </div>
+      const milestone = {
+        id: milestones.length + 1,
+        title: milestoneType,
+        author: 'Current User', // This would come from auth context
+        authorInitials: 'CU',
+        date: new Date().toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        }),
+        observations: kpisAchieved,
+        challenges: nextSteps,
+        likes: 0,
+        status: 'current',
+        color: 'from-indigo-500 to-blue-600'
+      }
 
-                  {/* Documents & Deliverables */}
-                  <div className="mt-3 p-3 bg-white dark:bg-green-950/30 rounded-lg border border-green-300 dark:border-green-700">
-                    <h5 className="text-xs font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-1">
-                      <FileText size={12} />
-                      Documents & Deliverables (4 files)
-                    </h5>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 bg-green-100 dark:bg-green-900/40 rounded border border-green-200 dark:border-green-700">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-green-800 dark:text-green-300">
-                            Project Requirements.pdf
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-green-600 dark:text-green-400">1.2 MB</span>
-                          <button className="text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200">
-                            <Download size={12} />
-                          </button>
-                        </div>
-                        </div>
-                        
-                      <div className="flex items-center justify-between p-2 bg-green-100 dark:bg-green-900/40 rounded border border-green-200 dark:border-green-700">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-green-800 dark:text-green-300">
-                            Team Charter.docx
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-green-600 dark:text-green-400">850 KB</span>
-                          <button className="text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200">
-                            <Download size={12} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-green-100 dark:bg-green-900/40 rounded border border-green-200 dark:border-green-700">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-green-800 dark:text-green-300">
-                            Project Timeline.xlsx
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-green-600 dark:text-green-400">45 KB</span>
-                          <button className="text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200">
-                            <Download size={12} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-green-100 dark:bg-green-900/40 rounded border border-green-200 dark:border-green-700">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M5,3H7V5H21V7H7V13A3,3 0 0,0 10,16H14A3,3 0 0,0 17,13V8H19V13A5,5 0 0,1 14,18H10A5,5 0 0,1 5,13V3Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-green-800 dark:text-green-300">
-                            System Architecture.png
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-green-600 dark:text-green-400">2.1 MB</span>
-                          <button className="text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200">
-                            <Download size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      setMilestones(prev => [milestone, ...prev])
+      setMilestoneType('Weekly Meeting')
+      setKpisAchieved('')
+      setNextSteps('')
+      setGithubAccessible(false)
+      setFileUpdatedOnGithub(false)
+      setIsAddMilestoneModalOpen(false)
+    }
 
-            {/* Milestone 2 */}
-            <div className="relative flex items-start gap-4 pb-8">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center relative z-10">
-                <Play size={16} className="text-white" />
-              </div>
-              <div className="flex-grow">
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <h4 className="font-semibold text-blue-900 dark:text-blue-300 mb-1">Frontend Development</h4>
-                  <p className="text-sm text-blue-700 dark:text-blue-400 mb-3">
-                    React components, UI/UX design implementation, and responsive design
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-500 mb-2">
-                    <Calendar size={12} />
-                    <span>In Progress - Due Oct 15, 2024</span>
-                  </div>
-                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mb-3">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                      style={{ width: '75%' }}></div>
-                  </div>
+    const handleClose = () => {
+      setIsAddMilestoneModalOpen(false)
+      setMilestoneType('Weekly Meeting')
+      setKpisAchieved('')
+      setNextSteps('')
+      setGithubAccessible(false)
+      setFileUpdatedOnGithub(false)
+    }
 
-                  {/* Documents & Deliverables */}
-                  <div className="mt-3 p-3 bg-white dark:bg-blue-950/30 rounded-lg border border-blue-300 dark:border-blue-700">
-                    <h5 className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-1">
-                      <FileText size={12} />
-                      Documents & Deliverables (3 files)
-                    </h5>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 bg-blue-100 dark:bg-blue-900/40 rounded border border-blue-200 dark:border-blue-700">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-blue-800 dark:text-blue-300">
-                            UI Wireframes.fig
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-blue-600 dark:text-blue-400">3.4 MB</span>
-                          <button className="text-blue-700 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-200">
-                            <Download size={12} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-blue-100 dark:bg-blue-900/40 rounded border border-blue-200 dark:border-blue-700">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-blue-800 dark:text-blue-300">
-                            Component Library.zip
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-blue-600 dark:text-blue-400">5.7 MB</span>
-                          <button className="text-blue-700 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-200">
-                            <Download size={12} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-blue-100 dark:bg-blue-900/40 rounded border border-blue-200 dark:border-blue-700 opacity-60">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
-                            Testing Report.pdf
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-blue-500 dark:text-blue-500">Pending</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+    if (!isAddMilestoneModalOpen) return null
 
-            {/* Milestone 3 */}
-            <div className="relative flex items-start gap-4 pb-8">
-              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center relative z-10">
-                <Clock size={16} className="text-white" />
-              </div>
-              <div className="flex-grow">
-                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
-                  <h4 className="font-semibold text-orange-900 dark:text-orange-300 mb-1">Backend Development</h4>
-                  <p className="text-sm text-orange-700 dark:text-orange-400 mb-3">
-                    API development, database design, authentication, and server setup
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-500 mb-3">
-                    <Calendar size={12} />
-                    <span>Upcoming - Nov 1, 2024</span>
-                  </div>
-
-                  {/* Planned Documents */}
-                  <div className="mt-3 p-3 bg-white dark:bg-orange-950/30 rounded-lg border border-orange-300 dark:border-orange-700">
-                    <h5 className="text-xs font-semibold text-orange-800 dark:text-orange-300 mb-2 flex items-center gap-1">
-                      <FileText size={12} />
-                      Planned Deliverables (5 files)
-                    </h5>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 bg-orange-100 dark:bg-orange-900/40 rounded border border-orange-200 dark:border-orange-700 opacity-70">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-orange-700 dark:text-orange-400">
-                            API Documentation.pdf
-                          </span>
-                        </div>
-                        <span className="text-xs text-orange-500 dark:text-orange-500">Planned</span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-orange-100 dark:bg-orange-900/40 rounded border border-orange-200 dark:border-orange-700 opacity-70">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-orange-700 dark:text-orange-400">
-                            Database Schema.sql
-                          </span>
-                        </div>
-                        <span className="text-xs text-orange-500 dark:text-orange-500">Planned</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Milestone 4 */}
-            <div className="relative flex items-start gap-4">
-              <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center relative z-10">
-                <Award size={16} className="text-white" />
-              </div>
-              <div className="flex-grow">
-                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-300 mb-1">Testing & Deployment</h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-400 mb-3">
-                    Quality assurance, testing, bug fixes, and final deployment
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-500 mb-3">
-                    <Calendar size={12} />
-                    <span>Planned - Dec 10, 2024</span>
-                  </div>
-
-                  {/* Future Documents */}
-                  <div className="mt-3 p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-gray-300 dark:border-gray-600">
-                    <h5 className="text-xs font-semibold text-gray-700 dark:text-gray-400 mb-2 flex items-center gap-1">
-                      <FileText size={12} />
-                      Expected Deliverables (3 files)
-                    </h5>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700/50 rounded border border-gray-200 dark:border-gray-600 opacity-60">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Final Report.pdf</span>
-                        </div>
-                        <span className="text-xs text-gray-500">Future</span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700/50 rounded border border-gray-200 dark:border-gray-600 opacity-60">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                          </svg>
-                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                            Deployment Guide.md
-                          </span>
-                        </div>
-                        <span className="text-xs text-gray-500">Future</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-
-  const MeetingTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-          <MessageSquare size={20} />
-          Meetings & Communication
-        </h3>
-
-        <div className="space-y-4">
-          {/* Next Meeting */}
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-blue-900 dark:text-blue-300">Next Meeting</h4>
-              <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">Upcoming</span>
-            </div>
-            <p className="text-sm text-blue-700 dark:text-blue-400 mb-2">Weekly Progress Review</p>
-            <div className="flex items-center gap-4 text-xs text-blue-600 dark:text-blue-500">
-              <div className="flex items-center gap-1">
-                <Calendar size={12} />
-                <span>Oct 2, 2024</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Clock size={12} />
-                <span>2:00 PM - 3:00 PM</span>
-              </div>
-            </div>
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">ADD MILESTONE</h2>
+            <button
+              onClick={handleClose}
+              className="p-1 text-gray-400 hover:text-gray-600 rounded"
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          {/* Meeting History */}
-          <div>
-            <h4 className="font-medium text-gray-900 dark:text-gray-300 mb-3">Recent Meetings</h4>
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {/* Date Field */}
+            <div>
+              <input
+                type="text"
+                value={new Date().toLocaleDateString('en-GB')}
+                readOnly
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-gray-50 text-gray-600"
+              />
+            </div>
+
+            {/* Milestone Type Dropdown */}
+            <div>
+              <select
+                value={milestoneType}
+                onChange={(e) => setMilestoneType(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="Weekly Meeting">Weekly Meeting</option>
+                <option value="Monthly Meeting">Monthly Meeting</option>
+                <option value="Mid-Review">Mid-Review</option>
+                <option value="End Review">End Review</option>
+                <option value="Others">Others</option>
+              </select>
+            </div>
+
+            {/* KPIs Achieved Field */}
+            <div>
+              <textarea
+                value={kpisAchieved}
+                onChange={(e) => setKpisAchieved(e.target.value)}
+                placeholder="KPIs Achieved"
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                         placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Next Steps Field */}
+            <div>
+              <textarea
+                value={nextSteps}
+                onChange={(e) => setNextSteps(e.target.value)}
+                placeholder="Next Steps"
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                         placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* GitHub Toggle Options */}
             <div className="space-y-3">
-              <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Project Kickoff Meeting</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Sep 25, 2024</span>
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                  Initial project discussion and role assignments
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded">
-                    Completed
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Duration: 1h 30m</span>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Github accessible to all team members?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={githubAccessible}
+                    onChange={(e) => setGithubAccessible(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
               </div>
 
-              <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Requirements Analysis</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Sep 22, 2024</span>
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                  Detailed requirements gathering and technical specifications
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded">
-                    Completed
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Duration: 2h</span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Weekly Standup #3</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Sep 18, 2024</span>
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                  Progress updates and blocker discussions
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded">
-                    Completed
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Duration: 45m</span>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">File updated on Github?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fileUpdatedOnGithub}
+                    onChange={(e) => setFileUpdatedOnGithub(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
               </div>
             </div>
-          </div>
 
-          {/* Communication Channels */}
-          <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
-            <h4 className="font-semibold text-indigo-900 dark:text-indigo-300 mb-3">Communication Channels</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
-                <MessageSquare size={14} />
-                <span>Slack: #fullstack-bootcamp</span>
+            {/* Attachment Section */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-700">Attachment</span>
               </div>
-              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
-                <Calendar size={14} />
-                <span>Weekly meetings: Wednesdays 2:00 PM</span>
-              </div>
-              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
-                <Users size={14} />
-                <span>Daily standups: 9:00 AM (Mon-Fri)</span>
-              </div>
+              <button
+                type="button"
+                className="w-full px-4 py-2 text-sm border border-gray-300 rounded bg-gray-50 
+                         text-gray-600 hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <Upload size={16} />
+                Upload Attachment
+              </button>
             </div>
-          </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium 
+                       rounded transition-all duration-200"
+            >
+              Submit
+            </button>
+          </form>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
-  const TodoTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-          <ClipboardCheck size={20} />
-          Tasks & To-Do Items
-        </h3>
+  const MilestoneTab = () => {
+    const handleLikeMilestone = (milestoneId) => {
+      setMilestones(prev => prev.map(milestone => 
+        milestone.id === milestoneId 
+          ? { ...milestone, likes: milestone.likes + 1 }
+          : milestone
+      ))
+    }
 
-        <div className="space-y-6">
-          {/* High Priority Tasks */}
-          <div>
-            <h4 className="font-medium text-red-600 dark:text-red-400 mb-3 flex items-center gap-2">
-              <AlertCircle size={16} />
-              High Priority
-            </h4>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                <input type="checkbox" className="w-4 h-4 text-red-600 rounded" />
-                <span className="flex-grow text-sm text-red-800 dark:text-red-300">
-                  Fix authentication bug in login component
-                </span>
-                <span className="text-xs bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 px-2 py-1 rounded">
-                  Due: Oct 1
-                </span>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                <input type="checkbox" className="w-4 h-4 text-red-600 rounded" />
-                <span className="flex-grow text-sm text-red-800 dark:text-red-300">Complete API documentation</span>
-                <span className="text-xs bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 px-2 py-1 rounded">
-                  Due: Sep 30
-                </span>
-              </div>
+    return (
+      <div className="space-y-4">
+        {/* Header with Add Button */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Project Milestones</h3>
+          <button 
+            onClick={() => setIsAddMilestoneModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium 
+                     transition-all duration-200 flex items-center gap-2"
+          >
+            <Plus size={14} />
+            Add Milestone
+          </button>
+        </div>
+
+        {/* Dynamic Milestone Cards */}
+        <div className="space-y-4">
+          {milestones.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              <Target size={48} className="mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium mb-2">No milestones yet</p>
+              <p className="text-sm">Click "Add Milestone" to create your first milestone</p>
             </div>
-          </div>
+          ) : (
+            milestones.map((milestone) => (
+              <div key={milestone.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`w-8 h-8 bg-gradient-to-br ${milestone.color} rounded-full flex items-center justify-center text-white font-semibold text-sm`}>
+                      {milestone.authorInitials}
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base">{milestone.title}</h4>
+                        {milestone.status === 'completed' && (
+                          <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium rounded-full">
+                            Completed
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                        <span className={`${milestone.status === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'} font-medium`}>
+                          {milestone.author}
+                        </span>
+                        <span>{milestone.date}</span>
+                      </div>
+                    </div>
+                    <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                      <MoreHorizontal size={16} />
+                    </button>
+                  </div>
 
-          {/* Medium Priority Tasks */}
-          <div>
-            <h4 className="font-medium text-orange-600 dark:text-orange-400 mb-3 flex items-center gap-2">
-              <Clock size={16} />
-              Medium Priority
-            </h4>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                <input type="checkbox" defaultChecked className="w-4 h-4 text-orange-600 rounded" />
-                <span className="flex-grow text-sm text-orange-800 dark:text-orange-300 line-through">
-                  Implement user dashboard layout
-                </span>
-                <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 px-2 py-1 rounded">
-                  Completed
-                </span>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                <input type="checkbox" className="w-4 h-4 text-orange-600 rounded" />
-                <span className="flex-grow text-sm text-orange-800 dark:text-orange-300">
-                  Add form validation to all inputs
-                </span>
-                <span className="text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300 px-2 py-1 rounded">
-                  Due: Oct 5
-                </span>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                <input type="checkbox" className="w-4 h-4 text-orange-600 rounded" />
-                <span className="flex-grow text-sm text-orange-800 dark:text-orange-300">Setup CI/CD pipeline</span>
-                <span className="text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300 px-2 py-1 rounded">
-                  Due: Oct 8
-                </span>
-              </div>
-            </div>
-          </div>
+                  {(milestone.observations || milestone.challenges) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                      {milestone.observations && (
+                        <div>
+                          <h5 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-2">Observation and Results</h5>
+                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-3 text-xs text-gray-700 dark:text-gray-300">
+                            {milestone.observations}
+                          </div>
+                        </div>
+                      )}
+                      {milestone.challenges && (
+                        <div>
+                          <h5 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-2">Challenges</h5>
+                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-3 text-xs text-gray-700 dark:text-gray-300">
+                            {milestone.challenges}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-          {/* Low Priority Tasks */}
-          <div>
-            <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
-              <CheckCircle2 size={16} />
-              Low Priority
-            </h4>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" />
-                <span className="flex-grow text-sm text-blue-800 dark:text-blue-300">
-                  Write unit tests for utility functions
-                </span>
-                <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded">
-                  Due: Oct 15
-                </span>
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => handleLikeMilestone(milestone.id)}
+                        className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-xs transition-colors"
+                      >
+                        <ThumbsUp size={12} />
+                        <span>{milestone.likes} {milestone.likes === 1 ? 'Like' : 'Likes'}</span>
+                      </button>
+                      <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-xs">
+                        <MessageCircle size={12} />
+                        <span>Add Comment</span>
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">GitHub Files</span>
+                      <div className="w-8 h-4 bg-blue-500 rounded-full relative">
+                        <div className="w-3 h-3 bg-white rounded-full absolute right-0.5 top-0.5"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded" />
-                <span className="flex-grow text-sm text-blue-800 dark:text-blue-300 line-through">
-                  Update project README
-                </span>
-                <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 px-2 py-1 rounded">
-                  Completed
-                </span>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" />
-                <span className="flex-grow text-sm text-blue-800 dark:text-blue-300">Optimize images and assets</span>
-                <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded">
-                  Due: Oct 20
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Summary */}
-          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <h4 className="font-medium text-gray-900 dark:text-gray-300 mb-3">Task Summary</h4>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">8</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Total Tasks</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">3</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Completed</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">5</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Remaining</div>
-              </div>
-            </div>
-          </div>
+            ))
+          )}
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const tabs = [
     { id: 'overview', label: 'Overview', component: OverviewTab },
     { id: 'team', label: 'Team', component: TeamTab },
     { id: 'milestone', label: 'Milestone', component: MilestoneTab },
-    { id: 'meeting', label: 'Meeting', component: MeetingTab },
-    { id: 'todo', label: 'To-Do', component: TodoTab },
   ]
 
   // --- HELPER FUNCTIONS ---
@@ -1286,7 +1092,7 @@ export default function WorkletDetailPage() {
       <LeftSidebar />
       
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto bg-transparent dark:bg-slate-900">
+      <main className="flex-1 bg-transparent dark:bg-slate-900">
         <div className="max-w-7xl mx-auto p-6 space-y-6">
           
           {/* Enhanced Header with Glassmorphism */}
@@ -1491,8 +1297,6 @@ export default function WorkletDetailPage() {
                     { id: 'overview', label: 'Overview', icon: <BookOpen size={16} /> },
                     { id: 'team', label: 'Team', icon: <Users size={16} /> },
                     { id: 'milestone', label: 'Milestones', icon: <Target size={16} /> },
-                    { id: 'meeting', label: 'Meetings', icon: <MessageSquare size={16} /> },
-                    { id: 'todo', label: 'Tasks', icon: <ClipboardCheck size={16} /> },
                     { id: 'files', label: 'Files', icon: <FolderOpen size={16} /> }
                   ].map((tab) => (
                     <button
@@ -1622,35 +1426,9 @@ export default function WorkletDetailPage() {
                 )}
 
                 {/* Other tabs can be added here following the same pattern */}
-                {activeTab === 'milestone' && (
-                  <GlassCard className="p-6">
-                    <div className="text-center py-12">
-                      <Target size={48} className="mx-auto mb-4 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Milestone Tracking</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Coming soon with advanced project timeline visualization</p>
-                    </div>
-                  </GlassCard>
-                )}
+                {activeTab === 'milestone' && <MilestoneTab />}
 
-                {activeTab === 'meeting' && (
-                  <GlassCard className="p-6">
-                    <div className="text-center py-12">
-                      <MessageSquare size={48} className="mx-auto mb-4 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Meeting Management</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Schedule and manage team meetings</p>
-                    </div>
-                  </GlassCard>
-                )}
 
-                {activeTab === 'todo' && (
-                  <GlassCard className="p-6">
-                    <div className="text-center py-12">
-                      <ClipboardCheck size={48} className="mx-auto mb-4 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Task Management</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Track progress and manage project tasks</p>
-                    </div>
-                  </GlassCard>
-                )}
 
                 {activeTab === 'files' && (
                   <GlassCard className="p-6">
@@ -1897,6 +1675,9 @@ export default function WorkletDetailPage() {
           progress: worklet.progress
         } : null}
       />
+
+      {/* Add Milestone Modal */}
+      <AddMilestoneModal />
       
       {isFeedbackOpen && worklet && (
         <FeedBack
@@ -1930,7 +1711,7 @@ export default function WorkletDetailPage() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6">
               <InternReferralForm
                 workletId={worklet.id}
                 preSelectedWorklet={{
