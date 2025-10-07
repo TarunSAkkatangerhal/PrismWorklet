@@ -1,3 +1,6 @@
+-- Data consistency: If completed_date is NULL, status should not be 'Completed'.
+-- This update ensures only worklets with a completed_date are marked as Completed.
+UPDATE worklets SET status = 'Ongoing' WHERE status = 'Completed' AND completed_date IS NULL;
 -- Initial SQL for MySQL when using docker-compose
 -- Creates basic schema if not using SQLAlchemy to create tables automatically
 
@@ -15,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   college_id INT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  active_till DATE,
   CONSTRAINT fk_users_college FOREIGN KEY (college_id) REFERENCES colleges(college_id)
 );
 
@@ -49,7 +52,8 @@ CREATE TABLE IF NOT EXISTS worklets (
   year INT NOT NULL,
   domain VARCHAR(100),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  completed_date Date
 );
 
 CREATE TABLE IF NOT EXISTS user_worklet_association (

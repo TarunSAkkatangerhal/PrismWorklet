@@ -166,14 +166,14 @@ const handleSignup = async (e) => {
       case "login":
         return (
           <div className="flex min-h-screen bg-gray-100 items-center justify-center p-4"
-            style={{
-              backgroundImage: "linear-gradient(to right, #e0e7ff, #f3e8ff, #bae6fd)",
-            }}
-          >
-            <div className="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col md:flex-row w-full max-w-3xl">
-              {/* Left Form */}
-              <div className="w-full md:w-1/2 p-8 flex flex-col justify-center">
-                <h2 className="text-3xl font-bold mb-6 text-gray-800">
+          style={{
+            backgroundImage: "linear-gradient(to right, #e0e7ff, #f3e8ff, #bae6fd)",
+          }}
+        >
+          <div className="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col md:flex-row w-full max-w-3xl">
+            {/* Left Form */}
+            <div className="w-full md:w-1/2 p-8 flex flex-col justify-center">
+              <h2 className="text-3xl font-bold mb-6 text-gray-800">
                   Login
                 </h2>
                 <form className="space-y-4" onSubmit={handleLoginSubmit}>
@@ -242,18 +242,6 @@ const handleSignup = async (e) => {
                     Sign Up
                   </button>
                 </p>
-                {/* Forgot Password link shown only on login error */}
-                {message && message.toLowerCase().includes("login failed") && (
-                  <div className="mt-2 text-center">
-                    <button
-                      type="button"
-                      className="text-blue-600 hover:underline text-sm font-medium"
-                      onClick={() => navigate('/forgot-password')}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                )}
               </div>
               {/* Right Side Image */}
               <div className="hidden md:block md:w-1/2">

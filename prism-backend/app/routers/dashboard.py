@@ -1,13 +1,14 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func, case
+from sqlalchemy import and_, func, case, or_
 from app.database import get_db
 from app.models import User, Worklet, UserWorkletAssociation, Paper, Patent
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from app.core.config import settings
-from datetime import date
+from datetime import date, datetime, time
 from calendar import monthrange
+from typing import Optional
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -32,7 +33,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
 @router.get("/statistics")
-def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_db)):
+def get_dashboard_statistics(year: int | None = None, debug: bool | None = False, db: Session = Depends(get_db)):
     """Get platform-wide dashboard statistics.
     When a year is provided, compute KPIs scoped to that year using active-window semantics:
       - total_worklets: worklets active at any point in the year (overlap)
@@ -42,34 +43,70 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
       - publications: counts of papers/patents in that year
     Without year, returns overall totals.
     """
-    try:
-        today = date.today()
-        selected_year = year
+    today = date.today()
+    selected_year = year
 
+    def safe_count(q) -> int:
+        try:
+            return int(q.count())
+        except Exception as e:
+            print(f"[WARN] count failed: {e}")
+            return 0
+
+    # Role matching: compare Enum directly to expected values
+    role_eq = lambda col, val: col == val
+
+    # Collect debug info containers
+    debug_info = {}
+
+    try:
         if selected_year is None:
-            # Overall totals (no year filter)
-            total_worklets = db.query(Worklet).count()
-            completed_worklets = db.query(Worklet).filter(Worklet.status == "Completed").count()
-            # Only count worklets with status 'Ongoing'
-            ongoing_worklets = db.query(Worklet).filter(Worklet.status == "Ongoing").count()
-            total_mentors = db.query(User).filter(User.role == "Mentor").count()
-            total_students = db.query(User).filter(User.role == "Student").count()
-            total_professors = db.query(User).filter(User.role == "Professor").count()
-            papers_count = db.query(Paper).count()
-            patents_count = db.query(Patent).count()
+            # Count all mentors and students regardless of created_at or active_till
+            mentors_list = db.query(User.id, User.name).filter(role_eq(User.role, "Mentor")).all()
+            students_list = db.query(User.id, User.name).filter(role_eq(User.role, "Student")).all()
+            professors_list = db.query(User.id, User.name).filter(role_eq(User.role, "Professor")).all()
+
+            total_mentors = len(mentors_list)
+            total_students = len(students_list)
+            total_professors = len(professors_list)
+
+            total_worklets = safe_count(db.query(Worklet))
+            completed_worklets = safe_count(
+                db.query(Worklet).filter(
+                    and_(Worklet.status == "Completed", Worklet.completed_date.isnot(None))
+                )
+            )
+            ongoing_worklets = safe_count(db.query(Worklet).filter(Worklet.status == "Ongoing"))
+
+            # Debug: show distinct role distribution in Users table
+            role_distribution = db.query(User.role, func.count(User.id)).group_by(User.role).all()
+            print(f"[DEBUG] Users role distribution: {role_distribution}")
+            print(f"[DEBUG] Users table mentors: {len(mentors_list)} -> {[m.id for m in mentors_list]}")
+            print(f"[DEBUG] Users table students: {len(students_list)} -> {[s.id for s in students_list]}")
+
+            print("[DEBUG] All Years counts (Users table only):")
+            print(
+                f"  users_table: mentors={total_mentors}, students={total_students}, professors={total_professors}"
+            )
+            if debug:
+                debug_info["users_role_distribution"] = [(str(r), int(c)) for r, c in role_distribution]
+                debug_info["mentors_ids_all"] = [int(m.id) for m in mentors_list]
+                debug_info["students_ids_all"] = [int(s.id) for s in students_list]
+            papers_count = safe_count(db.query(Paper))
+            patents_count = safe_count(db.query(Patent))
         else:
             year_start = date(selected_year, 1, 1)
             year_end = date(selected_year, 12, 31)
+            start_dt = datetime.combine(year_start, time.min)
+            end_dt = datetime.combine(year_end, time.max)
 
             worklets = db.query(Worklet).all()
+
             def effective_window(w: Worklet):
-                w_year = getattr(w, 'year', None)
-                s = getattr(w, 'start_date', None) or (date(w_year, 1, 1) if w_year else None)
-                e = getattr(w, 'end_date', None) or today
-                # Clamp to the year window to evaluate overlap
+                s = getattr(w, "start_date", None)
+                e = getattr(w, "end_date", None) or today
                 return s, e
 
-            # Determine which worklets were active at any point in the year
             year_active_ids: set[int] = set()
             completed_in_year = 0
             ongoing_in_year = 0
@@ -77,17 +114,27 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
                 s, e = effective_window(w)
                 if s is None:
                     continue
-                # Overlap check
                 if not (e < year_start or s > year_end):
                     year_active_ids.add(w.id)
-                    status = str(getattr(w, 'status', '') or '')
-                    end_d = getattr(w, 'end_date', None)
-                    # Completed count: end_date within year
-                    if end_d is not None and year_start <= end_d <= year_end:
+                    status = str(getattr(w, "status", "") or "")
+                    completed_d = getattr(w, "completed_date", None)
+                    if (
+                        status == "Completed"
+                        and completed_d is not None
+                        and year_start <= completed_d <= year_end
+                    ):
                         completed_in_year += 1
-                    # Ongoing: active during year but not completed/terminated within the year
-                    is_terminated_in_year = (status == 'Terminated' and end_d is not None and year_start <= end_d <= year_end)
-                    is_completed_in_year = (status == 'Completed' and end_d is not None and year_start <= end_d <= year_end)
+                    end_d = getattr(w, "end_date", None)
+                    is_terminated_in_year = (
+                        status == "Terminated"
+                        and end_d is not None
+                        and year_start <= end_d <= year_end
+                    )
+                    is_completed_in_year = (
+                        status == "Completed"
+                        and completed_d is not None
+                        and year_start <= completed_d <= year_end
+                    )
                     if not is_terminated_in_year and not is_completed_in_year:
                         ongoing_in_year += 1
 
@@ -95,24 +142,62 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
             completed_worklets = completed_in_year
             ongoing_worklets = ongoing_in_year
 
-            # Unique user counts by role tied to year-active worklets
-            total_mentors = 0
-            total_students = 0
-            total_professors = 0
-            if year_active_ids:
-                assocs = db.query(UserWorkletAssociation).filter(UserWorkletAssociation.worklet_id.in_(list(year_active_ids))).all()
-                mentor_ids = {a.user_id for a in assocs if str(a.role_in_worklet) == 'Mentor'}
-                student_ids = {a.user_id for a in assocs if str(a.role_in_worklet) == 'Student'}
-                professor_ids = {a.user_id for a in assocs if str(a.role_in_worklet) == 'Professor'}
-                total_mentors = len(mentor_ids)
-                total_students = len(student_ids)
-                total_professors = len(professor_ids)
+            # Overlap logic: user was active at any point during the year
+            mentors_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
+                role_eq(User.role, "Mentor"),
+                User.created_at <= end_dt.date(),
+                or_(User.active_till == None, User.active_till >= year_start),
+            ).all()
+            students_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
+                role_eq(User.role, "Student"),
+                User.created_at <= end_dt.date(),
+                or_(User.active_till == None, User.active_till >= year_start),
+            ).all()
+            professors_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
+                role_eq(User.role, "Professor"),
+                User.created_at <= end_dt.date(),
+                or_(User.active_till == None, User.active_till >= year_start),
+            ).all()
 
-            # Publications within year
+            total_mentors = len(mentors_year)
+            total_students = len(students_year)
+            total_professors = len(professors_year)
+
+            # Debug: show distinct role distribution among users active in year
+            active_roles_dist = db.query(User.role, func.count(User.id)).filter(
+                User.created_at <= end_dt.date(),
+                or_(User.active_till == None, User.active_till >= year_start),
+            ).group_by(User.role).all()
+            print(f"[DEBUG] Active-year Users role distribution ({selected_year}): {active_roles_dist}")
+            if debug:
+                debug_info["active_year_role_distribution"] = [(str(r), int(c)) for r, c in active_roles_dist]
+                debug_info["mentors_ids_year"] = [int(m.id) for m in mentors_year]
+                debug_info["mentors_details_year"] = [
+                    {"id": int(m.id), "name": m.name, "created_at": str(m.created_at), "active_till": str(m.active_till)} for m in mentors_year
+                ]
+
+            # Users table only for year-specific totals
+            print("[DEBUG] Year-specific counts (Users table only):")
+            print(
+                f"  active_window: mentors={total_mentors}, students={total_students}, professors={total_professors}"
+            )
+
             papers_count = db.query(Paper).filter(Paper.publication_year == selected_year).count()
             patents_count = db.query(Patent).filter(Patent.filing_year == selected_year).count()
 
-        return {
+        print("[DEBUG] Dashboard statistics computed:")
+        print(f"  total_mentors: {total_mentors}")
+        print(f"  total_worklets: {total_worklets}")
+        print(f"  total_students: {total_students}")
+        print(f"  ongoing_worklets: {ongoing_worklets}")
+        print(f"  completed_worklets: {completed_worklets}")
+        print(f"  total_professors: {total_professors}")
+        print(f"  papers_count: {papers_count}")
+        print(f"  patents_count: {patents_count}")
+        print(
+            f"  completion_rate: {round((completed_worklets / total_worklets * 100) if total_worklets > 0 else 0, 1)}"
+        )
+        result = {
             "total_mentors": total_mentors,
             "total_worklets": total_worklets,
             "total_students": total_students,
@@ -120,173 +205,17 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
             "completed_worklets": completed_worklets,
             "completion_rate": round((completed_worklets / total_worklets * 100) if total_worklets > 0 else 0, 1),
             "total_professors": total_professors,
-            "publications": {
-                "papers": papers_count,
-                "patents": patents_count
-            }
+            "publications": {"papers": papers_count, "patents": patents_count},
         }
+        if debug:
+            result["debug"] = debug_info
+        return result
     except Exception as e:
-        print(f"Error getting dashboard statistics: {e}")
+        import traceback
+        print("[ERROR] Exception in get_dashboard_statistics:")
+        print(e)
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.get("/mentor-statistics")
-def get_mentor_statistics(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get statistics specific to the logged-in mentor"""
-    try:
-        mentor_id = current_user.id
-        
-        # Get mentor's worklet associations
-        mentor_associations = db.query(UserWorkletAssociation).filter(
-            and_(
-                UserWorkletAssociation.user_id == mentor_id,
-                UserWorkletAssociation.role_in_worklet == 'Mentor'
-            )
-        ).all()
-        
-        worklet_ids = [assoc.worklet_id for assoc in mentor_associations]
-        
-        if not worklet_ids:
-            # Mentor has no worklets
-            return {
-                "status_counts": {
-                    "Ongoing": 0,
-                    "Completed": 0,
-                    "On Hold": 0,
-                    "Not Started": 0
-                },
-                "engagement_data": {
-                    "My Worklets": 0,
-                    "My Students": 0,
-                    "Avg Progress": 0,
-                    "High Priority": 0,
-                    "Papers Published": 0,
-                    "Patents Filed": 0
-                },
-                "performance_counts": {
-                    "Excellent": 0,
-                    "Very Good": 0,
-                    "Good": 0,
-                    "Needs Attention": 0
-                },
-                "risk_data": {
-                    "High Risk": 0,
-                    "Medium Risk": 0,
-                    "Low Risk": 0
-                }
-            }
-        
-        # Get worklets for this mentor
-        mentor_worklets = db.query(Worklet).filter(Worklet.id.in_(worklet_ids)).all()
-        
-        # Count by completion status from associations
-        # Status buckets are simplified based on Worklet.status
-        status_counts = {"Ongoing": 0, "Completed": 0, "On Hold": 0}
-        for assoc in mentor_associations:
-            w = db.query(Worklet).filter(Worklet.id == assoc.worklet_id).first()
-            if not w:
-                continue
-            if str(w.status) in status_counts:
-                status_counts[str(w.status)] += 1
-        
-        # Count students assigned to mentor's worklets
-        student_count = db.query(UserWorkletAssociation).filter(
-            and_(
-                UserWorkletAssociation.worklet_id.in_(worklet_ids),
-                UserWorkletAssociation.role_in_worklet == 'Student'
-            )
-        ).count()
-        
-        # Calculate average progress
-        # Placeholder: progress no longer tracked on association
-        avg_progress = 0
-        
-        # Count high priority (worklets with low progress or high risk)
-        high_priority = 0
-        for worklet in mentor_worklets:
-            # Placeholder for risk/priority
-            if worklet.status == 'Ongoing':
-                high_priority += 1
-        
-        # Performance analysis based on progress and worklet metrics
-        performance_counts = {
-            "Excellent": 0,
-            "Very Good": 0, 
-            "Good": 0,
-            "Needs Attention": 0
-        }
-        
-        # Placeholder performance bucketing based on worklet status
-        for assoc in mentor_associations:
-            w = db.query(Worklet).filter(Worklet.id == assoc.worklet_id).first()
-            if not w:
-                continue
-            if w.status == 'Completed':
-                performance_counts["Excellent"] += 1
-            elif w.status == 'Ongoing':
-                performance_counts["Good"] += 1
-            else:
-                performance_counts["Needs Attention"] += 1
-        
-        # Risk analysis based on worklet data
-        risk_data = {
-            "High Risk": 0,
-            "Medium Risk": 0,
-            "Low Risk": 0
-        }
-        
-        for worklet in mentor_worklets:
-            # Simple placeholder risk mapping
-            if worklet.status == 'Ongoing':
-                risk_data["Medium Risk"] += 1
-            elif worklet.status == 'Completed':
-                risk_data["Low Risk"] += 1
-            else:
-                risk_data["High Risk"] += 1
-        
-        # Mock data for papers and patents (could be enhanced with real tracking)
-        papers_published = len([w for w in mentor_worklets if w.status == "Completed"]) // 2
-        patents_filed = len([w for w in mentor_worklets if w.status == "Completed"]) // 3
-        
-        return {
-            "status_counts": status_counts,
-            "engagement_data": {
-                "My Worklets": len(mentor_associations),
-                "My Students": student_count,
-                "Avg Progress": avg_progress,
-                "High Priority": high_priority,
-                "Papers Published": papers_published,
-                "Patents Filed": patents_filed
-            },
-            "performance_counts": performance_counts,
-            "risk_data": risk_data,
-            "mentor_info": {
-                "name": current_user.name,
-                "email": current_user.email,
-                "total_worklets": len(mentor_associations),
-                "active_worklets": len([a for a in mentor_associations])
-            }
-        }
-        
-    except Exception as e:
-        print(f"Error getting mentor statistics: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-@router.get("/mentor/{mentor_id}/detailed-stats")
-def get_mentor_detailed_stats(
-    mentor_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get detailed statistics for a specific mentor (admin or self-access)"""
-    try:
-        # Allow access only if user is the mentor or has admin role
-        if current_user.id != mentor_id and current_user.role not in ["Professor", "Admin"]:
-            raise HTTPException(status_code=403, detail="Access denied")
-        
-        # Get mentor user
         mentor = db.query(User).filter(
             and_(User.id == mentor_id, User.role == "Mentor")
         ).first()
@@ -303,8 +232,7 @@ def get_mentor_detailed_stats(
         ).filter(
             and_(
                 UserWorkletAssociation.user_id == mentor_id,
-                UserWorkletAssociation.role_in_worklet == 'Mentor',
-                UserWorkletAssociation.is_active == True
+                UserWorkletAssociation.role_in_worklet == 'Mentor'
             )
         ).all()
         
@@ -317,8 +245,7 @@ def get_mentor_detailed_stats(
             students = db.query(UserWorkletAssociation).filter(
                 and_(
                     UserWorkletAssociation.worklet_id == worklet.id,
-                    UserWorkletAssociation.role_in_worklet == 'Student',
-                    UserWorkletAssociation.is_active == True
+                    UserWorkletAssociation.role_in_worklet == 'Student'
                 )
             ).count()
             
@@ -428,7 +355,7 @@ def get_platform_monthly_trends(
             # Effective end
             if status == 'Completed':
                 end_eff = end_date_val if end_date_val is not None else now_d
-                completed_date = end_date_val
+                completed_date = getattr(w, 'completed_date', None)
             else:
                 end_eff = end_date_val if end_date_val is not None else now_d
                 completed_date = None
@@ -447,18 +374,22 @@ def get_platform_monthly_trends(
                 if completed_date is not None and (m['start'] <= completed_date <= m['end']):
                     m['completed'] += 1
 
-        # Years list from worklets
+        # Years list from actual dates only (start_date, end_date, completed_date), capped to current year
         years_set: set[int] = set()
         for w in worklets:
-            if getattr(w, 'year', None) is not None:
-                years_set.add(int(getattr(w, 'year')))
-            if getattr(w, 'start_date', None) is not None:
-                years_set.add(int(getattr(w, 'start_date').year))
-            if getattr(w, 'end_date', None) is not None:
-                years_set.add(int(getattr(w, 'end_date').year))
+            sd = getattr(w, 'start_date', None)
+            ed = getattr(w, 'end_date', None)
+            cd = getattr(w, 'completed_date', None)
+            if sd is not None:
+                years_set.add(int(sd.year))
+            if ed is not None:
+                years_set.add(int(ed.year))
+            if cd is not None:
+                years_set.add(int(cd.year))
         if not years_set:
             years_set.add(today.year)
-
+        # Only include present years up to current year (no future, no filled gaps)
+        present_years = sorted([y for y in years_set if y <= today.year])
         return {
             "monthly": [{
                 "month": m['month'],
@@ -468,7 +399,7 @@ def get_platform_monthly_trends(
                 "order": m['order'],
                 "month_key": m['month_key']
             } for m in months],
-            "years": sorted(years_set)
+            "years": present_years
         }
     except Exception as e:
         print(f"Error computing platform monthly trends: {e}")
@@ -553,18 +484,22 @@ def get_platform_status_trends(
 
         years_set: set[int] = set()
         for w in worklets:
-            if getattr(w, 'year', None) is not None:
-                years_set.add(int(getattr(w, 'year')))
-            if getattr(w, 'start_date', None) is not None:
-                years_set.add(int(getattr(w, 'start_date').year))
-            if getattr(w, 'end_date', None) is not None:
-                years_set.add(int(getattr(w, 'end_date').year))
+            sd = getattr(w, 'start_date', None)
+            ed = getattr(w, 'end_date', None)
+            cd = getattr(w, 'completed_date', None)
+            if sd is not None:
+                years_set.add(int(sd.year))
+            if ed is not None:
+                years_set.add(int(ed.year))
+            if cd is not None:
+                years_set.add(int(cd.year))
         if not years_set:
             years_set.add(today.year)
+        present_years = sorted([y for y in years_set if y <= today.year])
 
         return {
             "monthly": [{k: v for k, v in m.items() if k not in ("start", "end")} for m in months],
-            "years": sorted(years_set)
+            "years": present_years
         }
     except Exception as e:
         print(f"Error computing platform status trends: {e}")

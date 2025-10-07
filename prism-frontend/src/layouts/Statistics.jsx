@@ -657,7 +657,25 @@ const ModernStatisticsDashboard = () => {
                     <LineChart data={statisticsData?.monthly_data || generateMonthlyData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
                       <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
-                      <YAxis stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+                      <YAxis
+                        stroke={isDarkMode ? '#9CA3AF' : '#6B7280'}
+                        domain={(() => {
+                          const data = statisticsData?.worklet_status_data || generateWorkletStatusData();
+                          const max = Math.max(...data.map(d => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)), 0);
+                          if (max <= 5) return [0, 5];
+                          return [0, 'auto'];
+                        })()}
+                        allowDecimals={false}
+                        tickFormatter={v => Number.isInteger(v) ? v : ''}
+                        ticks={(() => {
+                          const data = statisticsData?.worklet_status_data || generateWorkletStatusData();
+                          const max = Math.max(...data.map(d => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)), 0);
+                          if (max <= 5) return [0,1,2,3,4,5];
+                          // For larger data, generate integer ticks up to the next multiple of 5 above max
+                          const step = Math.ceil((max + 1) / 5);
+                          return Array.from({length: step * 5 + 1}, (_, i) => i).filter(x => x % step === 0);
+                        })()}
+                      />
                       <Tooltip content={<CustomTooltip isDark={isDarkMode} />} />
                       <Legend wrapperStyle={{ color: isDarkMode ? '#E5E7EB' : '#374151' }} />
                       <Line
@@ -737,7 +755,24 @@ const ModernStatisticsDashboard = () => {
                     <BarChart data={statisticsData?.worklet_status_data || generateWorkletStatusData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
                       <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
-                      <YAxis stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+                      <YAxis
+                        stroke={isDarkMode ? '#9CA3AF' : '#6B7280'}
+                        allowDecimals={false}
+                        tickFormatter={v => Number.isInteger(v) ? v : ''}
+                        domain={(() => {
+                          const data = statisticsData?.monthly_data || generateMonthlyData();
+                          const max = Math.max(...data.map(d => (d.worklets || 0) + (d.completed || 0)), 0);
+                          if (max <= 5) return [0, 5];
+                          return [0, 'auto'];
+                        })()}
+                        ticks={(() => {
+                          const data = statisticsData?.monthly_data || generateMonthlyData();
+                          const max = Math.max(...data.map(d => (d.worklets || 0) + (d.completed || 0)), 0);
+                          if (max <= 5) return [0,1,2,3,4,5];
+                          const step = Math.ceil((max + 1) / 5);
+                          return Array.from({length: step * 5 + 1}, (_, i) => i).filter(x => x % step === 0);
+                        })()}
+                      />
                       <Tooltip
                         content={<CustomTooltip isDark={isDarkMode} />}
                         cursor={{ fill: isDarkMode ? '#374151' : '#f3f4f6' }}

@@ -7,7 +7,6 @@ import Ray from "./layouts/Ray";
 import WorkletsPage from "./components/WorkletsPage";
 import WorkletDetailPage from './components/WorkletDetailsPage';
 import Login from "./components/login";
-import ForgotPassword from "./components/ForgotPassword";
 import StatisticsDashboard from "./layouts/Statistics";
 import MentorWorkletView from "./pages/MentorWorkletView"; 
 import StudentWorkletView from "./pages/StudentWorkletView";
@@ -40,7 +39,6 @@ export default function App() {
     <ThemeProvider>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route
           path="*"
           element={

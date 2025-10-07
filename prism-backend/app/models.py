@@ -43,6 +43,7 @@ class User(Base):
     college_id = Column(Integer, ForeignKey("colleges.college_id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    active_till = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
 
@@ -111,6 +112,7 @@ class Worklet(Base):
     description = Column(Text, nullable=True)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
+    completed_date = Column(Date, nullable=True)  # Date when worklet was actually completed
     status = Column(
         SAEnum("Approved", "Ongoing", "Completed", "Dropped", "On Hold", name="worklet_status_enum"),
         server_default="Ongoing",
