@@ -20,12 +20,36 @@ import LeftSidebar from "./Left";
 
 const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "Under Review"];
 
+// localStorage utility functions
+const STORAGE_KEY = 'worklets_view_state';
+
+const saveViewState = (state) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Failed to save view state to localStorage:', error);
+  }
+};
+
+const loadViewState = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch (error) {
+    console.warn('Failed to load view state from localStorage:', error);
+    return null;
+  }
+};
+
 export default function WorkletsPage() {
   const [workletsData, setWorkletsData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("Ongoing");
-  const [layout, setLayout] = useState("grid");
-  const [searchTerm, setSearchTerm] = useState("");
+  
+  // Initialize state with persisted values or defaults
+  const savedState = loadViewState();
+  const [activeTab, setActiveTab] = useState(savedState?.activeTab || "Ongoing");
+  const [layout, setLayout] = useState(savedState?.layout || "grid");
+  const [searchTerm, setSearchTerm] = useState(savedState?.searchTerm || "");
 
   // Sample data - replace with actual API call
   const sampleWorklets = [
@@ -113,6 +137,16 @@ export default function WorkletsPage() {
     setWorkletsData(sampleWorklets);
     setLoading(false);
   }, []);
+
+  // Persist view state changes to localStorage
+  useEffect(() => {
+    const viewState = {
+      activeTab,
+      layout,
+      searchTerm
+    };
+    saveViewState(viewState);
+  }, [activeTab, layout, searchTerm]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -471,7 +505,10 @@ export default function WorkletsPage() {
                 Try adjusting your search criteria or explore different categories to discover projects.
               </p>
               <button 
-                onClick={() => {setSearchTerm(""); setActiveTab("All");}}
+                onClick={() => {
+                  setSearchTerm(""); 
+                  setActiveTab("All");
+                }}
                 className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-xl 
                          hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105"
               >
