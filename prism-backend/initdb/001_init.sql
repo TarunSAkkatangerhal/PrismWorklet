@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   active_till DATE,
+  is_active INT
   CONSTRAINT fk_users_college FOREIGN KEY (college_id) REFERENCES colleges(college_id)
 );
 
