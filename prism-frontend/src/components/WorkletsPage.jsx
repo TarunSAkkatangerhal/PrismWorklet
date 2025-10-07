@@ -288,18 +288,11 @@ export default function WorkletsPage() {
                     
                     {/* Card Header */}
                     <div className="p-8 pb-6">
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start mb-4">
                         <div className="flex items-center space-x-3">
                           <span className="px-3 py-1 text-xs font-mono font-bold bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 rounded-lg">
                             {worklet.id}
                           </span>
-                          <div className="flex items-center space-x-1">
-                            {getStatusIcon(worklet.status)}
-                          </div>
-                        </div>
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 
-                                      rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                          <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-md"></div>
                         </div>
                       </div>
                       
@@ -414,9 +407,8 @@ export default function WorkletsPage() {
                           </Link>
                         </td>
                         <td className="px-8 py-6">
-                          <span className={`inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold shadow-md ${getStatusColor(worklet.status)}`}>
-                            {getStatusIcon(worklet.status)}
-                            <span className="ml-2">{worklet.status}</span>
+                          <span className={`inline-flex px-4 py-2 rounded-xl text-xs font-bold shadow-md ${getStatusColor(worklet.status)}`}>
+                            {worklet.status}
                           </span>
                         </td>
                         <td className="px-8 py-6">
