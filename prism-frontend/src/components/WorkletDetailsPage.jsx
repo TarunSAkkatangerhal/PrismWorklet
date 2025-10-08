@@ -775,15 +775,86 @@ export default function WorkletDetailPage() {
 
   // --- ADD MILESTONE MODAL ---
   const AddMilestoneModal = () => {
-    const [milestoneType, setMilestoneType] = useState('Weekly Meeting')
+    const [milestoneType, setMilestoneType] = useState('')
     const [kpisAchieved, setKpisAchieved] = useState('')
     const [nextSteps, setNextSteps] = useState('')
     const [githubAccessible, setGithubAccessible] = useState(false)
     const [fileUpdatedOnGithub, setFileUpdatedOnGithub] = useState(false)
+    const [deliverableTitle, setDeliverableTitle] = useState('')
+    const [deliverableDescription, setDeliverableDescription] = useState('')
+    const [testResults, setTestResults] = useState('')
+    const [documentationUpdated, setDocumentationUpdated] = useState(false)
+    const [selectedFile, setSelectedFile] = useState(null)
+
+    const milestoneTypes = [
+      'Weekly Meeting',
+      'Monthly Meeting', 
+      'Mid-Review',
+      'End Review',
+      'Others'
+    ]
 
     const handleSubmit = (e) => {
       e.preventDefault()
       if (!milestoneType.trim()) return
+
+      // Create field mappings based on milestone type
+      let fieldData = {}
+      switch (milestoneType) {
+        case 'Weekly Meeting':
+          fieldData = {
+            field1Label: 'Activities Completed',
+            field1Value: kpisAchieved,
+            field2Label: 'Next Steps',
+            field2Value: nextSteps,
+            toggleLabel: 'GitHub accessible to all team members',
+            toggleValue: githubAccessible
+          }
+          break
+        case 'Monthly Meeting':
+          fieldData = {
+            field1Label: 'KPIs Achieved',
+            field1Value: kpisAchieved,
+            field2Label: 'Next Steps',
+            field2Value: nextSteps,
+            toggleLabel: 'File updated on Github',
+            toggleValue: fileUpdatedOnGithub
+          }
+          break
+        case 'Mid-Review':
+          fieldData = {
+            field1Label: 'Observation and Results',
+            field1Value: kpisAchieved,
+            field2Label: 'Challenges',
+            field2Value: nextSteps,
+            toggleLabel: 'File uploaded on Github',
+            toggleValue: fileUpdatedOnGithub
+          }
+          break
+        case 'End Review':
+          fieldData = {
+            field1Label: 'Final Results & Observations',
+            field1Value: kpisAchieved,
+            field2Label: 'Challenges',
+            field2Value: nextSteps
+          }
+          break
+        case 'Others':
+          fieldData = {
+            field1Label: 'Details',
+            field1Value: kpisAchieved,
+            field2Label: 'Remarks',
+            field2Value: nextSteps
+          }
+          break
+        default:
+          fieldData = {
+            field1Label: 'Details',
+            field1Value: kpisAchieved,
+            field2Label: 'Remarks',
+            field2Value: nextSteps
+          }
+      }
 
       const milestone = {
         id: milestones.length + 1,
@@ -799,101 +870,89 @@ export default function WorkletDetailPage() {
           second: '2-digit',
           hour12: true
         }),
-        observations: kpisAchieved,
-        challenges: nextSteps,
+        // Store the dynamic field data
+        ...fieldData,
+        // Keep old fields for backward compatibility
+        observations: fieldData.field1Value,
+        challenges: fieldData.field2Value,
+        deliverableTitle,
+        deliverableDescription,
+        testResults,
+        documentationUpdated,
+        githubAccessible,
+        fileUpdatedOnGithub,
+        attachment: selectedFile ? {
+          name: selectedFile.name,
+          size: selectedFile.size,
+          type: selectedFile.type
+        } : null,
         likes: 0,
         status: 'current',
         color: 'from-indigo-500 to-blue-600'
       }
 
       setMilestones(prev => [milestone, ...prev])
-      setMilestoneType('Weekly Meeting')
+      resetForm()
+      setIsAddMilestoneModalOpen(false)
+    }
+
+    const resetForm = () => {
+      setMilestoneType('')
       setKpisAchieved('')
       setNextSteps('')
       setGithubAccessible(false)
       setFileUpdatedOnGithub(false)
-      setIsAddMilestoneModalOpen(false)
+      setDeliverableTitle('')
+      setDeliverableDescription('')
+      setTestResults('')
+      setDocumentationUpdated(false)
+      setSelectedFile(null)
+    }
+
+    const handleFileUpload = (event) => {
+      const file = event.target.files[0]
+      if (file) {
+        setSelectedFile(file)
+      }
+    }
+
+    const handleUploadButtonClick = () => {
+      document.getElementById('milestone-file-input').click()
     }
 
     const handleClose = () => {
       setIsAddMilestoneModalOpen(false)
-      setMilestoneType('Weekly Meeting')
-      setKpisAchieved('')
-      setNextSteps('')
-      setGithubAccessible(false)
-      setFileUpdatedOnGithub(false)
+      resetForm()
     }
 
-    if (!isAddMilestoneModalOpen) return null
-
-    return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">ADD MILESTONE</h2>
-            <button
-              onClick={handleClose}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
-            {/* Date Field */}
-            <div>
-              <input
-                type="text"
-                value={new Date().toLocaleDateString('en-GB')}
-                readOnly
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-gray-50 text-gray-600"
-              />
-            </div>
-
-            {/* Milestone Type Dropdown */}
-            <div>
-              <select
-                value={milestoneType}
-                onChange={(e) => setMilestoneType(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="Weekly Meeting">Weekly Meeting</option>
-                <option value="Monthly Meeting">Monthly Meeting</option>
-                <option value="Mid-Review">Mid-Review</option>
-                <option value="End Review">End Review</option>
-                <option value="Others">Others</option>
-              </select>
-            </div>
-
-            {/* KPIs Achieved Field */}
-            <div>
-              <textarea
-                value={kpisAchieved}
-                onChange={(e) => setKpisAchieved(e.target.value)}
-                placeholder="KPIs Achieved"
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
-                         placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Next Steps Field */}
-            <div>
-              <textarea
-                value={nextSteps}
-                onChange={(e) => setNextSteps(e.target.value)}
-                placeholder="Next Steps"
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
-                         placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* GitHub Toggle Options */}
-            <div className="space-y-3">
+    // Render different form sections based on milestone type
+    const renderTypeSpecificFields = () => {
+      switch (milestoneType) {
+        case 'Code Deliverable':
+          return (
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="text"
+                  value={deliverableTitle}
+                  onChange={(e) => setDeliverableTitle(e.target.value)}
+                  placeholder="Deliverable Title"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <textarea
+                  value={deliverableDescription}
+                  onChange={(e) => setDeliverableDescription(e.target.value)}
+                  placeholder="Code Description & Features"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Github accessible to all team members?</span>
+                <span className="text-sm text-gray-700">Code pushed to GitHub?</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -908,7 +967,138 @@ export default function WorkletDetailPage() {
                                after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
               </div>
-
+            </div>
+          )
+        
+        case 'Testing Milestone':
+          return (
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={testResults}
+                  onChange={(e) => setTestResults(e.target.value)}
+                  placeholder="Test Results & Coverage"
+                  rows={4}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">All tests passing?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fileUpdatedOnGithub}
+                    onChange={(e) => setFileUpdatedOnGithub(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          )
+        
+        case 'Documentation Update':
+          return (
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={deliverableDescription}
+                  onChange={(e) => setDeliverableDescription(e.target.value)}
+                  placeholder="Documentation Changes & Updates"
+                  rows={4}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Documentation updated in repository?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={documentationUpdated}
+                    onChange={(e) => setDocumentationUpdated(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          )
+        
+        case 'Weekly Meeting':
+          return (
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={kpisAchieved}
+                  onChange={(e) => setKpisAchieved(e.target.value)}
+                  placeholder="Activities Completed"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <textarea
+                  value={nextSteps}
+                  onChange={(e) => setNextSteps(e.target.value)}
+                  placeholder="Next Steps"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">GitHub accessible to all team members?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={githubAccessible}
+                    onChange={(e) => setGithubAccessible(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          )
+        
+        case 'Monthly Meeting':
+          return (
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={kpisAchieved}
+                  onChange={(e) => setKpisAchieved(e.target.value)}
+                  placeholder="KPIs Achieved"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <textarea
+                  value={nextSteps}
+                  onChange={(e) => setNextSteps(e.target.value)}
+                  placeholder="Next Steps"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">File updated on Github?</span>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -926,29 +1116,195 @@ export default function WorkletDetailPage() {
                 </label>
               </div>
             </div>
-
-            {/* Attachment Section */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-700">Attachment</span>
+          )
+        
+        case 'Mid-Review':
+          return (
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={kpisAchieved}
+                  onChange={(e) => setKpisAchieved(e.target.value)}
+                  placeholder="Observation and Results"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
               </div>
-              <button
-                type="button"
-                className="w-full px-4 py-2 text-sm border border-gray-300 rounded bg-gray-50 
-                         text-gray-600 hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
-              >
-                <Upload size={16} />
-                Upload Attachment
-              </button>
+              <div>
+                <textarea
+                  value={nextSteps}
+                  onChange={(e) => setNextSteps(e.target.value)}
+                  placeholder="Challenges"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">File uploaded on Github?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fileUpdatedOnGithub}
+                    onChange={(e) => setFileUpdatedOnGithub(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
             </div>
+          )
+        
+        case 'End Review':
+          return (
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={kpisAchieved}
+                  onChange={(e) => setKpisAchieved(e.target.value)}
+                  placeholder="Final Results & Observations"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <textarea
+                  value={nextSteps}
+                  onChange={(e) => setNextSteps(e.target.value)}
+                  placeholder="Challenges"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )
+        
+        default:
+          return (
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={kpisAchieved}
+                  onChange={(e) => setKpisAchieved(e.target.value)}
+                  placeholder="Details"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <textarea
+                  value={nextSteps}
+                  onChange={(e) => setNextSteps(e.target.value)}
+                  placeholder="Remarks"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )
+      }
+    }
+
+    if (!isAddMilestoneModalOpen) return null
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">ADD MILESTONE</h2>
+            <button
+              onClick={handleClose}
+              className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {/* Date Field */}
+            <div>
+              <input
+                type="text"
+                value={new Date().toLocaleDateString('en-GB')}
+                readOnly
+                className="w-full px-3 py-3 text-sm border border-gray-300 rounded-xl bg-gray-50 text-gray-600"
+              />
+            </div>
+
+            {/* Milestone Type Dropdown */}
+            <div>
+              <select
+                value={milestoneType}
+                onChange={(e) => setMilestoneType(e.target.value)}
+                className="w-full px-3 py-3 text-sm border border-gray-300 rounded-xl bg-white text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all"
+              >
+                <option value="">Select Type</option>
+                {milestoneTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Dynamic Fields Based on Type */}
+            {milestoneType && (
+              <>
+                {renderTypeSpecificFields()}
+                
+                {/* Attachment Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-700">Attachment</span>
+                  </div>
+                  <input
+                    type="file"
+                    id="milestone-file-input"
+                    onChange={handleFileUpload}
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleUploadButtonClick}
+                    className="w-full px-4 py-3 text-sm border border-gray-300 rounded-xl bg-gray-50 
+                             text-gray-600 hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Upload size={16} />
+                    {selectedFile ? selectedFile.name : 'Upload Attachment'}
+                  </button>
+                  {selectedFile && (
+                    <div className="mt-2 text-xs text-gray-500 flex items-center justify-between">
+                      <span>Selected: {selectedFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFile(null)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium 
-                       rounded transition-all duration-200"
+              disabled={!milestoneType}
+              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed 
+                       text-white text-sm font-medium rounded-xl transition-all duration-200"
             >
-              Submit
+              {milestoneType === 'End Review' ? 'Next' : 'Submit'}
             </button>
           </form>
         </div>
@@ -1017,21 +1373,25 @@ export default function WorkletDetailPage() {
                     </button>
                   </div>
 
-                  {(milestone.observations || milestone.challenges) && (
+                  {(milestone.field1Value || milestone.field2Value || milestone.observations || milestone.challenges) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                      {milestone.observations && (
+                      {(milestone.field1Value || milestone.observations) && (
                         <div>
-                          <h5 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-2">Observation and Results</h5>
+                          <h5 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-2">
+                            {milestone.field1Label || 'Observations and Results'}
+                          </h5>
                           <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-3 text-xs text-gray-700 dark:text-gray-300">
-                            {milestone.observations}
+                            {milestone.field1Value || milestone.observations}
                           </div>
                         </div>
                       )}
-                      {milestone.challenges && (
+                      {(milestone.field2Value || milestone.challenges) && (
                         <div>
-                          <h5 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-2">Challenges</h5>
+                          <h5 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-2">
+                            {milestone.field2Label || 'Challenges'}
+                          </h5>
                           <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-3 text-xs text-gray-700 dark:text-gray-300">
-                            {milestone.challenges}
+                            {milestone.field2Value || milestone.challenges}
                           </div>
                         </div>
                       )}
