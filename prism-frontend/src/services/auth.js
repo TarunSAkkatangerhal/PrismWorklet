@@ -58,6 +58,36 @@ export const setPassword = async (email, name, role, password) => {
   return response.data;
 };
 
+// Forgot password: request reset OTP
+export const forgotPassword = async (email) => {
+  const response = await axios.post(`${BASE}/auth/forgot-password`, { email });
+  return response.data;
+};
+
+// Reset password: submit email + OTP + new password
+export const resetPassword = async (payloadOrEmail, maybeOtp, maybeNewPassword) => {
+  // Support both signatures:
+  // 1) resetPassword({ email, otp_code, new_password })
+  // 2) resetPassword(email, otp_code, new_password)
+  let payload = {};
+  if (typeof payloadOrEmail === 'object' && payloadOrEmail !== null) {
+    payload = payloadOrEmail;
+  } else {
+    payload = { email: payloadOrEmail, otp_code: maybeOtp, new_password: maybeNewPassword };
+  }
+  const response = await axios.post(`${BASE}/auth/reset-password`, payload);
+  return response.data;
+};
+
+// Verify reset OTP before setting new password
+export const resetPasswordOtp = async (email, otp_code) => {
+  const response = await axios.post(`${BASE}/auth/reset-password-otp`, { email, otp_code });
+  return response.data;
+};
+
+// Alias with the name expected by the ForgotPassword page
+export const verifyResetPasswordOtp = resetPasswordOtp;
+
 
 
 export const setAuthToken = (token) => {

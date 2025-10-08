@@ -35,6 +35,7 @@ export default function Login() {
   const [message, setMessage] = useState("");
   const [role, setRole] = useState("student"); // default role
   const simulatedOtp = "123456"; // placeholder (not used)
+  const [showForgotLink, setShowForgotLink] = useState(false); // show only after failed login
   // Function to show a temporary message
   const showMessage = (msg) => {
     setMessage(msg);
@@ -44,6 +45,7 @@ export default function Login() {
   // Login handler
    const handleLoginSubmit = (e) => {
     e.preventDefault();
+    setShowForgotLink(false); // reset before attempting login
     if (!email || !password) {
       setMessage("Please fill all fields.");
       return;
@@ -86,9 +88,11 @@ export default function Login() {
         navigate("/home");
       } else {
         setMessage("Login failed. Check credentials.");
+        setShowForgotLink(true);
       }
     }).catch(() => {
       setMessage("Login failed. Check credentials.");
+      setShowForgotLink(true);
     });
 };
   // Signup handlers
@@ -242,6 +246,18 @@ const handleSignup = async (e) => {
                     Sign Up
                   </button>
                 </p>
+                {/* Forgot Password Link navigates to dedicated page; appears only after failed login */}
+                {showForgotLink && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Forgot your password?{" "}
+                    <button
+                      onClick={() => navigate("/forgot-password")}
+                      className="text-indigo-600 hover:underline"
+                    >
+                      Reset it
+                    </button>
+                  </p>
+                )}
               </div>
               {/* Right Side Image */}
               <div className="hidden md:block md:w-1/2">

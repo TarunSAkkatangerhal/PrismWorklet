@@ -92,7 +92,7 @@ const LeftSidebar = () => {
     }, [isSettingsOpen, refs]);
 
     return (
-        <aside className="w-[clamp(5rem,8vw,7.5rem)] bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black flex flex-col py-[1vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <aside className="w-[clamp(5rem,8vw,7.5rem)] h-screen sticky top-0 bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black flex flex-col py-[1vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <nav className="flex flex-col gap-[2vh] items-center">
                 <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
                 <SidebarItem icon={<BarChart size={20} />} label="Statistics" onClick={() => navigate('/statistics')} />

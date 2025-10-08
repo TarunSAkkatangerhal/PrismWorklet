@@ -1092,8 +1092,8 @@ export default function WorkletDetailPage() {
       <LeftSidebar />
       
       {/* Main Content Area */}
-      <main className="flex-1 bg-transparent dark:bg-slate-900">
-        <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto bg-transparent dark:bg-slate-900">
+        <div className="max-w-7xl mx-auto p-6 space-y-6 min-h-full">
           
           {/* Enhanced Header with Glassmorphism */}
           <GlassCard gradient className="p-6 border-0 shadow-xl">
