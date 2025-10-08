@@ -323,7 +323,7 @@ export default function WorkletDetailPage() {
             cert_id: response.data.cert_id,
             title: response.data.cert_id || response.data.title,
             status: response.data.status || 'Ongoing',
-            progress: response.data.percentage_completion || 0,
+            progress: (typeof response.data.worklet_progress === 'number' ? response.data.worklet_progress : response.data.percentage_completion) || 0,
             description: response.data.description || 'No description available',
             imageUrl: imageUrls[Math.floor(Math.random() * imageUrls.length)], // Random image
             startDate: response.data.start_date

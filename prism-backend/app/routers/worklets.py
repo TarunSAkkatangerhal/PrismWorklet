@@ -166,10 +166,21 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
             ).all()
             student_ids = [assoc.user_id for assoc in student_assocs]
             students = []
+            worklet_college = None
             if student_ids:
-                students = [u.name for u in db.query(User).filter(User.id.in_(student_ids)).all() if u.name]
+                student_users = db.query(User).filter(User.id.in_(student_ids)).all()
+                students = [u.name for u in student_users if u.name]
+                # Determine college from first student with a college
+                for su in student_users:
+                    if getattr(su, 'college', None):
+                        worklet_college = su.college
+                        break
                 for s in students:
                     mentee_set.add(s)
+
+            # Fallback to mentor's college if no student college found
+            if worklet_college is None:
+                worklet_college = mentor.college
 
             percentage_completion = getattr(worklet, "percentage_completion", None)
             if percentage_completion is None:
@@ -196,10 +207,11 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
                 "description": worklet.description,
                 "status": worklet.status,
                 "team": getattr(worklet, "team", None),
-                "college": getattr(worklet, "college", None),
+                "college": worklet_college,
                 "problem_statement": getattr(worklet, "problem_statement", None),
                 "expectations": getattr(worklet, "expectations", None),
                 "prerequisites": getattr(worklet, "prerequisites", None),
+                "worklet_progress": getattr(worklet, "worklet_progress", None),
                 "percentage_completion": percentage_completion,
                 "quality": quality,
                 "students": students,
