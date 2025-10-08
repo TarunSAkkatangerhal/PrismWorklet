@@ -1,13 +1,20 @@
+// Dashboard page: Presents mentor snapshot including profile, stats, and ongoing worklets.
+// Focus points:
+// 1. Fetch mentor profile & worklets once and cache lightweight view state (layout) in localStorage
+// 2. Transform backend worklet shape into a normalized card-friendly structure
+// 3. Provide responsive layout (grid / horizontal scroll) with animated, accessible UI
+// 4. Avoid unnecessary re-renders via localized derived data (e.g., filtered ongoing worklets)
+// NOTE: axios imported historically (may be unused now) – kept if future calls needed
 import axios from 'axios'
-import { getMentorWorklets, getMentorOngoingWorkletsById, getMentorAllWorkletsById } from '../services/worklets'
-import { getCurrentUser } from '../services/auth'
+import { getMentorWorklets, getMentorOngoingWorkletsById, getMentorAllWorkletsById } from '../services/worklets' // Service helpers for API calls
+import { getCurrentUser } from '../services/auth' // Retrieves authenticated mentor details
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import LeftSidebar from '../components/Left'
-import RightSidebar from '../components/Right'
-import StatCard from '../components/StatCard'
+import LeftSidebar from '../components/Left'   // Persistent navigation rail (left)
+import RightSidebar from '../components/Right' // Ancillary widgets / future extensions (right)
+import StatCard from '../components/StatCard'  // Reusable compact statistic display card
 
-import samsungLogo from '../assets/prism_logo.png' // Replaced with a placeholder URL
+import samsungLogo from '../assets/prism_logo.png' // Brand / product logo
 
 import {
   Bell,
@@ -25,6 +32,8 @@ import {
 } from 'lucide-react'
 
 // --- DUMMY DATA WITH NEW ID FORMAT AND MORE WORKLETS ---
+// Retained for design / layout reference & potential offline prototyping.
+// Currently NOT used in render path (live data comes from mentor endpoints).
 const DUMMY_WORKLETS = [
   {
     id: 'AI201B',
@@ -160,8 +169,10 @@ const DUMMY_WORKLETS = [
   },
 ]
 
+// Mapping of progression tiers to milestone thresholds (could drive dynamic level computation later)
 const LEVEL_COUNTS = { spark: 5, lead: 10, core: 15, master: 30 }
 
+// Ordered progression ladder displayed as horizontal milestones over progress bar
 const levels = [
   { name: 'SPARK', Icon: Zap, color: 'text-yellow-500' },
   { name: 'LEAD', Icon: Rocket, color: 'text-blue-500' },
@@ -170,6 +181,7 @@ const levels = [
 ]
 
 // Helper functions (getInitials, generateColorFromName, etc. remain the same)
+// Safely derive initials from a full name for avatar fallback
 const getInitials = (name) => {
   if (!name) return ''
   const nameParts = name.split(' ')
@@ -177,6 +189,7 @@ const getInitials = (name) => {
   return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase()
 }
 
+// Deterministic pastel-esque background color selection for avatar circles
 const generateColorFromName = (name) => {
   const colors = ['#0077b6', '#0096c7', '#48cae4', '#90e0ef', '#ade8f4']
   let hash = 0
@@ -187,25 +200,32 @@ const generateColorFromName = (name) => {
 }
 
 export default function Dashboard() {
+  // -------------------------- STATE --------------------------
+  // User identity / profile
   const [userName, setUserName] = useState('')
   const [loadingName, setLoadingName] = useState(true)
   const [nameError, setNameError] = useState(false)
 
   const navigate = useNavigate()
+  // Level gamification placeholder (currently static; could be derived from KPI metrics in future)
   const [currentUserLevel, setCurrentUserLevel] = useState(1)
-  const [layout, setLayout] = useState(() => {
-    return localStorage.getItem('worklet_layout') || 'horizontal'
-  })
+  // Persist layout preference (grid vs horizontal carousel) for continuity across sessions
+  const [layout, setLayout] = useState(() => localStorage.getItem('worklet_layout') || 'horizontal')
+  // Raw normalized worklet list (only ongoing subset stored)
   const [worklets, setWorklets] = useState([])
+  // Separate total count (includes completed) for stats panel
   const [totalWorkletsCount, setTotalWorkletsCount] = useState(0)
   const [isLoadingWorklets, setIsLoadingWorklets] = useState(true)
+  // Full mentor profile object (includes nested mentor_profile meta)
   const [userProfileData, setUserProfileData] = useState(null)
 
+  // Engagement metrics (e.g., unique mentees) structure mirrors backend format for future expansion
   const [mentorStats, setMentorStats] = useState({ engagement_data: { 'My Students': 0 } })
   const [isLoadingMentorStats, setIsLoadingMentorStats] = useState(true)
 
   // Fetch current user once
   useEffect(() => {
+    // Fetch authenticated mentor identity once on mount
     let cancelled = false
     const loadUser = async () => {
       setLoadingName(true)
@@ -231,6 +251,7 @@ export default function Dashboard() {
 
   // Fetch real-time worklets for the logged-in mentor
   useEffect(() => {
+    // After profile is available, load mentor-associated worklets & student stats
     let cancelled = false
     const fetchMentorWorklets = async () => {
       setIsLoadingWorklets(true)
@@ -238,9 +259,9 @@ export default function Dashboard() {
         // Prefer associations endpoint (same as WorkletsPage) for canonical ongoing worklets list
         if (!userProfileData?.id) throw new Error('Mentor user id missing')
         // Fetch ongoing subset for display
-        const assocData = await getMentorOngoingWorkletsById(userProfileData.id)
+        const assocData = await getMentorOngoingWorkletsById(userProfileData.id) // Ongoing subset
         // Fetch aggregate (all worklets) for totals
-        const allData = await getMentorAllWorkletsById(userProfileData.id)
+        const allData = await getMentorAllWorkletsById(userProfileData.id)       // Full collection (statuses)
         const list = assocData?.ongoing_worklets || []
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet, index) => {
@@ -254,12 +275,13 @@ export default function Dashboard() {
             'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop'
           ]
           // Derive status to match WorkletsPage logic
+          // Harmonize status labels regardless of backend variant fields
           const status = worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing')
           // Derive quality (stable quick heuristic)
           const qualityChoices = ['Excellence','Good','Needs Attention']
-          const quality = qualityChoices[index % qualityChoices.length]
+          const quality = qualityChoices[index % qualityChoices.length] // Simple cyclic surrogate until backend rating metric available
           // Extract student names (fallback to email if name missing)
-          const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : []
+          const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : [] // Defensive extraction
           return {
             id: worklet.id,
             title: worklet.cert_id || worklet.title || 'Untitled Worklet',
@@ -280,7 +302,7 @@ export default function Dashboard() {
           const ongoing = normalized.filter(w => w.status === 'Ongoing')
           setWorklets(ongoing)
           // Use backend aggregate from all-worklets response; fallback to ongoing response; then fallback to local uniq calculation
-          let mentees = allData?.total_mentees ?? assocData?.total_mentees
+          let mentees = allData?.total_mentees ?? assocData?.total_mentees // Prefer authoritative aggregate counts
           if (mentees === undefined) {
             const uniqueStudentIds = new Set()
             list.forEach(w => {
@@ -314,10 +336,12 @@ export default function Dashboard() {
   }, [userProfileData])
 
   // Filter for ongoing worklets
+  // Derived view subset: actively ongoing & not fully complete (guards against stale 100% items)
   const workletsData = worklets.filter(
     (worklet) => worklet.status?.toLowerCase() === 'ongoing' && worklet.progress < 100
   )
 
+  // Inline component: displays single milestone with hover tooltip describing progression context
   const LevelMilestone = ({ level, index }) => {
     const levelsToGo = index - currentUserLevel
     let tooltipText = ''
@@ -336,6 +360,7 @@ export default function Dashboard() {
     )
   }
 
+  // Translate currentUserLevel index into width percentage for progress track
   const progressPercentage = (currentUserLevel / (levels.length - 1)) * 100
 
   return (
@@ -355,7 +380,8 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw]">
+  {/* Top summary section: Profile card (2 cols) + Stat side column */}
+  <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw]">
           <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-[1.5vw] dark:bg-slate-800 dark:border-slate-700">
             <div className="flex items-start gap-[1.2vw]">
               {userProfileData?.mentor_profile?.avatar_url ? (
@@ -488,9 +514,11 @@ export default function Dashboard() {
 
 // --- UPDATED WORKLET CARD COMPONENT ---
 function WorkletCard({ worklet, layout, navigate }) {
+  // Container width adapts when in horizontal scroller vs grid mode
   const containerClasses = layout === 'grid' ? 'w-full' : 'w-[clamp(18rem,25vw,22rem)] flex-shrink-0'
 
   // Professional corporate background colors based on worklet quality
+  // Thematic gradient derived from qualitative status (visual semantic cue)
   const getBackgroundGradient = () => {
     const progress = worklet.progress || 0
     const quality = worklet.quality || 'Default'
@@ -527,6 +555,7 @@ function WorkletCard({ worklet, layout, navigate }) {
     }
   }
 
+  // Calculate days left until end date; clamps past-due as 0
   const calculateRemainingDays = (endDateStr) => {
     const endDate = new Date(endDateStr)
     const today = new Date()
@@ -543,6 +572,7 @@ function WorkletCard({ worklet, layout, navigate }) {
 
   const remaining = calculateRemainingDays(worklet.endDate)
 
+  // Badge background palette per quality band
   const qualityStyles = {
     Excellence: 'bg-green-500/80',
     Good: 'bg-blue-500/80',
@@ -550,10 +580,12 @@ function WorkletCard({ worklet, layout, navigate }) {
     Default: 'bg-gray-500/80',
   }
 
+  // Primary navigation: open worklet detail view
   const handleCardClick = () => {
     navigate(`/worklet/${worklet.id}`)
   }
 
+  // Prevent card navigation & open notifications pane if there are updates
   const handleNotificationClick = (event) => {
     event.stopPropagation()
     // Only navigate if there are actual notifications
@@ -562,6 +594,7 @@ function WorkletCard({ worklet, layout, navigate }) {
     }
   }
 
+  // Utility to keep badge sizes stable
   const truncateText = (text, maxLength = 25) => {
     if (text.length <= maxLength) return text
     return text.substring(0, maxLength) + '...'
