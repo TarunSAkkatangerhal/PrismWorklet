@@ -266,14 +266,6 @@ export default function Dashboard() {
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet, index) => {
           const progressVal = (typeof worklet.worklet_progress === 'number' ? worklet.worklet_progress : worklet.percentage_completion) || worklet.mentor_progress || worklet.progress || 0
-          const imageUrls = [
-            'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop'
-          ]
           // Derive status to match WorkletsPage logic
           // Harmonize status labels regardless of backend variant fields
           const status = worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing')
@@ -371,7 +363,7 @@ export default function Dashboard() {
         <header className="flex justify-between items-center mb-[3vh]">
           <div>
             <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
-              {loadingName ? 'Loading...' : `Welcome back, ${userName.split(' ')[0]}! 👋`}
+              {loadingName ? 'Loading...' : `Welcome back, ${userName.split(' ')[0]}!`}
             </h1>
             <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">Here's your snapshot for today.</p>
           </div>

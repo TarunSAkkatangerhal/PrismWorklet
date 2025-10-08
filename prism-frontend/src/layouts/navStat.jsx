@@ -159,9 +159,10 @@ const NavStat = () => {
   }
 
   const getFilterStats = () => {
-    const total = worklets.length
-    const completed = worklets.filter(w => w.status === 'Completed').length
-    const ongoing = worklets.filter(w => w.status === 'Ongoing').length
+    // Calculate stats based on static data, not filtered worklets
+    const total = staticWorklets.length
+    const completed = staticWorklets.filter(w => w.status === 'Completed').length
+    const ongoing = staticWorklets.filter(w => w.status === 'Ongoing').length
     
     return { total, completed, ongoing }
   }
