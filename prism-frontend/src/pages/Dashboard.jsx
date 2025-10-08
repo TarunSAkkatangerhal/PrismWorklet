@@ -265,7 +265,7 @@ export default function Dashboard() {
         const list = assocData?.ongoing_worklets || []
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet, index) => {
-          const progressVal = worklet.percentage_completion || worklet.mentor_progress || worklet.progress || 0
+          const progressVal = (typeof worklet.worklet_progress === 'number' ? worklet.worklet_progress : worklet.percentage_completion) || worklet.mentor_progress || worklet.progress || 0
           const imageUrls = [
             'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop',
