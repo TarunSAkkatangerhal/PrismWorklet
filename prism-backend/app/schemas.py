@@ -37,6 +37,7 @@ class UserResponse(UserBase):
     id: int
     is_verified: bool
     created_at: datetime
+    worklet_progress: int | None = 0
     
     class Config:
         from_attributes = True
@@ -91,6 +92,7 @@ class UserProfileUpdate(BaseModel):
     contact_number: Optional[str] = None
     organization: Optional[str] = None
     github: Optional[str] = None
+    worklet_progress: Optional[int] = None  # allow manual adjustment if needed (optional)
 
 # Mentor & Worklet Schemas
 class MentorBase(BaseModel):
