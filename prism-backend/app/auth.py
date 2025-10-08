@@ -282,13 +282,19 @@ def refresh_tokens(request: Request, payload: Optional[schemas.TokenRefreshReque
     return {"access_token": new_access, "refresh_token": new_refresh, "token_type": "bearer"}
 
 
-# 5. Forgot Password (Redis only)
+# 5. Forgot Password (send reset OTP via background task)
 @router.post("/forgot-password")
-def forgot_password(forgot_data: schemas.ForgotPassword, db: Session = Depends(get_db)):
+def forgot_password(
+    forgot_data: schemas.ForgotPassword,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     user = db.query(models.User).filter(models.User.email == forgot_data.email).first()
     if not user:
+        # Do not reveal registration status; always return generic message
         return {"message": "If your email is registered, you will receive a reset OTP."}
 
+    # Generate and store OTP (10-minute expiry)
     otp_code = generate_otp()
     expiry = datetime.utcnow() + timedelta(minutes=10)
     set_otp(user.email, {
@@ -297,23 +303,46 @@ def forgot_password(forgot_data: schemas.ForgotPassword, db: Session = Depends(g
         "verified": False
     })
 
-    send_password_reset_email(user.email, user.name, otp_code)
+    # Send email asynchronously
+    background_tasks.add_task(send_password_reset_email, user.email, user.name, otp_code)
     return {"message": "If your email is registered, you will receive a reset OTP."}
 
-# 6. Reset Password (Redis only)
-@router.post("/reset-password")
-def reset_password(reset_data: schemas.ResetPassword, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == reset_data.email).first()
+# 6a. Reset Password OTP Verification (mark OTP as verified)
+@router.post("/reset-password-otp")
+def reset_password_otp(data: schemas.VerifyOTP, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    record = get_otp(reset_data.email)
-    if not record or record["otp"] != reset_data.otp_code or datetime.utcnow() > datetime.fromisoformat(record["expiry"]):
+    record = get_otp(data.email)
+    if not record or record.get("otp") != data.otp_code:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    # Expiry check
+    if datetime.utcnow() > datetime.fromisoformat(record["expiry"]):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
-    user.password_hash = get_password_hash(reset_data.new_password)
+    # Mark OTP as verified and persist
+    record["verified"] = True
+    set_otp(data.email, record)
+    return {"message": "OTP verified. You can now reset your password."}
+
+# 6b. Reset Password (requires previously verified OTP)
+@router.post("/reset-password")
+def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not getattr(data, "new_password", None):
+        raise HTTPException(status_code=400, detail="New password required")
+
+    otp_data = get_otp(data.email)
+    if not otp_data or not otp_data.get("verified"):
+        raise HTTPException(status_code=400, detail="OTP not verified. Please verify OTP before resetting password.")
+
+    user.password_hash = get_password_hash(data.new_password)
     db.commit()
-    del_otp(reset_data.email)
+    # Clear OTP after successful reset
+    del_otp(data.email)
     return {"message": "Password reset successfully. You can now login."}
 
 # 7. Get Current User
