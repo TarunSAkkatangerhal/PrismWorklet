@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 import {
   ChevronDown,
   Users,
@@ -93,13 +94,16 @@ const CustomTooltip = ({ active, payload, label, isDark }) => {
 // Modern animated metric card component
 // The component now accepts 'subtitle' instead of 'change' and 'trend'
 // The component no longer needs the 'isDark' prop for styling
-const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color }) => (
+const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color, onClick, isClickable = false }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.6 }}
     whileHover={{ y: -5, transition: { duration: 0.2 } }}
-    className="p-6 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+    onClick={isClickable ? onClick : undefined}
+    className={`p-6 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${
+      isClickable ? 'cursor-pointer hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200' : ''
+    }`}>
     <div className="flex items-center justify-between h-full">
       <div>
         {/* Using dark: variants for cleaner, automatic theme switching */}
@@ -107,7 +111,7 @@ const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color }) => (
         <Metric className="text-gray-900 dark:text-white">{value}</Metric>
         {subtitle && <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">{subtitle}</Text>}
       </div>
-      <Icon className={`w-8 h-8`} style={{ color }} />
+      <Icon className={`w-8 h-8 ${isClickable ? 'group-hover:scale-110 transition-transform' : ''}`} style={{ color }} />
     </div>
   </motion.div>
 )
@@ -230,6 +234,8 @@ const generatePerformanceBreakdown = () => ({
 })
 // Modern Statistics Dashboard component
 const ModernStatisticsDashboard = () => {
+  const navigate = useNavigate()
+  
   // ## KEY CHANGE ##
   // Use the ThemeContext to get the current theme state dynamically.
   // This replaces the hardcoded `const isDarkMode = true;`
@@ -257,6 +263,20 @@ const ModernStatisticsDashboard = () => {
     document.head.appendChild(style)
     return () => document.head.removeChild(style)
   }, [isDarkMode])
+  
+  // Navigation handlers for worklet cards
+  const handleTotalWorkletsClick = () => {
+    navigate('/navStat', { state: { filter: 'total' } })
+  }
+  
+  const handleOngoingWorkletsClick = () => {
+    navigate('/navStat', { state: { filter: 'ongoing' } })
+  }
+  
+  const handleCompletedWorkletsClick = () => {
+    navigate('/navStat', { state: { filter: 'completed' } })
+  }
+  
   const [statisticsData, setStatisticsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -585,6 +605,8 @@ const ModernStatisticsDashboard = () => {
               icon={Target}
               color={getColors(isDarkMode)[0]}
               isDark={isDarkMode}
+              onClick={handleTotalWorkletsClick}
+              isClickable={true}
             />
             <AnimatedMetricCard
               title="Completed"
@@ -593,6 +615,8 @@ const ModernStatisticsDashboard = () => {
               icon={CheckCircle}
               color={getColors(isDarkMode)[1]}
               isDark={isDarkMode}
+              onClick={handleCompletedWorkletsClick}
+              isClickable={true}
             />
             <AnimatedMetricCard
               title="Ongoing Worklets"
@@ -601,6 +625,8 @@ const ModernStatisticsDashboard = () => {
               icon={Activity}
               color={getColors(isDarkMode)[4]}
               isDark={isDarkMode}
+              onClick={handleOngoingWorkletsClick}
+              isClickable={true}
             />
             <AnimatedMetricCard
               title="Total Students"
