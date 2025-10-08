@@ -11,6 +11,7 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const autoMode = !!preSelectedWorklet; // If opened from Worklet Details page
 
   useEffect(() => {
     const fetchWorklets = async () => {
@@ -73,24 +74,18 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
       }
     };
 
-    if (isOpen) {
+    if (isOpen && !autoMode) {
       fetchWorklets();
     }
-  }, [isOpen]);
+  }, [isOpen, autoMode]);
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
-    if (preSelectedWorklet && worklets.length > 0) {
-      // Find the worklet in the list that matches the preSelectedWorklet ID
-      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
-      if (foundWorklet) {
-        setSelectedWorklet(foundWorklet.id);
-      } else if (preSelectedWorklet.id) {
-        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
-        setSelectedWorklet(preSelectedWorklet.id);
-      }
-    }
-  }, [preSelectedWorklet, worklets]);
+    if (!preSelectedWorklet) return;
+    // In auto mode always prioritize cert_id (string) if available so flexible endpoint works
+    const identifier = preSelectedWorklet.cert_id || preSelectedWorklet.id;
+    setSelectedWorklet(identifier);
+  }, [preSelectedWorklet]);
 
   const handleRequestUpdate = async () => {
     if (!selectedWorklet) {
@@ -140,9 +135,11 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
           ×
         </button>
 
-        <h2 className="text-[clamp(1rem,1.5vw,1.25rem)] font-semibold mb-[clamp(0.75rem,1.5vh,1rem)] dark:text-white">Select Worklet</h2>
+        <h2 className="text-[clamp(1rem,1.5vw,1.25rem)] font-semibold mb-[clamp(0.75rem,1.5vh,1rem)] dark:text-white">
+          {autoMode ? 'Request Update' : 'Select Worklet'}
+        </h2>
 
-        {loading ? (
+        {loading && !autoMode ? (
           <div className="text-center py-4 dark:text-white">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
             Loading worklets...
@@ -181,27 +178,39 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
           </div>
         ) : (
           <>
-            <select
-              className="w-full border rounded-lg p-[clamp(0.5rem,1vw,0.75rem)] mb-[clamp(0.75rem,1.5vh,1rem)] text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-slate-700 dark:text-white dark:border-slate-600"
-              value={selectedWorklet}
-              onChange={(e) => setSelectedWorklet(e.target.value)}
-            >
-              <option value="">-- Select a Worklet --</option>
-              {worklets.length > 0 ? (
-                worklets.map((worklet) => (
-                  <option key={worklet.id} value={worklet.cert_id}>
-                    {worklet.cert_id} - {worklet.description?.substring(0, 50) || ''}
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>No worklets available</option>
-              )}
-            </select>
-
+            {autoMode && (
+              <div className="mb-4 p-3 rounded-lg bg-purple-50 dark:bg-slate-700/50 border border-purple-200 dark:border-slate-600">
+                <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">WORKLET</div>
+                <div className="text-sm font-medium text-gray-800 dark:text-white">
+                  {preSelectedWorklet?.cert_id || preSelectedWorklet?.title || preSelectedWorklet?.id}
+                </div>
+                {preSelectedWorklet?.title && (
+                  <div className="text-xs text-gray-500 dark:text-slate-400 mt-1 line-clamp-2">{preSelectedWorklet.title}</div>
+                )}
+              </div>
+            )}
+            {!autoMode && (
+              <select
+                className="w-full border rounded-lg p-[clamp(0.5rem,1vw,0.75rem)] mb-[clamp(0.75rem,1.5vh,1rem)] text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                value={selectedWorklet}
+                onChange={(e) => setSelectedWorklet(e.target.value)}
+              >
+                <option value="">-- Select a Worklet --</option>
+                {worklets.length > 0 ? (
+                  worklets.map((worklet) => (
+                    <option key={worklet.id} value={worklet.cert_id || worklet.id}>
+                      {(worklet.cert_id || worklet.id)} - {worklet.description?.substring(0, 50) || ''}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No worklets available</option>
+                )}
+              </select>
+            )}
             <button
               className="w-full bg-blue-500 text-white py-[clamp(0.5rem,1vh,0.75rem)] rounded-lg shadow hover:bg-blue-600 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleRequestUpdate}
-              disabled={!selectedWorklet || loading || isSubmitting}
+              disabled={!selectedWorklet || isSubmitting}
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">

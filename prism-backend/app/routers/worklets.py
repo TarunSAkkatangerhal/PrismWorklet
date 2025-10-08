@@ -34,25 +34,61 @@ def create_worklet(worklet_in: WorkletCreate, db: Session = Depends(get_db)):
     return worklet
 
 @router.get("/", response_model=List[WorkletResponse])
-def list_worklets(db: Session = Depends(get_db)):
-    # Ensure worklet_progress present in each object
-    worklets = db.query(Worklet).all()
+def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(Worklet)
+    if year is not None:
+        query = query.filter(Worklet.year == year)
+    worklets = query.all()
+    response = []
     for w in worklets:
-        if getattr(w, 'worklet_progress', None) is None:
-            # Derive rudimentary progress if dates exist
+        progress = getattr(w, 'worklet_progress', None)
+        if progress is None:
             if w.start_date and w.end_date:
                 try:
                     total_days = (w.end_date - w.start_date).days or 1
                     elapsed_days = (datetime.utcnow().date() - w.start_date).days
                     if elapsed_days < 0:
                         elapsed_days = 0
-                    pct = max(0, min(100, int((elapsed_days / total_days) * 100)))
-                    w.worklet_progress = pct
+                    progress = max(0, min(100, int((elapsed_days / total_days) * 100)))
                 except Exception:
-                    w.worklet_progress = 0
+                    progress = 0
             else:
-                w.worklet_progress = 0
-    return worklets
+                progress = 0
+
+        # Gather students (names just for counting) via association
+        assoc_students = db.query(User).join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id) \
+            .filter(UserWorkletAssociation.worklet_id == w.id, UserWorkletAssociation.role_in_worklet == "Student").all()
+        student_count = len(assoc_students)
+        # Determine college from first student or None
+        college_name = None
+        for stu in assoc_students:
+            if getattr(stu, 'college', None):
+                college_name = stu.college
+                break
+        # Fallback: try mentor college
+        if college_name is None:
+            mentor_assoc = db.query(User).join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id) \
+                .filter(UserWorkletAssociation.worklet_id == w.id, UserWorkletAssociation.role_in_worklet == "Mentor").first()
+            if mentor_assoc and getattr(mentor_assoc, 'college', None):
+                college_name = mentor_assoc.college
+
+        response.append({
+            'id': w.id,
+            'cert_id': w.cert_id,
+            'title': w.title,
+            'description': w.description,
+            'start_date': w.start_date,
+            'end_date': w.end_date,
+            'created_at': w.created_at,
+            'updated_at': w.updated_at,
+            'year': w.year,
+            'domain': w.domain,
+            'status': w.status,
+            'worklet_progress': progress,
+            'college': college_name,
+            'student_count': student_count
+        })
+    return response
 
 @router.get("/{worklet_identifier}")
 def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db)):
@@ -102,6 +138,18 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
     student_records = _get_students_for_worklet(db, worklet.id)
     students = [s.get("name") for s in student_records if s.get("name")]  # names list for backward compat
 
+    # Collect professors associated with this worklet
+    professor_users = (
+        db.query(User)
+        .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+        .filter(
+            UserWorkletAssociation.worklet_id == worklet.id,
+            UserWorkletAssociation.role_in_worklet == "Professor",
+        )
+        .all()
+    )
+    professors = [p.name for p in professor_users if getattr(p, "name", None)]
+
     return {
         "id": worklet.id,
         "cert_id": worklet.cert_id,
@@ -118,7 +166,9 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
     "worklet_progress": percentage_completion,
         "quality": quality,
         "students": students,
-        "student_count": len(students)
+        "student_count": len(students),
+        "professors": professors,
+        "professor_count": len(professors),
     }
 
 @router.put("/{worklet_id}", response_model=WorkletResponse)

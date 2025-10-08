@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react'
+import React, { useState, useEffect, useContext, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { 
@@ -27,13 +27,18 @@ const NavStat = () => {
   
   // Get the filter from navigation state, default to 'total'
   const initialFilter = location.state?.filter || 'total'
+  const initialYear = location.state?.year || 'All'
   
   const [activeFilter, setActiveFilter] = useState(initialFilter)
-  const [worklets, setWorklets] = useState([])
+  const [worklets, setWorklets] = useState([])             // full dataset
+  const [filtered, setFiltered] = useState([])             // filtered by activeFilter
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
+  const [yearFilter, setYearFilter] = useState(initialYear)
+  // Internal tracking for data freshness (not displayed per user request)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
   // Filter options configuration
   const filterOptions = [
@@ -60,82 +65,73 @@ const NavStat = () => {
     }
   ]
 
-  // Static worklet data for demonstration
-  const staticWorklets = [
-    {
-      id: 1,
-      title: 'Full Stack Web Development Bootcamp',
-      cert_id: 'PRISM-2025-001',
-      status: 'Ongoing',
-      description: 'A comprehensive full-stack web development program covering modern technologies including React, Node.js, databases, and deployment strategies. Students will build real-world projects and gain hands-on experience with industry-standard tools and practices.',
-      college: 'Cambridge Institute of Technology'
-      
-    },
-    {
-      id: 2,
-      title: 'AI & Machine Learning Research Project',
-      cert_id: 'PRISM-2025-002',
-      status: 'Completed',
-      description: 'Advanced machine learning research project focusing on natural language processing and computer vision applications. Includes implementation of deep learning models and research paper publication.',
-      college: 'MIT Technology Institute'
-    }
-  ]
-
-  // Fetch worklets based on active filter
-  useEffect(() => {
-    // Use static data for now
-    setTimeout(() => {
-      let filteredData = staticWorklets
-      
-      if (activeFilter === 'ongoing') {
-        filteredData = staticWorklets.filter(w => w.status === 'Ongoing')
-      } else if (activeFilter === 'completed') {
-        filteredData = staticWorklets.filter(w => w.status === 'Completed')
-      }
-      
-      setWorklets(filteredData)
-      setLoading(false)
-    }, 500) // Simulate loading delay
-    
-    // Uncomment below for real API call
-    // fetchWorklets()
-  }, [activeFilter])
-
-  const fetchWorklets = async () => {
+  // Live fetch of all platform worklets; filtering done client-side
+  const fetchWorklets = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      
+      const base = process.env.REACT_APP_API_URL || 'http://localhost:8000'
       const token = localStorage.getItem('access_token')
-      if (!token) {
-        setError('Authentication token not found')
-        return
-      }
+      if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      const params = new URLSearchParams()
+      if (yearFilter && yearFilter !== 'All') params.set('year', yearFilter)
+      const res = await axios.get(`${base}/worklets${params.toString() ? `?${params.toString()}` : ''}`)
+      const data = Array.isArray(res.data) ? res.data : []
 
-      // Build API URL based on filter
-      let apiUrl = 'http://localhost:8000/worklets'
-      if (activeFilter !== 'total') {
-        apiUrl += `?status=${activeFilter}`
-      }
+      // Normalize minimal fields (some endpoints may not return cert_id/title consistently)
+      const normalized = data.map(w => ({
+        id: w.id,
+        cert_id: w.cert_id || w.id,
+        title: w.title || w.cert_id || `Worklet ${w.id}`,
+        description: w.description || '',
+        status: w.status === 'Approved' ? 'Ongoing' : w.status,
+        domain: w.domain,
+        worklet_progress: typeof w.worklet_progress === 'number' ? w.worklet_progress : null,
+        start_date: w.start_date,
+        end_date: w.end_date,
+        college: w.college || null,
+        student_count: typeof w.student_count === 'number' ? w.student_count : 0,
+        year: w.year
+      }))
 
-      const response = await axios.get(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      })
+      setWorklets(normalized)
+      setLastUpdated(new Date())
 
-      setWorklets(response.data || [])
     } catch (err) {
       console.error('Error fetching worklets:', err)
-      setError('Failed to fetch worklets. Please try again.')
+      setError(err.response?.data?.detail || 'Failed to fetch worklets.')
+      setWorklets([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [yearFilter])
+
+  // Apply filter whenever full dataset or activeFilter changes
+  useEffect(() => {
+    let subset = worklets
+    if (yearFilter && yearFilter !== 'All') {
+      subset = subset.filter(w => String(w.year) === String(yearFilter))
+    }
+    if (activeFilter === 'ongoing') subset = worklets.filter(w => w.status === 'Ongoing')
+    else if (activeFilter === 'completed') subset = worklets.filter(w => w.status === 'Completed')
+    setFiltered(subset)
+  }, [worklets, activeFilter])
+
+  // Initial fetch & refetch on filter change (filter done client-side so just reuse dataset unless first load or error)
+  useEffect(() => {
+    if (worklets.length === 0 || error) {
+      fetchWorklets()
+    }
+  }, [activeFilter, yearFilter, fetchWorklets])
+
+  // Poll every 60s
+  useEffect(() => {
+    const id = setInterval(() => { fetchWorklets() }, 60000)
+    return () => clearInterval(id)
+  }, [fetchWorklets])
 
   // Filter worklets based on search term
-  const filteredWorklets = worklets.filter(worklet => {
+  const filteredWorklets = filtered.filter(worklet => {
     const searchLower = searchTerm.toLowerCase()
     return (
       worklet.title?.toLowerCase().includes(searchLower) ||
@@ -159,18 +155,25 @@ const NavStat = () => {
   }
 
   const getFilterStats = () => {
-    // Calculate stats based on static data, not filtered worklets
-    const total = staticWorklets.length
-    const completed = staticWorklets.filter(w => w.status === 'Completed').length
-    const ongoing = staticWorklets.filter(w => w.status === 'Ongoing').length
-    
+    const total = worklets.length
+    const completed = worklets.filter(w => w.status === 'Completed').length
+    const ongoing = worklets.filter(w => w.status === 'Ongoing').length
     return { total, completed, ongoing }
   }
 
   const stats = getFilterStats()
 
+  const formatTimeline = (start, end) => {
+    if (!start && !end) return ''
+    const fmt = (d) => {
+      if (!d) return '—'
+      try { return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) } catch { return '—' }
+    }
+    return `${fmt(start)} → ${fmt(end)}`
+  }
+
   return (
-    <div className={`flex h-screen ${
+    <div className={`flex h-screen font-sans ${
       isDarkMode 
         ? 'bg-gradient-to-br from-slate-900 via-purple-900/20 to-indigo-900/20' 
         : 'bg-gradient-to-br from-purple-50 via-indigo-50/50 to-blue-100/30'
@@ -206,13 +209,13 @@ const NavStat = () => {
                 </motion.button>
                 
                 <div>
-                  <h1 className={`text-xl font-bold ${
-                    isDarkMode ? 'text-white' : 'text-slate-800'
+                  <h1 className={`text-4xl font-bold font-sans ${
+                    isDarkMode ? 'text-white' : 'text-black'
                   }`}>
                     Worklet Details
                   </h1>
                   <p className={`text-xs ${
-                    isDarkMode ? 'text-purple-300/70' : 'text-purple-600/80'
+                    isDarkMode ? 'text-gray-300/70' : 'text-gray-600'
                   }`}>
                     Manage and view your project worklets
                   </p>
@@ -235,8 +238,8 @@ const NavStat = () => {
                             ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-500/50'
                             : 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg border border-purple-400/50'
                           : isDarkMode
-                          ? 'bg-slate-700/50 text-purple-300 border border-purple-800/30 hover:bg-gradient-to-r hover:from-purple-800/40 hover:to-indigo-800/40 hover:text-white'
-                          : 'bg-white/60 text-purple-700 border border-purple-300/40 hover:bg-gradient-to-r hover:from-purple-100 hover:to-indigo-100 hover:text-purple-800'
+                          ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-gradient-to-r hover:from-gray-800/40 hover:to-gray-700/40 hover:text-white'
+                          : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 hover:text-gray-800'
                       }`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -247,8 +250,8 @@ const NavStat = () => {
                         isActive 
                           ? 'bg-white/20 text-white' 
                           : isDarkMode
-                          ? 'bg-purple-800/30 text-purple-300'
-                          : 'bg-purple-100/80 text-purple-600'
+                          ? 'bg-gray-800/30 text-gray-300'
+                          : 'bg-gray-100/80 text-gray-700'
                       }`}>
                         {option.key === 'total' && stats.total}
                         {option.key === 'ongoing' && stats.ongoing}
@@ -266,7 +269,7 @@ const NavStat = () => {
               <Search 
                 size={18} 
                 className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${
-                  isDarkMode ? 'text-purple-400' : 'text-purple-500'
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`} 
               />
               <input
@@ -276,8 +279,8 @@ const NavStat = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={`w-full pl-12 pr-4 py-2.5 rounded-xl border transition-all duration-200 ${
                   isDarkMode 
-                    ? 'bg-slate-800/50 border-purple-700/30 text-white placeholder-purple-400/60 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' 
-                    : 'bg-white/70 border-purple-300/40 text-slate-800 placeholder-purple-500/60 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
+                    ? 'bg-slate-800/50 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20' 
+                    : 'bg-white/70 border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
                 } backdrop-blur-sm`}
               />
             </div>
@@ -298,8 +301,8 @@ const NavStat = () => {
             }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <h2 className={`text-lg font-semibold ${
-                    isDarkMode ? 'text-white' : 'text-slate-800'
+                  <h2 className={`text-xl font-semibold font-sans ${
+                    isDarkMode ? 'text-white' : 'text-black'
                   }`}>
                     {filterOptions.find(f => f.key === activeFilter)?.label} 
                     {searchTerm && ` - Search Results`}
@@ -455,22 +458,20 @@ const NavStat = () => {
                             )}
 
                             {/* Footer Info */}
-                            <div className="flex items-center gap-4 text-xs">
+                            <div className="flex items-center gap-4 text-xs flex-wrap">
                               {worklet.college && (
                                 <div className="flex items-center gap-1">
                                   <MapPin size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                                    {worklet.college}
-                                  </span>
+                                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{worklet.college}</span>
                                 </div>
                               )}
-                              
-                              {worklet.students && worklet.students.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Users size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                                    {worklet.students.length} student{worklet.students.length !== 1 ? 's' : ''}
-                                  </span>
+                              <div className="flex items-center gap-1">
+                                <Users size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{worklet.student_count} student{worklet.student_count === 1 ? '' : 's'}</span>
+                              </div>
+                              {(worklet.start_date || worklet.end_date) && (
+                                <div className="flex items-center gap-1 text-[10px]">
+                                  <span className={isDarkMode ? 'text-gray-500' : 'text-gray-500'}>{formatTimeline(worklet.start_date, worklet.end_date)}</span>
                                 </div>
                               )}
                             </div>
@@ -481,53 +482,36 @@ const NavStat = () => {
                             <div className="flex-1 min-w-0">
                               <div className="mb-2">
                                 <div className="flex items-center gap-3 mb-1 flex-wrap">
-                                  <h3 className={`font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                    {worklet.title || worklet.cert_id || `Worklet ${worklet.id}`}
-                                  </h3>
-                                  <span className={`text-sm px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
-                                    ID: {worklet.cert_id || worklet.id}
-                                  </span>
+                                  <h3 className={`font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{worklet.title || worklet.cert_id || `Worklet ${worklet.id}`}</h3>
+                                  <span className={`text-sm px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>ID: {worklet.cert_id || worklet.id}</span>
                                   {worklet.college && (
                                     <div className="flex items-center gap-1">
                                       <MapPin size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                                      <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        {worklet.college}
-                                      </span>
+                                      <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{worklet.college}</span>
+                                    </div>
+                                  )}
+                                  {(worklet.start_date || worklet.end_date) && (
+                                    <div className="flex items-center gap-1 text-[11px]">
+                                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-500'}>{formatTimeline(worklet.start_date, worklet.end_date)}</span>
                                     </div>
                                   )}
                                 </div>
-                                {worklet.students && worklet.students.length > 0 && (
-                                  <div className="flex items-center gap-1 mb-2">
-                                    <Users size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                                    <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                      {worklet.students.length} student{worklet.students.length !== 1 ? 's' : ''}
-                                    </span>
-                                  </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Users size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                  <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{worklet.student_count} student{worklet.student_count === 1 ? '' : 's'}</span>
+                                </div>
+                                {worklet.description && (
+                                  <p className={`text-sm line-clamp-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{worklet.description}</p>
                                 )}
                               </div>
-                              
-                              {/* Description in List View */}
-                              {worklet.description && (
-                                <p className={`text-sm line-clamp-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                  {worklet.description}
-                                </p>
-                              )}
                             </div>
-                            
                             <div className="flex items-center gap-3 flex-shrink-0">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                worklet.status === 'Completed' 
-                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                  : worklet.status === 'Ongoing'
-                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
-                              }`}>
-                                {worklet.status || 'Unknown'}
-                              </span>
-                              <ExternalLink 
-                                size={16} 
-                                className={`${isDarkMode ? 'text-gray-400 group-hover:text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} transition-colors`} 
-                              />
+                                worklet.status === 'Completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                : worklet.status === 'Ongoing' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                : 'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+                              }`}>{worklet.status || 'Unknown'}</span>
+                              <ExternalLink size={16} className={`${isDarkMode ? 'text-gray-400 group-hover:text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} transition-colors`} />
                             </div>
                           </div>
                         )}

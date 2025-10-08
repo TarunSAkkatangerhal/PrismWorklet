@@ -11,26 +11,20 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const autoMode = !!preSelectedWorklet;
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !autoMode) {
       fetchWorklets();
     }
-  }, [isOpen]);
+  }, [isOpen, autoMode]);
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
-    if (preSelectedWorklet && worklets.length > 0) {
-      // Find the worklet in the list that matches the preSelectedWorklet ID
-      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
-      if (foundWorklet) {
-        setSelectedWorklet(foundWorklet.id);
-      } else if (preSelectedWorklet.id) {
-        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
-        setSelectedWorklet(preSelectedWorklet.id);
-      }
-    }
-  }, [preSelectedWorklet, worklets]);
+    if (!preSelectedWorklet) return;
+    const identifier = preSelectedWorklet.cert_id || preSelectedWorklet.id;
+    setSelectedWorklet(identifier);
+  }, [preSelectedWorklet]);
 
   const fetchWorklets = async () => {
     try {
@@ -190,23 +184,31 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         ) : (
           <div className="space-y-6">
             {/* Worklet Selection */}
-            <div>
-              <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
-                Select Worklet *
-              </label>
-              <select
-                value={selectedWorklet}
-                onChange={(e) => setSelectedWorklet(e.target.value)}
-                className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Choose a worklet...</option>
-                {worklets.map((worklet) => (
-                  <option key={worklet.id} value={worklet.cert_id}>
-                    {worklet.cert_id} - {worklet.description || worklet.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!autoMode && (
+              <div>
+                <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
+                  Select Worklet *
+                </label>
+                <select
+                  value={selectedWorklet}
+                  onChange={(e) => setSelectedWorklet(e.target.value)}
+                  className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="">Choose a worklet...</option>
+                  {worklets.map((worklet) => (
+                    <option key={worklet.id} value={worklet.cert_id || worklet.id}>
+                      {(worklet.cert_id || worklet.id)} - {worklet.description || worklet.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {autoMode && (
+              <div className="mb-2 p-3 rounded-lg bg-cyan-50 dark:bg-slate-700/50 border border-cyan-200 dark:border-slate-600">
+                <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">WORKLET</div>
+                <div className="text-sm font-medium text-gray-800 dark:text-white">{preSelectedWorklet?.cert_id || preSelectedWorklet?.title || preSelectedWorklet?.id}</div>
+              </div>
+            )}
 
             {/* Month Selection */}
             <div>
