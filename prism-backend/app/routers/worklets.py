@@ -35,7 +35,24 @@ def create_worklet(worklet_in: WorkletCreate, db: Session = Depends(get_db)):
 
 @router.get("/", response_model=List[WorkletResponse])
 def list_worklets(db: Session = Depends(get_db)):
-    return db.query(Worklet).all()
+    # Ensure worklet_progress present in each object
+    worklets = db.query(Worklet).all()
+    for w in worklets:
+        if getattr(w, 'worklet_progress', None) is None:
+            # Derive rudimentary progress if dates exist
+            if w.start_date and w.end_date:
+                try:
+                    total_days = (w.end_date - w.start_date).days or 1
+                    elapsed_days = (datetime.utcnow().date() - w.start_date).days
+                    if elapsed_days < 0:
+                        elapsed_days = 0
+                    pct = max(0, min(100, int((elapsed_days / total_days) * 100)))
+                    w.worklet_progress = pct
+                except Exception:
+                    w.worklet_progress = 0
+            else:
+                w.worklet_progress = 0
+    return worklets
 
 @router.get("/{worklet_identifier}")
 def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db)):
@@ -57,8 +74,9 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Worklet not found")
 
     # Derive percentage completion if not explicitly stored
-    percentage_completion = getattr(worklet, "percentage_completion", None)
+    percentage_completion = getattr(worklet, "worklet_progress", None)
     if percentage_completion is None:
+        # Derive if missing
         if worklet.start_date and worklet.end_date:
             try:
                 total_days = (worklet.end_date - worklet.start_date).days or 1
@@ -96,7 +114,8 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         "year": worklet.year,
         "domain": worklet.domain,
         "status": worklet.status,
-        "percentage_completion": percentage_completion,
+    "percentage_completion": percentage_completion,
+    "worklet_progress": percentage_completion,
         "quality": quality,
         "students": students,
         "student_count": len(students)
