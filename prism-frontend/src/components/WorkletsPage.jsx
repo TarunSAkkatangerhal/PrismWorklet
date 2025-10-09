@@ -437,7 +437,9 @@ export default function WorkletsPage() {
                 </Link>
               ))}
             </div>
-          ) : (
+          )
+          //list view with enhancements
+          : (
             <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-slate-700/50 shadow-2xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">

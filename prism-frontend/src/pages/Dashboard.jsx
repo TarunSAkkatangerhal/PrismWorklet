@@ -77,6 +77,10 @@ export default function Dashboard() {
   const [currentUserLevel, setCurrentUserLevel] = useState(1)
   // Persist layout preference (grid vs horizontal carousel) for continuity across sessions
   const [layout, setLayout] = useState(() => localStorage.getItem('worklet_layout') || 'horizontal')
+  
+  // State for icon rotation animations
+  const [isGridIconRotating, setIsGridIconRotating] = useState(false)
+  const [isColumnsIconRotating, setIsColumnsIconRotating] = useState(false)
   // Raw normalized worklet list (only ongoing subset stored)
   const [worklets, setWorklets] = useState([])
   // Separate total count (includes completed) for stats panel
@@ -131,7 +135,8 @@ export default function Dashboard() {
         const list = assocData?.ongoing_worklets || []
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet, index) => {
-          const progressVal = (typeof worklet.worklet_progress === 'number' ? worklet.worklet_progress : worklet.percentage_completion) || worklet.mentor_progress || worklet.progress || 0
+          const progressVal = worklet.percentage_completion || worklet.mentor_progress || worklet.progress || 0
+    
           // Derive status to match WorkletsPage logic
           // Harmonize status labels regardless of backend variant fields
           const status = worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing')
@@ -229,7 +234,7 @@ export default function Dashboard() {
         <header className="flex justify-between items-center mb-[3vh]">
           <div>
             <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
-              {loadingName ? 'Loading...' : `Welcome back, ${userName.split(' ')[0]}!`}
+              {loadingName ? 'Loading...' : `Welcome back, ${userName.split(' ')[0]}`}
             </h1>
             <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">Here's your snapshot for today.</p>
           </div>
@@ -247,13 +252,13 @@ export default function Dashboard() {
                   src={userProfileData.mentor_profile.avatar_url}
                   alt="Author"
                   className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full object-cover shadow-md cursor-pointer hover:ring-4 hover:ring-blue-200 dark:hover:ring-blue-800 transition-all"
-                  onClick={() => navigate('/profile/view')}
+                 
                 />
               ) : (
                 <div
                   className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full flex items-center justify-center text-white font-bold text-[clamp(1.5rem,2.5vw,2rem)] shadow-md flex-shrink-0 cursor-pointer hover:ring-4 hover:ring-blue-200 dark:hover:ring-blue-800 transition-all"
                   style={{ backgroundColor: generateColorFromName(userProfileData?.name || 'User') }}
-                  onClick={() => navigate('/profile/view')}
+                  
                 >
                   <span>{getInitials(userProfileData?.name || 'User')}</span>
                 </div>
@@ -312,25 +317,35 @@ export default function Dashboard() {
             <div className="flex items-center gap-[0.2vw] p-[0.3vw] bg-gray-200 rounded-lg dark:bg-slate-900">
               <button
                 onClick={() => {
+                  setIsGridIconRotating(true)
                   setLayout('grid')
                   localStorage.setItem('worklet_layout', 'grid')
+                  setTimeout(() => setIsGridIconRotating(false), 300)
                 }}
                 className={`p-[0.4vw] rounded-md transition-colors ${
                   layout === 'grid' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
                 }`}
                 aria-label="Grid View">
-                <LayoutGrid size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} />
+                <LayoutGrid 
+                  size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} 
+                  className={`transition-transform duration-300 ${isGridIconRotating ? 'rotate-180' : ''}`}
+                />
               </button>
               <button
                 onClick={() => {
+                  setIsColumnsIconRotating(true)
                   setLayout('horizontal')
                   localStorage.setItem('worklet_layout', 'horizontal')
+                  setTimeout(() => setIsColumnsIconRotating(false), 300)
                 }}
                 className={`p-[0.4vw] rounded-md transition-colors ${
                   layout === 'horizontal' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
                 }`}
                 aria-label="Horizontal View">
-                <Columns size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} />
+                <Columns 
+                  size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} 
+                  className={`transition-transform duration-300 ${isColumnsIconRotating ? 'rotate-180' : ''}`}
+                />
               </button>
             </div>
           </div>
