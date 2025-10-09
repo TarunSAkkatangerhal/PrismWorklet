@@ -83,26 +83,35 @@ def require_access_token(token: str) -> dict:
 # --- OTP Temp Store (Redis-backed, fallback to in-memory) ---
 import json
 temp_otps = {}
-def set_otp(email, otp_data):
+
+def _norm_email_key(email: str) -> str:
     try:
-        redis_cache.set(f"otp:{email}", json.dumps(otp_data), ex=600)
+        return (email or "").strip().lower()
     except Exception:
-        temp_otps[email] = otp_data
+        return str(email or "")
+def set_otp(email, otp_data):
+    key = _norm_email_key(email)
+    try:
+        redis_cache.set(f"otp:{key}", json.dumps(otp_data), ex=600)
+    except Exception:
+        temp_otps[key] = otp_data
 
 def get_otp(email):
+    key = _norm_email_key(email)
     try:
-        val = redis_cache.get(f"otp:{email}")
+        val = redis_cache.get(f"otp:{key}")
         if val:
             return json.loads(val)
     except Exception:
         pass
-    return temp_otps.get(email)
+    return temp_otps.get(key)
 
 def del_otp(email):
+    key = _norm_email_key(email)
     try:
-        redis_cache.delete(f"otp:{email}")
+        redis_cache.delete(f"otp:{key}")
     except Exception:
-        temp_otps.pop(email, None)
+        temp_otps.pop(key, None)
 
 def generate_otp() -> str:
     return ''.join(random.choices(string.digits, k=6))
@@ -136,11 +145,14 @@ def request_otp(request_data: schemas.RequestOTP, background_tasks: BackgroundTa
 # 2. Verify OTP
 @router.post("/verify-otp")
 def verify_otp(verify_data: schemas.VerifyOTP):
+    # Normalize inputs minimally (trim whitespace on OTP)
+    otp_input = (verify_data.otp_code or "").strip()
     record = get_otp(verify_data.email)
     if not record:
         raise HTTPException(status_code=400, detail="No OTP request found")
 
-    if not record or record["otp"] != verify_data.otp_code:
+    # Compare as strings to avoid type quirks
+    if not record or str(record.get("otp", "")) != otp_input:
         raise HTTPException(status_code=400, detail="Invalid OTP")
 
     if datetime.utcnow() > datetime.fromisoformat(record["expiry"]):

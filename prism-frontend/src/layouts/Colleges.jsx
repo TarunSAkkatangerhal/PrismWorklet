@@ -16,6 +16,7 @@ import {
   CheckCircle,
   PauseCircle,
   XCircle,
+  Clock, // New icon for Ongoing
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -673,6 +674,7 @@ const Colleges = () => {
         goodCount: worklets.filter((w) => w.performanceStatus === 'Good').length,
         needsAttentionCount: worklets.filter((w) => w.performanceStatus === 'Needs Attention').length,
         completedCount: worklets.filter((w) => w.progressStatus === 'Completed').length,
+        ongoingCount: worklets.filter((w) => w.progressStatus === 'Ongoing').length,
         onHoldCount: worklets.filter((w) => w.progressStatus === 'On Hold').length,
         terminatedCount: worklets.filter((w) => w.progressStatus === 'Terminated').length,
         totalStudents: studentMap.size,
@@ -811,7 +813,7 @@ const Colleges = () => {
               </table>
             </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             <button
               onClick={() => setCurrentView('allWorklets')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
@@ -822,6 +824,19 @@ const Colleges = () => {
                 </div>
                 <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
                   <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('ongoingWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ongoing</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.ongoingCount}</p>
+                </div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </button>
@@ -891,7 +906,7 @@ const Colleges = () => {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {filteredColleges.length > 1 && (
               <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20">
                 <div className="flex items-center justify-between">
@@ -930,6 +945,21 @@ const Colleges = () => {
                 </div>
                 <div className="p-3 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg">
                   <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('ongoingWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ongoing</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {allCollegeData.reduce((acc, curr) => acc + curr.ongoingCount, 0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </button>
@@ -1061,6 +1091,15 @@ const Colleges = () => {
       case 'allWorklets':
         return (
           <WorkletListView data={filteredColleges} onBack={() => setCurrentView('dashboard')} title="Active Worklets" />
+        )
+      case 'ongoingWorklets':
+        return (
+          <WorkletListView
+            data={filteredColleges}
+            onBack={() => setCurrentView('dashboard')}
+            title="Ongoing Worklets"
+            filterStatus="Ongoing"
+          />
         )
       case 'completedWorklets':
         return (

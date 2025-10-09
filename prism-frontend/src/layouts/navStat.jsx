@@ -175,7 +175,7 @@ const NavStat = () => {
   return (
     <div className={`flex h-screen font-sans ${
       isDarkMode 
-        ? 'bg-gradient-to-br from-slate-900 via-purple-900/20 to-indigo-900/20' 
+        ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
         : 'bg-gradient-to-br from-purple-50 via-indigo-50/50 to-blue-100/30'
     }`}>
       <LeftSidebar />
@@ -187,7 +187,7 @@ const NavStat = () => {
           {/* Compact Header Section */}
           <div className={`${
             isDarkMode 
-              ? 'bg-gradient-to-r from-slate-800/80 via-purple-900/10 to-indigo-900/10 backdrop-blur-sm border-purple-800/20' 
+              ? 'bg-gradient-to-r from-slate-800/80 via-slate-700/50 to-slate-800/80 backdrop-blur-sm border-slate-700/50' 
               : 'bg-gradient-to-r from-white/80 via-purple-50/50 to-indigo-50/30 backdrop-blur-sm border-purple-200/30'
           } rounded-2xl shadow-lg border p-4 mb-4`}>
             
@@ -199,8 +199,8 @@ const NavStat = () => {
                   onClick={handleGoBack}
                   className={`p-2 rounded-xl transition-all duration-200 ${
                     isDarkMode 
-                      ? 'bg-gradient-to-r from-purple-800/50 to-indigo-800/50 hover:from-purple-700/60 hover:to-indigo-700/60 text-purple-300 hover:text-white border border-purple-700/30' 
-                      : 'bg-gradient-to-r from-purple-100/80 to-indigo-100/80 hover:from-purple-200 hover:to-indigo-200 text-purple-700 hover:text-purple-800 border border-purple-300/40'
+                      ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-500/40 hover:to-indigo-500/40 text-purple-200 hover:text-white border border-purple-500/20' 
+                      : 'bg-gradient-to-r from-purple-50/80 to-indigo-50/80 hover:from-purple-100 hover:to-indigo-100 text-purple-600 hover:text-purple-700 border border-purple-200/40'
                   }`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -231,8 +231,8 @@ const NavStat = () => {
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
                         isActive
                           ? isDarkMode
-                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-500/50'
-                            : 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg border border-purple-400/50'
+                            ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-300/50'
+                            : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
                           : isDarkMode
                           ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-gradient-to-r hover:from-gray-800/40 hover:to-gray-700/40 hover:text-white'
                           : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 hover:text-gray-800'
@@ -285,14 +285,14 @@ const NavStat = () => {
           {/* Content Section */}
           <div className={`${
             isDarkMode 
-              ? 'bg-gradient-to-br from-slate-800/80 via-purple-900/10 to-indigo-900/10 backdrop-blur-sm border-purple-800/20' 
+              ? 'bg-gradient-to-br from-slate-800/80 via-slate-700/50 to-slate-800/80 backdrop-blur-sm border-slate-700/50' 
               : 'bg-gradient-to-br from-white/80 via-purple-50/30 to-indigo-50/20 backdrop-blur-sm border-purple-200/30'
           } rounded-2xl shadow-lg border overflow-hidden`}>
             
             {/* Results Header */}
             <div className={`p-4 border-b ${
               isDarkMode 
-                ? 'border-purple-700/30 bg-gradient-to-r from-slate-800/60 to-purple-900/20' 
+                ? 'border-slate-700/50 bg-gradient-to-r from-slate-800/60 to-slate-700/40' 
                 : 'border-purple-300/30 bg-gradient-to-r from-purple-50/60 to-indigo-50/40'
             }`}>
               <div className="flex items-center justify-between">
@@ -303,13 +303,6 @@ const NavStat = () => {
                     {filterOptions.find(f => f.key === activeFilter)?.label} 
                     {searchTerm && ` - Search Results`}
                   </h2>
-                  <span className={`text-sm px-3 py-1 rounded-full ${
-                    isDarkMode 
-                      ? 'bg-purple-900/30 text-purple-300 border border-purple-700/30' 
-                      : 'bg-purple-100/60 text-purple-700 border border-purple-300/40'
-                  }`}>
-                    {searchTerm ? `${filteredWorklets.length} of ${worklets.length}` : `${worklets.length} total`} worklets
-                  </span>
                 </div>
                 
                 {/* View Toggle Buttons */}
@@ -325,11 +318,11 @@ const NavStat = () => {
                     className={`p-2 rounded-l-lg transition-all duration-200 ${
                       viewMode === 'grid'
                         ? isDarkMode
-                          ? 'bg-purple-600 text-white shadow-md'
-                          : 'bg-purple-500 text-white shadow-md'
+                          ? 'bg-purple-400 text-white shadow-md'
+                          : 'bg-purple-300 text-white shadow-md'
                         : isDarkMode
-                          ? 'text-gray-400 hover:text-purple-300 hover:bg-slate-700/50'
-                          : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50/50'
+                          ? 'text-gray-400 hover:text-purple-200 hover:bg-slate-700/50'
+                          : 'text-gray-500 hover:text-purple-500 hover:bg-purple-50/50'
                     }`}
                     title="Grid View"
                   >
@@ -342,11 +335,11 @@ const NavStat = () => {
                     className={`p-2 rounded-r-lg transition-all duration-200 ${
                       viewMode === 'list'
                         ? isDarkMode
-                          ? 'bg-purple-600 text-white shadow-md'
-                          : 'bg-purple-500 text-white shadow-md'
+                          ? 'bg-purple-400 text-white shadow-md'
+                          : 'bg-purple-300 text-white shadow-md'
                         : isDarkMode
-                          ? 'text-gray-400 hover:text-purple-300 hover:bg-slate-700/50'
-                          : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50/50'
+                          ? 'text-gray-400 hover:text-purple-200 hover:bg-slate-700/50'
+                          : 'text-gray-500 hover:text-purple-500 hover:bg-purple-50/50'
                     }`}
                     title="List View"
                   >
