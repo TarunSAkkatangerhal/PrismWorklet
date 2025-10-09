@@ -8,3 +8,4 @@ pydantic-settings
 email-validator
 redis
 argon2_cffi
+cryptography

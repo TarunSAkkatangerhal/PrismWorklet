@@ -12,18 +12,41 @@ export default function FeedbackForm({ isOpen, onClose }) {
   const [showWarningPopup, setShowWarningPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
 
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+  // Function to generate timeline months for selected worklet
+  const getWorkletTimelineMonths = () => {
+    if (!selectedWorklet) return [];
+    
+    const worklet = worklets.find(w => w.id === parseInt(selectedWorklet));
+    if (!worklet || !worklet.start_date || !worklet.end_date) return [];
+    
+    const startDate = new Date(worklet.start_date);
+    const endDate = new Date(worklet.end_date);
+    const months = [];
+    
+    const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    
+    while (current <= end) {
+      const monthName = current.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      months.push(monthName);
+      current.setMonth(current.getMonth() + 1);
+    }
+    
+    return months;
+  };
 
-  
+  const timelineMonths = getWorkletTimelineMonths();
 
   useEffect(() => {
     if (isOpen) {
       fetchWorklets();
     }
   }, [isOpen]);
+
+  // Reset month selection when worklet changes
+  useEffect(() => {
+    setSelectedMonth("");
+  }, [selectedWorklet]);
 
   const fetchWorklets = async () => {
     try {
@@ -65,7 +88,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
     }
-
+    // Require month selection and non-empty feedback content
     if (!selectedMonth || !feedbackContent.trim()) {
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
@@ -79,7 +102,6 @@ export default function FeedbackForm({ isOpen, onClose }) {
       const feedbackData = {
         worklet_id: parseInt(selectedWorklet, 10),
         month: selectedMonth, // backend expects a string; send the month name
-        
         feedback_content: feedbackContent.trim() // backend expects 'feedback_content'
       };
 
@@ -197,18 +219,18 @@ export default function FeedbackForm({ isOpen, onClose }) {
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                disabled={!selectedWorklet}
               >
-                <option value="">Select month...</option>
-                {months.map((month) => (
+                <option value="">
+                  {!selectedWorklet ? "Select a worklet first..." : "Select month..."}
+                </option>
+                {timelineMonths.map((month) => (
                   <option key={month} value={month}>
                     {month}
                   </option>
                 ))}
               </select>
             </div>
-
-            {/* Feedback Type Selection */}
-            
 
             {/* Feedback Content */}
             <div>
