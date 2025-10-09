@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import Dashboard from "./pages/Dashboard";
@@ -31,9 +30,6 @@ function ProtectedRoute({ children }) {
 }
 
 export default function App() {
-  // The userData state is no longer needed here, as the new UserProfile 
-  // component fetches its own data. This simplifies the App component.
-
   return (
     <ThemeProvider>
       <Routes>
@@ -44,7 +40,6 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Routes>
-                {/* --- Your Existing Routes --- */}
                 <Route path="/home" element={<Dashboard />} />
                 <Route path="/statistics" element={<StatisticsDashboard />} />
                 <Route path="/navStat" element={<NavStat />} />
@@ -56,7 +51,6 @@ export default function App() {
                 <Route path="/internship-referral" element={<Dashboard />} />
                 <Route path="/submit-feedback" element={<Dashboard />} />
                 <Route path="/Left" element={<LeftSidebar/>}/>
-                {/* --- Meeting Platform Routes --- */}
                 <Route path="/meeting" element={<Meetings />} />
                
                 <Route path="portfolio" element={<Portfolio/>}/>

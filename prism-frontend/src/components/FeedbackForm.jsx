@@ -90,6 +90,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
     }
 
     if (!selectedMonth || !feedbackContent.trim()) {
+    if (!selectedMonth || !feedbackContent.trim()) {
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
@@ -358,7 +359,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
                 Please fill in all required fields.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Worklet, month, feedback type, and content are required.
+                Worklet, month, and content are required.
               </p>
             </div>
           </div>

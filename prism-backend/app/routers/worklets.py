@@ -396,7 +396,6 @@ def request_worklet_update_flexible(worklet_identifier: str, request_data: Reque
 # ----------------- Submit Feedback -----------------
 class FeedbackSchema(BaseModel):
     worklet_id: int
-    feedback_type: str
     feedback_content: str
     month: Optional[str] = None
     rating: Optional[int] = None
@@ -417,7 +416,7 @@ def submit_feedback(feedback_data: FeedbackSchema, db: Session = Depends(get_db)
         email_subject = f"Feedback for Worklet {worklet.cert_id}"
         email_message = (
             f"Your mentor has provided feedback for your worklet.\n\n"
-            f"Feedback Type: {feedback_data.feedback_type}\nFeedback: {feedback_data.feedback_content}"
+            f"Feedback: {feedback_data.feedback_content}"
         )
         if feedback_data.month:
             email_message += f"\nMonth: {feedback_data.month}"

@@ -166,10 +166,8 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
           </label>
         </div>
 
-        {/* Submit */}
         <button
           onClick={handleSubmit}
-          // ++ Dark theme styles added to submit button ++
           className="w-full bg-blue-700 text-white rounded-lg py-2 hover:bg-blue-800 transition dark:bg-blue-600 dark:hover:bg-blue-700"
         >
           Send Feedback
