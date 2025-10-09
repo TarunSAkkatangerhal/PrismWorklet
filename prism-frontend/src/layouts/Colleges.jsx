@@ -1,394 +1,1240 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Filter, 
-  Users, 
-  Award, 
-  TrendingUp, 
-  Calendar,
-  MapPin,
+import React, { useState, useEffect, useMemo, useRef } from 'react'
+import {
+  Search,
+  Users,
+  TrendingUp,
   ChevronDown,
-  BarChart3,
-  PieChart,
   Download,
   Plus,
   Building2,
-  GraduationCap,
   BookOpen,
-  Target
-} from 'lucide-react';
-import LeftSidebar from '../components/Left';
+  Target,
+  RefreshCw,
+  X,
+  ArrowLeft,
+  ClipboardList,
+  CheckCircle,
+  PauseCircle,
+  XCircle,
+  Clock, // New icon for Ongoing
+} from 'lucide-react'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts'
+import LeftSidebar from '../components/Left'
 
+// --- Animation Styles ---
+const AnimationStyles = () => (
+  <style>{`
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeInUp {
+      animation: fadeInUp 0.5s ease-out forwards;
+      opacity: 0;
+    }
+  `}</style>
+)
+
+// --- Searchable Dropdown Component ---
+const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  const filteredOptions = useMemo(
+    () => options.filter((option) => option.name.toLowerCase().includes(value ? value.toLowerCase() : '')),
+    [options, value]
+  )
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSelect = (optionName) => {
+    onChange(optionName)
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          className="w-full pl-10 pr-10 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+        />
+        {value ? (
+          <button
+            onClick={() => onChange('')}
+            className="absolute right-9 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800">
+            <X className="w-4 h-4" />
+          </button>
+        ) : null}
+        <button onClick={() => setIsOpen(!isOpen)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1">
+          <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {isOpen && (
+        <div
+          className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-fadeInUp"
+          style={{ animationDuration: '0.3s' }}>
+          <ul>
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option, index) => (
+                <li
+                  key={option.id}
+                  onClick={() => handleSelect(option.name)}
+                  className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer animate-fadeInUp"
+                  style={{ animationDelay: `${index * 20}ms` }}>
+                  {option.name}
+                </li>
+              ))
+            ) : (
+              <li className="px-4 py-2 text-sm text-gray-500">No colleges found.</li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Individual Chart Components ---
+const WorkletProgressChart = ({ data }) => {
+  const statusData = useMemo(() => {
+    if (!data || data.length === 0) return []
+    const statusCounts = { Ongoing: 0, Completed: 0, 'On Hold': 0, Terminated: 0 }
+    data
+      .flatMap((c) => c.worklets)
+      .forEach((w) => {
+        if (w.progressStatus in statusCounts) statusCounts[w.progressStatus]++
+      })
+    return Object.entries(statusCounts).map(([name, count]) => ({ name, count }))
+  }, [data])
+
+  const STATUS_COLORS = { Ongoing: '#3b82f6', Completed: '#22c55e', 'On Hold': '#f59e0b', Terminated: '#ef4444' }
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Worklet Progress Status</h3>
+      <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
+        <ResponsiveContainer>
+          <BarChart data={statusData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+            <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
+            <YAxis type="category" dataKey="name" width={70} tick={{ fill: 'currentColor' }} />
+            <Tooltip
+              cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(5px)',
+                border: '1px solid #ddd',
+                borderRadius: '0.5rem',
+              }}
+            />
+            <Bar dataKey="count" barSize={20} radius={[0, 4, 4, 0]}>
+              {statusData.map((entry) => (
+                <Cell key={`cell-${entry.name}`} fill={STATUS_COLORS[entry.name]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+const WorkletPerformanceChart = ({ data }) => {
+  const performanceData = useMemo(() => {
+    if (!data || data.length === 0) return []
+    const totalExcellent = data.reduce((sum, college) => sum + college.excellentCount, 0)
+    const totalGood = data.reduce((sum, college) => sum + college.goodCount, 0)
+    const totalNeedsAttention = data.reduce((sum, college) => sum + college.needsAttentionCount, 0)
+    return [
+      { name: 'Excellent', value: totalExcellent },
+      { name: 'Good', value: totalGood },
+      { name: 'Needs Attention', value: totalNeedsAttention },
+    ].filter((item) => item.value > 0)
+  }, [data])
+
+  const PIE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b']
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Overall Worklet Performance</h3>
+      <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={performanceData}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="value"
+              nameKey="name"
+              label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                const r = innerRadius + (outerRadius - innerRadius) * 0.5
+                const x = cx + r * Math.cos(-midAngle * (Math.PI / 180))
+                const y = cy + r * Math.sin(-midAngle * (Math.PI / 180))
+                return (
+                  <text
+                    x={x}
+                    y={y}
+                    fill="white"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={14}
+                    fontWeight="bold">{`${(percent * 100).toFixed(0)}%`}</text>
+                )
+              }}>
+              {performanceData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(5px)',
+                border: '1px solid #ddd',
+                borderRadius: '0.5rem',
+              }}
+            />
+            <Legend wrapperStyle={{ color: 'currentColor' }} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+const WorkletsPerCollegeChart = ({ data }) => {
+  const barData = useMemo(() => {
+    if (!data || data.length === 0) return []
+    return data.map((college) => ({
+      name: college.name.replace(' University', '').replace(' Cambridge', ''),
+      worklets: college.workletCount,
+    }))
+  }, [data])
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Worklets per College</h3>
+      <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
+        <ResponsiveContainer>
+          <BarChart data={barData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+            <XAxis dataKey="name" tick={{ fill: 'currentColor' }} interval={0} />
+            <YAxis tick={{ fill: 'currentColor' }} allowDecimals={false} />
+            <Tooltip
+              cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(5px)',
+                border: '1px solid #ddd',
+                borderRadius: '0.5rem',
+              }}
+            />
+            <Bar dataKey="worklets" fill="#8884d8" name="Worklets" barSize={30} radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+// --- Main Graphs Component for Multi-College View ---
+const DashboardGraphs = ({ data }) => {
+  return (
+    <div className="space-y-6">
+      <WorkletProgressChart data={data} />
+      <WorkletsPerCollegeChart data={data} />
+      <WorkletPerformanceChart data={data} />
+    </div>
+  )
+}
+
+// --- Reusable Worklet List View ---
+const WorkletListView = ({ data, onBack, filterStatus, title }) => {
+  const worklets = useMemo(() => {
+    const allWorklets = data.flatMap((college) =>
+      college.worklets.map((worklet) => ({ ...worklet, collegeName: college.name }))
+    )
+    if (filterStatus) {
+      return allWorklets.filter((worklet) => worklet.progressStatus === filterStatus)
+    }
+    return allWorklets
+  }, [data, filterStatus])
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <button
+            onClick={onBack}
+            className="flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline mb-2">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </button>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
+            {title}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
+            Displaying {worklets.length} worklet(s)
+            {data.length === 1 && ` for ${data[0].name}`}
+          </p>
+        </div>
+      </div>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Worklet Details
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  College
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Performance
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+              {worklets.length > 0 ? (
+                worklets.map((worklet, index) => (
+                  <tr
+                    key={`${worklet.collegeName}-${worklet.id}`}
+                    className="hover:bg-gray-50 dark:hover:bg-slate-700/50 animate-fadeInUp"
+                    style={{ animationDelay: `${index * 50}ms` }}>
+                    <td className="px-6 py-4 align-top">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{worklet.title}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span className="font-semibold text-gray-600 dark:text-gray-400">Description: </span>
+                        {worklet.description}
+                      </div>
+                      <div className="mt-2">
+                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400">Students Assigned:</div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {worklet.assignedStudents.map((student) => (
+                            <span
+                              key={student.email}
+                              className="px-2 py-1 text-xs bg-gray-100 text-gray-800 dark:bg-slate-900/30 dark:text-slate-300 rounded-full">
+                              {student.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap align-top text-sm text-gray-500 dark:text-gray-300">
+                      {worklet.collegeName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap align-top">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          worklet.performanceStatus === 'Excellent'
+                            ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400'
+                            : worklet.performanceStatus === 'Good'
+                            ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
+                            : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
+                        }`}>
+                        {worklet.performanceStatus}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="3" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    No worklets found with this status.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- List View for All Students ---
+const AllStudentsView = ({ data, onBack }) => {
+  const uniqueStudents = useMemo(() => {
+    const studentMap = new Map()
+    data.forEach((college) => {
+      college.worklets.forEach((worklet) => {
+        worklet.assignedStudents.forEach((student) => {
+          const studentEntry = studentMap.get(student.email)
+          if (studentEntry) {
+            studentEntry.worklets.push({ title: worklet.title, collegeName: college.name })
+          } else {
+            studentMap.set(student.email, {
+              ...student,
+              worklets: [{ title: worklet.title, collegeName: college.name }],
+            })
+          }
+        })
+      })
+    })
+    return Array.from(studentMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [data])
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <button
+            onClick={onBack}
+            className="flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline mb-2">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </button>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
+            Enrolled Students
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
+            {data.length > 1
+              ? `A unique list of all students enrolled in worklets.`
+              : `A list of students enrolled in worklets at ${data[0]?.name || ''}.`}
+          </p>
+        </div>
+      </div>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Student Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Email Address
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Assigned Worklets
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+              {uniqueStudents.map((student, index) => (
+                <tr
+                  key={student.email}
+                  className="hover:bg-gray-50 dark:hover:bg-slate-700/50 animate-fadeInUp"
+                  style={{ animationDelay: `${index * 50}ms` }}>
+                  <td className="px-6 py-4 whitespace-nowrap align-top text-sm font-medium text-gray-900 dark:text-white">
+                    {student.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap align-top text-sm text-gray-500 dark:text-gray-300">
+                    {student.email}
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <div className="flex flex-col space-y-1">
+                      {student.worklets.map((worklet, index) => (
+                        <div key={index} className="text-xs">
+                          <span className="font-medium text-gray-800 dark:text-gray-300">{worklet.title}</span>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            {' '}
+                            ({worklet.collegeName.split(' ')[0]})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- Main Colleges Component ---
 const Colleges = () => {
-  const [selectedCollege, setSelectedCollege] = useState('All Colleges');
-  const [selectedYear, setSelectedYear] = useState('All Years');
-  const [selectedArea, setSelectedArea] = useState('Select Area');
-  const [collegeData, setCollegeData] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [collegeSearch, setCollegeSearch] = useState('')
+  const [selectedYear, setSelectedYear] = useState('All Years')
+  const [selectedArea, setSelectedArea] = useState('Select Area')
+  const [allCollegeData, setAllCollegeData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [currentView, setCurrentView] = useState('dashboard')
 
-  // Mock college data - replace with API call
-  const mockCollegeData = [
+  const rawMockData = [
     {
       id: 1,
       name: 'VIT Vellore',
       infrastructure: 'GPDS',
-      areaOfExpertise: 'IoT, GenAI',
-      workletCount: 20,
-      excellentCount: 9,
+      areaOfExpertise: ['IoT', 'GenAI'],
       location: 'Vellore, Tamil Nadu',
-      established: '1984',
-      rating: 4.5,
-      students: 45000,
-      faculty: 2500
+      established: 1984,
+      worklets: [
+        {
+          id: 101,
+          title: 'AI-Powered Chatbot',
+          description: 'Develop a customer service chatbot using modern NLP techniques.',
+          assignedStudents: [
+            { name: 'Anika Sharma', email: 'anika.s@example.com' },
+            { name: 'Rohan Gupta', email: 'rohan.g@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 102,
+          title: 'Smart Home Automation',
+          description: 'Control home appliances remotely via an IoT-enabled mobile app.',
+          assignedStudents: [
+            { name: 'Siddharth Jain', email: 'sid.j@example.com' },
+            { name: 'Meera Reddy', email: 'meera.r@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 103,
+          title: 'Sentiment Analysis Model',
+          description: 'Build and train a model to analyze product review sentiments.',
+          assignedStudents: [
+            { name: 'Priya Singh', email: 'priya.s@example.com' },
+            { name: 'Arjun Verma', email: 'arjun.v@example.com' },
+          ],
+          performanceStatus: 'Good',
+          progressStatus: 'Ongoing',
+        },
+        {
+          id: 104,
+          title: 'E-commerce Recommendation',
+          description: 'Design a collaborative filtering engine for product recommendations.',
+          assignedStudents: [
+            { name: 'Anika Sharma', email: 'anika.s@example.com' },
+            { name: 'Vikram Kumar', email: 'vikram.k@example.com' },
+          ],
+          performanceStatus: 'Good',
+          progressStatus: 'On Hold',
+        },
+        {
+          id: 105,
+          title: 'IoT Weather Station',
+          description: 'Assemble a device to collect and display real-time local weather data.',
+          assignedStudents: [
+            { name: 'Meera Reddy', email: 'meera.r@example.com' },
+            { name: 'Rohan Gupta', email: 'rohan.g@example.com' },
+          ],
+          performanceStatus: 'Needs Attention',
+          progressStatus: 'Ongoing',
+        },
+      ],
     },
     {
       id: 2,
       name: 'MIT Cambridge',
-      infrastructure: 'GPDS',
-      areaOfExpertise: 'AI, ML, Robotics',
-      workletCount: 35,
-      excellentCount: 28,
+      infrastructure: 'Premium',
+      areaOfExpertise: ['AI & Machine Learning', 'Robotics'],
       location: 'Cambridge, MA',
-      established: '1861',
-      rating: 4.9,
-      students: 11500,
-      faculty: 3000
+      established: 1861,
+      worklets: [
+        {
+          id: 201,
+          title: 'Robotic Arm Control System',
+          description: 'Develop a high-precision inverse kinematics control algorithm.',
+          assignedStudents: [
+            { name: 'John Doe', email: 'john.d@example.com' },
+            { name: 'Jane Smith', email: 'jane.s@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 202,
+          title: 'Predictive Analytics Model',
+          description: 'Build a time-series model to predict stock market trends.',
+          assignedStudents: [
+            { name: 'Emily White', email: 'emily.w@example.com' },
+            { name: 'Chris Green', email: 'chris.g@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 203,
+          title: 'Autonomous Drone Navigation',
+          description: 'Implement a SLAM-based system for autonomous drone pathfinding.',
+          assignedStudents: [
+            { name: 'Peter Jones', email: 'peter.j@example.com' },
+            { name: 'John Doe', email: 'john.d@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Ongoing',
+        },
+        {
+          id: 204,
+          title: 'Computer Vision for QC',
+          description: 'Use a CNN for automated quality control on a manufacturing line.',
+          assignedStudents: [
+            { name: 'Jane Smith', email: 'jane.s@example.com' },
+            { name: 'Laura Brown', email: 'laura.b@example.com' },
+          ],
+          performanceStatus: 'Good',
+          progressStatus: 'Terminated',
+        },
+      ],
     },
     {
       id: 3,
       name: 'Stanford University',
       infrastructure: 'Premium',
-      areaOfExpertise: 'CS, AI, Biotech',
-      workletCount: 42,
-      excellentCount: 35,
+      areaOfExpertise: ['Cybersecurity', 'Biotech'],
       location: 'Stanford, CA',
-      established: '1885',
-      rating: 4.8,
-      students: 17000,
-      faculty: 2200
+      established: 1885,
+      worklets: [
+        {
+          id: 301,
+          title: 'Network Intrusion Detection',
+          description: 'Implement an ML-based system to detect and flag network anomalies.',
+          assignedStudents: [
+            { name: 'Michael Chen', email: 'michael.c@example.com' },
+            { name: 'Sarah Lee', email: 'sarah.l@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 302,
+          title: 'Gene Sequencing Algorithm',
+          description: 'Optimize a parallel processing algorithm for faster DNA analysis.',
+          assignedStudents: [
+            { name: 'David Kim', email: 'david.k@example.com' },
+            { name: 'Laura Ortiz', email: 'laura.o@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'On Hold',
+        },
+        {
+          id: 303,
+          title: 'Blockchain for Secure Voting',
+          description: 'Develop a proof-of-concept decentralized voting application.',
+          assignedStudents: [
+            { name: 'Ben Carter', email: 'ben.c@example.com' },
+            { name: 'Michael Chen', email: 'michael.c@example.com' },
+          ],
+          performanceStatus: 'Good',
+          progressStatus: 'Ongoing',
+        },
+      ],
     },
-    {
-      id: 4,
-      name: 'IIT Bombay',
-      infrastructure: 'GPDS',
-      areaOfExpertise: 'Engineering, Tech',
-      workletCount: 28,
-      excellentCount: 22,
-      location: 'Mumbai, Maharashtra',
-      established: '1958',
-      rating: 4.7,
-      students: 12000,
-      faculty: 850
-    }
-  ];
-
-  const chartData = [
-    { college: 'VIT', vit: 15, srm: 0, amity: 0 },
-    { college: 'SRM', vit: 0, srm: 12, amity: 0 },
-    { college: 'Amity', vit: 0, srm: 0, amity: 8 },
-  ];
+  ]
 
   useEffect(() => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setCollegeData(mockCollegeData);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    setLoading(true)
+    const processedData = rawMockData.map((college) => {
+      const worklets = college.worklets || []
+      const studentMap = new Map()
+      worklets.forEach((worklet) => {
+        worklet.assignedStudents.forEach((student) => {
+          if (!studentMap.has(student.email)) {
+            studentMap.set(student.email, student)
+          }
+        })
+      })
+      return {
+        ...college,
+        workletCount: worklets.length,
+        excellentCount: worklets.filter((w) => w.performanceStatus === 'Excellent').length,
+        goodCount: worklets.filter((w) => w.performanceStatus === 'Good').length,
+        needsAttentionCount: worklets.filter((w) => w.performanceStatus === 'Needs Attention').length,
+        completedCount: worklets.filter((w) => w.progressStatus === 'Completed').length,
+        ongoingCount: worklets.filter((w) => w.progressStatus === 'Ongoing').length,
+        onHoldCount: worklets.filter((w) => w.progressStatus === 'On Hold').length,
+        terminatedCount: worklets.filter((w) => w.progressStatus === 'Terminated').length,
+        totalStudents: studentMap.size,
+      }
+    })
+    setAllCollegeData(processedData)
+    setLoading(false)
+  }, [])
+
+  const filteredColleges = useMemo(() => {
+    if (!allCollegeData) return []
+
+    let collegesToFilter = allCollegeData
+    if (collegeSearch) {
+      collegesToFilter = allCollegeData.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
+    }
+
+    return collegesToFilter.filter((college) => {
+      const yearMatch = selectedYear === 'All Years' || college.established.toString() === selectedYear
+      const areaMatch = selectedArea === 'Select Area' || college.areaOfExpertise.includes(selectedArea)
+      return yearMatch && areaMatch
+    })
+  }, [allCollegeData, collegeSearch, selectedYear, selectedArea])
 
   const handleExport = () => {
-    console.log('Exporting data...');
-    // Add export functionality
-  };
+    if (filteredColleges.length === 0) {
+      alert('No data to export!')
+      return
+    }
+    const headers = ['ID', 'Name', 'Location', 'Total Worklets', 'Excellent', 'Good', 'Needs Attention']
+    const csvRows = [
+      headers.join(','),
+      ...filteredColleges.map((college) =>
+        [
+          college.id,
+          `"${college.name}"`,
+          `"${college.location}"`,
+          college.workletCount,
+          college.excellentCount,
+          college.goodCount,
+          college.needsAttentionCount,
+        ].join(',')
+      ),
+    ]
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'college_data.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
-  const handleNewWorklet = () => {
-    console.log('Creating new worklet...');
-    // Add new worklet functionality
-  };
+  const handleNewWorklet = () => alert('Opening form to create a new worklet...')
 
-  return (
-    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      <LeftSidebar />
-      
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
-        <div className="max-w-7xl mx-auto">
-          {/* Header Section */}
-          <div className="mb-8">
+  const handleGetProfessors = () => {
+    if (filteredColleges.length === 1) {
+      alert(`Fetching professors for ${filteredColleges[0].name}...`)
+    } else {
+      alert('Please select a single college to get professors.')
+    }
+  }
+
+  const handleResetFilters = () => {
+    setCollegeSearch('')
+    setSelectedYear('All Years')
+    setSelectedArea('Select Area')
+  }
+
+  const handleCollegeSelect = (collegeName) => {
+    setCollegeSearch(collegeName)
+  }
+
+  const renderDashboard = () => {
+    // Single College View Layout
+    if (filteredColleges.length === 1 && collegeSearch) {
+      const college = filteredColleges[0]
+      return (
+        <div className="space-y-8">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">College Overview</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-slate-700/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      College Name
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Total Worklets
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Excellent
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Good
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Needs Attention
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                  {filteredColleges.map((college) => (
+                    <tr key={college.id} className="animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg mr-3">
+                            <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{college.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{college.location}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-center text-gray-900 dark:text-white">
+                        {college.workletCount}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
+                        {college.excellentCount}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-center font-medium text-green-600 dark:text-green-400">
+                        {college.goodCount}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
+                        {college.needsAttentionCount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+            <button
+              onClick={() => setCurrentView('allWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.workletCount}</p>
+                </div>
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                  <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('ongoingWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ongoing</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.ongoingCount}</p>
+                </div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('completedWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.completedCount}</p>
+                </div>
+                <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                  <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('onHoldWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">On Hold</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.onHoldCount}</p>
+                </div>
+                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+                  <PauseCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('terminatedWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Terminated</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.terminatedCount}</p>
+                </div>
+                <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                  <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('allStudents')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Students</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.totalStudents}</p>
+                </div>
+                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg">
+                  <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
+              </div>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <WorkletProgressChart data={filteredColleges} />
+            <WorkletPerformanceChart data={filteredColleges} />
+            <WorkletsPerCollegeChart data={filteredColleges} />
+          </div>
+        </div>
+      )
+    }
+
+    // Default Multi-College View Layout
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {filteredColleges.length > 1 && (
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{filteredColleges.length}</p>
+                  <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                    <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => setCurrentView('allWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Worklets</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {allCollegeData.reduce((acc, curr) => acc + curr.workletCount, 0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                  <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('allStudents')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {allCollegeData.reduce((acc, curr) => acc + curr.totalStudents, 0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg">
+                  <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('ongoingWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ongoing</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {allCollegeData.reduce((acc, curr) => acc + curr.ongoingCount, 0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('completedWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {allCollegeData.reduce((acc, curr) => acc + curr.completedCount, 0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                  <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('onHoldWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">On Hold</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {allCollegeData.reduce((acc, curr) => acc + curr.onHoldCount, 0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+                  <PauseCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentView('terminatedWorklets')}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Terminated</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {allCollegeData.reduce((acc, curr) => acc + curr.terminatedCount, 0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                  <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+              </div>
+            </button>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">College Overview</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-slate-700/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      College Name
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Total Worklets
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Excellent
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Good
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Needs Attention
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                  {loading ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredColleges.map((college, index) => (
+                      <tr
+                        key={college.id}
+                        onClick={() => handleCollegeSelect(college.name)}
+                        className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer animate-fadeInUp"
+                        style={{ animationDelay: `${index * 50}ms` }}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg mr-3">
+                              <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">{college.name}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">{college.location}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center text-gray-900 dark:text-white">
+                          {college.workletCount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
+                          {college.excellentCount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-green-600 dark:text-green-400">
+                          {college.goodCount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
+                          {college.needsAttentionCount}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div className="lg:col-span-1">
+          <DashboardGraphs data={filteredColleges} />
+        </div>
+      </div>
+    )
+  }
+
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'allWorklets':
+        return (
+          <WorkletListView data={filteredColleges} onBack={() => setCurrentView('dashboard')} title="Active Worklets" />
+        )
+      case 'ongoingWorklets':
+        return (
+          <WorkletListView
+            data={filteredColleges}
+            onBack={() => setCurrentView('dashboard')}
+            title="Ongoing Worklets"
+            filterStatus="Ongoing"
+          />
+        )
+      case 'completedWorklets':
+        return (
+          <WorkletListView
+            data={filteredColleges}
+            onBack={() => setCurrentView('dashboard')}
+            title="Completed Worklets"
+            filterStatus="Completed"
+          />
+        )
+      case 'onHoldWorklets':
+        return (
+          <WorkletListView
+            data={filteredColleges}
+            onBack={() => setCurrentView('dashboard')}
+            title="Worklets On Hold"
+            filterStatus="On Hold"
+          />
+        )
+      case 'terminatedWorklets':
+        return (
+          <WorkletListView
+            data={filteredColleges}
+            onBack={() => setCurrentView('dashboard')}
+            title="Terminated Worklets"
+            filterStatus="Terminated"
+          />
+        )
+      case 'allStudents':
+        return <AllStudentsView data={filteredColleges} onBack={() => setCurrentView('dashboard')} />
+      case 'dashboard':
+      default:
+        return (
+          <div>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-3xl font-bold text-black dark:text-white">
+                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
                   College Management
                 </h1>
                 <p className="text-gray-600 dark:text-gray-300 mt-2">
-                  Monitor and manage college partnerships and worklet performance
+                  {collegeSearch
+                    ? `Displaying data for ${collegeSearch}`
+                    : 'Monitor and manage college partnerships and worklet performance'}
                 </p>
               </div>
-              
               <div className="flex items-center space-x-3">
                 <button
                   onClick={handleNewWorklet}
-                  className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
+                  className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 active:scale-95">
                   <Plus className="w-4 h-4 mr-2" />
                   New Worklet
                 </button>
-                <button className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                  <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                </button>
               </div>
             </div>
-
-            {/* Filter Controls */}
-            <div className="flex flex-wrap items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-              {/* College Selector */}
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">College:</label>
-                <div className="relative">
-                  <select
-                    value={selectedCollege}
-                    onChange={(e) => setSelectedCollege(e.target.value)}
-                    className="appearance-none bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option>All Colleges</option>
-                    <option>VIT Vellore</option>
-                    <option>MIT Cambridge</option>
-                    <option>Stanford University</option>
-                    <option>IIT Bombay</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-                </div>
+            <div className="flex flex-col md:flex-row flex-wrap items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-md shadow-slate-200/50 dark:shadow-black/20 mb-8">
+              <div className="w-full md:w-64">
+                <SearchableDropdown
+                  options={rawMockData}
+                  value={collegeSearch}
+                  onChange={handleCollegeSelect}
+                  placeholder="Search or select college..."
+                />
               </div>
-
-              {/* Year Selector */}
               <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Year:</label>
                 <div className="relative">
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
-                    className="appearance-none bg-green-50 dark:bg-slate-700 border border-green-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
+                    className="appearance-none bg-green-50 dark:bg-slate-700 border border-green-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200">
                     <option>All Years</option>
+                    <option>2025</option>
                     <option>2024</option>
                     <option>2023</option>
-                    <option>2022</option>
+                    <option>1984</option>
+                    <option>1958</option>
                   </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                 </div>
               </div>
-
-              {/* Area Selector */}
               <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Area:</label>
                 <div className="relative">
                   <select
                     value={selectedArea}
                     onChange={(e) => setSelectedArea(e.target.value)}
-                    className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
+                    className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
                     <option>Select Area</option>
                     <option>AI & Machine Learning</option>
-                    <option>IoT & Hardware</option>
+                    <option>IoT</option>
+                    <option>GenAI</option>
                     <option>Web Development</option>
                     <option>Data Science</option>
                     <option>Cybersecurity</option>
                   </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                 </div>
               </div>
-
               <div className="flex-1"></div>
-
-              {/* Action Buttons */}
               <div className="flex items-center space-x-2">
-                <button className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                <button
+                  onClick={handleResetFilters}
+                  className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-transform hover:scale-105 active:scale-95"
+                  title="Reset Filters">
+                  <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                </button>
+                <button
+                  onClick={handleGetProfessors}
+                  className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-transform hover:scale-105 active:scale-95">
                   <Users className="w-4 h-4 mr-2" />
                   Get Professors
                 </button>
                 <button
                   onClick={handleExport}
-                  className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                >
+                  className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-transform hover:scale-105 active:scale-95">
                   <Download className="w-4 h-4 mr-2" />
                   Export
                 </button>
               </div>
             </div>
+            {renderDashboard()}
           </div>
+        )
+    }
+  }
 
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Section - Statistics Cards and College Table */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Statistics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">24</p>
-                    </div>
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                      <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Worklets</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">125</p>
-                    </div>
-                    <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                      <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">1,240</p>
-                    </div>
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                      <BookOpen className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* College Overview Table - Below Statistics */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">College Overview</h3>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-slate-700/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">College Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Infrastructure Available</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Area of Expertise/AoE</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Worklets in AoE</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Excellent AoE Worklets</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                      {loading ? (
-                        <tr>
-                          <td colSpan="5" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                            Loading colleges...
-                          </td>
-                        </tr>
-                      ) : (
-                        collegeData.map((college) => (
-                          <tr key={college.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center">
-                                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg mr-3">
-                                  <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900 dark:text-white">{college.name}</div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">{college.location}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400">
-                                {college.infrastructure}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{college.areaOfExpertise}</td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{college.workletCount}</td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{college.excellentCount}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Section - Charts */}
-            <div className="space-y-6">
-              {/* Worklet Distribution Chart */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Worklet Distribution by AoE and College</h3>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <BarChart3 className="w-5 h-5" />
-                  </button>
-                </div>
-                
-                {/* Simple Bar Chart Representation */}
-                <div className="space-y-4">
-                  {chartData.map((item, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">{item.college}</span>
-                        <span className="text-gray-900 dark:text-white font-medium">
-                          {item.vit + item.srm + item.amity}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-                          style={{width: `${((item.vit + item.srm + item.amity) / 15) * 100}%`}}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Performance Chart */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Worklet Performance by AoE and College</h3>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <TrendingUp className="w-5 h-5" />
-                  </button>
-                </div>
-                
-                {/* Performance Metrics */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Excellent</span>
-                    </div>
-                    <span className="text-sm font-bold text-blue-600 dark:text-blue-400">65%</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Good</span>
-                    </div>
-                    <span className="text-sm font-bold text-green-600 dark:text-green-400">25%</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Needs Attention</span>
-                    </div>
-                    <span className="text-sm font-bold text-yellow-600 dark:text-yellow-400">10%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+  return (
+    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <AnimationStyles />
+      <LeftSidebar />
+      <main className="flex-1 p-6 lg:p-8 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
+        <div className="max-w-7xl mx-auto">{renderCurrentView()}</div>
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default Colleges;
+export default Colleges
