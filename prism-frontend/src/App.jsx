@@ -52,8 +52,12 @@ export default function App() {
                 <Route path="/submit-feedback" element={<Dashboard />} />
                 <Route path="/Left" element={<LeftSidebar/>}/>
                 <Route path="/meeting" element={<Meetings />} />
+               
                 <Route path="portfolio" element={<Portfolio/>}/>
-                <Route path="/colleges" element={<Colleges />} />                
+                <Route path="/colleges" element={<Colleges />} />
+
+                
+                
               </Routes>
             </ProtectedRoute>
           }

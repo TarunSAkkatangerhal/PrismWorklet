@@ -214,11 +214,7 @@ const NavStat = () => {
                   }`}>
                     Worklet Details
                   </h1>
-                  <p className={`text-xs ${
-                    isDarkMode ? 'text-gray-300/70' : 'text-gray-600'
-                  }`}>
-                    Manage and view your project worklets
-                  </p>
+                
                 </div>
               </div>
 
