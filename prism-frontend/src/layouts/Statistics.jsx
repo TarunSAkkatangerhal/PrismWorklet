@@ -266,15 +266,15 @@ const ModernStatisticsDashboard = () => {
   
   // Navigation handlers for worklet cards
   const handleTotalWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'total' } })
+    navigate('/navStat', { state: { filter: 'total', year: filters.year } })
   }
   
   const handleOngoingWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'ongoing' } })
+    navigate('/navStat', { state: { filter: 'ongoing', year: filters.year } })
   }
   
   const handleCompletedWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'completed' } })
+    navigate('/navStat', { state: { filter: 'completed', year: filters.year } })
   }
   
   const [statisticsData, setStatisticsData] = useState(null)
