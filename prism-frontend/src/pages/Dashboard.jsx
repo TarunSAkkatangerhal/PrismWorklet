@@ -592,14 +592,14 @@ function WorkletCard({ worklet, layout, navigate }) {
     navigate(`/worklet/${worklet.id}`)
   }
 
-  // Prevent card navigation & open notifications pane if there are updates
-  const handleNotificationClick = (event) => {
-    event.stopPropagation()
-    // Only navigate if there are actual notifications
-    if (worklet.notificationCount > 0) {
-      navigate(`/worklet/${worklet.id}/notifications`)
-    }
-  }
+  // // Prevent card navigation & open notifications pane if there are updates
+  // const handleNotificationClick = (event) => {
+  //   event.stopPropagation()
+  //   // Only navigate if there are actual notifications
+  //   if (worklet.notificationCount > 0) {
+  //     navigate(`/worklet/${worklet.id}/notifications`)
+  //   }
+  // }
 
   // Utility to keep badge sizes stable
   const truncateText = (text, maxLength = 25) => {
