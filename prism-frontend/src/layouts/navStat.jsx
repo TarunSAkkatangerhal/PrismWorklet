@@ -170,7 +170,7 @@ const NavStat = () => {
   const stats = getFilterStats()
 
   return (
-    <div className={`flex h-screen ${
+    <div className={`flex h-screen font-sans ${
       isDarkMode 
         ? 'bg-gradient-to-br from-slate-900 via-purple-900/20 to-indigo-900/20' 
         : 'bg-gradient-to-br from-purple-50 via-indigo-50/50 to-blue-100/30'
@@ -206,13 +206,13 @@ const NavStat = () => {
                 </motion.button>
                 
                 <div>
-                  <h1 className={`text-xl font-bold ${
-                    isDarkMode ? 'text-white' : 'text-slate-800'
+                  <h1 className={`text-4xl font-bold font-sans ${
+                    isDarkMode ? 'text-white' : 'text-black'
                   }`}>
                     Worklet Details
                   </h1>
                   <p className={`text-xs ${
-                    isDarkMode ? 'text-purple-300/70' : 'text-purple-600/80'
+                    isDarkMode ? 'text-gray-300/70' : 'text-gray-600'
                   }`}>
                     Manage and view your project worklets
                   </p>
@@ -235,8 +235,8 @@ const NavStat = () => {
                             ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-500/50'
                             : 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg border border-purple-400/50'
                           : isDarkMode
-                          ? 'bg-slate-700/50 text-purple-300 border border-purple-800/30 hover:bg-gradient-to-r hover:from-purple-800/40 hover:to-indigo-800/40 hover:text-white'
-                          : 'bg-white/60 text-purple-700 border border-purple-300/40 hover:bg-gradient-to-r hover:from-purple-100 hover:to-indigo-100 hover:text-purple-800'
+                          ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-gradient-to-r hover:from-gray-800/40 hover:to-gray-700/40 hover:text-white'
+                          : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 hover:text-gray-800'
                       }`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -247,8 +247,8 @@ const NavStat = () => {
                         isActive 
                           ? 'bg-white/20 text-white' 
                           : isDarkMode
-                          ? 'bg-purple-800/30 text-purple-300'
-                          : 'bg-purple-100/80 text-purple-600'
+                          ? 'bg-gray-800/30 text-gray-300'
+                          : 'bg-gray-100/80 text-gray-700'
                       }`}>
                         {option.key === 'total' && stats.total}
                         {option.key === 'ongoing' && stats.ongoing}
@@ -266,7 +266,7 @@ const NavStat = () => {
               <Search 
                 size={18} 
                 className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${
-                  isDarkMode ? 'text-purple-400' : 'text-purple-500'
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`} 
               />
               <input
@@ -276,8 +276,8 @@ const NavStat = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={`w-full pl-12 pr-4 py-2.5 rounded-xl border transition-all duration-200 ${
                   isDarkMode 
-                    ? 'bg-slate-800/50 border-purple-700/30 text-white placeholder-purple-400/60 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' 
-                    : 'bg-white/70 border-purple-300/40 text-slate-800 placeholder-purple-500/60 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
+                    ? 'bg-slate-800/50 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20' 
+                    : 'bg-white/70 border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
                 } backdrop-blur-sm`}
               />
             </div>
@@ -298,8 +298,8 @@ const NavStat = () => {
             }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <h2 className={`text-lg font-semibold ${
-                    isDarkMode ? 'text-white' : 'text-slate-800'
+                  <h2 className={`text-xl font-semibold font-sans ${
+                    isDarkMode ? 'text-white' : 'text-black'
                   }`}>
                     {filterOptions.find(f => f.key === activeFilter)?.label} 
                     {searchTerm && ` - Search Results`}
