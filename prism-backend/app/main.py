@@ -91,7 +91,9 @@ async def rate_limit_auth(request: Request, call_next: Callable):
         await auth_rate_limiter(request)
     return await call_next(request)
 
+
 # Routers
+from app.routers import college
 app.include_router(health.router)
 app.include_router(auth.router)
 # Mentors router temporarily disabled due to schema refactor; re-enable after migration
@@ -100,6 +102,7 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"]
 app.include_router(evaluations.router, prefix="/evaluations", tags=["evaluations"])
 app.include_router(associations.router, prefix="/api", tags=["associations"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["portfolio"])
+app.include_router(college.router)
 
 # Startup and shutdown events
 @app.on_event("startup")

@@ -6,7 +6,11 @@ UPDATE worklets SET status = 'Ongoing' WHERE status = 'Completed' AND completed_
 
 CREATE TABLE IF NOT EXISTS colleges (
   college_id INT AUTO_INCREMENT PRIMARY KEY,
-  college_name VARCHAR(255) UNIQUE NOT NULL
+  college_name VARCHAR(255) UNIQUE NOT NULL,
+  location VARCHAR(255),
+ established YEAR,
+  infrastructure VARCHAR(100),
+  area_of_expertise TEXT
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -19,7 +23,8 @@ CREATE TABLE IF NOT EXISTS users (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   active_till DATE,
-  is_active INT
+  is_active INT,
+  college_id INT NULL,
   CONSTRAINT fk_users_college FOREIGN KEY (college_id) REFERENCES colleges(college_id)
 );
 
@@ -54,7 +59,9 @@ CREATE TABLE IF NOT EXISTS worklets (
   domain VARCHAR(100),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  completed_date Date
+  completed_date Date,
+  college_id INT NULL,
+  CONSTRAINT fk_worklets_college FOREIGN KEY (college_id) REFERENCES colleges(college_id)
 );
 
 CREATE TABLE IF NOT EXISTS user_worklet_association (
@@ -125,6 +132,15 @@ CREATE TABLE IF NOT EXISTS commercializations (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   FOREIGN KEY (worklet_id) REFERENCES worklets(worklet_id) ON DELETE SET NULL
+);
+
+CREATE TABLE student_college_association (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    college_id INT NOT NULL,
+    FOREIGN KEY (student_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (college_id) REFERENCES colleges(college_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_student_college (student_id, college_id)
 );
 
 -- Helpful indexes

@@ -22,6 +22,10 @@ class College(Base):
 
     college_id = Column(Integer, primary_key=True, autoincrement=True)
     college_name = Column(String(255), unique=True, nullable=False)
+    location = Column(String(255), nullable=True)
+    established = Column(Integer, nullable=True)
+    infrastructure = Column(String(255), nullable=True)
+    area_of_expertise = Column(String(255), nullable=True)
 
     # Backref to users
     users = relationship("User", back_populates="college_rel")
@@ -124,6 +128,7 @@ class Worklet(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     # Progress now tracked per worklet (moved from users table)
     worklet_progress = Column(Integer, nullable=False, server_default="0")  # 0-100
+    college_id = Column(Integer, ForeignKey("colleges.college_id"), nullable=True)
 
     # Relationships
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")
