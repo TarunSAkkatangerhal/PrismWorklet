@@ -284,10 +284,10 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
   return (
     <>
       {/* Main Form */}
-      <div className="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-slate-900 p-6 transition-colors duration-300">
+      <div className="w-full">
         <form
           onSubmit={handleSubmit}
-          className="bg-white shadow-lg border-2 border-blue-300 rounded-xl p-8 w-full max-w-3xl dark:bg-slate-800 dark:border-slate-700"
+          className="bg-white shadow-lg border-2 border-blue-300 rounded-xl p-8 w-full max-w-3xl mx-auto dark:bg-slate-800 dark:border-slate-700"
         >
           <h1 className="text-center text-2xl font-extrabold text-blue-700 dark:text-blue-300 mb-4">
             INTERN REFERRAL FORM
@@ -444,7 +444,7 @@ function SuccessScreen({ submittedData, onReset }) {
 
   return (
     // ++ FIX: Changed bg-blue-50 to bg-gray-50 for a more neutral light background
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-slate-900 p-6 transition-colors duration-300">
+    <div className="w-full">
       <div className="text-center p-10 bg-white rounded-xl shadow-lg border-2 border-blue-300 max-w-3xl mx-auto dark:bg-slate-800 dark:border-slate-700">
         <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Referral Submitted!</h2>

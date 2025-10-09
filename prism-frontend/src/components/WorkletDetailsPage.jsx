@@ -2067,7 +2067,7 @@ export default function WorkletDetailPage() {
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
           <div className="relative w-full max-w-4xl bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl 
                           shadow-2xl border border-white/20 dark:border-gray-600/20 flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50 flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wider">
                 INTERN REFERRAL FORM
               </h2>
@@ -2079,7 +2079,7 @@ export default function WorkletDetailPage() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6">
+            <div className="flex-1 overflow-y-auto p-6">
               <InternReferralForm
                 workletId={worklet.id}
                 preSelectedWorklet={{
