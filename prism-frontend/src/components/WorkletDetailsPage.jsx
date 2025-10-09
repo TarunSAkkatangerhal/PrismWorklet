@@ -323,7 +323,7 @@ export default function WorkletDetailPage() {
             cert_id: response.data.cert_id,
             title: response.data.cert_id || response.data.title,
             status: response.data.status || 'Ongoing',
-            progress: response.data.percentage_completion || 0,
+            progress: (typeof response.data.worklet_progress === 'number' ? response.data.worklet_progress : response.data.percentage_completion) || 0,
             description: response.data.description || 'No description available',
             imageUrl: imageUrls[Math.floor(Math.random() * imageUrls.length)], // Random image
             startDate: response.data.start_date
@@ -341,6 +341,7 @@ export default function WorkletDetailPage() {
                 })
               : 'N/A',
             students: response.data.students || [], // Use actual students data or empty array
+            professors: response.data.professors || [],
             college: response.data.college || 'Not specified',
             team: response.data.team || 'Not specified',
             problem_statement: response.data.problem_statement || 'No problem statement provided',
@@ -729,32 +730,31 @@ export default function WorkletDetailPage() {
             <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
               <h4 className="font-medium text-green-900 dark:text-green-300 mb-2 flex items-center gap-2">
                 <Award size={16} />
-                Team Lead
+                Professors
               </h4>
-              <p className="text-green-700 dark:text-green-400">John Doe</p>
+              {worklet.professors && worklet.professors.length > 0 ? (
+                <ul className="list-disc list-inside text-green-700 dark:text-green-400 text-sm space-y-1">
+                  {worklet.professors.map((p,i) => (
+                    <li key={i}>{p}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-green-700 dark:text-green-400">No professors assigned</p>
+              )}
             </div>
 
             <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
               <h4 className="font-medium text-purple-900 dark:text-purple-300 mb-2 flex items-center gap-2">
                 <Users size={16} />
-                Team Size
+                Team Size (Students)
               </h4>
               <p className="text-purple-700 dark:text-purple-400">{worklet.students.length + 1} Members</p>
             </div>
           </div>
 
           <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <h4 className="font-medium text-gray-900 dark:text-gray-300 mb-3">Team Members</h4>
+            <h4 className="font-medium text-gray-900 dark:text-gray-300 mb-3">Students</h4>
             <div className="space-y-2">
-              <div className="flex items-center gap-3 p-2 bg-white dark:bg-gray-600/50 rounded">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                  JD
-                </div>
-                <div className="flex-grow">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">John Doe</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 block">Team Lead</span>
-                </div>
-              </div>
               {worklet.students.map((student, index) => (
                 <div key={index} className="flex items-center gap-3 p-2 bg-white dark:bg-gray-600/50 rounded">
                   <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
@@ -1755,10 +1755,18 @@ export default function WorkletDetailPage() {
 
                       {/* Team Members Grid */}
                       <div className="grid gap-4">
-                        {/* Team Lead */}
+                        {/* Professors Section */}
                         <div className="mb-4">
-                          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Team Lead</h3>
-                          <TeamMemberCard member="John Doe" role="Project Lead & Senior Developer" />
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Professors</h3>
+                          {worklet.professors && worklet.professors.length > 0 ? (
+                            <div className="grid gap-3">
+                              {worklet.professors.map((prof, idx) => (
+                                <TeamMemberCard key={idx} member={prof} role="Professor" />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">No professors assigned</div>
+                          )}
                         </div>
 
                         <div>
@@ -2059,7 +2067,7 @@ export default function WorkletDetailPage() {
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
           <div className="relative w-full max-w-4xl bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl 
                           shadow-2xl border border-white/20 dark:border-gray-600/20 flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50 flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wider">
                 INTERN REFERRAL FORM
               </h2>
@@ -2071,7 +2079,7 @@ export default function WorkletDetailPage() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6">
+            <div className="flex-1 overflow-y-auto p-6">
               <InternReferralForm
                 workletId={worklet.id}
                 preSelectedWorklet={{

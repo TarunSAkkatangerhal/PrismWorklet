@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LeftSidebar from '../components/Left';
 import {
   RefreshCcw,
   Lightbulb,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
+import RightSidebar from '../components/Right';
 
 export default function Ray() {
   const navigate = useNavigate();
@@ -44,24 +46,6 @@ export default function Ray() {
     }
   }, [opening, welcomeMsg]);
 
-  const activities = [
-    { icon: <RefreshCcw className="w-5 h-5" />, label: 'Request Update', path: '/request-update' },
-    { icon: <Lightbulb className="w-5 h-5" />, label: 'Share Suggestion', path: '/share-suggestion' },
-    { icon: <Calendar className="w-5 h-5" />, label: 'Schedule Meeting', path: '/schedule-meeting' },
-    { icon: <Briefcase className="w-5 h-5" />, label: 'Internship Referral', path: '/internship-referral' },
-    { icon: <MessageSquare className="w-5 h-5" />, label: 'Submit Feedback', path: '/submit-feedback' }
-  ];
-
-  const navItems = [
-    { icon: <Home className="w-5 h-5" />, label: 'Home', path: '/home' },
-    { icon: <BarChart className="w-5 h-5" />, label: 'Statistics', path: '/statistics' },
-    { icon: <GraduationCap className="w-5 h-5" />, label: 'Colleges', path: '/colleges' },
-  // Removed Chats and Updates per request
-    { icon: <Calendar className="w-5 h-5" />, label: 'Meetings', path: '/meetings' },
-    { icon: <Folder className="w-5 h-5" />, label: 'Portfolio', path: '/portfolio' },
-  // Removed Feedbacks per request
-  ];
-
   if (opening) {
     return (
       // ++ Dark theme styles added
@@ -80,21 +64,7 @@ export default function Ray() {
     // ++ Dark theme styles added
     <div className="flex h-screen bg-gradient-to-br from-blue-50 to-blue-100 dark:from-slate-900 dark:to-black animate-zoomIn">
       {/* Left Navigation */}
-      <aside className="w-20 bg-white/80 backdrop-blur-sm py-6 dark:bg-slate-800/80">
-        <div className="flex flex-col items-center space-y-8">
-          {navItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={() => navigate(item.path)}
-              // ++ Dark theme styles added
-              className="flex flex-col items-center text-gray-500 hover:text-blue-600 transition-colors dark:text-slate-400 dark:hover:text-blue-400"
-            >
-              {item.icon}
-              <span className="text-[10px] mt-1">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </aside>
+      <LeftSidebar/>
 
       {/* Chat Container */}
       <div className="flex-1 flex flex-col bg-white dark:bg-slate-900">
@@ -144,29 +114,8 @@ export default function Ray() {
       </div>
 
       {/* Right Sidebar */}
-      <aside className="w-80 bg-white/80 backdrop-blur-sm p-6 border-l border-blue-100 dark:bg-slate-800/80 dark:border-slate-700">
-        <h1 className="text-2xl font-bold text-blue-900 mb-6 dark:text-blue-300">Activities</h1>
-        <div className="space-y-3">
-          {activities.map((activity, index) => (
-            <button
-              key={index}
-              onClick={() => navigate(activity.path)}
-              // ++ Dark theme styles added
-              className="w-full flex items-center gap-3 p-4 bg-white rounded-xl hover:bg-blue-50 transition-colors dark:bg-slate-700 dark:hover:bg-slate-600"
-            >
-              {/* ++ Dark theme styles added */}
-              <div className="p-2 bg-blue-50 text-blue-700 rounded-lg dark:bg-blue-500/20 dark:text-blue-300">{activity.icon}</div>
-              <span className="font-medium text-blue-900 dark:text-slate-200">{activity.label}</span>
-            </button>
-          ))}
-        </div>
-        <div className="mt-6 flex items-center gap-2 text-blue-900 dark:text-slate-300">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">R</span>
-          </div>
-          <span className="text-sm font-medium">Support</span>
-        </div>
-      </aside>
+      <RightSidebar />
+      
     </div>
   );
 }

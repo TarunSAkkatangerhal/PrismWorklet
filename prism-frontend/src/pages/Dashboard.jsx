@@ -34,140 +34,6 @@ import {
 // --- DUMMY DATA WITH NEW ID FORMAT AND MORE WORKLETS ---
 // Retained for design / layout reference & potential offline prototyping.
 // Currently NOT used in render path (live data comes from mentor endpoints).
-const DUMMY_WORKLETS = [
-  {
-    id: 'AI201B',
-    title: 'AI-Powered Predictive Analytics Engine',
-    status: 'Ongoing',
-    progress: 75,
-    description:
-      'Develop a scalable engine for real-time sales forecasting using machine learning models and historical data.',
-    startDate: 'Sep 1, 2025',
-    endDate: 'Dec 15, 2025',
-    students: ['Alice Johnson', 'Bob Williams', 'Charlie Brown', 'Diana Miller', 'Edward Green', 'Fiona White'],
-    notificationCount: 2,
-    quality: 'Excellence',
-    college: 'Cambridge institute of Technology',
-    team: 'Data Science',
-    cert_id: 'AI-201',
-    student_count: 6,
-  },
-  {
-    id: 'MD305C',
-    title: 'Cross-Platform Mobile Application Framework',
-    status: 'Ongoing',
-    progress: 40,
-    description: 'Build a new framework to streamline mobile app development across both iOS and Android platforms.',
-    startDate: 'Aug 15, 2025',
-    endDate: 'Nov 30, 2025',
-    students: ['Eve Davis', 'Frank White'],
-    notificationCount: 0,
-    quality: 'Good',
-    college: 'MIT',
-    team: 'Mobile Dev',
-    cert_id: 'MD-305',
-    student_count: 2,
-  },
-  {
-    id: '25KT23M',
-    title: 'IoT Smart Home Hub Integration',
-    status: 'Ongoing',
-    progress: 25,
-    description: 'Integrate a new set of smart sensors into the existing IoT home automation ecosystem.',
-    startDate: 'Oct 1, 2025',
-    endDate: 'Jan 20, 2026',
-    students: ['Grace Taylor', 'Heidi Clark', 'Ivan Rodriguez'],
-    notificationCount: 0,
-    quality: 'Needs Attention',
-    college: 'Carnegie Mellon',
-    team: 'IoT Core',
-    cert_id: 'IOT-112',
-    student_count: 3,
-  },
-  {
-    id: 'CS404A',
-    title: 'Cloud Infrastructure Security Audit',
-    status: 'Ongoing',
-    progress: 92,
-    description:
-      'Perform a comprehensive security audit and vulnerability assessment of the current AWS infrastructure.',
-    startDate: 'Jul 20, 2025',
-    endDate: 'Oct 10, 2025',
-    students: ['Judy Green', 'Kevin Hall'],
-    notificationCount: 5,
-    quality: 'Excellence',
-    college: 'UC Berkeley',
-    team: 'CyberSecurity',
-    cert_id: 'CS-404',
-    student_count: 2,
-  },
-  {
-    id: 'ML551X', // New Dummy Worklet
-    title: 'Decentralized Federated Learning Platform',
-    status: 'Ongoing',
-    progress: 15,
-    description:
-      'Design and implement a platform for federated machine learning without a centralized server, ensuring data privacy.',
-    startDate: 'Sep 20, 2025',
-    endDate: 'Feb 28, 2026',
-    students: ['Leo Martinez', 'Mia Garcia', 'Noah Hernandez'],
-    notificationCount: 0,
-    quality: 'Good',
-    college: 'IIT Bombay',
-    team: 'ML Research',
-    cert_id: 'ML-551',
-    student_count: 3,
-  },
-  {
-    id: 'FS902Y', // New Dummy Worklet
-    title: 'Next-Gen Quantum Computing Simulation',
-    status: 'Ongoing',
-    progress: 55,
-    description: 'Develop a high-performance simulator for quantum algorithms to test hardware viability.',
-    startDate: 'Jul 1, 2025',
-    endDate: 'Dec 20, 2025',
-    students: ['Olivia Wilson', 'Peter Jones', 'Quinn Davis', 'Rachel Moore'],
-    notificationCount: 1,
-    quality: 'Good',
-    college: 'BITS Pilani',
-    team: 'Quantum AI',
-    cert_id: 'QC-902',
-    student_count: 4,
-  },
-  {
-    id: 'DV778Z', // New Dummy Worklet
-    title: 'AR Navigation SDK for Urban Environments',
-    status: 'Ongoing',
-    progress: 85,
-    description:
-      'Build an SDK for augmented reality navigation that can be integrated into third-party mobile applications.',
-    startDate: 'Jun 15, 2025',
-    endDate: 'Oct 15, 2025',
-    students: ['Sam Brown', 'Tina Smith'],
-    notificationCount: 0,
-    quality: 'Excellence',
-    college: 'IIIT Hyderabad',
-    team: 'AR/VR Dev',
-    cert_id: 'DV-778',
-    student_count: 2,
-  },
-  {
-    id: 'UX101D',
-    title: 'Next-Gen UI/UX Design System',
-    status: 'Completed', // This will be filtered out
-    progress: 100,
-    description: 'Create a new, unified design system for all company web properties to ensure brand consistency.',
-    startDate: 'Jun 1, 2025',
-    endDate: 'Sep 15, 2025',
-    students: ['Mallory King', 'Nancy Adams'],
-    notificationCount: 0,
-    quality: 'Excellence',
-    college: 'RISD',
-    team: 'Design',
-    cert_id: 'UX-101',
-    student_count: 2,
-  },
-]
 
 // Mapping of progression tiers to milestone thresholds (could drive dynamic level computation later)
 const LEVEL_COUNTS = { spark: 5, lead: 10, core: 15, master: 30 }
@@ -211,6 +77,10 @@ export default function Dashboard() {
   const [currentUserLevel, setCurrentUserLevel] = useState(1)
   // Persist layout preference (grid vs horizontal carousel) for continuity across sessions
   const [layout, setLayout] = useState(() => localStorage.getItem('worklet_layout') || 'horizontal')
+  
+  // State for icon rotation animations
+  const [isGridIconRotating, setIsGridIconRotating] = useState(false)
+  const [isColumnsIconRotating, setIsColumnsIconRotating] = useState(false)
   // Raw normalized worklet list (only ongoing subset stored)
   const [worklets, setWorklets] = useState([])
   // Separate total count (includes completed) for stats panel
@@ -266,14 +136,7 @@ export default function Dashboard() {
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet, index) => {
           const progressVal = worklet.percentage_completion || worklet.mentor_progress || worklet.progress || 0
-          const imageUrls = [
-            'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop'
-          ]
+    
           // Derive status to match WorkletsPage logic
           // Harmonize status labels regardless of backend variant fields
           const status = worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing')
@@ -371,7 +234,7 @@ export default function Dashboard() {
         <header className="flex justify-between items-center mb-[3vh]">
           <div>
             <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
-              {loadingName ? 'Loading...' : `Welcome back, ${userName.split(' ')[0]}! 👋`}
+              {loadingName ? 'Loading...' : `Welcome back, ${userName.split(' ')[0]}`}
             </h1>
             <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">Here's your snapshot for today.</p>
           </div>
@@ -389,13 +252,13 @@ export default function Dashboard() {
                   src={userProfileData.mentor_profile.avatar_url}
                   alt="Author"
                   className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full object-cover shadow-md cursor-pointer hover:ring-4 hover:ring-blue-200 dark:hover:ring-blue-800 transition-all"
-                  onClick={() => navigate('/profile/view')}
+                 
                 />
               ) : (
                 <div
                   className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full flex items-center justify-center text-white font-bold text-[clamp(1.5rem,2.5vw,2rem)] shadow-md flex-shrink-0 cursor-pointer hover:ring-4 hover:ring-blue-200 dark:hover:ring-blue-800 transition-all"
                   style={{ backgroundColor: generateColorFromName(userProfileData?.name || 'User') }}
-                  onClick={() => navigate('/profile/view')}
+                  
                 >
                   <span>{getInitials(userProfileData?.name || 'User')}</span>
                 </div>
@@ -454,25 +317,35 @@ export default function Dashboard() {
             <div className="flex items-center gap-[0.2vw] p-[0.3vw] bg-gray-200 rounded-lg dark:bg-slate-900">
               <button
                 onClick={() => {
+                  setIsGridIconRotating(true)
                   setLayout('grid')
                   localStorage.setItem('worklet_layout', 'grid')
+                  setTimeout(() => setIsGridIconRotating(false), 300)
                 }}
                 className={`p-[0.4vw] rounded-md transition-colors ${
                   layout === 'grid' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
                 }`}
                 aria-label="Grid View">
-                <LayoutGrid size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} />
+                <LayoutGrid 
+                  size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} 
+                  className={`transition-transform duration-300 ${isGridIconRotating ? 'rotate-180' : ''}`}
+                />
               </button>
               <button
                 onClick={() => {
+                  setIsColumnsIconRotating(true)
                   setLayout('horizontal')
                   localStorage.setItem('worklet_layout', 'horizontal')
+                  setTimeout(() => setIsColumnsIconRotating(false), 300)
                 }}
                 className={`p-[0.4vw] rounded-md transition-colors ${
                   layout === 'horizontal' ? ' text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'
                 }`}
                 aria-label="Horizontal View">
-                <Columns size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} />
+                <Columns 
+                  size={Math.max(16, Math.min(24, window.innerWidth * 0.015))} 
+                  className={`transition-transform duration-300 ${isColumnsIconRotating ? 'rotate-180' : ''}`}
+                />
               </button>
             </div>
           </div>
@@ -585,26 +458,11 @@ function WorkletCard({ worklet, layout, navigate }) {
     navigate(`/worklet/${worklet.id}`)
   }
 
-  // Prevent card navigation & open notifications pane if there are updates
-  const handleNotificationClick = (event) => {
-    event.stopPropagation()
-    // Only navigate if there are actual notifications
-    if (worklet.notificationCount > 0) {
-      navigate(`/worklet/${worklet.id}/notifications`)
-    }
-  }
-
   // Utility to keep badge sizes stable
   const truncateText = (text, maxLength = 25) => {
     if (text.length <= maxLength) return text
     return text.substring(0, maxLength) + '...'
   }
-
-  const hasNotifications = worklet.notificationCount > 0
-  const notificationTooltip = hasNotifications
-    ? `${worklet.notificationCount} new update${worklet.notificationCount > 1 ? 's' : ''}`
-    : 'No new updates'
-
   return (
     <div
       onClick={handleCardClick}
@@ -672,21 +530,7 @@ function WorkletCard({ worklet, layout, navigate }) {
       {/* Professional overlay for text readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/30 to-black/20 group-hover:from-black/30 group-hover:via-black/20 group-hover:to-black/10 transition-all duration-500"></div>
 
-      {/* --- MODIFIED NOTIFICATION ICON --- */}
-      <div onClick={handleNotificationClick} className="absolute top-[1vw] right-[1vw] group/bell z-20">
-        {hasNotifications && (
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-        )}
-        <span
-          className={`relative flex items-center justify-center h-[clamp(1.25rem,2vw,1.75rem)] w-[clamp(1.25rem,2vw,1.75rem)] rounded-full text-white ${
-            hasNotifications ? 'bg-red-500' : 'bg-white/20'
-          }`}>
-          <Bell size={Math.max(12, Math.min(18, window.innerWidth * 0.012))} />
-        </span>
-        <div className="absolute top-full right-0 mt-[0.25vw] w-max px-[0.5vw] py-[0.25vw] text-[clamp(0.6rem,0.8vw,0.75rem)] bg-slate-800 text-white rounded opacity-0 group-hover/bell:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-          {notificationTooltip}
-        </div>
-      </div>
+     
 
       {/* --- STATUS AND COLLEGE BADGES AT TOP --- */}
       <div className="absolute top-0 left-0 right-0 p-[clamp(0.75rem,1.5vw,1.25rem)] text-white transition-opacity duration-300 group-hover:opacity-0 z-10">

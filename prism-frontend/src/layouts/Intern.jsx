@@ -127,7 +127,9 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
     formData.workletId
   );
 
-  // Fetch worklets on component mount
+  const autoMode = !!preSelectedWorklet;
+
+  // Fetch worklets on component mount (skip in auto mode)
   useEffect(() => {
     const loadWorklets = async () => {
       setIsLoadingWorklets(true);
@@ -135,9 +137,10 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
       setWorklets(Array.isArray(fetchedWorklets) ? fetchedWorklets : []);
       setIsLoadingWorklets(false);
     };
-    
-    loadWorklets();
-  }, []);
+    if (!autoMode) {
+      loadWorklets();
+    }
+  }, [autoMode]);
 
   // Decide which students to display & enrich; prefer embedded list but fetch richer data when only names are present
   useEffect(() => {
@@ -202,15 +205,13 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
-    if (preSelectedWorklet && worklets.length > 0) {
-      // Find the worklet in the list that matches the preSelectedWorklet ID
-      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
-      if (foundWorklet) {
-        setFormData(prev => ({ ...prev, workletId: foundWorklet.id }));
-      } else if (preSelectedWorklet.id) {
-        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
-        setFormData(prev => ({ ...prev, workletId: preSelectedWorklet.id }));
-      }
+    if (!preSelectedWorklet) return;
+    const identifier = preSelectedWorklet.id || preSelectedWorklet.cert_id;
+    if (identifier) {
+      setFormData(prev => ({ ...prev, workletId: identifier }));
+      // Also set selectedWorkletObj so students populate if embedded
+      const found = worklets.find(w => (w.id === identifier || w.cert_id === identifier));
+      if (found) setSelectedWorkletObj(found);
     }
   }, [preSelectedWorklet, worklets]);
 
@@ -283,10 +284,10 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
   return (
     <>
       {/* Main Form */}
-      <div className="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-slate-900 p-6 transition-colors duration-300">
+      <div className="w-full">
         <form
           onSubmit={handleSubmit}
-          className="bg-white shadow-lg border-2 border-blue-300 rounded-xl p-8 w-full max-w-3xl dark:bg-slate-800 dark:border-slate-700"
+          className="bg-white shadow-lg border-2 border-blue-300 rounded-xl p-8 w-full max-w-3xl mx-auto dark:bg-slate-800 dark:border-slate-700"
         >
           <h1 className="text-center text-2xl font-extrabold text-blue-700 dark:text-blue-300 mb-4">
             INTERN REFERRAL FORM
@@ -306,26 +307,33 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
           {/* Student Info Section */}
           <h2 className="font-bold text-blue-600 dark:text-blue-400 mb-2">PRISM Mentee Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <select 
-              name="workletId" 
-              value={formData.workletId} 
-              onChange={handleChange} 
-              required 
-              className="border rounded-md p-2 w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
-              disabled={isLoadingWorklets}
-            >
-              <option value="" disabled>
-                {isLoadingWorklets ? "Loading worklets..." : "Select a Worklet"}
-              </option>
-              {(Array.isArray(worklets) ? worklets : []).map((worklet) => {
-                const value = worklet.id ?? worklet.cert_id; // fallback to cert_id if id missing
-                return (
-                  <option key={value} value={value}>
-                    {(worklet.cert_id || value)} - {(worklet.description || worklet.title || 'No description')}
-                  </option>
-                );
-              })}
-            </select>
+            {!autoMode && (
+              <select 
+                name="workletId" 
+                value={formData.workletId} 
+                onChange={handleChange} 
+                required 
+                className="border rounded-md p-2 w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                disabled={isLoadingWorklets}
+              >
+                <option value="" disabled>
+                  {isLoadingWorklets ? "Loading worklets..." : "Select a Worklet"}
+                </option>
+                {(Array.isArray(worklets) ? worklets : []).map((worklet) => {
+                  const value = worklet.id ?? worklet.cert_id; // fallback to cert_id if id missing
+                  return (
+                    <option key={value} value={value}>
+                      {(worklet.cert_id || value)} - {(worklet.description || worklet.title || 'No description')}
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+            {autoMode && (
+              <div className="p-2 rounded-md bg-indigo-50 dark:bg-slate-700/50 border border-indigo-200 dark:border-slate-600 text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                {preSelectedWorklet?.cert_id || preSelectedWorklet?.title || preSelectedWorklet?.id}
+              </div>
+            )}
 
             <select 
               name="studentName" 
@@ -436,7 +444,7 @@ function SuccessScreen({ submittedData, onReset }) {
 
   return (
     // ++ FIX: Changed bg-blue-50 to bg-gray-50 for a more neutral light background
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-slate-900 p-6 transition-colors duration-300">
+    <div className="w-full">
       <div className="text-center p-10 bg-white rounded-xl shadow-lg border-2 border-blue-300 max-w-3xl mx-auto dark:bg-slate-800 dark:border-slate-700">
         <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Referral Submitted!</h2>

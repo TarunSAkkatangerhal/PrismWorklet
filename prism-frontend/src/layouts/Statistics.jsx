@@ -1,11 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { ChevronDown, Users, CheckCircle, Download, TrendingUp, BarChart3, Activity, Target, Award, Clock, Zap,FileText,Shield,GraduationCap } from 'lucide-react';
-import LeftSidebar from "../components/Left";
+import React, { useState, useEffect, useRef } from 'react'
+import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
+import {
+  ChevronDown,
+  Users,
+  CheckCircle,
+  Download,
+  TrendingUp,
+  BarChart3,
+  Activity,
+  Target,
+  Award,
+  Clock,
+  Zap,
+  FileText,
+  Shield,
+  GraduationCap,
+} from 'lucide-react'
+import LeftSidebar from '../components/Left'
 // import { ThemeContext } from '../context/ThemeContext'; // <-- Removed ThemeContext dependency
-import { motion, AnimatePresence } from 'framer-motion';
-import { ThemeContext } from '../context/ThemeContext';
-import { useContext } from 'react';
+import { motion, AnimatePresence } from 'framer-motion'
+import { ThemeContext } from '../context/ThemeContext'
+import { useContext } from 'react'
 import {
   ResponsiveContainer,
   LineChart,
@@ -78,13 +94,16 @@ const CustomTooltip = ({ active, payload, label, isDark }) => {
 // Modern animated metric card component
 // The component now accepts 'subtitle' instead of 'change' and 'trend'
 // The component no longer needs the 'isDark' prop for styling
-const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color }) => (
+const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color, onClick, isClickable = false }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.6 }}
     whileHover={{ y: -5, transition: { duration: 0.2 } }}
-    className="p-6 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+    onClick={isClickable ? onClick : undefined}
+    className={`p-6 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${
+      isClickable ? 'cursor-pointer hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200' : ''
+    }`}>
     <div className="flex items-center justify-between h-full">
       <div>
         {/* Using dark: variants for cleaner, automatic theme switching */}
@@ -92,7 +111,7 @@ const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color }) => (
         <Metric className="text-gray-900 dark:text-white">{value}</Metric>
         {subtitle && <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">{subtitle}</Text>}
       </div>
-      <Icon className={`w-8 h-8`} style={{ color }} />
+      <Icon className={`w-8 h-8 ${isClickable ? 'group-hover:scale-110 transition-transform' : ''}`} style={{ color }} />
     </div>
   </motion.div>
 )
@@ -215,6 +234,8 @@ const generatePerformanceBreakdown = () => ({
 })
 // Modern Statistics Dashboard component
 const ModernStatisticsDashboard = () => {
+  const navigate = useNavigate()
+  
   // ## KEY CHANGE ##
   // Use the ThemeContext to get the current theme state dynamically.
   // This replaces the hardcoded `const isDarkMode = true;`
@@ -242,6 +263,20 @@ const ModernStatisticsDashboard = () => {
     document.head.appendChild(style)
     return () => document.head.removeChild(style)
   }, [isDarkMode])
+  
+  // Navigation handlers for worklet cards
+  const handleTotalWorkletsClick = () => {
+    navigate('/navStat', { state: { filter: 'total', year: filters.year } })
+  }
+  
+  const handleOngoingWorkletsClick = () => {
+    navigate('/navStat', { state: { filter: 'ongoing', year: filters.year } })
+  }
+  
+  const handleCompletedWorkletsClick = () => {
+    navigate('/navStat', { state: { filter: 'completed', year: filters.year } })
+  }
+  
   const [statisticsData, setStatisticsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -249,7 +284,6 @@ const ModernStatisticsDashboard = () => {
   const [options, setOptions] = useState({ years: [], domains: [], colleges: [] })
   const [selectedMetric, setSelectedMetric] = useState('overview')
   const [mentorStats, setMentorStats] = useState(null)
-  
 
   // Load platform totals and trends from backend (driven by global year dropdown)
   useEffect(() => {
@@ -263,16 +297,22 @@ const ModernStatisticsDashboard = () => {
 
         const [totalsRes, monthlyRes, statusRes] = await Promise.all([
           axios.get(`${API_BASE}/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
-          axios.get(`${API_BASE}/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`),
-          axios.get(`${API_BASE}/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`),
+          axios.get(
+            `${API_BASE}/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`
+          ),
+          axios.get(
+            `${API_BASE}/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`
+          ),
         ])
 
         const totals = totalsRes?.data || {}
         const monthly = monthlyRes?.data?.monthly || []
         const statusMonthly = statusRes?.data?.monthly || []
-  const yearsList = Array.from(new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])).sort()
-  // Only show backend-provided years; do not add hardcoded ones
-  setOptions((prev) => ({ ...prev, years: yearsList }))
+        const yearsList = Array.from(
+          new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])
+        ).sort()
+        // Only show backend-provided years; do not add hardcoded ones
+        setOptions((prev) => ({ ...prev, years: yearsList }))
 
         setStatisticsData((prev) => ({
           ...(prev || {}),
@@ -289,7 +329,14 @@ const ModernStatisticsDashboard = () => {
         // Minimal safe fallback without introducing fake years
         setStatisticsData((prev) => ({
           ...(prev || {}),
-          totals: prev?.totals || { total_mentors: 0, total_students: 0, total_worklets: 0, ongoing_worklets: 0, completed_worklets: 0, completion_rate: 0 },
+          totals: prev?.totals || {
+            total_mentors: 0,
+            total_students: 0,
+            total_worklets: 0,
+            ongoing_worklets: 0,
+            completed_worklets: 0,
+            completion_rate: 0,
+          },
           monthly_data: prev?.monthly_data || [],
           worklet_status_data: prev?.worklet_status_data || [],
           publications: prev?.publications || { papers: 0, patents: 0 },
@@ -335,14 +382,14 @@ const ModernStatisticsDashboard = () => {
   // Load platform stats given current filters
   const loadPlatformStats = async (flt) => {
     try {
-      const params = new URLSearchParams();
-      if (flt?.year && flt.year !== 'All') params.set('year', flt.year);
-      if (flt?.group && flt.group !== 'All') params.set('domain', flt.group);
-      if (flt?.part && flt.part !== 'All') params.set('college', flt.part);
-      const url = `http://localhost:8000/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`;
-      const res = await axios.get(url);
-      const json = res.data;
-      setStatisticsData(json);
+      const params = new URLSearchParams()
+      if (flt?.year && flt.year !== 'All') params.set('year', flt.year)
+      if (flt?.group && flt.group !== 'All') params.set('domain', flt.group)
+      if (flt?.part && flt.part !== 'All') params.set('college', flt.part)
+      const url = `http://localhost:8000/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`
+      const res = await axios.get(url)
+      const json = res.data
+      setStatisticsData(json)
     } catch (e) {
       console.error('Failed to load platform stats', e)
     }
@@ -464,7 +511,13 @@ const ModernStatisticsDashboard = () => {
         break
       }
       case 'status_trends': {
-        const rows = (data.worklet_status_data || []).map((m) => [m.month, m.ongoing, m.completed, m.on_hold, m.terminated])
+        const rows = (data.worklet_status_data || []).map((m) => [
+          m.month,
+          m.ongoing,
+          m.completed,
+          m.on_hold,
+          m.terminated,
+        ])
         csvContent = ['Month,Ongoing,Completed,On Hold,Terminated', ...rows.map((r) => r.join(','))].join('\n')
         break
       }
@@ -552,6 +605,8 @@ const ModernStatisticsDashboard = () => {
               icon={Target}
               color={getColors(isDarkMode)[0]}
               isDark={isDarkMode}
+              onClick={handleTotalWorkletsClick}
+              isClickable={true}
             />
             <AnimatedMetricCard
               title="Completed"
@@ -560,14 +615,18 @@ const ModernStatisticsDashboard = () => {
               icon={CheckCircle}
               color={getColors(isDarkMode)[1]}
               isDark={isDarkMode}
+              onClick={handleCompletedWorkletsClick}
+              isClickable={true}
             />
             <AnimatedMetricCard
-              title="Total Mentors"
-              value={statisticsData?.totals?.total_mentors || 0}
-              subtitle="Across all domains"
-              icon={Users}
+              title="Ongoing Worklets"
+              value={statisticsData?.totals?.ongoing_worklets || 0}
+              subtitle="Currently in progress"
+              icon={Activity}
               color={getColors(isDarkMode)[4]}
               isDark={isDarkMode}
+              onClick={handleOngoingWorkletsClick}
+              isClickable={true}
             />
             <AnimatedMetricCard
               title="Total Students"
@@ -580,10 +639,10 @@ const ModernStatisticsDashboard = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <AnimatedMetricCard
-              title="Ongoing Worklets"
-              value={statisticsData?.totals?.ongoing_worklets || 0}
-              subtitle="Currently in progress"
-              icon={Activity}
+              title="Total Mentors"
+              value={statisticsData?.totals?.total_mentors || 0}
+              subtitle="Across all domains"
+              icon={Users}
               color={getColors(isDarkMode)[0]}
               isDark={isDarkMode}
             />
@@ -660,20 +719,30 @@ const ModernStatisticsDashboard = () => {
                       <YAxis
                         stroke={isDarkMode ? '#9CA3AF' : '#6B7280'}
                         domain={(() => {
-                          const data = statisticsData?.worklet_status_data || generateWorkletStatusData();
-                          const max = Math.max(...data.map(d => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)), 0);
-                          if (max <= 5) return [0, 5];
-                          return [0, 'auto'];
+                          const data = statisticsData?.worklet_status_data || generateWorkletStatusData()
+                          const max = Math.max(
+                            ...data.map(
+                              (d) => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)
+                            ),
+                            0
+                          )
+                          if (max <= 5) return [0, 5]
+                          return [0, 'auto']
                         })()}
                         allowDecimals={false}
-                        tickFormatter={v => Number.isInteger(v) ? v : ''}
+                        tickFormatter={(v) => (Number.isInteger(v) ? v : '')}
                         ticks={(() => {
-                          const data = statisticsData?.worklet_status_data || generateWorkletStatusData();
-                          const max = Math.max(...data.map(d => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)), 0);
-                          if (max <= 5) return [0,1,2,3,4,5];
+                          const data = statisticsData?.worklet_status_data || generateWorkletStatusData()
+                          const max = Math.max(
+                            ...data.map(
+                              (d) => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)
+                            ),
+                            0
+                          )
+                          if (max <= 5) return [0, 1, 2, 3, 4, 5]
                           // For larger data, generate integer ticks up to the next multiple of 5 above max
-                          const step = Math.ceil((max + 1) / 5);
-                          return Array.from({length: step * 5 + 1}, (_, i) => i).filter(x => x % step === 0);
+                          const step = Math.ceil((max + 1) / 5)
+                          return Array.from({ length: step * 5 + 1 }, (_, i) => i).filter((x) => x % step === 0)
                         })()}
                       />
                       <Tooltip content={<CustomTooltip isDark={isDarkMode} />} />
@@ -687,7 +756,8 @@ const ModernStatisticsDashboard = () => {
                           const now = new Date()
                           const mk = props?.payload?.month_key
                           const isCurrentMonth = mk
-                            ? mk === `${now.getFullYear().toString().padStart(4, '0')}-${(now.getMonth() + 1)
+                            ? mk ===
+                              `${now.getFullYear().toString().padStart(4, '0')}-${(now.getMonth() + 1)
                                 .toString()
                                 .padStart(2, '0')}`
                             : false
@@ -714,7 +784,8 @@ const ModernStatisticsDashboard = () => {
                           const now = new Date()
                           const mk = props?.payload?.month_key
                           const isCurrentMonth = mk
-                            ? mk === `${now.getFullYear().toString().padStart(4, '0')}-${(now.getMonth() + 1)
+                            ? mk ===
+                              `${now.getFullYear().toString().padStart(4, '0')}-${(now.getMonth() + 1)
                                 .toString()
                                 .padStart(2, '0')}`
                             : false
@@ -758,19 +829,19 @@ const ModernStatisticsDashboard = () => {
                       <YAxis
                         stroke={isDarkMode ? '#9CA3AF' : '#6B7280'}
                         allowDecimals={false}
-                        tickFormatter={v => Number.isInteger(v) ? v : ''}
+                        tickFormatter={(v) => (Number.isInteger(v) ? v : '')}
                         domain={(() => {
-                          const data = statisticsData?.monthly_data || generateMonthlyData();
-                          const max = Math.max(...data.map(d => (d.worklets || 0) + (d.completed || 0)), 0);
-                          if (max <= 5) return [0, 5];
-                          return [0, 'auto'];
+                          const data = statisticsData?.monthly_data || generateMonthlyData()
+                          const max = Math.max(...data.map((d) => (d.worklets || 0) + (d.completed || 0)), 0)
+                          if (max <= 5) return [0, 5]
+                          return [0, 'auto']
                         })()}
                         ticks={(() => {
-                          const data = statisticsData?.monthly_data || generateMonthlyData();
-                          const max = Math.max(...data.map(d => (d.worklets || 0) + (d.completed || 0)), 0);
-                          if (max <= 5) return [0,1,2,3,4,5];
-                          const step = Math.ceil((max + 1) / 5);
-                          return Array.from({length: step * 5 + 1}, (_, i) => i).filter(x => x % step === 0);
+                          const data = statisticsData?.monthly_data || generateMonthlyData()
+                          const max = Math.max(...data.map((d) => (d.worklets || 0) + (d.completed || 0)), 0)
+                          if (max <= 5) return [0, 1, 2, 3, 4, 5]
+                          const step = Math.ceil((max + 1) / 5)
+                          return Array.from({ length: step * 5 + 1 }, (_, i) => i).filter((x) => x % step === 0)
                         })()}
                       />
                       <Tooltip
@@ -801,8 +872,6 @@ const ModernStatisticsDashboard = () => {
               </div>
             </ChartContainer>
           </div>
-
-
         </section>
       </main>
     </div>

@@ -4,7 +4,6 @@ import axios from "axios";
 export default function FeedbackForm({ isOpen, onClose }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
-  const [feedbackType, setFeedbackType] = useState("");
   const [feedbackContent, setFeedbackContent] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,22 +12,41 @@ export default function FeedbackForm({ isOpen, onClose }) {
   const [showWarningPopup, setShowWarningPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
 
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+  // Function to generate timeline months for selected worklet
+  const getWorkletTimelineMonths = () => {
+    if (!selectedWorklet) return [];
+    
+    const worklet = worklets.find(w => w.id === parseInt(selectedWorklet));
+    if (!worklet || !worklet.start_date || !worklet.end_date) return [];
+    
+    const startDate = new Date(worklet.start_date);
+    const endDate = new Date(worklet.end_date);
+    const months = [];
+    
+    const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    
+    while (current <= end) {
+      const monthName = current.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      months.push(monthName);
+      current.setMonth(current.getMonth() + 1);
+    }
+    
+    return months;
+  };
 
-  const feedbackTypes = [
-    { value: "positive", label: "Positive Feedback", color: "text-green-600", bgColor: "bg-green-50" },
-    { value: "constructive", label: "Constructive Feedback", color: "text-yellow-600", bgColor: "bg-yellow-50" },
-    { value: "milestone", label: "Milestone Achievement", color: "text-blue-600", bgColor: "bg-blue-50" }
-  ];
+  const timelineMonths = getWorkletTimelineMonths();
 
   useEffect(() => {
     if (isOpen) {
       fetchWorklets();
     }
   }, [isOpen]);
+
+  // Reset month selection when worklet changes
+  useEffect(() => {
+    setSelectedMonth("");
+  }, [selectedWorklet]);
 
   const fetchWorklets = async () => {
     try {
@@ -70,8 +88,8 @@ export default function FeedbackForm({ isOpen, onClose }) {
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
     }
-
-    if (!selectedMonth || !feedbackType || !feedbackContent.trim()) {
+    // Require month selection and non-empty feedback content
+    if (!selectedMonth || !feedbackContent.trim()) {
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
@@ -84,7 +102,6 @@ export default function FeedbackForm({ isOpen, onClose }) {
       const feedbackData = {
         worklet_id: parseInt(selectedWorklet, 10),
         month: selectedMonth, // backend expects a string; send the month name
-        feedback_type: feedbackType,
         feedback_content: feedbackContent.trim() // backend expects 'feedback_content'
       };
 
@@ -104,7 +121,6 @@ export default function FeedbackForm({ isOpen, onClose }) {
       // Reset form
       setSelectedWorklet("");
       setSelectedMonth("");
-      setFeedbackType("");
       setFeedbackContent("");
       
       // Show success popup
@@ -126,7 +142,6 @@ export default function FeedbackForm({ isOpen, onClose }) {
   const handleClose = () => {
     setSelectedWorklet("");
     setSelectedMonth("");
-    setFeedbackType("");
     setFeedbackContent("");
     setError(null);
     onClose();
@@ -204,52 +219,17 @@ export default function FeedbackForm({ isOpen, onClose }) {
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                disabled={!selectedWorklet}
               >
-                <option value="">Select month...</option>
-                {months.map((month) => (
+                <option value="">
+                  {!selectedWorklet ? "Select a worklet first..." : "Select month..."}
+                </option>
+                {timelineMonths.map((month) => (
                   <option key={month} value={month}>
                     {month}
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Feedback Type Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Feedback Type *
-              </label>
-              <div className="grid grid-cols-1 gap-3">
-                {feedbackTypes.map((type) => (
-                  <label
-                    key={type.value}
-                    className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
-                      feedbackType === type.value
-                        ? `border-blue-500 ${type.bgColor} ${type.color}`
-                        : "border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="feedbackType"
-                      value={type.value}
-                      checked={feedbackType === type.value}
-                      onChange={(e) => setFeedbackType(e.target.value)}
-                      className="sr-only"
-                    />
-                    <div className="flex items-center">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        feedbackType === type.value ? "border-blue-500" : "border-gray-300"
-                      }`}>
-                        {feedbackType === type.value && (
-                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                        )}
-                      </div>
-                      <span className="ml-3 font-medium">{type.label}</span>
-                    </div>
-                  </label>
-                ))}
-              </div>
             </div>
 
             {/* Feedback Content */}
@@ -378,7 +358,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
                 Please fill in all required fields.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Worklet, month, feedback type, and content are required.
+                Worklet, month, and content are required.
               </p>
             </div>
           </div>

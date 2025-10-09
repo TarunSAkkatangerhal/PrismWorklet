@@ -4,9 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
-
 import { ThemeContext } from '../context/ThemeContext';
-import SidebarItem from './SidebarItem';
 import profilePic from '../assets/profilePic.jpg';
 
 // --- PORTAL COMPONENT IS NOW DEFINED INSIDE THIS FILE ---
@@ -51,6 +49,7 @@ const LeftSidebar = () => {
     const navigate = useNavigate();
     const [imgError, setImgError] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isSettingsIconRotating, setIsSettingsIconRotating] = useState(false);
 
     // Use global theme state from context
     const { isDarkMode, toggleTheme } = useContext(ThemeContext);
@@ -104,7 +103,11 @@ const LeftSidebar = () => {
             <div className="mt-auto px-[0.5vw] pt-[1vh] pb-[0.5vh]">
                 <button
                     ref={refs.setReference}
-                    onClick={() => setIsSettingsOpen(prev => !prev)}
+                    onClick={() => {
+                        setIsSettingsIconRotating(true)
+                        setIsSettingsOpen(prev => !prev)
+                        setTimeout(() => setIsSettingsIconRotating(false), 300)
+                    }}
                     className="w-full flex items-center justify-center rounded-2xl p-[0.75vw] transition-all duration-200 hover:bg-black/10 dark:hover:bg-white/10"
                     aria-label="Open Settings"
                 >
@@ -113,7 +116,9 @@ const LeftSidebar = () => {
                             <img src={profilePic} alt="Profile" className="w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] rounded-full object-cover shadow-md" onError={() => setImgError(true)} />
                         ) : (
                             <div className="w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-md">
-                                <Settings className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-white" />
+                                <Settings 
+                                    className={`w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-white transition-transform duration-300 ${isSettingsIconRotating ? 'rotate-180' : ''}`} 
+                                />
                             </div>
                         )}
                     </div>
@@ -151,3 +156,18 @@ const LeftSidebar = () => {
 };
 
 export default LeftSidebar;
+
+function SidebarItem({ icon, label, onClick }) {
+  return (
+    <div 
+      className="flex flex-col items-center px-[clamp(0.75rem,1.5vw,1rem)] rounded-2xl cursor-pointer 
+                 text-gray-600 transition-all duration-200 transform 
+                 hover:scale-105 hover:shadow-md hover:bg-white hover:text-purple-700
+                 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-purple-400"
+      onClick={onClick}
+    >
+      <div className="p-[clamp(0.5rem,1vw,0.75rem)]">{icon}</div>
+      <span className="text-[clamp(0.75rem,1vw,0.875rem)] font-semibold mt-[clamp(0.25rem,0.5vh,0.5rem)] text-center">{label}</span>
+    </div>
+  );
+}
