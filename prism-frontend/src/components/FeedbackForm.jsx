@@ -88,8 +88,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
     }
-
-    if (!selectedMonth || !feedbackContent.trim()) {
+    // Require month selection and non-empty feedback content
     if (!selectedMonth || !feedbackContent.trim()) {
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
