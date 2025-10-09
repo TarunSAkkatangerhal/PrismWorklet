@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import axios from "axios";
 import { 
@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import LeftSidebar from "./Left";
 
-const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "Under Review"];
+// Expanded to include all backend statuses; 'Approved' shown as 'Under Review' for continuity
+const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "Under Review", "On Hold", "Dropped"]; 
 
 // localStorage utility functions
 const STORAGE_KEY = 'worklets_view_state';
@@ -44,6 +45,8 @@ const loadViewState = () => {
 export default function WorkletsPage() {
   const [workletsData, setWorkletsData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastFetched, setLastFetched] = useState(null);
   
   // Initialize state with persisted values or defaults
   const savedState = loadViewState();
@@ -51,92 +54,108 @@ export default function WorkletsPage() {
   const [layout, setLayout] = useState(savedState?.layout || "grid");
   const [searchTerm, setSearchTerm] = useState(savedState?.searchTerm || "");
 
-  // Sample data - replace with actual API call
-  const sampleWorklets = [
-    {
-      id: 'AI2024B1',
-      title: 'AI-Powered Predictive Analytics Engine',
-      status: 'Ongoing',
-      progress: 85,
-      description: 'Develop a scalable engine for real-time sales forecasting using machine learning models and historical data analysis.',
-      startDate: 'Sep 1, 2024',
-      endDate: 'Dec 15, 2024',
-      students: 4,
-      college: 'VIT Vellore',
-      mentor: 'Dr. Sarah Johnson',
-      category: 'Artificial Intelligence'
-    },
-    {
-      id: 'WD2024C2',
-      title: 'Cross-Platform Mobile Application Framework',
-      status: 'Ongoing',
-      progress: 62,
-      description: 'Build a comprehensive framework to streamline mobile app development across iOS and Android platforms with React Native.',
-      startDate: 'Aug 15, 2024',
-      endDate: 'Nov 30, 2024',
-      students: 3,
-      college: 'MIT Cambridge',
-      mentor: 'Prof. Michael Rodriguez',
-      category: 'Web Development'
-    },
-    {
-      id: 'IOT2024D3',
-      title: 'IoT Smart Home Hub Integration',
-      status: 'Ongoing',
-      progress: 45,
-      description: 'Integrate advanced smart sensors into existing IoT home automation ecosystem with real-time monitoring capabilities.',
-      startDate: 'Oct 1, 2024',
-      endDate: 'Jan 20, 2025',
-      students: 5,
-      college: 'Stanford University',
-      mentor: 'Dr. Emily Watson',
-      category: 'Internet of Things'
-    },
-    {
-      id: 'CY2024E4',
-      title: 'Cloud Infrastructure Security Audit',
-      status: 'Completed',
-      progress: 100,
-      description: 'Comprehensive security audit and penetration testing of cloud infrastructure with detailed vulnerability assessment.',
-      startDate: 'Jul 10, 2024',
-      endDate: 'Sep 25, 2024',
-      students: 2,
-      college: 'IIT Bombay',
-      mentor: 'Prof. Rajesh Kumar',
-      category: 'Cybersecurity'
-    },
-    {
-      id: 'BC2024F5',
-      title: 'Blockchain Supply Chain Tracker',
-      status: 'Under Review',
-      progress: 78,
-      description: 'Develop a transparent supply chain tracking system using blockchain technology for enhanced product authenticity.',
-      startDate: 'Sep 20, 2024',
-      endDate: 'Dec 30, 2024',
-      students: 3,
-      college: 'Carnegie Mellon',
-      mentor: 'Prof. Lisa Chen',
-      category: 'Blockchain'
-    },
-    {
-      id: 'ML2024G6',
-      title: 'Machine Learning Image Recognition System',
-      status: 'Completed',
-      progress: 100,
-      description: 'Advanced image recognition system for medical diagnosis using convolutional neural networks and deep learning.',
-      startDate: 'Jun 1, 2024',
-      endDate: 'Aug 30, 2024',
-      students: 4,
-      college: 'Harvard University',
-      mentor: 'Dr. Alexander Kim',
-      category: 'Machine Learning'
-    }
-  ];
+  const transformStatus = (raw) => {
+    if (!raw) return 'Ongoing';
+    if (raw === 'Approved') return 'Under Review';
+    return raw;
+  };
 
-  useEffect(() => {
-    setWorkletsData(sampleWorklets);
-    setLoading(false);
+  const computeProgress = (w) => {
+    if (typeof w.worklet_progress === 'number') return w.worklet_progress;
+    if (typeof w.percentage_completion === 'number') return w.percentage_completion;
+    // Derive from dates if available
+    if (w.start_date && w.end_date) {
+      try {
+        const start = new Date(w.start_date);
+        const end = new Date(w.end_date);
+        const now = new Date();
+        const total = (end - start) || 1;
+        const elapsed = Math.min(Math.max(0, now - start), total);
+        return Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
+      } catch (_) { /* ignore */ }
+    }
+    return w.status === 'Completed' ? 100 : 0;
+  };
+
+  const fmtDate = (d) => {
+    if (!d) return 'N/A';
+    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return 'N/A'; }
+  };
+
+  const fetchWorklets = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const base = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+      if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Always get authoritative user profile
+      let profile = null;
+      try {
+        const meRes = await axios.get(`${base}/auth/me`);
+        profile = meRes.data;
+      } catch (e) {
+        console.warn('Failed to fetch /auth/me, falling back to localStorage role/email');
+      }
+
+      const role = (profile?.role || localStorage.getItem('user_role') || '').toLowerCase();
+      const email = profile?.email || localStorage.getItem('user_email');
+
+      let data = [];
+      if (role === 'mentor') {
+        if (!email) {
+          throw new Error('Mentor email not available to query worklets');
+        }
+        // Strict: only mentor-specific endpoint (do NOT fall back to all)
+        const res = await axios.get(`${base}/worklets/mentor/${encodeURIComponent(email)}/worklets`);
+        data = res.data?.worklets || [];
+      } else {
+        // Non-mentor users see global (future: restrict to their associations)
+        const res = await axios.get(`${base}/worklets`);
+        data = res.data || [];
+      }
+
+      const normalized = data.map(w => {
+        const status = transformStatus(w.status);
+        const progress = computeProgress(w);
+        const studentsCount = Array.isArray(w.students) ? w.students.length : (w.student_count || w.students || 0);
+        return {
+          id: w.cert_id || w.id, // display id (prefer cert_id)
+          linkId: w.id,          // numeric id for detail linking if needed
+          title: w.title || w.cert_id || 'Untitled Worklet',
+          status,
+          progress,
+          description: w.description || 'No description provided',
+          startDate: fmtDate(w.start_date || w.startDate),
+            endDate: fmtDate(w.end_date || w.endDate),
+          students: studentsCount,
+          college: w.college || '—',
+          mentor: w.mentor || '',
+          category: w.domain || w.category || 'General'
+        };
+      });
+      setWorkletsData(normalized);
+      setLastFetched(new Date());
+    } catch (e) {
+      console.error('Failed to fetch worklets', e);
+      setError(e.response?.data?.detail || e.message || 'Failed to load worklets');
+      setWorkletsData([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchWorklets(); }, [fetchWorklets]);
+
+  // Poll every 60s for fresher data (only if no error and not currently loading)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading && !error) {
+        fetchWorklets();
+      }
+    }, 60000); // 60 seconds
+    return () => clearInterval(interval);
+  }, [fetchWorklets, loading, error]);
 
   // Persist view state changes to localStorage
   useEffect(() => {
@@ -168,9 +187,8 @@ export default function WorkletsPage() {
 
   const filteredWorklets = workletsData.filter(worklet => {
     const matchesTab = activeTab === "All" || worklet.status === activeTab;
-    const matchesSearch = worklet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         worklet.college.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         worklet.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const needle = searchTerm.toLowerCase();
+    const matchesSearch = !needle || worklet.title.toLowerCase().includes(needle) || (worklet.college || '').toLowerCase().includes(needle) || (worklet.category || '').toLowerCase().includes(needle) || (String(worklet.id)).toLowerCase().includes(needle);
     return matchesTab && matchesSearch;
   });
 
@@ -210,12 +228,28 @@ export default function WorkletsPage() {
           <div className="mb-8 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20 dark:border-slate-700/50">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold text-black dark:text-white mb-3">
+                <h1 className="text-4xl font-bold text-black dark:text-white mb-3 flex items-center gap-4">
                   Worklets Overview
+                  {lastFetched && (
+                    <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-md">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse" /> live
+                    </span>
+                  )}
+                  <button
+                    onClick={fetchWorklets}
+                    disabled={loading}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold shadow hover:shadow-lg transition disabled:opacity-40 disabled:cursor-not-allowed">
+                    Refresh
+                  </button>
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400 text-lg">
                   Manage and track project progress across all teams
                 </p>
+                {error && (
+                  <div className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-4 py-2 rounded-lg">
+                    {error}
+                  </div>
+                )}
               </div>
               <div className="hidden lg:flex items-center space-x-4">
                 <div className="text-right">
@@ -232,6 +266,12 @@ export default function WorkletsPage() {
                   <div className="text-2xl font-bold text-green-600">{getTabCount("Completed")}</div>
                   <div className="text-sm text-slate-500 dark:text-slate-400">Completed</div>
                 </div>
+                {lastFetched && (
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold">Last Sync</div>
+                    <div className="text-xs text-slate-600 dark:text-slate-300">{lastFetched.toLocaleTimeString()}</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -311,7 +351,7 @@ export default function WorkletsPage() {
           {layout === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredWorklets.map((worklet, index) => (
-                <Link key={worklet.id} to={`/worklet/${worklet.id}`}>
+                <Link key={worklet.id + ':' + index} to={`/worklet/${worklet.linkId || worklet.id}`}>
                   <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-slate-700/50 
                                 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 hover:border-blue-300/50 dark:hover:border-blue-600/50 
                                 group cursor-pointer hover:-translate-y-2 hover:scale-[1.02] transform-gpu"
@@ -427,11 +467,11 @@ export default function WorkletsPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-200/50 dark:divide-slate-600/50">
                     {filteredWorklets.map((worklet, index) => (
-                      <tr key={worklet.id} 
+                      <tr key={worklet.id + ':' + index} 
                           className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 dark:hover:from-slate-700/50 dark:hover:to-slate-600/50 transition-all duration-300 group"
                           style={{ animationDelay: `${index * 50}ms` }}>
                         <td className="px-8 py-6">
-                          <Link to={`/worklet/${worklet.id}`} className="group/link">
+                          <Link to={`/worklet/${worklet.linkId || worklet.id}`} className="group/link">
                             <div>
                               <div className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover/link:text-blue-600 dark:group-hover/link:text-blue-400 transition-colors duration-300 mb-1">
                                 {worklet.title}

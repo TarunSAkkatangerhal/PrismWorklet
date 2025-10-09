@@ -12,6 +12,10 @@ import LeftSidebar from "./components/Left";
 import Portfolio from "./layouts/portfolio";
 import Colleges from "./layouts/Colleges";
 import Meetings from "./layouts/Meetings";
+import NavStat from "./layouts/navStat";
+// --- UPDATED & NEW IMPORTS ---
+// Replaced ProfileEdit and ProfileView with the new components.
+// Make sure these paths are correct for your project structure.
 
 
 // --- ProtectedRoute component (no changes needed) ---
@@ -38,6 +42,7 @@ export default function App() {
               <Routes>
                 <Route path="/home" element={<Dashboard />} />
                 <Route path="/statistics" element={<StatisticsDashboard />} />
+                <Route path="/navStat" element={<NavStat />} />
                 <Route path="/request-update" element={<RequestUpdate />} />
                 <Route path="/ray" element={<Ray />} />
                 <Route path="/worklets" element={<WorkletsPage />} />

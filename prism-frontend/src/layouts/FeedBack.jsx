@@ -9,7 +9,9 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch worklets from backend
+  const autoMode = !!preSelectedWorklet;
+
+  // Fetch worklets from backend (only if not in autoMode)
   useEffect(() => {
     const fetchWorklets = async () => {
       try {
@@ -49,22 +51,17 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
       }
     };
 
-    fetchWorklets();
-  }, []);
+    if (!autoMode) {
+      fetchWorklets();
+    }
+  }, [autoMode]);
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
-    if (preSelectedWorklet && worklets.length > 0) {
-      // Find the worklet in the list that matches the preSelectedWorklet ID
-      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
-      if (foundWorklet) {
-        setWorkletId(foundWorklet.id.toString());
-      } else if (preSelectedWorklet.id) {
-        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
-        setWorkletId(preSelectedWorklet.id.toString());
-      }
-    }
-  }, [preSelectedWorklet, worklets]);
+    if (!preSelectedWorklet) return;
+    const identifier = preSelectedWorklet.id?.toString() || preSelectedWorklet.cert_id || '';
+    if (identifier) setWorkletId(identifier);
+  }, [preSelectedWorklet]);
 
   const handleSubmit = () => {
     const data = {
@@ -96,24 +93,30 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
         </h2>
 
         {/* Worklet ID */}
-        <div className="mb-3">
-          {/* ++ Dark theme styles added to label ++ */}
-          <label className="text-sm font-medium dark:text-slate-300">Select Worklet ID</label>
-          <select
-          // ++ Dark theme styles added to dropdown ++
-          className="w-full border rounded-lg p-2 mb-4 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-          value={workletId}
-          onChange={(e) => setWorkletId(e.target.value)}
-          disabled={loading}
-        >
-          <option value="">-- Select --</option>
-          {worklets.map((worklet) => (
-            <option key={worklet.id} value={worklet.id}>
-              {worklet.cert_id}
-            </option>
-          ))}
-        </select>
-        </div>
+        {!autoMode && (
+          <div className="mb-3">
+            <label className="text-sm font-medium dark:text-slate-300">Select Worklet ID</label>
+            <select
+              className="w-full border rounded-lg p-2 mb-4 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+              value={workletId}
+              onChange={(e) => setWorkletId(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">-- Select --</option>
+              {worklets.map((worklet) => (
+                <option key={worklet.id} value={worklet.id}>
+                  {worklet.cert_id}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {autoMode && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-slate-700/50 border border-blue-200 dark:border-slate-600">
+            <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">WORKLET</div>
+            <div className="text-sm font-medium text-gray-800 dark:text-white">{preSelectedWorklet?.cert_id || preSelectedWorklet?.title || workletId}</div>
+          </div>
+        )}
 
         {/* Month */}
         <div className="mb-3">

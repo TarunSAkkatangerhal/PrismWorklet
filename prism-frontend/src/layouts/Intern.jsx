@@ -127,7 +127,9 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
     formData.workletId
   );
 
-  // Fetch worklets on component mount
+  const autoMode = !!preSelectedWorklet;
+
+  // Fetch worklets on component mount (skip in auto mode)
   useEffect(() => {
     const loadWorklets = async () => {
       setIsLoadingWorklets(true);
@@ -135,9 +137,10 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
       setWorklets(Array.isArray(fetchedWorklets) ? fetchedWorklets : []);
       setIsLoadingWorklets(false);
     };
-    
-    loadWorklets();
-  }, []);
+    if (!autoMode) {
+      loadWorklets();
+    }
+  }, [autoMode]);
 
   // Decide which students to display & enrich; prefer embedded list but fetch richer data when only names are present
   useEffect(() => {
@@ -202,15 +205,13 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
-    if (preSelectedWorklet && worklets.length > 0) {
-      // Find the worklet in the list that matches the preSelectedWorklet ID
-      const foundWorklet = worklets.find(w => w.id === preSelectedWorklet.id);
-      if (foundWorklet) {
-        setFormData(prev => ({ ...prev, workletId: foundWorklet.id }));
-      } else if (preSelectedWorklet.id) {
-        // If not found in the list, still set it (might be a valid worklet not in mentor's list)
-        setFormData(prev => ({ ...prev, workletId: preSelectedWorklet.id }));
-      }
+    if (!preSelectedWorklet) return;
+    const identifier = preSelectedWorklet.id || preSelectedWorklet.cert_id;
+    if (identifier) {
+      setFormData(prev => ({ ...prev, workletId: identifier }));
+      // Also set selectedWorkletObj so students populate if embedded
+      const found = worklets.find(w => (w.id === identifier || w.cert_id === identifier));
+      if (found) setSelectedWorkletObj(found);
     }
   }, [preSelectedWorklet, worklets]);
 
@@ -306,26 +307,33 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
           {/* Student Info Section */}
           <h2 className="font-bold text-blue-600 dark:text-blue-400 mb-2">PRISM Mentee Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <select 
-              name="workletId" 
-              value={formData.workletId} 
-              onChange={handleChange} 
-              required 
-              className="border rounded-md p-2 w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
-              disabled={isLoadingWorklets}
-            >
-              <option value="" disabled>
-                {isLoadingWorklets ? "Loading worklets..." : "Select a Worklet"}
-              </option>
-              {(Array.isArray(worklets) ? worklets : []).map((worklet) => {
-                const value = worklet.id ?? worklet.cert_id; // fallback to cert_id if id missing
-                return (
-                  <option key={value} value={value}>
-                    {(worklet.cert_id || value)} - {(worklet.description || worklet.title || 'No description')}
-                  </option>
-                );
-              })}
-            </select>
+            {!autoMode && (
+              <select 
+                name="workletId" 
+                value={formData.workletId} 
+                onChange={handleChange} 
+                required 
+                className="border rounded-md p-2 w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                disabled={isLoadingWorklets}
+              >
+                <option value="" disabled>
+                  {isLoadingWorklets ? "Loading worklets..." : "Select a Worklet"}
+                </option>
+                {(Array.isArray(worklets) ? worklets : []).map((worklet) => {
+                  const value = worklet.id ?? worklet.cert_id; // fallback to cert_id if id missing
+                  return (
+                    <option key={value} value={value}>
+                      {(worklet.cert_id || value)} - {(worklet.description || worklet.title || 'No description')}
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+            {autoMode && (
+              <div className="p-2 rounded-md bg-indigo-50 dark:bg-slate-700/50 border border-indigo-200 dark:border-slate-600 text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                {preSelectedWorklet?.cert_id || preSelectedWorklet?.title || preSelectedWorklet?.id}
+              </div>
+            )}
 
             <select 
               name="studentName" 

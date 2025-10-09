@@ -247,8 +247,8 @@ def get_mentor_ongoing_worklets(
         if worklet_college is None:
             worklet_college = mentor.college
 
-        # Derive percentage completion if not present
-        percentage_completion = getattr(worklet, 'percentage_completion', None)
+        # Use per-worklet stored progress; fallback derive if null
+        percentage_completion = getattr(worklet, 'worklet_progress', None)
         if percentage_completion is None:
             if getattr(worklet, 'start_date', None) and getattr(worklet, 'end_date', None):
                 try:
@@ -355,8 +355,8 @@ def get_mentor_all_worklets(
                 break
         if worklet_college is None:
             worklet_college = mentor.college
-        # Derive percentage completion if not present
-        percentage_completion = getattr(worklet, 'percentage_completion', None)
+        # Use per-worklet stored progress; fallback derive if null
+        percentage_completion = getattr(worklet, 'worklet_progress', None)
         if percentage_completion is None:
             if getattr(worklet, 'start_date', None) and getattr(worklet, 'end_date', None):
                 try:

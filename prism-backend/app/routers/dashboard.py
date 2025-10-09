@@ -33,7 +33,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
 @router.get("/statistics")
-def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_db)):
+def get_dashboard_statistics(year: int | None = None, debug: bool | None = False, db: Session = Depends(get_db)):
     """Get platform-wide dashboard statistics.
     When a year is provided, compute KPIs scoped to that year using active-window semantics:
       - total_worklets: worklets active at any point in the year (overlap)
@@ -43,21 +43,33 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
       - publications: counts of papers/patents in that year
     Without year, returns overall totals.
     """
+    today = date.today()
+    selected_year = year
+
+    def safe_count(q) -> int:
+        try:
+            return int(q.count())
+        except Exception as e:
+            print(f"[WARN] count failed: {e}")
+            return 0
+
+    # Role matching: compare Enum directly to expected values
+    role_eq = lambda col, val: col == val
+
+    # Collect debug info containers
+    debug_info = {}
+
     try:
-        today = date.today()
-        selected_year = year
-
-        def safe_count(q) -> int:
-            try:
-                return int(q.count())
-            except Exception as e:
-                print(f"[WARN] count failed: {e}")
-                return 0
-
-        # Normalize roles: trim + lower for robust matching
-        role_norm_lower = lambda col: func.lower(func.trim(col))
-
         if selected_year is None:
+            # Count all mentors and students regardless of created_at or active_till
+            mentors_list = db.query(User.id, User.name).filter(role_eq(User.role, "Mentor")).all()
+            students_list = db.query(User.id, User.name).filter(role_eq(User.role, "Student")).all()
+            professors_list = db.query(User.id, User.name).filter(role_eq(User.role, "Professor")).all()
+
+            total_mentors = len(mentors_list)
+            total_students = len(students_list)
+            total_professors = len(professors_list)
+
             total_worklets = safe_count(db.query(Worklet))
             completed_worklets = safe_count(
                 db.query(Worklet).filter(
@@ -66,13 +78,6 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
             )
             ongoing_worklets = safe_count(db.query(Worklet).filter(Worklet.status == "Ongoing"))
 
-            total_mentors_users = safe_count(db.query(User).filter(role_norm_lower(User.role) == "mentor"))
-            total_students_users = safe_count(db.query(User).filter(role_norm_lower(User.role) == "student"))
-            total_professors_users = safe_count(db.query(User).filter(role_norm_lower(User.role) == "professor"))
-
-
-            mentors_list = db.query(User.id, User.name).filter(role_norm_lower(User.role) == "mentor").all()
-            students_list = db.query(User.id, User.name).filter(role_norm_lower(User.role) == "student").all()
             # Debug: show distinct role distribution in Users table
             role_distribution = db.query(User.role, func.count(User.id)).group_by(User.role).all()
             print(f"[DEBUG] Users role distribution: {role_distribution}")
@@ -81,12 +86,12 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
 
             print("[DEBUG] All Years counts (Users table only):")
             print(
-                f"  users_table: mentors={total_mentors_users}, students={total_students_users}, professors={total_professors_users}"
+                f"  users_table: mentors={total_mentors}, students={total_students}, professors={total_professors}"
             )
-            # Use Users table only
-            total_mentors = total_mentors_users
-            total_students = total_students_users
-            total_professors = total_professors_users
+            if debug:
+                debug_info["users_role_distribution"] = [(str(r), int(c)) for r, c in role_distribution]
+                debug_info["mentors_ids_all"] = [int(m.id) for m in mentors_list]
+                debug_info["students_ids_all"] = [int(s.id) for s in students_list]
             papers_count = safe_count(db.query(Paper))
             patents_count = safe_count(db.query(Patent))
         else:
@@ -137,43 +142,45 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
             completed_worklets = completed_in_year
             ongoing_worklets = ongoing_in_year
 
-            total_mentors_active = safe_count(
-                db.query(User).filter(
-                    role_norm_lower(User.role) == "mentor",
-                    User.created_at <= end_dt,
-                    or_(User.active_till == None, User.active_till >= year_start),
-                )
-            )
-            total_students_active = safe_count(
-                db.query(User).filter(
-                    role_norm_lower(User.role) == "student",
-                    User.created_at <= end_dt,
-                    or_(User.active_till == None, User.active_till >= year_start),
-                )
-            )
-            total_professors_active = safe_count(
-                db.query(User).filter(
-                    role_norm_lower(User.role) == "professor",
-                    User.created_at <= end_dt,
-                    or_(User.active_till == None, User.active_till >= year_start),
-                )
-            )
+            # Overlap logic: user was active at any point during the year
+            mentors_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
+                role_eq(User.role, "Mentor"),
+                User.created_at <= end_dt.date(),
+                or_(User.active_till == None, User.active_till >= year_start),
+            ).all()
+            students_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
+                role_eq(User.role, "Student"),
+                User.created_at <= end_dt.date(),
+                or_(User.active_till == None, User.active_till >= year_start),
+            ).all()
+            professors_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
+                role_eq(User.role, "Professor"),
+                User.created_at <= end_dt.date(),
+                or_(User.active_till == None, User.active_till >= year_start),
+            ).all()
+
+            total_mentors = len(mentors_year)
+            total_students = len(students_year)
+            total_professors = len(professors_year)
+
             # Debug: show distinct role distribution among users active in year
             active_roles_dist = db.query(User.role, func.count(User.id)).filter(
-                User.created_at <= end_dt,
+                User.created_at <= end_dt.date(),
                 or_(User.active_till == None, User.active_till >= year_start),
             ).group_by(User.role).all()
             print(f"[DEBUG] Active-year Users role distribution ({selected_year}): {active_roles_dist}")
+            if debug:
+                debug_info["active_year_role_distribution"] = [(str(r), int(c)) for r, c in active_roles_dist]
+                debug_info["mentors_ids_year"] = [int(m.id) for m in mentors_year]
+                debug_info["mentors_details_year"] = [
+                    {"id": int(m.id), "name": m.name, "created_at": str(m.created_at), "active_till": str(m.active_till)} for m in mentors_year
+                ]
 
             # Users table only for year-specific totals
             print("[DEBUG] Year-specific counts (Users table only):")
             print(
-                f"  active_window: mentors={total_mentors_active}, students={total_students_active}, professors={total_professors_active}"
+                f"  active_window: mentors={total_mentors}, students={total_students}, professors={total_professors}"
             )
-
-            total_mentors = total_mentors_active
-            total_students = total_students_active
-            total_professors = total_professors_active
 
             papers_count = db.query(Paper).filter(Paper.publication_year == selected_year).count()
             patents_count = db.query(Patent).filter(Patent.filing_year == selected_year).count()
@@ -190,7 +197,7 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
         print(
             f"  completion_rate: {round((completed_worklets / total_worklets * 100) if total_worklets > 0 else 0, 1)}"
         )
-        return {
+        result = {
             "total_mentors": total_mentors,
             "total_worklets": total_worklets,
             "total_students": total_students,
@@ -200,27 +207,15 @@ def get_dashboard_statistics(year: int | None = None, db: Session = Depends(get_
             "total_professors": total_professors,
             "publications": {"papers": papers_count, "patents": patents_count},
         }
+        if debug:
+            result["debug"] = debug_info
+        return result
     except Exception as e:
         import traceback
         print("[ERROR] Exception in get_dashboard_statistics:")
         print(e)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/mentor/{mentor_id}/detailed-stats")
-def get_mentor_detailed_stats(
-    mentor_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get detailed statistics for a specific mentor (admin or self-access)"""
-    try:
-        # Allow access only if user is the mentor or has admin role
-        if current_user.id != mentor_id and current_user.role not in ["Professor", "Admin"]:
-            raise HTTPException(status_code=403, detail="Access denied")
-        
-        # Get mentor user
         mentor = db.query(User).filter(
             and_(User.id == mentor_id, User.role == "Mentor")
         ).first()
@@ -293,7 +288,6 @@ def get_mentor_detailed_stats(
     except Exception as e:
         print(f"Error getting detailed mentor stats: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 @router.get("/platform-monthly-trends")
 def get_platform_monthly_trends(
     year: int | None = None,
