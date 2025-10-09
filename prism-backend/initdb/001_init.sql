@@ -134,14 +134,7 @@ CREATE TABLE IF NOT EXISTS commercializations (
   FOREIGN KEY (worklet_id) REFERENCES worklets(worklet_id) ON DELETE SET NULL
 );
 
-CREATE TABLE student_college_association (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    college_id INT NOT NULL,
-    FOREIGN KEY (student_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (college_id) REFERENCES colleges(college_id) ON DELETE CASCADE,
-    UNIQUE KEY unique_student_college (student_id, college_id)
-);
+
 
 -- Helpful indexes
 CREATE UNIQUE INDEX IF NOT EXISTS ix_user_email ON users(email);

@@ -26,7 +26,6 @@ def get_college_stats(college: College, db: Session):
         "totalStudents": 0,
     }
     for w in worklets:
-        # Assume performanceStatus and progressStatus are stored or can be derived
         if hasattr(w, "performance_status"):
             if w.performance_status == "Excellent":
                 stats["excellentCount"] += 1
@@ -44,7 +43,7 @@ def get_college_stats(college: College, db: Session):
             elif w.status == "Terminated":
                 stats["terminatedCount"] += 1
 
-    # Count all students in the college (not just those assigned to worklets)
+    # Count all students in the college using User.college_id
     total_students = db.query(User).filter(User.college_id == college.college_id, User.role == "Student").count()
     stats["totalStudents"] = total_students
     return stats
@@ -77,16 +76,8 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{college_id}/students", response_model=List[StudentOut])
 def get_college_students(college_id: int, db: Session = Depends(get_db)):
-    worklets = db.query(Worklet).filter(Worklet.college_id == college_id).all()
-    student_ids = set()
-    students = []
-    for w in worklets:
-        for assoc in w.user_associations:
-            if assoc.role_in_worklet == "Student" and assoc.user_id not in student_ids:
-                user = db.query(User).filter(User.user_id == assoc.user_id).first()
-                if user:
-                    students.append(user)
-                    student_ids.add(user.user_id)
+    # Return all students whose User.college_id matches
+    students = db.query(User).filter(User.college_id == college_id, User.role == "Student").all()
     return students
 
 # Add more routes as needed for create/update/delete colleges, worklets, etc.
