@@ -535,7 +535,7 @@ function WorkletCard({ worklet, layout, navigate }) {
       {/* --- STATUS AND COLLEGE BADGES AT TOP --- */}
       <div className="absolute top-0 left-0 right-0 p-[clamp(0.75rem,1.5vw,1.25rem)] text-white transition-opacity duration-300 group-hover:opacity-0 z-10">
         <div className="flex flex-wrap gap-[0.375vw] mb-[0.75vw]">
-          <span className="text-[clamp(0.65rem,0.85vw,0.8rem)] text-white bg-slate-900/80 backdrop-blur-md px-[0.6vw] py-[0.3vw] rounded-full font-bold shadow-xl border-2 border-white/30 whitespace-nowrap">{worklet.status}</span>
+          
           <span 
             className="text-[clamp(0.65rem,0.85vw,0.8rem)] text-white bg-indigo-600/90 backdrop-blur-md px-[0.6vw] py-[0.3vw] rounded-full font-bold shadow-xl border-2 border-white/30 whitespace-nowrap"
             title={worklet.college}
