@@ -9,8 +9,6 @@ import WorkletDetailPage from './components/WorkletDetailsPage';
 import Login from "./components/login";
 import ForgotPassword from "./components/ForgotPassword";
 import StatisticsDashboard from "./layouts/Statistics";
-import MentorWorkletView from "./pages/MentorWorkletView"; 
-import StudentWorkletView from "./pages/StudentWorkletView";
 import LeftSidebar from "./components/Left";
 import Portfolio from "./layouts/portfolio";
 import Colleges from "./layouts/Colleges";
@@ -20,7 +18,6 @@ import NavStat from "./layouts/navStat";
 // Replaced ProfileEdit and ProfileView with the new components.
 // Make sure these paths are correct for your project structure.
 
-import SettingsPage from "./layouts/SettingsPage";
 
 // --- ProtectedRoute component (no changes needed) ---
 function ProtectedRoute({ children }) {
@@ -61,19 +58,12 @@ export default function App() {
                 <Route path="/Left" element={<LeftSidebar/>}/>
                 {/* --- Meeting Platform Routes --- */}
                 <Route path="/meeting" element={<Meetings />} />
-                <Route path="/mentor/worklet/:workletId" element={<MentorWorkletView />} />
-                <Route path="/student/worklet/:workletId" element={<StudentWorkletView />} />
+               
                 <Route path="portfolio" element={<Portfolio/>}/>
                 <Route path="/colleges" element={<Colleges />} />
 
-                {/* --- UPDATED PROFILE & SETTINGS ROUTES --- */}
-
                 
-                {/* Added the new dedicated settings route. */}
-                <Route path="/settings" element={<SettingsPage />} />
                 
-                {/* Removed redundant /profile/view and /profile/edit routes for clarity. */}
-
               </Routes>
             </ProtectedRoute>
           }

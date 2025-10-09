@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { STATUS_OPTIONS, statusIcons } from "../components/data";
 
 const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => {
   const [workletId, setWorkletId] = useState(propWorkletId || "");
