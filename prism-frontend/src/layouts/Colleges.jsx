@@ -16,7 +16,7 @@ import {
   CheckCircle,
   PauseCircle,
   XCircle,
-  Clock, // New icon for Ongoing
+  Clock,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -128,50 +128,6 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
 }
 
 // --- Individual Chart Components ---
-const WorkletProgressChart = ({ data }) => {
-  const statusData = useMemo(() => {
-    if (!data || data.length === 0) return []
-    const statusCounts = { Ongoing: 0, Completed: 0, 'On Hold': 0, Terminated: 0 }
-    data
-      .flatMap((c) => c.worklets)
-      .forEach((w) => {
-        if (w.progressStatus in statusCounts) statusCounts[w.progressStatus]++
-      })
-    return Object.entries(statusCounts).map(([name, count]) => ({ name, count }))
-  }, [data])
-
-  const STATUS_COLORS = { Ongoing: '#3b82f6', Completed: '#22c55e', 'On Hold': '#f59e0b', Terminated: '#ef4444' }
-
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Worklet Progress Status</h3>
-      <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
-        <ResponsiveContainer>
-          <BarChart data={statusData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-            <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
-            <YAxis type="category" dataKey="name" width={70} tick={{ fill: 'currentColor' }} />
-            <Tooltip
-              cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
-              contentStyle={{
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                backdropFilter: 'blur(5px)',
-                border: '1px solid #ddd',
-                borderRadius: '0.5rem',
-              }}
-            />
-            <Bar dataKey="count" barSize={20} radius={[0, 4, 4, 0]}>
-              {statusData.map((entry) => (
-                <Cell key={`cell-${entry.name}`} fill={STATUS_COLORS[entry.name]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
-
 const WorkletPerformanceChart = ({ data }) => {
   const performanceData = useMemo(() => {
     if (!data || data.length === 0) return []
@@ -248,7 +204,7 @@ const WorkletsPerCollegeChart = ({ data }) => {
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Worklets per College</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Worklet Count</h3>
       <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
         <ResponsiveContainer>
           <BarChart data={barData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -276,7 +232,6 @@ const WorkletsPerCollegeChart = ({ data }) => {
 const DashboardGraphs = ({ data }) => {
   return (
     <div className="space-y-6">
-      <WorkletProgressChart data={data} />
       <WorkletsPerCollegeChart data={data} />
       <WorkletPerformanceChart data={data} />
     </div>
@@ -813,7 +768,7 @@ const Colleges = () => {
               </table>
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-6">
             <button
               onClick={() => setCurrentView('allWorklets')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
@@ -893,10 +848,9 @@ const Colleges = () => {
               </div>
             </button>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <WorkletProgressChart data={filteredColleges} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <WorkletPerformanceChart data={filteredColleges} />
-            <WorkletsPerCollegeChart data={filteredColleges} />
+            <StudentsPerWorkletChart data={filteredColleges} />
           </div>
         </div>
       )
@@ -910,8 +864,10 @@ const Colleges = () => {
             {filteredColleges.length > 1 && (
               <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{filteredColleges.length}</p>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{filteredColleges.length}</p>
+                  </div>
                   <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
                     <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
@@ -1238,3 +1194,30 @@ const Colleges = () => {
 }
 
 export default Colleges
+
+const StudentsPerWorkletChart = ({ data }) => {
+    const chartData = useMemo(() => {
+        if (!data || data.length !== 1) return [];
+        return data[0].worklets.map(worklet => ({
+            name: worklet.title,
+            studentCount: worklet.assignedStudents.length,
+        }));
+    }, [data]);
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Students per Worklet</h3>
+            <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
+                <ResponsiveContainer>
+                    <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+                        <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'currentColor', width: 110 }} style={{ fontSize: '10px' }} />
+                        <Tooltip cursor={{fill: 'rgba(128, 128, 128, 0.1)'}} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(5px)', border: '1px solid #ddd', borderRadius: '0.5rem' }} />
+                        <Bar dataKey="studentCount" name="Students" fill="#82ca9d" barSize={20} radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+};
