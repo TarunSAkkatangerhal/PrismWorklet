@@ -637,7 +637,7 @@ const NavColl = () => {
                         transition={{ delay: index * 0.1 }}
                         className={`border cursor-pointer transition-all duration-200 group ${
                           viewMode === 'grid' 
-                            ? `p-5 rounded-xl hover:scale-[1.02] ${
+                            ? `p-5 rounded-xl hover:scale-[1.02] h-full flex flex-col ${
                                 isDarkMode 
                                   ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 hover:border-gray-500 hover:shadow-xl' 
                                   : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 hover:shadow-xl'
@@ -676,26 +676,39 @@ const NavColl = () => {
                               </div>
                             </div>
 
-                            {/* College/Domain Info */}
+                            {/* College/Student Info */}
                             <div className="flex items-center gap-4 text-xs flex-wrap mb-4">
                               <div className="flex items-center gap-1">
                                 <Building2 size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
                                 <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{item.collegeName}</span>
                               </div>
                               {activeFilter !== 'students' && (
-                                <>
-                                  <div className="flex items-center gap-1">
-                                    <Users size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{item.studentCount} student{item.studentCount === 1 ? '' : 's'}</span>
-                                  </div>
+                                <div className="flex items-center gap-1">
+                                  <Users size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{item.studentCount} student{item.studentCount === 1 ? '' : 's'}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bottom section with domain and year */}
+                            {activeFilter !== 'students' && (
+                              <div className="flex items-center justify-between mt-auto pt-3">
+                                <div>
                                   {item.domain && (
                                     <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 rounded-full">
                                       {item.domain}
                                     </span>
                                   )}
-                                </>
-                              )}
-                            </div>
+                                </div>
+                                <div>
+                                  {item.year && (
+                                    <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      {item.year}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
 
                             {/* Additional Info for Students */}
                             {activeFilter === 'students' && item.worklets && (
