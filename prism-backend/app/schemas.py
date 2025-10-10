@@ -1,7 +1,43 @@
 ﻿from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime, date
 from enum import Enum
+# --- College Dashboard Schemas ---
+class CollegeOut(BaseModel):
+    college_id: int
+    college_name: str
+    location: Optional[str] = None
+    established: Optional[int] = None
+    infrastructure: Optional[str] = None
+    area_of_expertise: Optional[Any] = None  # can be list or str
+    workletCount: int = 0
+    excellentCount: int = 0
+    goodCount: int = 0
+    needsAttentionCount: int = 0
+    completedCount: int = 0
+    ongoingCount: int = 0
+    onHoldCount: int = 0
+    terminatedCount: int = 0
+    totalStudents: int = 0
+    class Config:
+        orm_mode = True
+
+class WorkletOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    assignedStudents: Optional[list] = []
+    performanceStatus: Optional[str] = None
+    progressStatus: Optional[str] = None
+    collegeName: Optional[str] = None
+    class Config:
+        orm_mode = True
+
+class StudentOut(BaseModel):
+    name: str
+    email: str
+    class Config:
+        orm_mode = True
 
 # Enums
 class WorkletStatusEnum(str, Enum):

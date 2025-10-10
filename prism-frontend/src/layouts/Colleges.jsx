@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Search,
   Users,
@@ -438,6 +439,7 @@ const AllStudentsView = ({ data, onBack }) => {
 
 // --- Main Colleges Component ---
 const Colleges = () => {
+  const navigate = useNavigate()
   const [collegeSearch, setCollegeSearch] = useState('')
   const [selectedYear, setSelectedYear] = useState('All Years')
   const [selectedArea, setSelectedArea] = useState('Select Area')
@@ -770,7 +772,10 @@ const Colleges = () => {
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-6">
             <button
-              onClick={() => setCurrentView('allWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'total', 
+                count: college.workletCount 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -783,7 +788,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('ongoingWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'ongoing', 
+                count: college.ongoingCount 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -796,7 +804,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('completedWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'completed', 
+                count: college.completedCount 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -809,7 +820,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('onHoldWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'onhold', 
+                count: college.onHoldCount 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -822,7 +836,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('terminatedWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'terminated', 
+                count: college.terminatedCount 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -835,7 +852,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('allStudents')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'students', 
+                count: college.totalStudents 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -875,7 +895,10 @@ const Colleges = () => {
               </div>
             )}
             <button
-              onClick={() => setCurrentView('allWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'total', 
+                count: allCollegeData.reduce((acc, curr) => acc + curr.workletCount, 0) 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -890,7 +913,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('allStudents')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'students', 
+                count: allCollegeData.reduce((acc, curr) => acc + curr.totalStudents, 0) 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -905,7 +931,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('ongoingWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'ongoing', 
+                count: allCollegeData.reduce((acc, curr) => acc + curr.ongoingCount, 0) 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -920,7 +949,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('completedWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'completed', 
+                count: allCollegeData.reduce((acc, curr) => acc + curr.completedCount, 0) 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -935,7 +967,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('onHoldWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'onhold', 
+                count: allCollegeData.reduce((acc, curr) => acc + curr.onHoldCount, 0) 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -950,7 +985,10 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => setCurrentView('terminatedWorklets')}
+              onClick={() => navigate('/navColl', { state: { 
+                filter: 'terminated', 
+                count: allCollegeData.reduce((acc, curr) => acc + curr.terminatedCount, 0) 
+              } })}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -1044,48 +1082,6 @@ const Colleges = () => {
 
   const renderCurrentView = () => {
     switch (currentView) {
-      case 'allWorklets':
-        return (
-          <WorkletListView data={filteredColleges} onBack={() => setCurrentView('dashboard')} title="Active Worklets" />
-        )
-      case 'ongoingWorklets':
-        return (
-          <WorkletListView
-            data={filteredColleges}
-            onBack={() => setCurrentView('dashboard')}
-            title="Ongoing Worklets"
-            filterStatus="Ongoing"
-          />
-        )
-      case 'completedWorklets':
-        return (
-          <WorkletListView
-            data={filteredColleges}
-            onBack={() => setCurrentView('dashboard')}
-            title="Completed Worklets"
-            filterStatus="Completed"
-          />
-        )
-      case 'onHoldWorklets':
-        return (
-          <WorkletListView
-            data={filteredColleges}
-            onBack={() => setCurrentView('dashboard')}
-            title="Worklets On Hold"
-            filterStatus="On Hold"
-          />
-        )
-      case 'terminatedWorklets':
-        return (
-          <WorkletListView
-            data={filteredColleges}
-            onBack={() => setCurrentView('dashboard')}
-            title="Terminated Worklets"
-            filterStatus="Terminated"
-          />
-        )
-      case 'allStudents':
-        return <AllStudentsView data={filteredColleges} onBack={() => setCurrentView('dashboard')} />
       case 'dashboard':
       default:
         return (
