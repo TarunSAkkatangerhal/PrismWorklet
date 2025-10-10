@@ -32,18 +32,16 @@ const NavColl = () => {
   // Get the filter from navigation state, default to 'total'
   const initialFilter = location.state?.filter || 'total'
   const initialYear = location.state?.year || 'All'
-  const expectedCountFromState = location.state?.count || 50 // Default to 50 if no count provided
   
   const [activeFilter, setActiveFilter] = useState(initialFilter)
-  const [colleges, setColleges] = useState([])             // full dataset
+  const [colleges, setColleges] = useState([])             // full dataset (same shape as Colleges.jsx)
   const [filtered, setFiltered] = useState([])             // filtered by activeFilter
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
   const [yearFilter, setYearFilter] = useState(initialYear)
-  const [expectedCount, setExpectedCount] = useState(expectedCountFromState)
-  const [originalCount] = useState(expectedCountFromState) // Store the original count from navigation
+  // Remove synthetic expected counts
   // Internal tracking for data freshness (not displayed per user request)
   const [lastUpdated, setLastUpdated] = useState(null)
 
@@ -93,78 +91,167 @@ const NavColl = () => {
     }
   ]
 
-  // Dummy college data with worklets (similar to navStat structure)
+  // Static data aligned with Colleges.jsx (same structure)
   const staticColleges = [
     {
       id: 1,
-      name: 'Indian Institute of Technology, Bombay',
-      location: 'Mumbai, Maharashtra',
-      totalWorklets: 45,
-      ongoingWorklets: 28,
-      completedWorklets: 15,
-      onHoldWorklets: 2,
-      terminatedWorklets: 0,
-      totalStudents: 180,
-      domains: ['AI/ML', 'Web Development', 'Blockchain', 'IoT'],
-      establishedYear: 1958,
-      type: 'Government'
+      name: 'VIT Vellore',
+      location: 'Vellore, Tamil Nadu',
+      established: 1984,
+      areaOfExpertise: ['IoT', 'GenAI'],
+      worklets: [
+        {
+          id: 101,
+          title: 'AI-Powered Chatbot',
+          description: 'Develop a customer service chatbot using modern NLP techniques.',
+          assignedStudents: [
+            { name: 'Anika Sharma', email: 'anika.s@example.com' },
+            { name: 'Rohan Gupta', email: 'rohan.g@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 102,
+          title: 'Smart Home Automation',
+          description: 'Control home appliances remotely via an IoT-enabled mobile app.',
+          assignedStudents: [
+            { name: 'Siddharth Jain', email: 'sid.j@example.com' },
+            { name: 'Meera Reddy', email: 'meera.r@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 103,
+          title: 'Sentiment Analysis Model',
+          description: 'Build and train a model to analyze product review sentiments.',
+          assignedStudents: [
+            { name: 'Priya Singh', email: 'priya.s@example.com' },
+            { name: 'Arjun Verma', email: 'arjun.v@example.com' },
+          ],
+          performanceStatus: 'Good',
+          progressStatus: 'Ongoing',
+        },
+        {
+          id: 104,
+          title: 'E-commerce Recommendation',
+          description: 'Design a collaborative filtering engine for product recommendations.',
+          assignedStudents: [
+            { name: 'Anika Sharma', email: 'anika.s@example.com' },
+            { name: 'Vikram Kumar', email: 'vikram.k@example.com' },
+          ],
+          performanceStatus: 'Good',
+          progressStatus: 'On Hold',
+        },
+        {
+          id: 105,
+          title: 'IoT Weather Station',
+          description: 'Assemble a device to collect and display real-time local weather data.',
+          assignedStudents: [
+            { name: 'Meera Reddy', email: 'meera.r@example.com' },
+            { name: 'Rohan Gupta', email: 'rohan.g@example.com' },
+          ],
+          performanceStatus: 'Needs Attention',
+          progressStatus: 'Ongoing',
+        },
+      ],
     },
     {
       id: 2,
-      name: 'Delhi Technological University',
-      location: 'Delhi, Delhi',
-      totalWorklets: 38,
-      ongoingWorklets: 22,
-      completedWorklets: 12,
-      onHoldWorklets: 3,
-      terminatedWorklets: 1,
-      totalStudents: 152,
-      domains: ['Software Engineering', 'Data Science', 'Cybersecurity'],
-      establishedYear: 1941,
-      type: 'Government'
+      name: 'MIT Cambridge',
+      location: 'Cambridge, MA',
+      established: 1861,
+      areaOfExpertise: ['AI & Machine Learning', 'Robotics'],
+      worklets: [
+        {
+          id: 201,
+          title: 'Robotic Arm Control System',
+          description: 'Develop a high-precision inverse kinematics control algorithm.',
+          assignedStudents: [
+            { name: 'John Doe', email: 'john.d@example.com' },
+            { name: 'Jane Smith', email: 'jane.s@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 202,
+          title: 'Predictive Analytics Model',
+          description: 'Build a time-series model to predict stock market trends.',
+          assignedStudents: [
+            { name: 'Emily White', email: 'emily.w@example.com' },
+            { name: 'Chris Green', email: 'chris.g@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 203,
+          title: 'Autonomous Drone Navigation',
+          description: 'Implement a SLAM-based system for autonomous drone pathfinding.',
+          assignedStudents: [
+            { name: 'Peter Jones', email: 'peter.j@example.com' },
+            { name: 'John Doe', email: 'john.d@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Ongoing',
+        },
+        {
+          id: 204,
+          title: 'Computer Vision for QC',
+          description: 'Use a CNN for automated quality control on a manufacturing line.',
+          assignedStudents: [
+            { name: 'Jane Smith', email: 'jane.s@example.com' },
+            { name: 'Laura Brown', email: 'laura.b@example.com' },
+          ],
+          performanceStatus: 'Good',
+          progressStatus: 'Terminated',
+        },
+      ],
     },
     {
       id: 3,
-      name: 'Manipal Institute of Technology',
-      location: 'Manipal, Karnataka',
-      totalWorklets: 32,
-      ongoingWorklets: 19,
-      completedWorklets: 10,
-      onHoldWorklets: 2,
-      terminatedWorklets: 1,
-      totalStudents: 128,
-      domains: ['Mobile Development', 'Cloud Computing', 'Game Development'],
-      establishedYear: 1957,
-      type: 'Private'
+      name: 'Stanford University',
+      location: 'Stanford, CA',
+      established: 1885,
+      areaOfExpertise: ['Cybersecurity', 'Biotech'],
+      worklets: [
+        {
+          id: 301,
+          title: 'Network Intrusion Detection',
+          description: 'Implement an ML-based system to detect and flag network anomalies.',
+          assignedStudents: [
+            { name: 'Michael Chen', email: 'michael.c@example.com' },
+            { name: 'Sarah Lee', email: 'sarah.l@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'Completed',
+        },
+        {
+          id: 302,
+          title: 'Gene Sequencing Algorithm',
+          description: 'Optimize a parallel processing algorithm for faster DNA analysis.',
+          assignedStudents: [
+            { name: 'David Kim', email: 'david.k@example.com' },
+            { name: 'Laura Ortiz', email: 'laura.o@example.com' },
+          ],
+          performanceStatus: 'Excellent',
+          progressStatus: 'On Hold',
+        },
+        {
+          id: 303,
+          title: 'Blockchain for Secure Voting',
+          description: 'Develop a proof-of-concept decentralized voting application.',
+          assignedStudents: [
+            { name: 'Ben Carter', email: 'ben.c@example.com' },
+            { name: 'Michael Chen', email: 'michael.c@example.com' },
+          ],
+          performanceStatus: 'Good',
+          progressStatus: 'Ongoing',
+        },
+      ],
     },
-    {
-      id: 4,
-      name: 'Vellore Institute of Technology',
-      location: 'Vellore, Tamil Nadu',
-      totalWorklets: 41,
-      ongoingWorklets: 25,
-      completedWorklets: 14,
-      onHoldWorklets: 1,
-      terminatedWorklets: 1,
-      totalStudents: 164,
-      domains: ['Robotics', 'AI/ML', 'Full Stack Development'],
-      establishedYear: 1984,
-      type: 'Private'
-    },
-    {
-      id: 5,
-      name: 'National Institute of Technology, Trichy',
-      location: 'Tiruchirappalli, Tamil Nadu',
-      totalWorklets: 29,
-      ongoingWorklets: 17,
-      completedWorklets: 9,
-      onHoldWorklets: 2,
-      terminatedWorklets: 1,
-      totalStudents: 116,
-      domains: ['Data Analytics', 'Machine Learning', 'Web Technologies'],
-      establishedYear: 1964,
-      type: 'Government'
-    }
   ]
 
   // Live fetch of all college data; filtering done client-side
@@ -173,7 +260,7 @@ const NavColl = () => {
       setLoading(true)
       setError(null)
       
-      // For now, use static data. In production, this would be an API call
+      // For now, use static data aligned with Colleges.jsx. In production, this would be an API call
       // const base = process.env.REACT_APP_API_URL || 'http://localhost:8000'
       // const token = localStorage.getItem('access_token')
       // if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
@@ -196,158 +283,64 @@ const NavColl = () => {
   }, [yearFilter])
 
   // Filter colleges based on active filter
-  const filterColleges = useCallback((customExpectedCount = null) => {
+  const filterColleges = useCallback(() => {
     let result = []
-    
-    // Safety check: return empty array if colleges data is not loaded yet
-    if (!colleges || colleges.length === 0) {
-      return result
-    }
-    
-    const countToUse = customExpectedCount !== null ? customExpectedCount : expectedCount
-    
-    // Special handling for students filter
+    if (!colleges || colleges.length === 0) return result
+
     if (activeFilter === 'students') {
-      // Generate the exact number of students based on expected count
-      const studentNames = [
-        'Anika Sharma', 'Rohan Gupta', 'Siddharth Jain', 'Meera Reddy',
-        'Priya Singh', 'Arjun Verma', 'Vikram Kumar', 'Neha Patel',
-        'Rajesh Kumar', 'Kavya Iyer', 'Rahul Mehta', 'Sneha Joshi',
-        'Amit Sharma', 'Divya Rao', 'Karan Singh', 'Pooja Gupta',
-        'Suresh Kumar', 'Anita Desai', 'Ravi Krishnan', 'Deepika Nair'
-      ]
-      
-      // Create exactly the expected number of students
-      for (let i = 0; i < countToUse; i++) {
-        const studentIndex = i % studentNames.length
-        const collegIndex = i % colleges.length
-        const college = colleges[collegIndex]
-        
-        // Safety check for college properties
-        if (!college || !college.domains || !college.name || !Array.isArray(college.domains) || college.domains.length === 0) {
-          continue
-        }
-        
-        const studentName = studentNames[studentIndex]
-        const studentEmail = `${studentName.toLowerCase().replace(/\s+/g, '.')}${i > studentNames.length ? i : ''}@${college.name.toLowerCase().replace(/\s+/g, '').replace(/,.*/, '')}.edu`
-        
-        // Assign 1-3 worklets per student
-        const workletCount = Math.floor(Math.random() * 3) + 1
-        const worklets = []
-        for (let w = 0; w < workletCount; w++) {
-          const domainIndex = (i + w) % college.domains.length
-          worklets.push({
-            title: `${college.domains[domainIndex]} Project ${w + 1}`,
-            collegeName: college.name
+      // Build unique student list across all colleges
+      const studentMap = new Map()
+      colleges.forEach((college) => {
+        college.worklets.forEach((worklet) => {
+          worklet.assignedStudents.forEach((student) => {
+            if (!studentMap.has(student.email)) {
+              studentMap.set(student.email, { ...student, collegeName: college.name })
+            }
           })
-        }
-        
-        result.push({
-          id: `student-${i}`,
-          name: studentName,
-          email: studentEmail,
-          collegeName: college.name,
-          location: college.location || 'Unknown Location',
-          type: 'student',
-          worklets: worklets
         })
-      }
-      
-      // Apply search filter for students
+      })
+      result = Array.from(studentMap.values())
+      // Apply search filter
       if (searchTerm) {
-        result = result.filter(student => 
-          student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          student.collegeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          student.worklets.some(w => w.title.toLowerCase().includes(searchTerm.toLowerCase()))
+        result = result.filter(s =>
+          s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.collegeName.toLowerCase().includes(searchTerm.toLowerCase())
         )
       }
-      
       return result
     }
-    
-    // For worklets, generate exactly the expected number
-    const statusMap = {
-      'total': ['Ongoing', 'Completed', 'On Hold', 'Terminated'],
-      'ongoing': ['Ongoing'],
-      'completed': ['Completed'],
-      'onhold': ['On Hold'],
-      'terminated': ['Terminated']
-    }
-    
-    const allowedStatuses = statusMap[activeFilter] || statusMap['total']
-    
-    // Varied worklet titles and problem statements
-    const workletTitles = [
-      'AI-Powered Healthcare System', 'Smart City Infrastructure', 'Blockchain Voting Platform',
-      'IoT Environmental Monitor', 'Machine Learning Analytics', 'Web3 Social Platform',
-      'Autonomous Vehicle Control', 'Cybersecurity Framework', 'Digital Twin Simulation',
-      'Quantum Computing Research', 'AR/VR Educational Tool', 'Sustainable Energy System',
-      'Fintech Payment Solution', 'Biotech Data Analysis', 'Space Technology Project',
-      'Robotics Automation', 'Neural Network Optimization', 'Cloud Migration Strategy',
-      'Mobile Health App', 'Smart Agriculture System'
-    ]
-    
-    const problemStatements = [
-      'Develop an innovative solution to address modern healthcare challenges',
-      'Create intelligent infrastructure for sustainable urban development',
-      'Build secure and transparent digital voting mechanisms',
-      'Design comprehensive environmental monitoring systems',
-      'Implement advanced analytics for predictive insights',
-      'Develop decentralized social networking platforms',
-      'Create autonomous navigation and control systems',
-      'Build robust security frameworks for digital assets',
-      'Develop virtual representations of physical systems',
-      'Research quantum algorithms for practical applications',
-      'Create immersive educational experiences using AR/VR',
-      'Design renewable energy management systems',
-      'Build secure and efficient payment processing solutions',
-      'Analyze complex biological datasets for insights',
-      'Develop innovative space exploration technologies',
-      'Create intelligent automation for industrial processes',
-      'Optimize neural networks for better performance',
-      'Plan seamless cloud infrastructure transitions',
-      'Develop mobile applications for health monitoring',
-      'Create smart systems for agricultural optimization'
-    ]
-    
-    // Create exactly the expected number of worklets
-    for (let i = 0; i < countToUse; i++) {
-      const collegeIndex = i % colleges.length
-      const college = colleges[collegeIndex]
-      
-      // Safety check for college properties
-      if (!college || !college.domains || !college.name || !Array.isArray(college.domains) || college.domains.length === 0) {
-        continue
-      }
-      
-      const statusIndex = i % allowedStatuses.length
-      const status = allowedStatuses[statusIndex]
-      const titleIndex = i % workletTitles.length
-      const domainIndex = i % college.domains.length
-      
-      // Generate random start and end dates within the last 6 months
-      const now = new Date()
-      const startOffset = Math.floor(Math.random() * 150) // up to 150 days ago
-      const endOffset = startOffset + Math.floor(Math.random() * 30) + 10 // 10-40 days after start
-      const startDate = new Date(now.getTime() - startOffset * 24 * 60 * 60 * 1000)
-      const endDate = new Date(now.getTime() - endOffset * 24 * 60 * 60 * 1000)
-      result.push({
-        id: `worklet-${i}`,
-        collegeId: college.id || `college-${i}`,
-        collegeName: college.name,
-        location: college.location || 'Unknown Location',
-        status: status,
-        domain: college.domains[domainIndex],
-        title: workletTitles[titleIndex],
-        description: problemStatements[titleIndex],
-        startDate,
-        endDate,
-        studentCount: Math.floor(Math.random() * 8) + 3 // 3-10 students
-      })
-    }
 
-    // Apply search filter
+    // Worklets list based on filter
+    const allowedStatuses = {
+      total: ['Ongoing', 'Completed', 'On Hold', 'Terminated'],
+      ongoing: ['Ongoing'],
+      completed: ['Completed'],
+      onhold: ['On Hold'],
+      terminated: ['Terminated']
+    }[activeFilter] || ['Ongoing', 'Completed', 'On Hold', 'Terminated']
+
+    colleges.forEach((college) => {
+      college.worklets.forEach((worklet) => {
+        if (allowedStatuses.includes(worklet.progressStatus)) {
+          result.push({
+            id: `${college.id}-${worklet.id}`,
+            collegeId: college.id,
+            collegeName: college.name,
+            location: college.location,
+            status: worklet.progressStatus,
+            domain: (college.areaOfExpertise && college.areaOfExpertise[0]) || 'General',
+            title: worklet.title,
+            description: worklet.description,
+            startDate: null,
+            endDate: null,
+            studentCount: worklet.assignedStudents.length
+          })
+        }
+      })
+    })
+
+    // Apply search filter for worklets
     if (searchTerm) {
       result = result.filter(worklet => 
         worklet.collegeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -358,7 +351,7 @@ const NavColl = () => {
     }
 
     return result
-  }, [colleges, activeFilter, searchTerm, expectedCount])
+  }, [colleges, activeFilter, searchTerm])
 
   // Update filtered data when dependencies change
   useEffect(() => {
@@ -371,47 +364,34 @@ const NavColl = () => {
   }, [fetchColleges])
 
   const handleFilterChange = (filterKey) => {
-    setActiveFilter(filterKey);
-    const stats = getFilterStats();
-    const newExpectedCount = stats[filterKey] || 0;
-    setExpectedCount(newExpectedCount);
-    // Pass the new expected count directly to the filtering function
-    setFiltered(filterColleges(newExpectedCount));
-  };
+    setActiveFilter(filterKey)
+    setFiltered(filterColleges())
+  }
 
-  useEffect(() => {
-    const stats = getFilterStats();
-    setExpectedCount(stats[activeFilter] || 0);
-  }, [activeFilter, colleges]);
+  // remove expectedCount updates
 
   const handleGoBack = () => {
     navigate('/colleges')
   }
 
   const getFilterStats = () => {
-    // Always use the original count from navigation as the base
-    const baseCount = originalCount
-    
-    // For demonstration purposes, create proportional stats based on the original passed count
-    // In a real app, these would come from the API
-    const baseStats = {
-      total: baseCount,
-      ongoing: Math.floor(baseCount * 0.6), // 60% ongoing
-      completed: Math.floor(baseCount * 0.25), // 25% completed  
-      onhold: Math.floor(baseCount * 0.1), // 10% on hold
-      terminated: Math.floor(baseCount * 0.05), // 5% terminated
-      students: baseCount // Same as total for students
-    }
-    
-    // Ensure the active filter shows the appropriate count
-    // If we're on the initially navigated filter, show the exact original count
-    if (activeFilter === initialFilter) {
-      baseStats[activeFilter] = baseCount
-    }
-    
-    return baseStats
-    
-    return stats
+    // Derive stats from worklets data (consistent with Colleges.jsx)
+    let ongoing = 0, completed = 0, onhold = 0, terminated = 0
+    const studentMap = new Map()
+    let total = 0
+    colleges.forEach((college) => {
+      const worklets = college.worklets || []
+      total += worklets.length
+      ongoing += worklets.filter(w => w.progressStatus === 'Ongoing').length
+      completed += worklets.filter(w => w.progressStatus === 'Completed').length
+      onhold += worklets.filter(w => w.progressStatus === 'On Hold').length
+      terminated += worklets.filter(w => w.progressStatus === 'Terminated').length
+      worklets.forEach(w => w.assignedStudents.forEach(s => { if (!studentMap.has(s.email)) studentMap.set(s.email, s) }))
+    })
+    const students = studentMap.size
+    // Ensure total equals sum of statuses
+    total = ongoing + completed + onhold + terminated
+    return { total, ongoing, completed, onhold, terminated, students }
   }
 
   const stats = getFilterStats()

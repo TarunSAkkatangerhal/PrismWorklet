@@ -959,6 +959,12 @@ const Colleges = () => {
     // Single College View Layout
     if (filteredColleges.length === 1 && collegeSearch) {
       const college = filteredColleges[0]
+      // Calculate total worklets as the sum of all status counts
+      const totalWorklets =
+        (college.completedCount || 0) +
+        (college.ongoingCount || 0) +
+        (college.onHoldCount || 0) +
+        (college.terminatedCount || 0)
       return (
         <div className="space-y-8">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
@@ -987,33 +993,40 @@ const Colleges = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                  {filteredColleges.map((college) => (
-                    <tr key={college.id} className="animate-fadeInUp" style={{ animationDelay: '100ms' }}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg mr-3">
-                            <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  {filteredColleges.map((college) => {
+                    const totalWorkletsRow =
+                      (college.completedCount || 0) +
+                      (college.ongoingCount || 0) +
+                      (college.onHoldCount || 0) +
+                      (college.terminatedCount || 0)
+                    return (
+                      <tr key={college.id} className="animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg mr-3">
+                              <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">{college.name}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">{college.location}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{college.name}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">{college.location}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-center text-gray-900 dark:text-white">
-                        {college.workletCount}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
-                        {college.excellentCount}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-center font-medium text-green-600 dark:text-green-400">
-                        {college.goodCount}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
-                        {college.needsAttentionCount}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center text-gray-900 dark:text-white">
+                          {totalWorkletsRow}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
+                          {college.excellentCount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-green-600 dark:text-green-400">
+                          {college.goodCount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
+                          {college.needsAttentionCount}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1025,7 +1038,7 @@ const Colleges = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.workletCount}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalWorklets}</p>
                 </div>
                 <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
                   <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
@@ -1131,7 +1144,15 @@ const Colleges = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Worklets</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {allCollegeData.reduce((acc, curr) => acc + curr.workletCount, 0)}
+                    {allCollegeData.reduce(
+                      (acc, curr) =>
+                        acc +
+                        (curr.completedCount || 0) +
+                        (curr.ongoingCount || 0) +
+                        (curr.onHoldCount || 0) +
+                        (curr.terminatedCount || 0),
+                      0
+                    )}
                   </p>
                 </div>
                 <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
