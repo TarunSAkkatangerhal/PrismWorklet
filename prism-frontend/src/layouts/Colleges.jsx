@@ -53,6 +53,45 @@ const AnimationStyles = () => (
   `}</style>
 )
 
+// --- Chart Modal Component for Enlarged View ---
+const ChartModal = ({ chartInfo, onClose }) => {
+  if (!chartInfo) return null
+
+  const renderChart = () => {
+    // Pass isEnlarged prop to modify chart height and disable further clicks
+    const chartProps = { data: chartInfo.data, isEnlarged: true }
+    switch (chartInfo.type) {
+      case 'performance':
+        return <WorkletPerformanceChart {...chartProps} />
+      case 'workletCount':
+        return <WorkletsPerCollegeChart {...chartProps} />
+      case 'studentsPerWorklet':
+        return <StudentsPerWorkletChart {...chartProps} />
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeInUp"
+      style={{ animationDuration: '0.3s' }}
+      onClick={onClose}>
+      <div
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl p-6 relative"
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 bg-gray-100 dark:bg-slate-700 rounded-full transition-colors">
+          <X className="w-5 h-5" />
+        </button>
+        {renderChart()}
+      </div>
+    </div>
+  )
+}
+
 // --- Searchable Dropdown Component ---
 const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false)
@@ -128,7 +167,7 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
 }
 
 // --- Individual Chart Components ---
-const WorkletPerformanceChart = ({ data }) => {
+const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
   const performanceData = useMemo(() => {
     if (!data || data.length === 0) return []
     const totalExcellent = data.reduce((sum, college) => sum + college.excellentCount, 0)
@@ -144,9 +183,16 @@ const WorkletPerformanceChart = ({ data }) => {
   const PIE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b']
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+    <div
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 ${
+        !isEnlarged && 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
+      }`}
+      onClick={() => !isEnlarged && onEnlarge && onEnlarge('performance', data)}>
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Overall Worklet Performance</h3>
-      <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
+      <div
+        className={`w-full text-xs text-gray-600 dark:text-gray-400 ${
+          isEnlarged ? 'h-[450px]' : 'h-[250px]'
+        } transition-all duration-300`}>
         <ResponsiveContainer>
           <PieChart>
             <Pie
@@ -154,7 +200,7 @@ const WorkletPerformanceChart = ({ data }) => {
               cx="50%"
               cy="50%"
               labelLine={false}
-              outerRadius={80}
+              outerRadius={isEnlarged ? 150 : 80}
               fill="#8884d8"
               dataKey="value"
               nameKey="name"
@@ -193,24 +239,144 @@ const WorkletPerformanceChart = ({ data }) => {
   )
 }
 
-const WorkletsPerCollegeChart = ({ data }) => {
-  const barData = useMemo(() => {
-    if (!data || data.length === 0) return []
-    return data.map((college) => ({
-      name: college.name.replace(' University', '').replace(' Cambridge', ''),
-      worklets: college.workletCount,
+const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = isEnlarged ? 25 : 15; // Show more items when enlarged
+
+  const processedData = useMemo(() => {
+    if (!data || data.length === 0) return { paginatedData: [], pageCount: 0 };
+
+    // 1. Map and sort the data
+    const sortedData = [...data]
+      .map(college => ({
+        name: college.name,
+        worklets: college.workletCount,
+      }))
+      .sort((a, b) => {
+        if (sortOrder === 'asc') return a.worklets - b.worklets;
+        if (sortOrder === 'desc') return b.worklets - a.worklets;
+        return a.name.localeCompare(b.name); // 'alpha'
+      });
+
+    // 2. Paginate the sorted data
+    const pageCount = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedData = sortedData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    return { paginatedData, pageCount };
+  }, [data, sortOrder, currentPage, ITEMS_PER_PAGE]);
+
+  const { paginatedData, pageCount } = processedData;
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pageCount) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  return (
+    <div
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 flex flex-col transition-all duration-300 ${
+        !isEnlarged && 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
+      }`}
+      onClick={() => !isEnlarged && onEnlarge && onEnlarge('workletCount', data)}>
+      <div
+        className="flex justify-between items-center mb-4"
+        // FIX: Stop click event from bubbling up to the parent container
+        onClick={(e) => e.stopPropagation()} 
+      >
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Worklet Count per College</h3>
+        <div className="flex items-center space-x-2 text-xs">
+           <select 
+              value={sortOrder} 
+              onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
+              className="bg-gray-100 dark:bg-slate-700 border-none rounded-md p-1 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
+            >
+             <option value="desc">Most First</option>
+             <option value="asc">Fewest First</option>
+             <option value="alpha">Alphabetical</option>
+           </select>
+        </div>
+      </div>
+      <div
+        className={`w-full flex-grow text-xs text-gray-600 dark:text-gray-400 ${
+          isEnlarged ? 'h-[450px]' : 'h-[250px]'
+        } transition-all duration-300`}>
+        {paginatedData.length > 0 ? (
+          <ResponsiveContainer>
+            <BarChart layout="vertical" data={paginatedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+              <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fill: 'currentColor', fontSize: 10 }}
+                width={110}
+                interval={0}
+                tickFormatter={(value) => (value.length > 15 ? `${value.substring(0, 13)}...` : value)}
+              />
+              <Tooltip
+                cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
+                contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  backdropFilter: 'blur(5px)',
+                  border: '1px solid #ddd',
+                  borderRadius: '0.5rem',
+                }}
+              />
+              <Bar dataKey="worklets" fill="#8884d8" name="Worklets" barSize={15} radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+           <div className="flex items-center justify-center h-full text-gray-500">No data to display.</div>
+        )}
+      </div>
+       {pageCount > 1 && (
+        <div 
+          className="flex justify-center items-center pt-4 space-x-2 text-sm"
+          // FIX: Stop click event from bubbling up to the parent container
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 bg-gray-200 dark:bg-slate-700 rounded-md disabled:opacity-50">Prev</button>
+          <span className="text-gray-700 dark:text-gray-300">Page {currentPage} of {pageCount}</span>
+          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === pageCount} className="px-3 py-1 bg-gray-200 dark:bg-slate-700 rounded-md disabled:opacity-50">Next</button>
+        </div>
+      )}
+    </div>
+  );
+};
+const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
+  const chartData = useMemo(() => {
+    if (!data || data.length !== 1) return []
+    return data[0].worklets.map((worklet) => ({
+      name: worklet.title,
+      studentCount: worklet.assignedStudents.length,
     }))
   }, [data])
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Worklet Count</h3>
-      <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
+    <div
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 ${
+        !isEnlarged && 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
+      }`}
+      onClick={() => !isEnlarged && onEnlarge && onEnlarge('studentsPerWorklet', data)}>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Students per Worklet</h3>
+      <div
+        className={`w-full text-xs text-gray-600 dark:text-gray-400 ${
+          isEnlarged ? 'h-[450px]' : 'h-[250px]'
+        } transition-all duration-300`}>
         <ResponsiveContainer>
-          <BarChart data={barData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-            <XAxis dataKey="name" tick={{ fill: 'currentColor' }} interval={0} />
-            <YAxis tick={{ fill: 'currentColor' }} allowDecimals={false} />
+            <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={120}
+              tick={{ fill: 'currentColor', width: 110 }}
+              style={{ fontSize: '10px' }}
+            />
             <Tooltip
               cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
               contentStyle={{
@@ -220,7 +386,7 @@ const WorkletsPerCollegeChart = ({ data }) => {
                 borderRadius: '0.5rem',
               }}
             />
-            <Bar dataKey="worklets" fill="#8884d8" name="Worklets" barSize={30} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="studentCount" name="Students" fill="#82ca9d" barSize={20} radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -229,11 +395,11 @@ const WorkletsPerCollegeChart = ({ data }) => {
 }
 
 // --- Main Graphs Component for Multi-College View ---
-const DashboardGraphs = ({ data }) => {
+const DashboardGraphs = ({ data, onEnlarge }) => {
   return (
     <div className="space-y-6">
-      <WorkletsPerCollegeChart data={data} />
-      <WorkletPerformanceChart data={data} />
+      <WorkletsPerCollegeChart data={data} onEnlarge={onEnlarge} />
+      <WorkletPerformanceChart data={data} onEnlarge={onEnlarge} />
     </div>
   )
 }
@@ -299,7 +465,9 @@ const WorkletListView = ({ data, onBack, filterStatus, title }) => {
                         {worklet.description}
                       </div>
                       <div className="mt-2">
-                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400">Students Assigned:</div>
+                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                          Students Assigned:
+                        </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {worklet.assignedStudents.map((student) => (
                             <span
@@ -444,6 +612,7 @@ const Colleges = () => {
   const [allCollegeData, setAllCollegeData] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentView, setCurrentView] = useState('dashboard')
+  const [enlargedChartInfo, setEnlargedChartInfo] = useState(null) // State for modal
 
   const rawMockData = [
     {
@@ -705,6 +874,11 @@ const Colleges = () => {
     setCollegeSearch(collegeName)
   }
 
+  // New handler for opening the chart modal
+  const handleEnlargeChart = (type, data) => {
+    setEnlargedChartInfo({ type, data })
+  }
+
   const renderDashboard = () => {
     // Single College View Layout
     if (filteredColleges.length === 1 && collegeSearch) {
@@ -849,8 +1023,8 @@ const Colleges = () => {
             </button>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <WorkletPerformanceChart data={filteredColleges} />
-            <StudentsPerWorkletChart data={filteredColleges} />
+            <WorkletPerformanceChart data={filteredColleges} onEnlarge={handleEnlargeChart} />
+            <StudentsPerWorkletChart data={filteredColleges} onEnlarge={handleEnlargeChart} />
           </div>
         </div>
       )
@@ -1010,7 +1184,9 @@ const Colleges = () => {
                               <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">{college.name}</div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {college.name}
+                              </div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">{college.location}</div>
                             </div>
                           </div>
@@ -1036,7 +1212,7 @@ const Colleges = () => {
           </div>
         </div>
         <div className="lg:col-span-1">
-          <DashboardGraphs data={filteredColleges} />
+          <DashboardGraphs data={filteredColleges} onEnlarge={handleEnlargeChart} />
         </div>
       </div>
     )
@@ -1189,35 +1365,9 @@ const Colleges = () => {
       <main className="flex-1 p-6 lg:p-8 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
         <div className="max-w-7xl mx-auto">{renderCurrentView()}</div>
       </main>
+      <ChartModal chartInfo={enlargedChartInfo} onClose={() => setEnlargedChartInfo(null)} />
     </div>
   )
 }
 
 export default Colleges
-
-const StudentsPerWorkletChart = ({ data }) => {
-    const chartData = useMemo(() => {
-        if (!data || data.length !== 1) return [];
-        return data[0].worklets.map(worklet => ({
-            name: worklet.title,
-            studentCount: worklet.assignedStudents.length,
-        }));
-    }, [data]);
-
-    return (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Students per Worklet</h3>
-            <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
-                <ResponsiveContainer>
-                    <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-                        <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
-                        <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'currentColor', width: 110 }} style={{ fontSize: '10px' }} />
-                        <Tooltip cursor={{fill: 'rgba(128, 128, 128, 0.1)'}} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(5px)', border: '1px solid #ddd', borderRadius: '0.5rem' }} />
-                        <Bar dataKey="studentCount" name="Students" fill="#82ca9d" barSize={20} radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
-        </div>
-    );
-};
