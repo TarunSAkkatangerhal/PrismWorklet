@@ -12,12 +12,12 @@ import {
   Target,
   RefreshCw,
   X,
+  ArrowLeft,
   ClipboardList,
   CheckCircle,
   PauseCircle,
   XCircle,
   Clock,
-  ExternalLink,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -240,47 +240,110 @@ const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
   )
 }
 
-const WorkletsPerCollegeChart = ({ data }) => {
-  const barData = useMemo(() => {
-    if (!data || data.length === 0) return []
-    return data.map((college) => ({
-      name: college.name.replace(' University', '').replace(' Cambridge', ''),
-      worklets: college.workletCount,
-    }))
-  }, [data])
+const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = isEnlarged ? 25 : 15; // Show more items when enlarged
+
+  const processedData = useMemo(() => {
+    if (!data || data.length === 0) return { paginatedData: [], pageCount: 0 };
+
+    // 1. Map and sort the data
+    const sortedData = [...data]
+      .map(college => ({
+        name: college.name,
+        worklets: college.workletCount,
+      }))
+      .sort((a, b) => {
+        if (sortOrder === 'asc') return a.worklets - b.worklets;
+        if (sortOrder === 'desc') return b.worklets - a.worklets;
+        return a.name.localeCompare(b.name); // 'alpha'
+      });
+
+    // 2. Paginate the sorted data
+    const pageCount = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedData = sortedData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    return { paginatedData, pageCount };
+  }, [data, sortOrder, currentPage, ITEMS_PER_PAGE]);
+
+  const { paginatedData, pageCount } = processedData;
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pageCount) {
+      setCurrentPage(newPage);
+    }
+  };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Worklet Count</h3>
-      <div className="w-full h-[250px] text-xs text-gray-600 dark:text-gray-400">
-        <ResponsiveContainer>
-          <BarChart data={barData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-            <XAxis dataKey="name" tick={{ fill: 'currentColor' }} interval={0} />
-            <YAxis tick={{ fill: 'currentColor' }} allowDecimals={false} />
-            <Tooltip
-              cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
-              contentStyle={{
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                backdropFilter: 'blur(5px)',
-                border: '1px solid #ddd',
-                borderRadius: '0.5rem',
-              }}
-            />
-            <Bar dataKey="worklets" fill="#8884d8" name="Worklets" barSize={30} radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+    <div
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 flex flex-col transition-all duration-300 ${
+        !isEnlarged && 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
+      }`}
+      onClick={() => !isEnlarged && onEnlarge && onEnlarge('workletCount', data)}>
+      <div
+        className="flex justify-between items-center mb-4"
+        // FIX: Stop click event from bubbling up to the parent container
+        onClick={(e) => e.stopPropagation()} 
+      >
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Worklet Count per College</h3>
+        <div className="flex items-center space-x-2 text-xs">
+           <select 
+              value={sortOrder} 
+              onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
+              className="bg-gray-100 dark:bg-slate-700 border-none rounded-md p-1 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
+            >
+             <option value="desc">Most First</option>
+             <option value="asc">Fewest First</option>
+             <option value="alpha">Alphabetical</option>
+           </select>
+        </div>
       </div>
-    </div>
-  )
-}
-
-// --- Main Graphs Component for Multi-College View ---
-const DashboardGraphs = ({ data }) => {
-  return (
-    <div className="space-y-6">
-      <WorkletsPerCollegeChart data={data} />
-      <WorkletPerformanceChart data={data} />
+      <div
+        className={`w-full flex-grow text-xs text-gray-600 dark:text-gray-400 ${
+          isEnlarged ? 'h-[450px]' : 'h-[250px]'
+        } transition-all duration-300`}>
+        {paginatedData.length > 0 ? (
+          <ResponsiveContainer>
+            <BarChart layout="vertical" data={paginatedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+              <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fill: 'currentColor', fontSize: 10 }}
+                width={110}
+                interval={0}
+                tickFormatter={(value) => (value.length > 15 ? `${value.substring(0, 13)}...` : value)}
+              />
+              <Tooltip
+                cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
+                contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  backdropFilter: 'blur(5px)',
+                  border: '1px solid #ddd',
+                  borderRadius: '0.5rem',
+                }}
+              />
+              <Bar dataKey="worklets" fill="#8884d8" name="Worklets" barSize={15} radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+           <div className="flex items-center justify-center h-full text-gray-500">No data to display.</div>
+        )}
+      </div>
+       {pageCount > 1 && (
+        <div 
+          className="flex justify-center items-center pt-4 space-x-2 text-sm"
+          // FIX: Stop click event from bubbling up to the parent container
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 bg-gray-200 dark:bg-slate-700 rounded-md disabled:opacity-50">Prev</button>
+          <span className="text-gray-700 dark:text-gray-300">Page {currentPage} of {pageCount}</span>
+          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === pageCount} className="px-3 py-1 bg-gray-200 dark:bg-slate-700 rounded-md disabled:opacity-50">Next</button>
+        </div>
+      )}
     </div>
   );
 };
@@ -292,6 +355,67 @@ const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
       studentCount: worklet.assignedStudents.length,
     }))
   }, [data])
+
+  return (
+    <div
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 ${
+        !isEnlarged && 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
+      }`}
+      onClick={() => !isEnlarged && onEnlarge && onEnlarge('studentsPerWorklet', data)}>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Students per Worklet</h3>
+      <div
+        className={`w-full text-xs text-gray-600 dark:text-gray-400 ${
+          isEnlarged ? 'h-[450px]' : 'h-[250px]'
+        } transition-all duration-300`}>
+        <ResponsiveContainer>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+            <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={120}
+              tick={{ fill: 'currentColor', width: 110 }}
+              style={{ fontSize: '10px' }}
+            />
+            <Tooltip
+              cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(5px)',
+                border: '1px solid #ddd',
+                borderRadius: '0.5rem',
+              }}
+            />
+            <Bar dataKey="studentCount" name="Students" fill="#82ca9d" barSize={20} radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+// --- Main Graphs Component for Multi-College View ---
+const DashboardGraphs = ({ data, onEnlarge }) => {
+  return (
+    <div className="space-y-6">
+      <WorkletsPerCollegeChart data={data} onEnlarge={onEnlarge} />
+      <WorkletPerformanceChart data={data} onEnlarge={onEnlarge} />
+    </div>
+  )
+}
+
+// --- Reusable Worklet List View ---
+const WorkletListView = ({ data, onBack, filterStatus, title }) => {
+  const worklets = useMemo(() => {
+    const allWorklets = data.flatMap((college) =>
+      college.worklets.map((worklet) => ({ ...worklet, collegeName: college.name }))
+    )
+    if (filterStatus) {
+      return allWorklets.filter((worklet) => worklet.progressStatus === filterStatus)
+    }
+    return allWorklets
+  }, [data, filterStatus])
 
   return (
     <div>
@@ -342,7 +466,9 @@ const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
                         {worklet.description}
                       </div>
                       <div className="mt-2">
-                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400">Students Assigned:</div>
+                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                          Students Assigned:
+                        </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {worklet.assignedStudents.map((student) => (
                             <span
@@ -386,12 +512,95 @@ const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
   )
 }
 
-// --- Main Graphs Component for Multi-College View ---
-const DashboardGraphs = ({ data, onEnlarge }) => {
+// --- List View for All Students ---
+const AllStudentsView = ({ data, onBack }) => {
+  const uniqueStudents = useMemo(() => {
+    const studentMap = new Map()
+    data.forEach((college) => {
+      college.worklets.forEach((worklet) => {
+        worklet.assignedStudents.forEach((student) => {
+          const studentEntry = studentMap.get(student.email)
+          if (studentEntry) {
+            studentEntry.worklets.push({ title: worklet.title, collegeName: college.name })
+          } else {
+            studentMap.set(student.email, {
+              ...student,
+              worklets: [{ title: worklet.title, collegeName: college.name }],
+            })
+          }
+        })
+      })
+    })
+    return Array.from(studentMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [data])
+
   return (
-    <div className="space-y-6">
-      <WorkletsPerCollegeChart data={data} onEnlarge={onEnlarge} />
-      <WorkletPerformanceChart data={data} onEnlarge={onEnlarge} />
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <button
+            onClick={onBack}
+            className="flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline mb-2">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </button>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
+            Enrolled Students
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
+            {data.length > 1
+              ? `A unique list of all students enrolled in worklets.`
+              : `A list of students enrolled in worklets at ${data[0]?.name || ''}.`}
+          </p>
+        </div>
+      </div>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Student Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Email Address
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Assigned Worklets
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+              {uniqueStudents.map((student, index) => (
+                <tr
+                  key={student.email}
+                  className="hover:bg-gray-50 dark:hover:bg-slate-700/50 animate-fadeInUp"
+                  style={{ animationDelay: `${index * 50}ms` }}>
+                  <td className="px-6 py-4 whitespace-nowrap align-top text-sm font-medium text-gray-900 dark:text-white">
+                    {student.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap align-top text-sm text-gray-500 dark:text-gray-300">
+                    {student.email}
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <div className="flex flex-col space-y-1">
+                      {student.worklets.map((worklet, index) => (
+                        <div key={index} className="text-xs">
+                          <span className="font-medium text-gray-800 dark:text-gray-300">{worklet.title}</span>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            {' '}
+                            ({worklet.collegeName.split(' ')[0]})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }
@@ -405,6 +614,7 @@ const Colleges = () => {
   const [allCollegeData, setAllCollegeData] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentView, setCurrentView] = useState('dashboard')
+  const [enlargedChartInfo, setEnlargedChartInfo] = useState(null) // State for modal
 
   const rawMockData = [
     {
@@ -666,6 +876,85 @@ const Colleges = () => {
     setCollegeSearch(collegeName)
   }
 
+  // New handler for opening the chart modal
+  const handleEnlargeChart = (type, data) => {
+    setEnlargedChartInfo({ type, data })
+  }
+
+  // Navigation handler to go to navColl component with filter details
+  const handleNavigateToFilter = (filter, collegeName = null) => {
+    const targetCollege = collegeName || (filteredColleges.length === 1 ? filteredColleges[0].name : null)
+    
+    if (targetCollege) {
+      let count = 0
+      
+      if (targetCollege === 'All Colleges') {
+        // Handle multi-college aggregated counts
+        switch (filter) {
+          case 'total':
+            count = allCollegeData.reduce((acc, curr) => acc + curr.workletCount, 0)
+            break
+          case 'ongoing':
+            count = allCollegeData.reduce((acc, curr) => acc + curr.ongoingCount, 0)
+            break
+          case 'completed':
+            count = allCollegeData.reduce((acc, curr) => acc + curr.completedCount, 0)
+            break
+          case 'onhold':
+            count = allCollegeData.reduce((acc, curr) => acc + curr.onHoldCount, 0)
+            break
+          case 'terminated':
+            count = allCollegeData.reduce((acc, curr) => acc + curr.terminatedCount, 0)
+            break
+          case 'students':
+            count = allCollegeData.reduce((acc, curr) => acc + curr.totalStudents, 0)
+            break
+          default:
+            count = allCollegeData.reduce((acc, curr) => acc + curr.workletCount, 0)
+        }
+      } else {
+        // Handle single college counts
+        const selectedCollege = allCollegeData.find(college => college.name === targetCollege)
+        if (selectedCollege) {
+          switch (filter) {
+            case 'total':
+              count = selectedCollege.workletCount
+              break
+            case 'ongoing':
+              count = selectedCollege.ongoingCount || 25
+              break
+            case 'completed':
+              count = selectedCollege.completedCount || 15
+              break
+            case 'onhold':
+              count = selectedCollege.onHoldCount || 8
+              break
+            case 'terminated':
+              count = selectedCollege.terminatedCount || 2
+              break
+            case 'students':
+              count = selectedCollege.studentCount || 150
+              break
+            default:
+              count = selectedCollege.workletCount
+          }
+        }
+      }
+      
+      navigate('/navColl', {
+        state: {
+          filter,
+          collegeName: targetCollege,
+          count,
+          year: selectedYear,
+          area: selectedArea
+        }
+      })
+    } else {
+      alert('Please select a college first')
+    }
+  }
+
   const renderDashboard = () => {
     // Single College View Layout
     if (filteredColleges.length === 1 && collegeSearch) {
@@ -731,7 +1020,7 @@ const Colleges = () => {
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-6">
             <button
-              onClick={() => handleViewCollegeDetails(college.name, 'total')}
+              onClick={() => handleNavigateToFilter('total')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -744,7 +1033,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleViewCollegeDetails(college.name, 'ongoing')}
+              onClick={() => handleNavigateToFilter('ongoing')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -757,7 +1046,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleViewCollegeDetails(college.name, 'completed')}
+              onClick={() => handleNavigateToFilter('completed')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -770,7 +1059,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleViewCollegeDetails(college.name, 'onhold')}
+              onClick={() => handleNavigateToFilter('onhold')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -783,7 +1072,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleViewCollegeDetails(college.name, 'terminated')}
+              onClick={() => handleNavigateToFilter('terminated')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -796,7 +1085,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleViewCollegeDetails(college.name, 'students')}
+              onClick={() => handleNavigateToFilter('students')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -836,7 +1125,7 @@ const Colleges = () => {
               </div>
             )}
             <button
-              onClick={() => handleNavigateToFilter('total')}
+              onClick={() => handleNavigateToFilter('total', 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -851,7 +1140,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('students')}
+              onClick={() => handleNavigateToFilter('students', 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -866,7 +1155,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('ongoing')}
+              onClick={() => handleNavigateToFilter('ongoing', 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -881,7 +1170,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('completed')}
+              onClick={() => handleNavigateToFilter('completed', 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -896,7 +1185,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('onhold')}
+              onClick={() => handleNavigateToFilter('onhold', 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -911,7 +1200,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('terminated')}
+              onClick={() => handleNavigateToFilter('terminated', 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -949,15 +1238,12 @@ const Colleges = () => {
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Needs Attention
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {loading ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                         Loading...
                       </td>
                     </tr>
@@ -993,18 +1279,6 @@ const Colleges = () => {
                         <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
                           {college.needsAttentionCount}
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleViewCollegeDetails(college.name, 'total')
-                            }}
-                            className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-                          >
-                            <ExternalLink className="w-3 h-3 mr-1" />
-                            View College
-                          </button>
-                        </td>
                       </tr>
                     ))
                   )}
@@ -1020,24 +1294,21 @@ const Colleges = () => {
     )
   }
 
-  return (
-    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      <AnimationStyles />
-      <LeftSidebar />
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
-        <div className="max-w-7xl mx-auto">
+  const renderCurrentView = () => {
+    // Always show dashboard - all navigation goes to navColl
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
-                  College Management
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300 mt-2">
-                  {collegeSearch
-                    ? `Displaying data for ${collegeSearch}`
-                    : 'Monitor and manage college partnerships and worklet performance'}
-                </p>
-              </div>
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
+              College Management
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">
+              {collegeSearch
+                ? `Displaying data for ${collegeSearch}`
+                : 'Monitor and manage college partnerships and worklet performance'}
+            </p>
+          </div>
               <div className="flex items-center space-x-3">
                 <button
                   onClick={handleNewWorklet}
@@ -1115,7 +1386,15 @@ const Colleges = () => {
             </div>
             {renderDashboard()}
           </div>
-        </div>
+        )
+    }
+
+  return (
+    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <AnimationStyles />
+      <LeftSidebar />
+      <main className="flex-1 p-6 lg:p-8 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
+        <div className="max-w-7xl mx-auto">{renderCurrentView()}</div>
       </main>
       <ChartModal chartInfo={enlargedChartInfo} onClose={() => setEnlargedChartInfo(null)} />
     </div>
