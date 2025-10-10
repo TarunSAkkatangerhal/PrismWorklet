@@ -364,8 +364,9 @@ const NavColl = () => {
   }, [fetchColleges])
 
   const handleFilterChange = (filterKey) => {
+    setFiltered([]) // Clear filtered list immediately to avoid stale UI
     setActiveFilter(filterKey)
-    setFiltered(filterColleges())
+    // Let useEffect repopulate filtered
   }
 
   // remove expectedCount updates
@@ -656,15 +657,14 @@ const NavColl = () => {
                             <div className="flex items-start justify-between mb-4">
                               <div className="flex-1">
                                 <h3 className={`font-semibold text-lg mb-1 line-clamp-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                  {activeFilter === 'students' ? item.name : item.title}
+                                  {item.title ? item.title : item.name}
                                 </h3>
                                 <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  {activeFilter === 'students' ? item.email : item.description}
+                                  {item.title ? item.description : item.email}
                                 </p>
                               </div>
-                              
                               <div className="flex items-center gap-2">
-                                {activeFilter !== 'students' && (
+                                {item.status && (
                                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
                                     {item.status}
                                   </span>
@@ -682,7 +682,7 @@ const NavColl = () => {
                                 <Building2 size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
                                 <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{item.collegeName}</span>
                               </div>
-                              {activeFilter !== 'students' && (
+                              {item.studentCount !== undefined && (
                                 <div className="flex items-center gap-1">
                                   <Users size={12} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
                                   <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{item.studentCount} student{item.studentCount === 1 ? '' : 's'}</span>
@@ -691,14 +691,12 @@ const NavColl = () => {
                             </div>
 
                             {/* Bottom section with domain and year */}
-                            {activeFilter !== 'students' && (
+                            {item.domain && (
                               <div className="flex items-center justify-between mt-auto pt-3">
                                 <div>
-                                  {item.domain && (
-                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 rounded-full">
-                                      {item.domain}
-                                    </span>
-                                  )}
+                                  <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 rounded-full">
+                                    {item.domain}
+                                  </span>
                                 </div>
                                 <div>
                                   {item.year && (
@@ -711,7 +709,7 @@ const NavColl = () => {
                             )}
 
                             {/* Additional Info for Students */}
-                            {activeFilter === 'students' && item.worklets && (
+                            {item.worklets && Array.isArray(item.worklets) && (
                               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <div className="space-y-1">
                                   <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Assigned Worklets:</p>
