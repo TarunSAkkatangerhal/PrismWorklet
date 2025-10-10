@@ -20,7 +20,7 @@ class CollegeOut(BaseModel):
     terminatedCount: int = 0
     totalStudents: int = 0
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class WorkletOut(BaseModel):
     id: int
@@ -31,13 +31,13 @@ class WorkletOut(BaseModel):
     progressStatus: Optional[str] = None
     collegeName: Optional[str] = None
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class StudentOut(BaseModel):
     name: str
     email: str
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # Enums
 class WorkletStatusEnum(str, Enum):
