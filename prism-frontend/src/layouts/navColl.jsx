@@ -32,13 +32,14 @@ const NavColl = () => {
   // Get the filter from navigation state, default to 'total'
   const initialFilter = location.state?.filter || 'total'
   const initialYear = location.state?.year || 'All'
+  const initialCollegeName = location.state?.collegeName || ''
   
   const [activeFilter, setActiveFilter] = useState(initialFilter)
   const [colleges, setColleges] = useState([])             // full dataset (same shape as Colleges.jsx)
   const [filtered, setFiltered] = useState([])             // filtered by activeFilter
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState(initialCollegeName)
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
   const [yearFilter, setYearFilter] = useState(initialYear)
   // Remove synthetic expected counts
@@ -362,6 +363,13 @@ const NavColl = () => {
   useEffect(() => {
     fetchColleges()
   }, [fetchColleges])
+
+  // Keep search term in sync if navigation provides a college name
+  useEffect(() => {
+    if (location.state?.collegeName) {
+      setSearchTerm(location.state.collegeName)
+    }
+  }, [location.state?.collegeName])
 
   const handleFilterChange = (filterKey) => {
     setFiltered([]) // Clear filtered list immediately to avoid stale UI

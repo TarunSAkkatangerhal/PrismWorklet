@@ -944,7 +944,7 @@ const Colleges = () => {
       navigate('/navColl', {
         state: {
           filter,
-          collegeName: targetCollege,
+          collegeName: targetCollege === 'All Colleges' ? '' : targetCollege,
           count,
           year: selectedYear,
           area: selectedArea
