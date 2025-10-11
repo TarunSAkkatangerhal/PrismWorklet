@@ -284,6 +284,7 @@ const ModernStatisticsDashboard = () => {
   const [options, setOptions] = useState({ years: [], domains: [], colleges: [] })
   const [selectedMetric, setSelectedMetric] = useState('overview')
   const [mentorStats, setMentorStats] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Load platform totals and trends from backend (driven by global year dropdown)
   useEffect(() => {
@@ -355,6 +356,54 @@ const ModernStatisticsDashboard = () => {
     const interval = setInterval(loadAll, 300000)
     return () => clearInterval(interval)
   }, [filters.year, isDarkMode])
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      const params = new URLSearchParams()
+      if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
+
+      const [totalsRes, monthlyRes, statusRes] = await Promise.all([
+        axios.get(`${API_BASE}/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
+        axios.get(
+          `${API_BASE}/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`
+        ),
+        axios.get(
+          `${API_BASE}/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`
+        ),
+      ])
+
+      const totals = totalsRes?.data || {}
+      const monthly = monthlyRes?.data?.monthly || []
+      const statusMonthly = statusRes?.data?.monthly || []
+      const yearsList = Array.from(
+        new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])
+      ).sort()
+      
+      setOptions((prev) => ({ ...prev, years: yearsList }))
+
+      setStatisticsData((prev) => ({
+        ...(prev || {}),
+        totals,
+        monthly_data: monthly,
+        worklet_status_data: statusMonthly,
+        publications: totals?.publications || { papers: 0, patents: 0 },
+        performance_radar: prev?.performance_radar || generatePerformanceData(),
+        status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
+        performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
+      }))
+    } catch (err) {
+      console.error('Error refreshing data:', err)
+      setError(err?.message || 'Failed to refresh data')
+    } finally {
+      // Add a small delay to show the refresh animation
+      setTimeout(() => {
+        setIsRefreshing(false)
+      }, 1000)
+    }
+  }
+
   // Replace your old performanceChartData with this new version
   const performanceChartData = [
     {
@@ -586,13 +635,27 @@ const ModernStatisticsDashboard = () => {
               ))}
             </select>
             <button
-              onClick={() => window.location.reload()}
+              onClick={handleManualRefresh}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               <Activity className="w-4 h-4" />
               <span>Refresh</span>
             </button>
           </div>
         </header>
+
+        {/* Blur overlay during refresh */}
+        {isRefreshing && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4 shadow-xl">
+              <div className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin">
+                <Activity className="w-full h-full" />
+              </div>
+              <span className="text-gray-600 dark:text-gray-300 font-medium">
+                Refreshing Statistics...
+              </span>
+            </div>
+          </div>
+        )}
 
         <section className="space-y-6">
           {/* Key Metrics Cards */}

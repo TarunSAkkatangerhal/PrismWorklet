@@ -41,6 +41,7 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Routes>
+                
                 <Route path="/home" element={<Dashboard />} />
                 <Route path="/statistics" element={<StatisticsDashboard />} />
                 <Route path="/navStat" element={<NavStat />} />
