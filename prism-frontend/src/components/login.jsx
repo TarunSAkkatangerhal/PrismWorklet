@@ -358,9 +358,12 @@ const handleSignup = async (e) => {
                       onChange={(e) => setRole(e.target.value)}
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     >
-                      <option value="student">Student</option>
+                      {/* Values are lowercase for API scope; labels are capitalized */}
+                      <option value="admin">Admin</option>
                       <option value="mentor">Mentor</option>
-                      <option value="RND">RND</option>
+                      <option value="professor">Professor</option>
+                      <option value="student">Student</option>
+                      
                     </select>
                   </div>
 
@@ -546,9 +549,11 @@ const handleSignup = async (e) => {
                       onChange={(e) => setRole(e.target.value)}
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     >
-                      <option value="student">Student</option>
+                      {/* Values are lowercase for API scope; labels are capitalized */}
+                      <option value="admin">Admin</option>
                       <option value="mentor">Mentor</option>
                       <option value="professor">Professor</option>
+                      <option value="student">Student</option>
                     </select>
                   </div>
 

@@ -134,25 +134,31 @@ export default function Dashboard() {
         const allData = await getMentorAllWorkletsById(userProfileData.id)       // Full collection (statuses)
         const list = assocData?.ongoing_worklets || []
         // Normalize each worklet and preserve student names from backend
-        const normalized = list.map((worklet, index) => {
-          const progressVal = worklet.percentage_completion || worklet.mentor_progress || worklet.progress || 0
-    
-          // Derive status to match WorkletsPage logic
+        const normalized = list.map((worklet) => {
+          const progressVal = Number(worklet.percentage_completion ?? worklet.mentor_progress ?? worklet.progress ?? 0) || 0
           // Harmonize status labels regardless of backend variant fields
           const status = worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing')
-          // Derive quality (stable quick heuristic)
-          const qualityChoices = ['Excellence','Good','Needs Attention']
-          const quality = qualityChoices[index % qualityChoices.length] // Simple cyclic surrogate until backend rating metric available
+          // Derive quality from progress
+          let quality = 'Needs Attention'
+          if (progressVal >= 80) quality = 'Excellence'
+          else if (progressVal >= 50) quality = 'Good'
           // Extract student names (fallback to email if name missing)
-          const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : [] // Defensive extraction
+          const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : []
+          // Keep raw ISO dates for calculations and formatted versions for display
+          const startISO = worklet.start_date || null
+          const endISO = worklet.end_date || null
+          const startDisplay = startISO ? new Date(startISO).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+          const endDisplay = endISO ? new Date(endISO).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
           return {
             id: worklet.id,
             title: worklet.cert_id || worklet.title || 'Untitled Worklet',
             status,
             progress: progressVal,
             description: worklet.description || 'No description available',
-            startDate: worklet.start_date ? new Date(worklet.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
-            endDate: worklet.end_date ? new Date(worklet.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
+            startDateISO: startISO,
+            endDateISO: endISO,
+            startDate: startDisplay,
+            endDate: endDisplay,
             students: studentNames,
             notificationCount: 0,
             quality,
@@ -245,8 +251,12 @@ export default function Dashboard() {
 
   {/* Top summary section: Profile card (2 cols) + Stat side column */}
   <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw]">
-          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-[1.5vw] dark:bg-slate-800 dark:border-slate-700">
-            <div className="flex items-start gap-[1.2vw]">
+          <div className="lg:col-span-2 relative overflow-hidden rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700">
+            {/* Subtle branded gradient aura */}
+            <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-cyan-400/20 blur-3xl"></div>
+            <div className="pointer-events-none absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-blue-600/15 via-indigo-500/10 to-purple-500/15 blur-3xl"></div>
+
+            <div className="flex items-start gap-[1.2vw] relative z-10">
               {userProfileData?.mentor_profile?.avatar_url ? (
                 <img
                   src={userProfileData.mentor_profile.avatar_url}
@@ -276,6 +286,23 @@ export default function Dashboard() {
                     {userProfileData.mentor_profile.location}
                   </p>
                 )}
+                {/* Refined glass chips row */}
+                <div className="mt-[0.8vw] flex flex-wrap gap-[0.5vw]">
+                  <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-white/40 text-slate-800 border border-white/60 backdrop-blur dark:bg-white/10 dark:text-slate-200 dark:border-white/10">
+                    {userProfileData?.role || 'Mentor'}
+                  </span>
+                  {userProfileData?.college && (
+                    <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 backdrop-blur dark:text-indigo-200">
+                      {userProfileData.college}
+                    </span>
+                  )}
+                  <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-blue-500/10 text-blue-700 border border-blue-500/20 backdrop-blur dark:text-blue-200">
+                    {totalWorkletsCount} Worklets
+                  </span>
+                  <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-cyan-500/10 text-cyan-700 border border-cyan-500/20 backdrop-blur dark:text-cyan-200">
+                    {(mentorStats?.engagement_data?.['My Students'] ?? 0)} Students
+                  </span>
+                </div>
               </div>
             </div>
             <div className="relative mt-[1.5vw]">
@@ -430,6 +457,7 @@ function WorkletCard({ worklet, layout, navigate }) {
 
   // Calculate days left until end date; clamps past-due as 0
   const calculateRemainingDays = (endDateStr) => {
+    if (!endDateStr) return { days: 0, label: 'No end date' }
     const endDate = new Date(endDateStr)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -443,7 +471,7 @@ function WorkletCard({ worklet, layout, navigate }) {
     return { days: diffDays, label: `${diffDays} days left` }
   }
 
-  const remaining = calculateRemainingDays(worklet.endDate)
+  const remaining = calculateRemainingDays(worklet.endDateISO)
 
   // Badge background palette per quality band
   const qualityStyles = {
