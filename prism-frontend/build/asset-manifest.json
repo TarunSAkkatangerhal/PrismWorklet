@@ -1,17 +1,16 @@
 {
   "files": {
-    "main.css": "/static/css/main.1674eafd.css",
-    "main.js": "/static/js/main.ca5f6405.js",
+    "main.css": "/static/css/main.6b73e65b.css",
+    "main.js": "/static/js/main.d8fab8a9.js",
     "static/media/logo.jpeg": "/static/media/logo.1725d34ce6bab9108539.jpeg",
     "static/media/profilePic.jpg": "/static/media/profilePic.0ff217ff1953454b1847.jpg",
     "static/media/prism_logo.png": "/static/media/prism_logo.12198346316557760d02.png",
-    "static/media/MentorWorkletView": "/static/media/MentorWorkletView.4a3862490b2f246ac872",
     "index.html": "/index.html",
-    "main.1674eafd.css.map": "/static/css/main.1674eafd.css.map",
-    "main.ca5f6405.js.map": "/static/js/main.ca5f6405.js.map"
+    "main.6b73e65b.css.map": "/static/css/main.6b73e65b.css.map",
+    "main.d8fab8a9.js.map": "/static/js/main.d8fab8a9.js.map"
   },
   "entrypoints": [
-    "static/css/main.1674eafd.css",
-    "static/js/main.ca5f6405.js"
+    "static/css/main.6b73e65b.css",
+    "static/js/main.d8fab8a9.js"
   ]
 }
