@@ -13,6 +13,7 @@ import Portfolio from "./layouts/portfolio";
 import Colleges from "./layouts/Colleges";
 import Meetings from "./layouts/Meetings";
 import NavStat from "./layouts/navStat";
+import NavColl from "./layouts/navColl";
 // --- UPDATED & NEW IMPORTS ---
 // Replaced ProfileEdit and ProfileView with the new components.
 // Make sure these paths are correct for your project structure.
@@ -44,6 +45,7 @@ export default function App() {
                 <Route path="/home" element={<Dashboard />} />
                 <Route path="/statistics" element={<StatisticsDashboard />} />
                 <Route path="/navStat" element={<NavStat />} />
+                <Route path="/navColl" element={<NavColl />} />
                 <Route path="/request-update" element={<RequestUpdate />} />
                 <Route path="/ray" element={<Ray />} />
                 <Route path="/worklets" element={<WorkletsPage />} />
