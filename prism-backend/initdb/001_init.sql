@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS colleges (
   college_id INT AUTO_INCREMENT PRIMARY KEY,
   college_name VARCHAR(255) UNIQUE NOT NULL,
   location VARCHAR(255),
- established YEAR,
+  established YEAR,
   infrastructure VARCHAR(100),
   area_of_expertise TEXT
 );
