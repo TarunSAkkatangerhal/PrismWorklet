@@ -35,6 +35,7 @@ const NavColl = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState(initialCollegeName)
+  const [selectedCollege, setSelectedCollege] = useState(initialCollegeName)
   const [viewMode, setViewMode] = useState('grid')
   const [yearFilter, setYearFilter] = useState(initialYear)
   const [lastUpdated, setLastUpdated] = useState(null)
@@ -254,40 +255,79 @@ const NavColl = () => {
       
       const base = process.env.REACT_APP_API_URL || 'http://localhost:8000'
       const token = localStorage.getItem('access_token')
-      
-      // Fetch colleges with worklet counts
-      const collegesResponse = await axios.get(`${base}/colleges`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        timeout: 10000
-      })
-      
-      // Fetch all worklets
-      const workletsResponse = await axios.get(`${base}/worklets`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        timeout: 15000
-      })
-      
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+
+      // Fetch colleges and all worklets concurrently
+      const [collegesResponse, workletsResponse] = await Promise.all([
+        axios.get(`${base}/colleges`, { headers, timeout: 10000 }),
+        axios.get(`${base}/worklets`, { headers, timeout: 15000 }),
+      ])
+
       const collegesData = Array.isArray(collegesResponse.data) ? collegesResponse.data : []
       const workletsData = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
-      
-      // Merge colleges with their worklets and normalize the data structure
-      const enrichedColleges = collegesData.map(college => ({
-        ...college,
-        name: college.college_name,
-        worklets: workletsData
-          .filter(worklet => worklet.college === college.college_name)
-          .map(worklet => ({
+
+      // Fetch real students per college
+      const studentsByCollege = new Map()
+      await Promise.all(
+        collegesData.map(async (c) => {
+          const cid = c.college_id ?? c.id
+          try {
+            const resp = await axios.get(`${base}/colleges/${cid}/students`, { headers, timeout: 15000 })
+            const arr = Array.isArray(resp.data) ? resp.data : []
+            studentsByCollege.set(cid, arr)
+          } catch (e) {
+            // If endpoint fails, use empty list; we'll gracefully fallback in UI
+            studentsByCollege.set(cid, [])
+          }
+        })
+      )
+
+      // Merge colleges with worklets and attach real students
+      const enrichedColleges = collegesData.map((college) => {
+        const cid = college.college_id ?? college.id
+        const cname = college.college_name ?? college.name
+
+        // Normalize students (prefer provided name, fallback to email username)
+        const rawStudents = studentsByCollege.get(cid) || []
+        const normalizedStudents = rawStudents.map((s) => {
+          const name = (s.name && String(s.name).trim()) || (s.email ? String(s.email).split('@')[0] : 'Unknown')
+          return {
+            userId: s.user_id ?? s.id,
+            name,
+            email: s.email || '',
+            collegeName: cname,
+          }
+        })
+
+        const collegeWorklets = workletsData
+          .filter((worklet) => {
+            // Match by college_id when available, else by name
+            const byId = worklet.college_id !== undefined && worklet.college_id !== null
+              ? Number(worklet.college_id) === Number(cid)
+              : false
+            const byName = worklet.college && cname
+              ? String(worklet.college).trim() === String(cname).trim()
+              : false
+            return byId || byName
+          })
+          .map((worklet) => ({
             ...worklet,
             progressStatus: worklet.status,
             status: worklet.status,
             studentCount: worklet.student_count || 0,
-            assignedStudents: Array(worklet.student_count || 0).fill(null).map((_, index) => ({
-              name: `Student ${index + 1}`,
-              email: `student${index + 1}@${(college.college_name || college.name || 'college').toLowerCase().replace(/\s+/g, '')}.edu`
-            })),
-            collegeName: worklet.college
+            // Do not generate placeholder names here
+            assignedStudents: [],
+            collegeName: worklet.college || cname,
           }))
-      }))
+
+        return {
+          ...college,
+          id: cid,
+          name: cname,
+          students: normalizedStudents,
+          worklets: collegeWorklets,
+        }
+      })
 
       setColleges(enrichedColleges)
       setLastUpdated(new Date())
@@ -296,7 +336,6 @@ const NavColl = () => {
       console.error('Failed to fetch colleges:', err)
       const errorMessage = err.response?.data?.message || err.message || 'Unknown error'
       setError(`Failed to load colleges: ${errorMessage}`)
-      setColleges(staticColleges)
       setColleges(staticColleges)
     } finally {
       setLoading(false)
@@ -309,21 +348,29 @@ const NavColl = () => {
     if (!colleges || colleges.length === 0) return result
 
     if (activeFilter === 'students') {
-      // Build unique student list across all colleges
+      // Build unique student list across all colleges (prefer real students array)
       const studentMap = new Map()
       colleges.forEach((college) => {
-        college.worklets.forEach((worklet) => {
-          worklet.assignedStudents.forEach((student) => {
-            if (!studentMap.has(student.email)) {
-              studentMap.set(student.email, { ...student, collegeName: college.name })
-            }
+        if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
+        if (Array.isArray(college.students) && college.students.length) {
+          college.students.forEach((s) => {
+            const key = s.email || String(s.userId)
+            if (!studentMap.has(key)) studentMap.set(key, { ...s, collegeName: college.name })
           })
-        })
+        } else {
+          // Fallback: derive from worklet.assignedStudents if any (may be empty)
+          college.worklets.forEach((worklet) => {
+            (worklet.assignedStudents || []).forEach((student) => {
+              const key = student.email || student.name
+              if (!studentMap.has(key)) studentMap.set(key, { ...student, collegeName: college.name })
+            })
+          })
+        }
       })
       result = Array.from(studentMap.values())
       // Apply search filter
       if (searchTerm) {
-        result = result.filter(s =>
+        result = result.filter((s) =>
           (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (s.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (s.collegeName || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -342,6 +389,7 @@ const NavColl = () => {
     }[activeFilter] || ['Ongoing', 'Completed', 'On Hold', 'Terminated']
 
     colleges.forEach((college) => {
+      if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
       college.worklets.forEach((worklet) => {
         if (allowedStatuses.includes(worklet.progressStatus)) {
           result.push({
@@ -373,7 +421,7 @@ const NavColl = () => {
     }
 
     return result
-  }, [colleges, activeFilter, searchTerm])
+  }, [colleges, activeFilter, searchTerm, selectedCollege])
 
 
   useEffect(() => {
@@ -394,17 +442,20 @@ const NavColl = () => {
   useEffect(() => {
     if (location.state?.collegeName) {
       setSearchTerm(location.state.collegeName)
+      setSelectedCollege(location.state.collegeName)
     }
   }, [location.state?.collegeName])
 
   const handleFilterChange = (filterKey) => {
-    setFiltered([]) // Clear filtered list immediately to avoid stale UI
+    // No-op if same filter clicked to avoid clearing results
+    if (filterKey === activeFilter) return
     setActiveFilter(filterKey)
-    // Let useEffect repopulate filtered
   }
 
   const handleGoBack = () => {
-    navigate('/colleges')
+    // Preserve selected college when navigating back
+    const collegeNameToKeep = selectedCollege || searchTerm || ''
+    navigate('/colleges', { state: { collegeName: collegeNameToKeep } })
   }
 
   const getFilterStats = () => {
@@ -413,12 +464,18 @@ const NavColl = () => {
       // Use backend calculated counts
       let total = 0, ongoing = 0, completed = 0, onhold = 0, terminated = 0, students = 0
       colleges.forEach((college) => {
+        if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
         total += college.workletCount || 0
         ongoing += college.ongoingCount || 0
         completed += college.completedCount || 0
         onhold += college.onHoldCount || 0
         terminated += college.terminatedCount || 0
-        students += college.totalStudents || 0
+        // Prefer real students count when available
+        if (Array.isArray(college.students) && college.students.length) {
+          students += college.students.length
+        } else {
+          students += college.totalStudents || 0
+        }
       })
       return { total, ongoing, completed, onhold, terminated, students }
     } else {
@@ -427,19 +484,28 @@ const NavColl = () => {
       const studentMap = new Map()
       let total = 0
       colleges.forEach((college) => {
+        if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
         const worklets = college.worklets || []
         total += worklets.length
         ongoing += worklets.filter(w => w.progressStatus === 'Ongoing').length
         completed += worklets.filter(w => w.progressStatus === 'Completed').length
         onhold += worklets.filter(w => w.progressStatus === 'On Hold').length
         terminated += worklets.filter(w => w.progressStatus === 'Terminated').length
-        worklets.forEach(w => {
-          if (w.assignedStudents) {
-            w.assignedStudents.forEach(s => { 
-              if (!studentMap.has(s.email)) studentMap.set(s.email, s) 
-            })
-          }
-        })
+        if (Array.isArray(college.students) && college.students.length) {
+          college.students.forEach((s) => {
+            const key = s.email || String(s.userId)
+            if (!studentMap.has(key)) studentMap.set(key, s)
+          })
+        } else {
+          worklets.forEach((w) => {
+            if (w.assignedStudents) {
+              w.assignedStudents.forEach((s) => {
+                const key = s.email || s.name
+                if (!studentMap.has(key)) studentMap.set(key, s)
+              })
+            }
+          })
+        }
       })
       const students = studentMap.size
       return { total, ongoing, completed, onhold, terminated, students }
@@ -645,6 +711,14 @@ const NavColl = () => {
 
             {/* Content Grid */}
             <div className="p-6">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${activeFilter}-${viewMode}-${searchTerm}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader className={`animate-spin ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} size={32} />
@@ -692,6 +766,7 @@ const NavColl = () => {
                   <AnimatePresence>
                     {filtered.map((item, index) => (
                       <motion.div
+                        layout
                         key={item.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -828,6 +903,8 @@ const NavColl = () => {
                   </AnimatePresence>
                 </div>
               )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import axios from 'axios'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Search,
   Users,
@@ -158,9 +158,23 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
 const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
   const performanceData = useMemo(() => {
     if (!data || data.length === 0) return []
-    const totalExcellent = data.reduce((sum, college) => sum + college.excellentCount, 0)
-    const totalGood = data.reduce((sum, college) => sum + college.goodCount, 0)
-    const totalNeedsAttention = data.reduce((sum, college) => sum + college.needsAttentionCount, 0)
+    // If a single college is selected and detailed worklets are loaded, derive performance from worklet progress/status
+    if (data.length === 1 && Array.isArray(data[0].worklets) && data[0].worklets.length > 0) {
+      const worklets = data[0].worklets
+      const statusOf = (w) => (w.progressStatus || w.status || '').trim()
+      const totalExcellent = worklets.filter((w) => statusOf(w) === 'Completed').length
+      const totalGood = worklets.filter((w) => statusOf(w) === 'Ongoing').length
+      const totalNeedsAttention = worklets.filter((w) => ['On Hold', 'Terminated'].includes(statusOf(w))).length
+      return [
+        { name: 'Excellent', value: totalExcellent },
+        { name: 'Good', value: totalGood },
+        { name: 'Needs Attention', value: totalNeedsAttention },
+      ].filter((item) => item.value > 0)
+    }
+    // Multi-college (or no detailed worklets) – derive from per-college status counts
+    const totalExcellent = data.reduce((sum, college) => sum + (college.completedCount || 0), 0)
+    const totalGood = data.reduce((sum, college) => sum + (college.ongoingCount || 0), 0)
+    const totalNeedsAttention = data.reduce((sum, college) => sum + ((college.onHoldCount || 0) + (college.terminatedCount || 0)), 0)
     return [
       { name: 'Excellent', value: totalExcellent },
       { name: 'Good', value: totalGood },
@@ -239,7 +253,18 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
     const sortedData = [...data]
       .map(college => ({
         name: college.college_name || college.name,
-        worklets: college.workletCount,
+        // Ensure worklet count is always a valid number
+        worklets: (() => {
+          const direct = Number(college.workletCount)
+          if (Number.isFinite(direct)) return direct
+          if (Array.isArray(college.worklets)) return college.worklets.length
+          const sumStatuses =
+            (Number(college.completedCount) || 0) +
+            (Number(college.ongoingCount) || 0) +
+            (Number(college.onHoldCount) || 0) +
+            (Number(college.terminatedCount) || 0)
+          return sumStatuses
+        })(),
       }))
       .sort((a, b) => {
         if (sortOrder === 'asc') return a.worklets - b.worklets;
@@ -293,14 +318,22 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
         } transition-all duration-300`}>
         {paginatedData.length > 0 ? (
           <ResponsiveContainer>
-            <BarChart layout="vertical" data={paginatedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <BarChart
+              layout="vertical"
+              data={paginatedData}
+              margin={{ top: 8, right: 30, left: 24, bottom: 8 }}
+              // Add spacing between horizontal lines (bars)
+              barCategoryGap={isEnlarged ? '25%' : '35%'}
+              barGap={6}
+            >
               <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
               <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
               <YAxis
                 type="category"
                 dataKey="name"
                 tick={{ fill: 'currentColor', fontSize: 10 }}
-                width={110}
+                tickMargin={6}
+                width={120}
                 interval={0}
                 tickFormatter={(value) => (value.length > 15 ? `${value.substring(0, 13)}...` : value)}
               />
@@ -313,7 +346,7 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
                   borderRadius: '0.5rem',
                 }}
               />
-              <Bar dataKey="worklets" fill="#8884d8" name="Worklets" barSize={15} radius={[0, 4, 4, 0]} />
+              <Bar dataKey="worklets" fill="#8884d8" name="Worklets" barSize={12} radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
@@ -335,40 +368,61 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
   );
 };
 const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
+  const [statusFilter, setStatusFilter] = useState('Ongoing')
   const chartData = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return []
 
+    const normalizeStatus = (s) => {
+      if (typeof s !== 'string') return ''
+      const compact = s.toLowerCase().trim().replace(/[^a-z]/g, '') // remove spaces, dashes, etc.
+      // map common synonyms/variants
+      if (compact === 'inprogress' || compact === 'progress' || compact === 'ongoing') return 'ongoing'
+      if (compact === 'completed' || compact === 'complete' || compact === 'done' || compact === 'finished') return 'completed'
+      if (compact === 'onhold' || compact === 'hold' || compact === 'paused') return 'onhold'
+      if (compact === 'terminated' || compact === 'cancelled' || compact === 'canceled' || compact === 'stopped') return 'terminated'
+      return compact
+    }
+    const selected = normalizeStatus(statusFilter)
+
     const aggregate = data.flatMap((college) => {
       if (!college || !Array.isArray(college.worklets)) return []
-      return college.worklets.map((worklet) => {
-        const studentList = Array.isArray(worklet.assignedStudents) ? worklet.assignedStudents : []
-        const uniqueKeys = new Set(
-          studentList
-            .map((student) => (student?.email || student?.name || '').trim().toLowerCase())
-            .filter(Boolean)
-        )
-        const fallbackSource = worklet.studentCount ?? worklet.student_count ?? studentList.length
-        const fallbackCount = Number.isFinite(Number(fallbackSource))
-          ? Number(fallbackSource)
-          : studentList.length
+      return college.worklets
+        .filter((w) => {
+          const s = normalizeStatus(w.progressStatus || w.status)
+          return selected ? s === selected : true
+        })
+        .map((worklet) => {
+          const studentList = Array.isArray(worklet.assignedStudents) ? worklet.assignedStudents : []
+          const uniqueKeys = new Set(
+            studentList
+              .map((student) => (student?.email || student?.name || '').trim().toLowerCase())
+              .filter(Boolean)
+          )
+          const fallbackSource = worklet.studentCount ?? worklet.student_count ?? studentList.length
+          const parsedFallback = Number(fallbackSource)
+          const fallbackCount = Number.isFinite(parsedFallback) ? parsedFallback : studentList.length
 
-        const studentCount = uniqueKeys.size > 0 ? uniqueKeys.size : fallbackCount
+          // Prefer actual unique assigned students when available; otherwise fallback (including zero)
+          const studentCount = uniqueKeys.size > 0 ? uniqueKeys.size : fallbackCount
 
-        return {
-          name: data.length === 1 ? worklet.title : `${worklet.title} (${college.name})`,
-          studentCount,
-        }
-      })
+          // Ensure category labels are unique to avoid overlapping bars in Recharts
+          const idSuffix = worklet.id ? ` • ${String(worklet.id).slice(-4)}` : ''
+          const label = data.length === 1 ? `${worklet.title}${idSuffix}` : `${worklet.title} (${college.name})`
+          return {
+            name: label,
+            studentCount,
+          }
+        })
     })
 
     // Sort descending by student count and limit entries for readability (more when enlarged)
     const limit = isEnlarged ? aggregate.length : 12
     return aggregate
-      .filter((item) => item.studentCount > 0)
-      .filter((item) => item.name)
+      // Keep zero-count worklets too so the user sees all filtered items
+      .filter((item) => !!item.name)
       .sort((a, b) => b.studentCount - a.studentCount)
       .slice(0, limit)
-  }, [data, isEnlarged])
+  }, [data, isEnlarged, statusFilter])
 
   const studentsTooltip = ({ active, payload, label }) => {
     if (!active || !payload || payload.length === 0) return null
@@ -390,7 +444,20 @@ const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
         !isEnlarged && 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
       }`}
       onClick={() => !isEnlarged && onEnlarge && onEnlarge('studentsPerWorklet', data)}>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Students per Worklet</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Students per Worklet</h3>
+        <div className="flex items-center gap-2 text-xs">
+          {['Ongoing','Completed','On Hold','Terminated'].map((s) => (
+            <button
+              key={s}
+              onClick={(e) => { e.stopPropagation(); setStatusFilter(s) }}
+              className={`px-2 py-1 rounded-md border ${statusFilter===s ? 'bg-blue-500 text-white border-blue-500' : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 border-transparent'}`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
       <div
         className={`w-full text-xs text-gray-600 dark:text-gray-400 ${
           isEnlarged ? 'h-[450px]' : 'h-[250px]'
@@ -639,7 +706,8 @@ const AllStudentsView = ({ data, onBack }) => {
 // --- Main Colleges Component ---
 const Colleges = () => {
   const navigate = useNavigate()
-  const [collegeSearch, setCollegeSearch] = useState('')
+  const location = useLocation()
+  const [collegeSearch, setCollegeSearch] = useState(() => (typeof location.state?.collegeName === 'string' ? location.state.collegeName : ''))
   const [selectedYear, setSelectedYear] = useState('All Years')
   const [selectedArea, setSelectedArea] = useState('Select Area')
   const [allCollegeData, setAllCollegeData] = useState([])
@@ -650,6 +718,8 @@ const Colleges = () => {
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000'
   const [collegeDetailStatus, setCollegeDetailStatus] = useState({}) // tracks detailed fetch status per college
   const allCollegeDataRef = useRef(allCollegeData)
+  // Worklet count sort for College Overview table
+  const [overviewSortOrder, setOverviewSortOrder] = useState('desc') // 'desc' (Highest→Lowest) | 'asc' (Lowest→Highest)
 
   // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
@@ -659,6 +729,22 @@ const Colleges = () => {
     const unique = Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))
     return unique
   }, [allCollegeData])
+
+  // Helper: robust worklet count computation aligned with charts
+  const getWorkletCount = useCallback((college) => {
+    if (!college) return 0
+    const direct = Number(college.workletCount)
+    if (Number.isFinite(direct)) return direct
+    if (Array.isArray(college.worklets)) return college.worklets.length
+    const sumStatuses =
+      (Number(college.completedCount) || 0) +
+      (Number(college.ongoingCount) || 0) +
+      (Number(college.onHoldCount) || 0) +
+      (Number(college.terminatedCount) || 0)
+    return sumStatuses
+  }, [])
+
+  
 
   const uniqueAreas = useMemo(() => {
     const areas = (allCollegeData || [])
@@ -754,6 +840,13 @@ const Colleges = () => {
     fetchData()
   }, [apiBaseUrl])
 
+  // Restore selected college if provided via navigation state later
+  useEffect(() => {
+    if (typeof location.state?.collegeName === 'string') {
+      setCollegeSearch(location.state.collegeName)
+    }
+  }, [location.state?.collegeName])
+
   useEffect(() => {
     allCollegeDataRef.current = allCollegeData
   }, [allCollegeData])
@@ -815,28 +908,31 @@ const Colleges = () => {
 
         const baseWorklets = detailedWorklets.length > 0 ? detailedWorklets : fallbackWorklets
 
-        const mergedWorklets = baseWorklets.map((worklet) => {
-          const fallback = fallbackById.get(worklet.id) || {}
-          const fallbackAssigned = Array.isArray(fallback.assignedStudents) ? fallback.assignedStudents : []
-          const fallbackCount = typeof fallback.studentCount === 'number'
-            ? fallback.studentCount
-            : fallbackAssigned.length
+        const mergedWorklets = baseWorklets
+          .map((worklet) => {
+            const fallback = fallbackById.get(worklet.id) || {}
 
-          const assignedStudents = Array.isArray(worklet.assignedStudents)
-            ? worklet.assignedStudents
-            : fallbackAssigned
+            const fallbackAssigned = Array.isArray(fallback.assignedStudents) ? fallback.assignedStudents : []
+            const detailedAssigned = Array.isArray(worklet.assignedStudents) ? worklet.assignedStudents : []
+            const assignedStudents = detailedAssigned.length > 0 ? detailedAssigned : fallbackAssigned
 
-          const studentCount = typeof worklet.studentCount === 'number'
-            ? worklet.studentCount
-            : fallbackCount
+            const rawDetailedCount = typeof worklet.studentCount === 'number' ? worklet.studentCount : NaN
+            const detailedCount = Number.isFinite(rawDetailedCount) ? rawDetailedCount : (detailedAssigned.length || 0)
 
-          return {
-            ...fallback,
-            ...worklet,
-            assignedStudents,
-            studentCount,
-          }
-        }).filter((worklet) => worklet && worklet.title)
+            const rawFallbackCount = typeof fallback.studentCount === 'number' ? fallback.studentCount : NaN
+            const fallbackCount = Number.isFinite(rawFallbackCount) ? rawFallbackCount : (fallbackAssigned.length || 0)
+
+            // Prefer detailed when positive; otherwise use fallback if available (>0)
+            const studentCount = detailedCount > 0 ? detailedCount : (fallbackCount > 0 ? fallbackCount : 0)
+
+            return {
+              ...fallback,
+              ...worklet,
+              assignedStudents,
+              studentCount,
+            }
+          })
+          .filter((worklet) => worklet && worklet.title)
 
         const derivedTotalStudents = mergedWorklets.reduce(
           (sum, worklet) => sum + (typeof worklet.studentCount === 'number' ? worklet.studentCount : 0),
@@ -895,6 +991,16 @@ const Colleges = () => {
       return yearMatch && areaMatch
     })
   }, [allCollegeData, collegeSearch, selectedYear, selectedArea])
+
+  // College Overview list sorted by worklet counts (must be after filteredColleges)
+  const overviewColleges = useMemo(() => {
+    const list = [...filteredColleges]
+    return list.sort((a, b) => {
+      const ac = getWorkletCount(a)
+      const bc = getWorkletCount(b)
+      return overviewSortOrder === 'asc' ? ac - bc : bc - ac
+    })
+  }, [filteredColleges, overviewSortOrder, getWorkletCount])
 
   useEffect(() => {
     if (filteredColleges.length === 1) {
@@ -1051,8 +1157,17 @@ const Colleges = () => {
       return (
         <div className="space-y-8">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
-            <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">College Overview</h3>
+              <button
+                type="button"
+                onClick={() => setOverviewSortOrder(overviewSortOrder === 'desc' ? 'asc' : 'desc')}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border border-blue-200 dark:border-slate-600 bg-blue-50 text-blue-700 dark:bg-slate-700 dark:text-slate-200 hover:ring-2 hover:ring-blue-400/60 transition-all"
+                title={overviewSortOrder === 'desc' ? 'Sort: Highest → Lowest' : 'Sort: Lowest → Highest'}
+              >
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                {overviewSortOrder === 'desc' ? 'Highest → Lowest' : 'Lowest → Highest'}
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -1076,7 +1191,7 @@ const Colleges = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                  {filteredColleges.map((college) => {
+                  {overviewColleges.map((college) => {
                     const totalWorkletsRow =
                       (college.completedCount || 0) +
                       (college.ongoingCount || 0) +
@@ -1320,8 +1435,17 @@ const Colleges = () => {
             </button>
           </div>
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
-            <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">College Overview</h3>
+              <button
+                type="button"
+                onClick={() => setOverviewSortOrder(overviewSortOrder === 'desc' ? 'asc' : 'desc')}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border border-blue-200 dark:border-slate-600 bg-blue-50 text-blue-700 dark:bg-slate-700 dark:text-slate-200 hover:ring-2 hover:ring-blue-400/60 transition-all"
+                title={overviewSortOrder === 'desc' ? 'Sort: Highest → Lowest' : 'Sort: Lowest → Highest'}
+              >
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                {overviewSortOrder === 'desc' ? 'Highest → Lowest' : 'Lowest → Highest'}
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -1352,7 +1476,7 @@ const Colleges = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredColleges.map((college, index) => (
+                    overviewColleges.map((college, index) => (
                       <tr
                         key={college.id}
                         onClick={() => handleCollegeSelect(college.college_name || college.name)}
@@ -1372,7 +1496,7 @@ const Colleges = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-center text-gray-900 dark:text-white">
-                          {college.workletCount}
+                          {getWorkletCount(college)}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
                           {college.excellentCount}
