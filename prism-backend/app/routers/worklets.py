@@ -1,5 +1,5 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models import Worklet, User, UserWorkletAssociation
 from app.schemas import WorkletCreate, WorkletUpdate, WorkletResponse
 from app.database import get_db
@@ -35,7 +35,8 @@ def create_worklet(worklet_in: WorkletCreate, db: Session = Depends(get_db)):
 
 @router.get("/", response_model=List[WorkletResponse])
 def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
-    query = db.query(Worklet)
+    # Eager-load College relationship to avoid N+1 queries and ensure non-null college when linked
+    query = db.query(Worklet).options(joinedload(Worklet.college))
     if year is not None:
         query = query.filter(Worklet.year == year)
     worklets = query.all()
@@ -59,18 +60,21 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
         assoc_students = db.query(User).join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id) \
             .filter(UserWorkletAssociation.worklet_id == w.id, UserWorkletAssociation.role_in_worklet == "Student").all()
         student_count = len(assoc_students)
-        # Determine college from first student or None
-        college_name = None
-        for stu in assoc_students:
-            if getattr(stu, 'college', None):
-                college_name = stu.college
-                break
-        # Fallback: try mentor college
+        # Prefer direct college relation on Worklet; fallback to first student or mentor
+        college_id = w.college.college_id if getattr(w, "college", None) else None
+        college_name = w.college.college_name if getattr(w, "college", None) else None
         if college_name is None:
-            mentor_assoc = db.query(User).join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id) \
-                .filter(UserWorkletAssociation.worklet_id == w.id, UserWorkletAssociation.role_in_worklet == "Mentor").first()
-            if mentor_assoc and getattr(mentor_assoc, 'college', None):
-                college_name = mentor_assoc.college
+            # Determine college from first student or None
+            for stu in assoc_students:
+                if getattr(stu, 'college', None):
+                    college_name = stu.college
+                    break
+            # Fallback: try mentor college
+            if college_name is None:
+                mentor_assoc = db.query(User).join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id) \
+                    .filter(UserWorkletAssociation.worklet_id == w.id, UserWorkletAssociation.role_in_worklet == "Mentor").first()
+                if mentor_assoc and getattr(mentor_assoc, 'college', None):
+                    college_name = mentor_assoc.college
 
         response.append({
             'id': w.id,
@@ -85,6 +89,7 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             'domain': w.domain,
             'status': w.status,
             'worklet_progress': progress,
+            'college_id': college_id,
             'college': college_name,
             'student_count': student_count
         })

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 
 from app.database import get_db
-from app.models import College, Worklet, User, UserWorkletAssociation
+from app.models import College, Worklet, User, UserWorkletAssociation, Evaluation
 from app.schemas import CollegeOut, WorkletOut, StudentOut
 
 router = APIRouter(
@@ -25,23 +26,33 @@ def get_college_stats(college: College, db: Session):
         "terminatedCount": 0,
         "totalStudents": 0,
     }
+    
     for w in worklets:
-        if hasattr(w, "performance_status"):
-            if w.performance_status == "Excellent":
+        # Calculate performance based on evaluation scores
+        avg_score = db.query(func.avg(Evaluation.score)).filter(
+            Evaluation.worklet_id == w.id
+        ).scalar()
+        
+        if avg_score is not None:
+            if avg_score >= 85:
                 stats["excellentCount"] += 1
-            elif w.performance_status == "Good":
+            elif avg_score >= 70:
                 stats["goodCount"] += 1
-            elif w.performance_status == "Needs Attention":
+            else:
                 stats["needsAttentionCount"] += 1
-        if hasattr(w, "status"):
-            if w.status == "Completed":
-                stats["completedCount"] += 1
-            elif w.status == "Ongoing":
-                stats["ongoingCount"] += 1
-            elif w.status == "On Hold":
-                stats["onHoldCount"] += 1
-            elif w.status == "Terminated":
-                stats["terminatedCount"] += 1
+        else:
+            # If no evaluations exist, consider it needs attention
+            stats["needsAttentionCount"] += 1
+            
+        # Count worklets by status
+        if w.status == "Completed":
+            stats["completedCount"] += 1
+        elif w.status == "Ongoing":
+            stats["ongoingCount"] += 1
+        elif w.status == "On Hold":
+            stats["onHoldCount"] += 1
+        elif w.status in ["Dropped", "Terminated"]:
+            stats["terminatedCount"] += 1
 
     # Count all students in the college using User.college_id
     total_students = db.query(User).filter(User.college_id == college.college_id, User.role == "Student").count()
@@ -71,8 +82,42 @@ def get_college(college_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{college_id}/worklets", response_model=List[WorkletOut])
 def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
-    worklets = db.query(Worklet).filter(Worklet.college_id == college_id).all()
-    return worklets
+    worklets = (
+        db.query(Worklet)
+        .filter(Worklet.college_id == college_id)
+        .all()
+    )
+
+    response = []
+    for worklet in worklets:
+        student_rows = (
+            db.query(User.name, User.email)
+            .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+            .filter(
+                UserWorkletAssociation.worklet_id == worklet.id,
+                UserWorkletAssociation.role_in_worklet == "Student",
+            )
+            .all()
+        )
+        assigned_students = [
+            {"name": student.name, "email": student.email}
+            for student in student_rows
+            if student.email
+        ]
+
+        response.append(
+            {
+                "id": worklet.id,
+                "title": worklet.title,
+                "description": worklet.description,
+                "assignedStudents": assigned_students,
+                "performanceStatus": getattr(worklet, "performance_status", None),
+                "progressStatus": worklet.status,
+                "collegeName": worklet.college.college_name if getattr(worklet, "college", None) else None,
+            }
+        )
+
+    return response
 
 @router.get("/{college_id}/students", response_model=List[StudentOut])
 def get_college_students(college_id: int, db: Session = Depends(get_db)):

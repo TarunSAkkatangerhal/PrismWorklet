@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import {
   Search,
@@ -33,34 +34,23 @@ import {
   Cell,
 } from 'recharts'
 import LeftSidebar from '../components/Left'
-
 // --- Animation Styles ---
 const AnimationStyles = () => (
   <style>{`
     @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    .animate-fadeInUp {
-      animation: fadeInUp 0.5s ease-out forwards;
-      opacity: 0;
-    }
+    .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
   `}</style>
 )
 
-// --- Chart Modal Component for Enlarged View ---
+// --- Chart Modal Component ---
 const ChartModal = ({ chartInfo, onClose }) => {
   if (!chartInfo) return null
 
   const renderChart = () => {
-    // Pass isEnlarged prop to modify chart height and disable further clicks
-    const chartProps = { data: chartInfo.data, isEnlarged: true }
+    const chartProps = { data: chartInfo.data, isEnlarged: true, onEnlarge: () => {} }
     switch (chartInfo.type) {
       case 'performance':
         return <WorkletPerformanceChart {...chartProps} />
@@ -74,17 +64,9 @@ const ChartModal = ({ chartInfo, onClose }) => {
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeInUp"
-      style={{ animationDuration: '0.3s' }}
-      onClick={onClose}>
-      <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl p-6 relative"
-        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 bg-gray-100 dark:bg-slate-700 rounded-full transition-colors">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeInUp" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl p-6 relative" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 bg-gray-100 dark:bg-slate-700 rounded-full">
           <X className="w-5 h-5" />
         </button>
         {renderChart()}
@@ -92,16 +74,21 @@ const ChartModal = ({ chartInfo, onClose }) => {
     </div>
   )
 }
+// ...existing code...
 
 // --- Searchable Dropdown Component ---
 const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
 
-  const filteredOptions = useMemo(
-    () => options.filter((option) => option.name.toLowerCase().includes(value ? value.toLowerCase() : '')),
-    [options, value]
-  )
+  const filteredOptions = useMemo(() => {
+    const list = Array.isArray(options) ? options : []
+    const q = typeof value === 'string' ? value.toLowerCase() : ''
+    return list.filter((option) => {
+      const name = typeof option?.name === 'string' ? option.name.toLowerCase() : ''
+      return q === '' ? true : name.includes(q)
+    })
+  }, [options, value])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -251,7 +238,7 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
     // 1. Map and sort the data
     const sortedData = [...data]
       .map(college => ({
-        name: college.name,
+        name: college.college_name || college.name,
         worklets: college.workletCount,
       }))
       .sort((a, b) => {
@@ -349,12 +336,53 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
 };
 const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
   const chartData = useMemo(() => {
-    if (!data || data.length !== 1) return []
-    return data[0].worklets.map((worklet) => ({
-      name: worklet.title,
-      studentCount: worklet.assignedStudents.length,
-    }))
-  }, [data])
+    if (!Array.isArray(data) || data.length === 0) return []
+
+    const aggregate = data.flatMap((college) => {
+      if (!college || !Array.isArray(college.worklets)) return []
+      return college.worklets.map((worklet) => {
+        const studentList = Array.isArray(worklet.assignedStudents) ? worklet.assignedStudents : []
+        const uniqueKeys = new Set(
+          studentList
+            .map((student) => (student?.email || student?.name || '').trim().toLowerCase())
+            .filter(Boolean)
+        )
+        const fallbackSource = worklet.studentCount ?? worklet.student_count ?? studentList.length
+        const fallbackCount = Number.isFinite(Number(fallbackSource))
+          ? Number(fallbackSource)
+          : studentList.length
+
+        const studentCount = uniqueKeys.size > 0 ? uniqueKeys.size : fallbackCount
+
+        return {
+          name: data.length === 1 ? worklet.title : `${worklet.title} (${college.name})`,
+          studentCount,
+        }
+      })
+    })
+
+    // Sort descending by student count and limit entries for readability (more when enlarged)
+    const limit = isEnlarged ? aggregate.length : 12
+    return aggregate
+      .filter((item) => item.studentCount > 0)
+      .filter((item) => item.name)
+      .sort((a, b) => b.studentCount - a.studentCount)
+      .slice(0, limit)
+  }, [data, isEnlarged])
+
+  const studentsTooltip = ({ active, payload, label }) => {
+    if (!active || !payload || payload.length === 0) return null
+    const { value } = payload[0]
+    return (
+      <div className="bg-white/90 dark:bg-slate-800/90 rounded-md shadow-md px-3 py-2 text-xs text-gray-700 dark:text-gray-200">
+        <div className="font-semibold mb-1">{label}</div>
+        <div className="flex items-center gap-2">
+          <Users className="w-3.5 h-3.5" />
+          <span className="font-medium">{value} student{value === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -367,29 +395,32 @@ const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
         className={`w-full text-xs text-gray-600 dark:text-gray-400 ${
           isEnlarged ? 'h-[450px]' : 'h-[250px]'
         } transition-all duration-300`}>
-        <ResponsiveContainer>
-          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-            <XAxis type="number" tick={{ fill: 'currentColor' }} allowDecimals={false} />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={120}
-              tick={{ fill: 'currentColor', width: 110 }}
-              style={{ fontSize: '10px' }}
-            />
-            <Tooltip
-              cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
-              contentStyle={{
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                backdropFilter: 'blur(5px)',
-                border: '1px solid #ddd',
-                borderRadius: '0.5rem',
-              }}
-            />
-            <Bar dataKey="studentCount" name="Students" fill="#82ca9d" barSize={20} radius={[0, 4, 4, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        {chartData.length > 0 ? (
+          <ResponsiveContainer>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+              <XAxis
+                type="number"
+                tick={{ fill: 'currentColor' }}
+                allowDecimals={false}
+                domain={[0, (dataMax) => Math.max(dataMax || 0, 1)]}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={isEnlarged ? 200 : 140}
+                tick={{ fill: 'currentColor', width: 110 }}
+                style={{ fontSize: '10px' }}
+              />
+              <Tooltip cursor={{ fill: 'rgba(128, 128, 128, 0.08)' }} content={studentsTooltip} />
+              <Bar dataKey="studentCount" name="Students" fill="#82ca9d" barSize={20} radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 text-sm">
+            Select a college to view student distribution across worklets.
+          </div>
+        )}
       </div>
     </div>
   )
@@ -615,200 +646,230 @@ const Colleges = () => {
   const [loading, setLoading] = useState(true)
   const [currentView, setCurrentView] = useState('dashboard')
   const [enlargedChartInfo, setEnlargedChartInfo] = useState(null) // State for modal
+  const [error, setError] = useState(null)
+  const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000'
+  const [collegeDetailStatus, setCollegeDetailStatus] = useState({}) // tracks detailed fetch status per college
+  const allCollegeDataRef = useRef(allCollegeData)
 
-  const rawMockData = [
-    {
-      id: 1,
-      name: 'VIT Vellore',
-      infrastructure: 'GPDS',
-      areaOfExpertise: ['IoT', 'GenAI'],
-      location: 'Vellore, Tamil Nadu',
-      established: 1984,
-      worklets: [
-        {
-          id: 101,
-          title: 'AI-Powered Chatbot',
-          description: 'Develop a customer service chatbot using modern NLP techniques.',
-          assignedStudents: [
-            { name: 'Anika Sharma', email: 'anika.s@example.com' },
-            { name: 'Rohan Gupta', email: 'rohan.g@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 102,
-          title: 'Smart Home Automation',
-          description: 'Control home appliances remotely via an IoT-enabled mobile app.',
-          assignedStudents: [
-            { name: 'Siddharth Jain', email: 'sid.j@example.com' },
-            { name: 'Meera Reddy', email: 'meera.r@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 103,
-          title: 'Sentiment Analysis Model',
-          description: 'Build and train a model to analyze product review sentiments.',
-          assignedStudents: [
-            { name: 'Priya Singh', email: 'priya.s@example.com' },
-            { name: 'Arjun Verma', email: 'arjun.v@example.com' },
-          ],
-          performanceStatus: 'Good',
-          progressStatus: 'Ongoing',
-        },
-        {
-          id: 104,
-          title: 'E-commerce Recommendation',
-          description: 'Design a collaborative filtering engine for product recommendations.',
-          assignedStudents: [
-            { name: 'Anika Sharma', email: 'anika.s@example.com' },
-            { name: 'Vikram Kumar', email: 'vikram.k@example.com' },
-          ],
-          performanceStatus: 'Good',
-          progressStatus: 'On Hold',
-        },
-        {
-          id: 105,
-          title: 'IoT Weather Station',
-          description: 'Assemble a device to collect and display real-time local weather data.',
-          assignedStudents: [
-            { name: 'Meera Reddy', email: 'meera.r@example.com' },
-            { name: 'Rohan Gupta', email: 'rohan.g@example.com' },
-          ],
-          performanceStatus: 'Needs Attention',
-          progressStatus: 'Ongoing',
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: 'MIT Cambridge',
-      infrastructure: 'Premium',
-      areaOfExpertise: ['AI & Machine Learning', 'Robotics'],
-      location: 'Cambridge, MA',
-      established: 1861,
-      worklets: [
-        {
-          id: 201,
-          title: 'Robotic Arm Control System',
-          description: 'Develop a high-precision inverse kinematics control algorithm.',
-          assignedStudents: [
-            { name: 'John Doe', email: 'john.d@example.com' },
-            { name: 'Jane Smith', email: 'jane.s@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 202,
-          title: 'Predictive Analytics Model',
-          description: 'Build a time-series model to predict stock market trends.',
-          assignedStudents: [
-            { name: 'Emily White', email: 'emily.w@example.com' },
-            { name: 'Chris Green', email: 'chris.g@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 203,
-          title: 'Autonomous Drone Navigation',
-          description: 'Implement a SLAM-based system for autonomous drone pathfinding.',
-          assignedStudents: [
-            { name: 'Peter Jones', email: 'peter.j@example.com' },
-            { name: 'John Doe', email: 'john.d@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Ongoing',
-        },
-        {
-          id: 204,
-          title: 'Computer Vision for QC',
-          description: 'Use a CNN for automated quality control on a manufacturing line.',
-          assignedStudents: [
-            { name: 'Jane Smith', email: 'jane.s@example.com' },
-            { name: 'Laura Brown', email: 'laura.b@example.com' },
-          ],
-          performanceStatus: 'Good',
-          progressStatus: 'Terminated',
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: 'Stanford University',
-      infrastructure: 'Premium',
-      areaOfExpertise: ['Cybersecurity', 'Biotech'],
-      location: 'Stanford, CA',
-      established: 1885,
-      worklets: [
-        {
-          id: 301,
-          title: 'Network Intrusion Detection',
-          description: 'Implement an ML-based system to detect and flag network anomalies.',
-          assignedStudents: [
-            { name: 'Michael Chen', email: 'michael.c@example.com' },
-            { name: 'Sarah Lee', email: 'sarah.l@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 302,
-          title: 'Gene Sequencing Algorithm',
-          description: 'Optimize a parallel processing algorithm for faster DNA analysis.',
-          assignedStudents: [
-            { name: 'David Kim', email: 'david.k@example.com' },
-            { name: 'Laura Ortiz', email: 'laura.o@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'On Hold',
-        },
-        {
-          id: 303,
-          title: 'Blockchain for Secure Voting',
-          description: 'Develop a proof-of-concept decentralized voting application.',
-          assignedStudents: [
-            { name: 'Ben Carter', email: 'ben.c@example.com' },
-            { name: 'Michael Chen', email: 'michael.c@example.com' },
-          ],
-          performanceStatus: 'Good',
-          progressStatus: 'Ongoing',
-        },
-      ],
-    },
-  ]
+  // Extract unique years and areas from backend data (after allCollegeData is declared)
+  const uniqueYears = useMemo(() => {
+    const years = (allCollegeData || [])
+      .map((college) => college.established)
+      .filter((year) => year && !isNaN(Number(year)))
+    const unique = Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))
+    return unique
+  }, [allCollegeData])
+
+  const uniqueAreas = useMemo(() => {
+    const areas = (allCollegeData || [])
+      .map((college) => college.areaOfExpertise)
+      .filter((area) => area && typeof area === 'string')
+    // Some areaOfExpertise may be comma-separated lists
+    const splitAreas = areas.flatMap((area) => area.split(',').map((a) => a.trim()))
+    const unique = Array.from(new Set(splitAreas)).sort()
+    return unique
+  }, [allCollegeData])
 
   useEffect(() => {
-    setLoading(true)
-    const processedData = rawMockData.map((college) => {
-      const worklets = college.worklets || []
-      const studentMap = new Map()
-      worklets.forEach((worklet) => {
-        worklet.assignedStudents.forEach((student) => {
-          if (!studentMap.has(student.email)) {
-            studentMap.set(student.email, student)
+    const fetchData = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const token = localStorage.getItem('access_token')
+        const requestConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+
+        const [collegesResponse, workletsResponse] = await Promise.all([
+          axios.get(`${apiBaseUrl}/colleges`, requestConfig),
+          axios.get(`${apiBaseUrl}/worklets`, requestConfig),
+        ])
+
+        const workletsByCollege = (Array.isArray(workletsResponse.data) ? workletsResponse.data : []).reduce((acc, worklet) => {
+          const collegeName = worklet.college || worklet.collegeName || 'Unassigned'
+          const derivedStudentCount = typeof worklet.student_count === 'number'
+            ? worklet.student_count
+            : Array.isArray(worklet.assignedStudents) ? worklet.assignedStudents.length : 0
+          const normalizedCollegeSlug = typeof collegeName === 'string'
+            ? collegeName.toLowerCase().replace(/\s+/g, '') || 'college'
+            : 'college'
+          const normalizedWorklet = {
+            id: worklet.id,
+            title: worklet.title,
+            description: worklet.description,
+            status: worklet.status || worklet.progressStatus,
+            progressStatus: worklet.progressStatus || worklet.status,
+            domain: worklet.domain,
+            year: worklet.year,
+            startDate: worklet.start_date,
+            endDate: worklet.end_date,
+            studentCount: derivedStudentCount,
+            assignedStudents: Array.isArray(worklet.assignedStudents)
+              ? worklet.assignedStudents
+              : Array.from({ length: derivedStudentCount }, (_, index) => ({
+                  name: `Student ${index + 1}`,
+                  email: `student${index + 1}@${normalizedCollegeSlug}.edu`,
+                })),
+            collegeName: collegeName,
+          }
+
+          if (!acc[collegeName]) {
+            acc[collegeName] = []
+          }
+          acc[collegeName].push(normalizedWorklet)
+          return acc
+        }, {})
+
+        const processedData = (collegesResponse.data || []).map((college) => {
+          const name = college.college_name || college.name
+          const worklets = workletsByCollege[name] || []
+          const derivedTotalStudents = worklets.reduce((sum, worklet) => sum + (worklet.studentCount || 0), 0)
+          return {
+            id: college.college_id ?? college.id,
+            name,
+            location: college.location,
+            established: college.established,
+            areaOfExpertise: college.area_of_expertise ?? college.areaOfExpertise,
+            workletCount: college.workletCount ?? worklets.length,
+            excellentCount: college.excellentCount ?? 0,
+            goodCount: college.goodCount ?? 0,
+            needsAttentionCount: college.needsAttentionCount ?? 0,
+            completedCount: college.completedCount ?? 0,
+            ongoingCount: college.ongoingCount ?? 0,
+            onHoldCount: college.onHoldCount ?? 0,
+            terminatedCount: college.terminatedCount ?? 0,
+            totalStudents: typeof college.totalStudents === 'number' ? college.totalStudents : derivedTotalStudents,
+            worklets,
           }
         })
-      })
-      return {
-        ...college,
-        workletCount: worklets.length,
-        excellentCount: worklets.filter((w) => w.performanceStatus === 'Excellent').length,
-        goodCount: worklets.filter((w) => w.performanceStatus === 'Good').length,
-        needsAttentionCount: worklets.filter((w) => w.performanceStatus === 'Needs Attention').length,
-        completedCount: worklets.filter((w) => w.progressStatus === 'Completed').length,
-        ongoingCount: worklets.filter((w) => w.progressStatus === 'Ongoing').length,
-        onHoldCount: worklets.filter((w) => w.progressStatus === 'On Hold').length,
-        terminatedCount: worklets.filter((w) => w.progressStatus === 'Terminated').length,
-        totalStudents: studentMap.size,
+
+        setAllCollegeData(processedData)
+      } catch (err) {
+        console.error('Failed to fetch colleges overview:', err)
+        setError('Failed to fetch colleges from backend')
+        setAllCollegeData([])
+      } finally {
+        setLoading(false)
       }
-    })
-    setAllCollegeData(processedData)
-    setLoading(false)
-  }, [])
+    }
+
+    fetchData()
+  }, [apiBaseUrl])
+
+  useEffect(() => {
+    allCollegeDataRef.current = allCollegeData
+  }, [allCollegeData])
+
+  const fetchCollegeWorklets = useCallback(
+    async (college) => {
+      if (!college || !college.id) return
+      const collegeId = college.id
+
+      const existingStatus = collegeDetailStatus[collegeId]
+      if (existingStatus === 'loading' || existingStatus === 'loaded' || existingStatus === 'error') {
+        return
+      }
+
+      // Prevent duplicate fetches
+      setCollegeDetailStatus((prev) => {
+        const currentStatus = prev[collegeId]
+        if (currentStatus === 'loading' || currentStatus === 'loaded') {
+          return prev
+        }
+        return { ...prev, [collegeId]: 'loading' }
+      })
+
+      const token = localStorage.getItem('access_token')
+      const requestConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+
+      try {
+        const workletsRes = await axios.get(`${apiBaseUrl}/colleges/${collegeId}/worklets`, requestConfig)
+        const workletsPayload = Array.isArray(workletsRes.data) ? workletsRes.data : []
+
+        const detailedWorklets = workletsPayload.map((rawWorklet) => {
+          const students = Array.isArray(rawWorklet.assignedStudents)
+            ? rawWorklet.assignedStudents.map((student) => ({
+                name: student.name,
+                email: student.email,
+              }))
+            : []
+
+          const studentCount = students.length
+          return {
+            id: rawWorklet.id,
+            title: rawWorklet.title,
+            description: rawWorklet.description,
+            status: rawWorklet.status || rawWorklet.progressStatus,
+            progressStatus: rawWorklet.progressStatus || rawWorklet.status,
+            domain: rawWorklet.domain,
+            year: rawWorklet.year,
+            startDate: rawWorklet.start_date,
+            endDate: rawWorklet.end_date,
+            studentCount,
+            assignedStudents: students,
+            collegeName: rawWorklet.collegeName || rawWorklet.college || college.name,
+          }
+        })
+
+        const existingEntry = allCollegeDataRef.current.find((entry) => entry.id === collegeId)
+        const fallbackWorklets = existingEntry?.worklets || []
+        const fallbackById = new Map(fallbackWorklets.map((worklet) => [worklet.id, worklet]))
+
+        const baseWorklets = detailedWorklets.length > 0 ? detailedWorklets : fallbackWorklets
+
+        const mergedWorklets = baseWorklets.map((worklet) => {
+          const fallback = fallbackById.get(worklet.id) || {}
+          const fallbackAssigned = Array.isArray(fallback.assignedStudents) ? fallback.assignedStudents : []
+          const fallbackCount = typeof fallback.studentCount === 'number'
+            ? fallback.studentCount
+            : fallbackAssigned.length
+
+          const assignedStudents = Array.isArray(worklet.assignedStudents)
+            ? worklet.assignedStudents
+            : fallbackAssigned
+
+          const studentCount = typeof worklet.studentCount === 'number'
+            ? worklet.studentCount
+            : fallbackCount
+
+          return {
+            ...fallback,
+            ...worklet,
+            assignedStudents,
+            studentCount,
+          }
+        }).filter((worklet) => worklet && worklet.title)
+
+        const derivedTotalStudents = mergedWorklets.reduce(
+          (sum, worklet) => sum + (typeof worklet.studentCount === 'number' ? worklet.studentCount : 0),
+          0
+        )
+
+        setAllCollegeData((prev) =>
+          prev.map((entry) =>
+            entry.id === collegeId
+              ? {
+                  ...entry,
+                  worklets: mergedWorklets,
+                  totalStudents:
+                    typeof entry.totalStudents === 'number' && entry.totalStudents > 0
+                      ? entry.totalStudents
+                      : derivedTotalStudents,
+                }
+              : entry
+          )
+        )
+
+        setCollegeDetailStatus((prev) => ({ ...prev, [collegeId]: 'loaded' }))
+      } catch (detailError) {
+        console.error(`Failed to fetch detailed worklets for college ${collegeId}`, detailError)
+        setCollegeDetailStatus((prev) => ({ ...prev, [collegeId]: 'error' }))
+      }
+    },
+    [apiBaseUrl, collegeDetailStatus]
+  )
+
+  // removed rawMockData: now using backend data only
+
+  // Backend fetch useEffect is defined earlier in the component; remove mock mapping
 
   const filteredColleges = useMemo(() => {
     if (!allCollegeData) return []
@@ -819,11 +880,33 @@ const Colleges = () => {
     }
 
     return collegesToFilter.filter((college) => {
-      const yearMatch = selectedYear === 'All Years' || college.established.toString() === selectedYear
-      const areaMatch = selectedArea === 'Select Area' || college.areaOfExpertise.includes(selectedArea)
+      const yearMatch = selectedYear === 'All Years' || String(college.established) === selectedYear
+
+      let areaMatch = selectedArea === 'Select Area'
+      if (!areaMatch) {
+        const area = college.areaOfExpertise
+        if (Array.isArray(area)) {
+          areaMatch = area.some((item) => typeof item === 'string' && item === selectedArea)
+        } else if (typeof area === 'string') {
+          areaMatch = area.split(',').map((item) => item.trim()).includes(selectedArea)
+        }
+      }
+
       return yearMatch && areaMatch
     })
   }, [allCollegeData, collegeSearch, selectedYear, selectedArea])
+
+  useEffect(() => {
+    if (filteredColleges.length === 1) {
+      fetchCollegeWorklets(filteredColleges[0])
+    }
+
+    if (currentView === 'students' || currentView === 'worklets') {
+      filteredColleges.forEach((college) => {
+        fetchCollegeWorklets(college)
+      })
+    }
+  }, [filteredColleges, currentView, fetchCollegeWorklets])
 
   const handleExport = () => {
     if (filteredColleges.length === 0) {
@@ -836,7 +919,7 @@ const Colleges = () => {
       ...filteredColleges.map((college) =>
         [
           college.id,
-          `"${college.name}"`,
+          `"${college.college_name || college.name}"`,
           `"${college.location}"`,
           college.workletCount,
           college.excellentCount,
@@ -914,7 +997,7 @@ const Colleges = () => {
         }
       } else {
         // Handle single college counts
-        const selectedCollege = allCollegeData.find(college => college.name === targetCollege)
+  const selectedCollege = allCollegeData.find(college => (college.college_name || college.name) === targetCollege)
         if (selectedCollege) {
           switch (filter) {
             case 'total':
@@ -1007,7 +1090,7 @@ const Colleges = () => {
                               <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">{college.name}</div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">{college.college_name || college.name}</div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">{college.location}</div>
                             </div>
                           </div>
@@ -1272,7 +1355,7 @@ const Colleges = () => {
                     filteredColleges.map((college, index) => (
                       <tr
                         key={college.id}
-                        onClick={() => handleCollegeSelect(college.name)}
+                        onClick={() => handleCollegeSelect(college.college_name || college.name)}
                         className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer animate-fadeInUp"
                         style={{ animationDelay: `${index * 50}ms` }}>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -1282,7 +1365,7 @@ const Colleges = () => {
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {college.name}
+                                {college.college_name || college.name}
                               </div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">{college.location}</div>
                             </div>
@@ -1342,7 +1425,7 @@ const Colleges = () => {
             <div className="flex flex-col md:flex-row flex-wrap items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-md shadow-slate-200/50 dark:shadow-black/20 mb-8">
               <div className="w-full md:w-64">
                 <SearchableDropdown
-                  options={rawMockData}
+                  options={allCollegeData}
                   value={collegeSearch}
                   onChange={handleCollegeSelect}
                   placeholder="Search or select college..."
@@ -1356,11 +1439,9 @@ const Colleges = () => {
                     onChange={(e) => setSelectedYear(e.target.value)}
                     className="appearance-none bg-green-50 dark:bg-slate-700 border border-green-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200">
                     <option>All Years</option>
-                    <option>2025</option>
-                    <option>2024</option>
-                    <option>2023</option>
-                    <option>1984</option>
-                    <option>1958</option>
+                    {uniqueYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
                   </select>
                   <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                 </div>
@@ -1373,12 +1454,9 @@ const Colleges = () => {
                     onChange={(e) => setSelectedArea(e.target.value)}
                     className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
                     <option>Select Area</option>
-                    <option>AI & Machine Learning</option>
-                    <option>IoT</option>
-                    <option>GenAI</option>
-                    <option>Web Development</option>
-                    <option>Data Science</option>
-                    <option>Cybersecurity</option>
+                    {uniqueAreas.map((area) => (
+                      <option key={area} value={area}>{area}</option>
+                    ))}
                   </select>
                   <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                 </div>

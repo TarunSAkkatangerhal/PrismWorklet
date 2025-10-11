@@ -773,7 +773,7 @@ export default function WorkletDetailPage() {
     </div>
   )
 
-  // --- ADD MILESTONE MODAL ---
+
   const AddMilestoneModal = () => {
     const [milestoneType, setMilestoneType] = useState('')
     const [kpisAchieved, setKpisAchieved] = useState('')
