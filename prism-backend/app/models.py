@@ -27,8 +27,10 @@ class College(Base):
     infrastructure = Column(String(255), nullable=True)
     area_of_expertise = Column(String(255), nullable=True)
 
-    # Backref to users
+    # Relationships
     users = relationship("User", back_populates="college_rel")
+    # Allow accessing all worklets for a college
+    worklets = relationship("Worklet", back_populates="college")
 
     def __repr__(self):
         return f"<College(college_id={self.college_id}, college_name='{self.college_name}')>"
@@ -132,6 +134,8 @@ class Worklet(Base):
 
     # Relationships
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")
+    # Link to College for joinedload and easy access to name/id
+    college = relationship("College", back_populates="worklets")
 
     def __repr__(self):
         return f"<Worklet(id={self.id}, cert_id='{self.cert_id}', title='{self.title}', status='{self.status}')>"

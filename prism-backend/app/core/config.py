@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = "password"
     DB_HOST: str = "localhost"
     DB_PORT: str = "3306"
-    DB_NAME: str = "prism_db"
-    DATABASE_URL: str = "mysql+pymysql://root:password@localhost/prism_db"
+    DB_NAME: str = "prism"
+    DATABASE_URL: str = "mysql+pymysql://root:password@localhost/prism"
     
     # JWT
     SECRET_KEY: str = "your-secret-key-here"

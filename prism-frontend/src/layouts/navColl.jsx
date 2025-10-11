@@ -4,14 +4,10 @@ import axios from 'axios'
 import { 
   ArrowLeft, 
   Target, 
-  Activity, 
   CheckCircle, 
   Users, 
-  MapPin, 
   ExternalLink,
   Search,
-  Filter,
-  Download,
   Loader,
   Grid3X3,
   List,
@@ -29,24 +25,19 @@ const NavColl = () => {
   const navigate = useNavigate()
   const { isDarkMode } = useContext(ThemeContext)
   
-  // Get the filter from navigation state, default to 'total'
   const initialFilter = location.state?.filter || 'total'
   const initialYear = location.state?.year || 'All'
   const initialCollegeName = location.state?.collegeName || ''
   
   const [activeFilter, setActiveFilter] = useState(initialFilter)
-  const [colleges, setColleges] = useState([])             // full dataset (same shape as Colleges.jsx)
-  const [filtered, setFiltered] = useState([])             // filtered by activeFilter
+  const [colleges, setColleges] = useState([])
+  const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState(initialCollegeName)
-  const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState('grid')
   const [yearFilter, setYearFilter] = useState(initialYear)
-  // Remove synthetic expected counts
-  // Internal tracking for data freshness (not displayed per user request)
   const [lastUpdated, setLastUpdated] = useState(null)
-
-  // Filter options configuration
   const filterOptions = [
     {
       key: 'total',
@@ -255,35 +246,64 @@ const NavColl = () => {
     },
   ]
 
-  // Live fetch of all college data; filtering done client-side
+
   const fetchColleges = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
-      // For now, use static data aligned with Colleges.jsx. In production, this would be an API call
-      // const base = process.env.REACT_APP_API_URL || 'http://localhost:8000'
-      // const token = localStorage.getItem('access_token')
-      // if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      // const res = await axios.get(`${base}/colleges`)
-      // const data = Array.isArray(res.data) ? res.data : []
+      const base = process.env.REACT_APP_API_URL || 'http://localhost:8000'
+      const token = localStorage.getItem('access_token')
+      
+      // Fetch colleges with worklet counts
+      const collegesResponse = await axios.get(`${base}/colleges`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        timeout: 10000
+      })
+      
+      // Fetch all worklets
+      const workletsResponse = await axios.get(`${base}/worklets`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        timeout: 15000
+      })
+      
+      const collegesData = Array.isArray(collegesResponse.data) ? collegesResponse.data : []
+      const workletsData = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
+      
+      // Merge colleges with their worklets and normalize the data structure
+      const enrichedColleges = collegesData.map(college => ({
+        ...college,
+        name: college.college_name,
+        worklets: workletsData
+          .filter(worklet => worklet.college === college.college_name)
+          .map(worklet => ({
+            ...worklet,
+            progressStatus: worklet.status,
+            status: worklet.status,
+            studentCount: worklet.student_count || 0,
+            assignedStudents: Array(worklet.student_count || 0).fill(null).map((_, index) => ({
+              name: `Student ${index + 1}`,
+              email: `student${index + 1}@${(college.college_name || college.name || 'college').toLowerCase().replace(/\s+/g, '')}.edu`
+            })),
+            collegeName: worklet.college
+          }))
+      }))
 
-      // Using static data - no artificial delay needed for better UX
-      const data = staticColleges
-
-      setColleges(data)
+      setColleges(enrichedColleges)
       setLastUpdated(new Date())
 
     } catch (err) {
       console.error('Failed to fetch colleges:', err)
-      setError('Failed to load colleges. Please try again.')
-      setColleges([])
+      const errorMessage = err.response?.data?.message || err.message || 'Unknown error'
+      setError(`Failed to load colleges: ${errorMessage}`)
+      setColleges(staticColleges)
+      setColleges(staticColleges)
     } finally {
       setLoading(false)
     }
   }, [yearFilter])
 
-  // Filter colleges based on active filter
+
   const filterColleges = useCallback(() => {
     let result = []
     if (!colleges || colleges.length === 0) return result
@@ -304,9 +324,9 @@ const NavColl = () => {
       // Apply search filter
       if (searchTerm) {
         result = result.filter(s =>
-          s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          s.collegeName.toLowerCase().includes(searchTerm.toLowerCase())
+          (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (s.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (s.collegeName || '').toLowerCase().includes(searchTerm.toLowerCase())
         )
       }
       return result
@@ -327,15 +347,16 @@ const NavColl = () => {
           result.push({
             id: `${college.id}-${worklet.id}`,
             collegeId: college.id,
-            collegeName: college.name,
+            collegeName: worklet.collegeName || college.name,
             location: college.location,
-            status: worklet.progressStatus,
-            domain: (college.areaOfExpertise && college.areaOfExpertise[0]) || 'General',
+            status: worklet.status || worklet.progressStatus,
+            domain: worklet.domain || (college.areaOfExpertise && college.areaOfExpertise[0]) || 'General',
             title: worklet.title,
             description: worklet.description,
-            startDate: null,
-            endDate: null,
-            studentCount: worklet.assignedStudents.length
+            studentCount: worklet.studentCount || (worklet.assignedStudents ? worklet.assignedStudents.length : 0),
+            startDate: worklet.start_date,
+            endDate: worklet.end_date,
+            year: worklet.year
           })
         }
       })
@@ -344,25 +365,30 @@ const NavColl = () => {
     // Apply search filter for worklets
     if (searchTerm) {
       result = result.filter(worklet => 
-        worklet.collegeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        worklet.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        worklet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        worklet.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (worklet.collegeName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (worklet.domain || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (worklet.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (worklet.description || '').toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
     return result
   }, [colleges, activeFilter, searchTerm])
 
-  // Update filtered data when dependencies change
+
   useEffect(() => {
     setFiltered(filterColleges())
   }, [filterColleges])
 
-  // Fetch colleges on component mount
+
   useEffect(() => {
     fetchColleges()
   }, [fetchColleges])
+
+  const forceRefresh = () => {
+    setError(null)
+    fetchColleges()
+  }
 
   // Keep search term in sync if navigation provides a college name
   useEffect(() => {
@@ -377,30 +403,47 @@ const NavColl = () => {
     // Let useEffect repopulate filtered
   }
 
-  // remove expectedCount updates
-
   const handleGoBack = () => {
     navigate('/colleges')
   }
 
   const getFilterStats = () => {
-    // Derive stats from worklets data (consistent with Colleges.jsx)
-    let ongoing = 0, completed = 0, onhold = 0, terminated = 0
-    const studentMap = new Map()
-    let total = 0
-    colleges.forEach((college) => {
-      const worklets = college.worklets || []
-      total += worklets.length
-      ongoing += worklets.filter(w => w.progressStatus === 'Ongoing').length
-      completed += worklets.filter(w => w.progressStatus === 'Completed').length
-      onhold += worklets.filter(w => w.progressStatus === 'On Hold').length
-      terminated += worklets.filter(w => w.progressStatus === 'Terminated').length
-      worklets.forEach(w => w.assignedStudents.forEach(s => { if (!studentMap.has(s.email)) studentMap.set(s.email, s) }))
-    })
-    const students = studentMap.size
-    // Ensure total equals sum of statuses
-    total = ongoing + completed + onhold + terminated
-    return { total, ongoing, completed, onhold, terminated, students }
+    // Use backend worklet counts if available, otherwise derive from worklets data
+    if (colleges.length > 0 && colleges[0].workletCount !== undefined) {
+      // Use backend calculated counts
+      let total = 0, ongoing = 0, completed = 0, onhold = 0, terminated = 0, students = 0
+      colleges.forEach((college) => {
+        total += college.workletCount || 0
+        ongoing += college.ongoingCount || 0
+        completed += college.completedCount || 0
+        onhold += college.onHoldCount || 0
+        terminated += college.terminatedCount || 0
+        students += college.totalStudents || 0
+      })
+      return { total, ongoing, completed, onhold, terminated, students }
+    } else {
+      // Fallback: derive from worklets data
+      let ongoing = 0, completed = 0, onhold = 0, terminated = 0
+      const studentMap = new Map()
+      let total = 0
+      colleges.forEach((college) => {
+        const worklets = college.worklets || []
+        total += worklets.length
+        ongoing += worklets.filter(w => w.progressStatus === 'Ongoing').length
+        completed += worklets.filter(w => w.progressStatus === 'Completed').length
+        onhold += worklets.filter(w => w.progressStatus === 'On Hold').length
+        terminated += worklets.filter(w => w.progressStatus === 'Terminated').length
+        worklets.forEach(w => {
+          if (w.assignedStudents) {
+            w.assignedStudents.forEach(s => { 
+              if (!studentMap.has(s.email)) studentMap.set(s.email, s) 
+            })
+          }
+        })
+      })
+      const students = studentMap.size
+      return { total, ongoing, completed, onhold, terminated, students }
+    }
   }
 
   const stats = getFilterStats()
@@ -611,14 +654,24 @@ const NavColl = () => {
                 <div className={`text-center py-12 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
                   <p className="text-lg font-medium mb-2">Error</p>
                   <p className="text-sm">{error}</p>
-                  <button
-                    onClick={fetchColleges}
-                    className={`mt-4 px-4 py-2 rounded-lg ${
-                      isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                    }`}
-                  >
-                    Try Again
-                  </button>
+                  <div className="flex gap-2 justify-center mt-4">
+                    <button
+                      onClick={fetchColleges}
+                      className={`px-4 py-2 rounded-lg ${
+                        isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      Try Again
+                    </button>
+                    <button
+                      onClick={forceRefresh}
+                      className={`px-4 py-2 rounded-lg ${
+                        isDarkMode ? 'bg-blue-700 hover:bg-blue-600 text-blue-300' : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
+                      }`}
+                    >
+                      Force Refresh
+                    </button>
+                  </div>
                 </div>
               ) : filtered.length === 0 ? (
                 <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>

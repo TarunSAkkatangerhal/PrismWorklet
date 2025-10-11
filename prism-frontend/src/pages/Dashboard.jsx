@@ -480,7 +480,7 @@ function WorkletCard({ worklet, layout, navigate }) {
     'Needs Attention': 'bg-red-500/80',
     Default: 'bg-gray-500/80',
   }
-
+  
   // Primary navigation: open worklet detail view
   const handleCardClick = () => {
     navigate(`/worklet/${worklet.id}`)
