@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Award,
   Star,
@@ -21,6 +22,7 @@ import {
   ArrowLeft,
   BookUser,
   Lightbulb,
+  Search,
 } from 'lucide-react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import LeftSidebar from '../components/Left'
@@ -38,9 +40,11 @@ const apiSubmit = async (endpoint, formData, isMultipart = false) => {
 
   const data = {}
   for (let [key, value] of formData.entries()) {
-    if (value instanceof File) {
+    if (value instanceof File && value.size > 0) {
+      // Store both the filename and create a blob URL for preview
       data[key] = value.name
       data.previewUrl = URL.createObjectURL(value)
+      console.log(`Created preview URL for ${key}:`, data.previewUrl)
     } else if (key === 'authors' || key === 'inventors') {
       data[key] = JSON.parse(value)
     } else {
@@ -56,8 +60,8 @@ const staticPortfolioData = {
   achievements: [
     {
       id: 1,
-      title: 'Innovator of the Year',
-      description: 'Awarded for pioneering work in decentralized applications.',
+      title: 'Innovator of the Year 2024',
+      description: 'Awarded for pioneering work in decentralized applications and blockchain technology.',
       type: 'Award',
       year: 2024,
     },
@@ -66,6 +70,48 @@ const staticPortfolioData = {
       title: 'Top Rated Speaker at TechCon 2023',
       description: 'Recognized for an engaging presentation on modern frontend frameworks.',
       type: 'Recognition',
+      year: 2023,
+    },
+    {
+      id: 3,
+      title: 'Best Research Paper Award',
+      description: 'Received the best paper award at the International Conference on Web Technologies for groundbreaking research on asynchronous state management.',
+      type: 'Award',
+      year: 2023,
+    },
+    {
+      id: 4,
+      title: 'Outstanding Mentor of the Year',
+      description: 'Recognized for exceptional mentorship and guidance to over 50 students and junior developers.',
+      type: 'Recognition',
+      year: 2024,
+    },
+    {
+      id: 5,
+      title: 'Excellence in Innovation Award',
+      description: 'Honored by the National Innovation Council for contributions to open-source development and community building.',
+      type: 'Award',
+      year: 2022,
+    },
+    {
+      id: 6,
+      title: 'Featured in Tech Leadership Magazine',
+      description: 'Profiled as one of the top 40 under 40 emerging technology leaders in the industry.',
+      type: 'Recognition',
+      year: 2023,
+    },
+    {
+      id: 7,
+      title: 'Startup Accelerator Graduate',
+      description: 'Successfully completed the prestigious Tech Ventures accelerator program with DevSync Pro startup.',
+      type: 'Recognition',
+      year: 2024,
+    },
+    {
+      id: 8,
+      title: 'Community Impact Award',
+      description: 'Awarded for organizing and leading 15+ workshops and coding bootcamps for underserved communities.',
+      type: 'Award',
       year: 2023,
     },
   ],
@@ -213,9 +259,9 @@ const FileUpload = ({ onFileChange, file }) => {
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6">
-        <div className="flex justify-between items-center border-b pb-3 dark:border-gray-600">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex justify-between items-center border-b p-6 pb-3 dark:border-gray-600 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
           <button
             onClick={onClose}
@@ -224,7 +270,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
             <X size={24} />
           </button>
         </div>
-        <div className="mt-4">{children}</div>
+        <div className="overflow-y-auto flex-grow p-6 pt-4">{children}</div>
       </div>
     </div>
   )
@@ -232,6 +278,12 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
 const PreviewModal = ({ url, onClose }) => {
   if (!url) return null
+  
+  // Open in new tab as a fallback option
+  const openInNewTab = () => {
+    window.open(url, '_blank')
+  }
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4" onClick={onClose}>
       <div
@@ -239,12 +291,35 @@ const PreviewModal = ({ url, onClose }) => {
         onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center border-b p-3 dark:border-gray-600 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Document Preview</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openInNewTab}
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 text-sm px-3 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+              title="Open in new tab">
+              <ExternalLink size={18} />
+              <span>Open in New Tab</span>
+            </button>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
+              <X size={24} />
+            </button>
+          </div>
         </div>
-        <div className="p-4 flex-grow">
-          <iframe src={url} className="w-full h-full border-0" title="File Preview" />
+        <div className="flex-grow overflow-hidden bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-8">
+          <div className="text-center">
+            <FileText className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500 mb-4" />
+            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              Document Preview Not Available
+            </h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Click on "Open in New Tab" button above to view the document
+            </p>
+            <button
+              onClick={openInNewTab}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+              <ExternalLink size={18} />
+              <span>Open in New Tab</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -255,15 +330,50 @@ const PreviewModal = ({ url, onClose }) => {
 const AddPaperForm = ({ onAdd, onCancel }) => {
   const [step, setStep] = useState(1)
   const [file, setFile] = useState(null)
+  const [completedWorklets, setCompletedWorklets] = useState([])
+  const [loadingWorklets, setLoadingWorklets] = useState(true)
+  const [selectedWorkletId, setSelectedWorkletId] = useState('')
   const {
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: { authors: [{ name: '' }] },
+    defaultValues: { authors: [{ name: '' }], worklet_id: '' },
   })
   const { fields, append, remove } = useFieldArray({ control, name: 'authors' })
+  const workletId = watch('worklet_id')
+
+  // Fetch completed worklets
+  useEffect(() => {
+    const fetchCompletedWorklets = async () => {
+      try {
+        const token = localStorage.getItem('access_token')
+        if (!token) return
+        
+        const userResp = await fetch('http://localhost:8000/auth/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const userData = await userResp.json()
+        const userId = userData.id
+
+        const response = await fetch(
+          `http://localhost:8000/api/associations/mentor/${userId}/all-worklets`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        )
+        const data = await response.json()
+        setCompletedWorklets(data.completed_worklets || [])
+      } catch (error) {
+        console.error('Error fetching completed worklets:', error)
+      } finally {
+        setLoadingWorklets(false)
+      }
+    }
+    fetchCompletedWorklets()
+  }, [])
 
   const onSubmit = async (data) => {
     const formData = new FormData()
@@ -272,6 +382,15 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
       else formData.append(key, data[key])
     })
     if (file) formData.append('document', file)
+    
+    // Add worklet cert_id if worklet is selected
+    if (data.worklet_id) {
+      const selectedWorklet = completedWorklets.find(w => w.id === parseInt(data.worklet_id))
+      if (selectedWorklet) {
+        formData.append('worklet_cert_id', selectedWorklet.cert_id)
+      }
+    }
+    
     try {
       const newPaper = await apiSubmit('papers', formData, true)
       onAdd('papers', newPaper)
@@ -285,9 +404,38 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
       {step === 1 && (
         <div className="space-y-4">
           <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center">
-            <BookUser size={20} className="mr-2 text-blue-500" /> Core Information
+            <BookUser size={20} className="mr-2 text-blue-500" /> Select Worklet
           </h4>
-          <Input
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Associated Worklet <span className="text-red-500">*</span>
+            </label>
+            <select
+              {...register('worklet_id', { required: 'Please select a worklet' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              disabled={loadingWorklets}>
+              <option value="">Select a completed worklet</option>
+              {completedWorklets.map((worklet) => {
+                const description = worklet.description || worklet.title || 'No description'
+                const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
+                return (
+                  <option key={worklet.id} value={worklet.id}>
+                    {worklet.cert_id} - {truncatedDesc}
+                  </option>
+                )
+              })}
+            </select>
+            {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
+            {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
+            {completedWorklets.length === 0 && !loadingWorklets && (
+              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                No completed worklets found. Please complete a worklet first.
+              </p>
+            )}
+          </div>
+          {workletId && (
+            <>
+              <Input
             name="title"
             register={register}
             errors={errors}
@@ -313,7 +461,13 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
             />
             <Input name="doi" register={register} errors={errors} placeholder="DOI (e.g., 10.xxxx/xxxx)" />
           </div>
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+              Cancel
+            </button>
             <button
               type="button"
               onClick={() => setStep(2)}
@@ -321,6 +475,8 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
               Next <ArrowRight size={16} className="ml-2" />
             </button>
           </div>
+            </>
+          )}
         </div>
       )}
       {step === 2 && (
@@ -403,15 +559,49 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
 
 const AddPatentForm = ({ onAdd, onCancel }) => {
   const [file, setFile] = useState(null)
+  const [completedWorklets, setCompletedWorklets] = useState([])
+  const [loadingWorklets, setLoadingWorklets] = useState(true)
   const {
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: { inventors: [{ name: '' }] },
+    defaultValues: { inventors: [{ name: '' }], worklet_id: '' },
   })
   const { fields, append, remove } = useFieldArray({ control, name: 'inventors' })
+  const workletId = watch('worklet_id')
+
+  // Fetch completed worklets
+  useEffect(() => {
+    const fetchCompletedWorklets = async () => {
+      try {
+        const token = localStorage.getItem('access_token')
+        if (!token) return
+        
+        const userResp = await fetch('http://localhost:8000/auth/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const userData = await userResp.json()
+        const userId = userData.id
+
+        const response = await fetch(
+          `http://localhost:8000/api/associations/mentor/${userId}/all-worklets`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        )
+        const data = await response.json()
+        setCompletedWorklets(data.completed_worklets || [])
+      } catch (error) {
+        console.error('Error fetching completed worklets:', error)
+      } finally {
+        setLoadingWorklets(false)
+      }
+    }
+    fetchCompletedWorklets()
+  }, [])
 
   const onSubmit = async (data) => {
     const formData = new FormData()
@@ -420,6 +610,15 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
       else formData.append(key, data[key])
     })
     if (file) formData.append('document', file)
+    
+    // Add worklet cert_id if worklet is selected
+    if (data.worklet_id) {
+      const selectedWorklet = completedWorklets.find(w => w.id === parseInt(data.worklet_id))
+      if (selectedWorklet) {
+        formData.append('worklet_cert_id', selectedWorklet.cert_id)
+      }
+    }
+    
     try {
       const newPatent = await apiSubmit('patents', formData, true)
       onAdd('patents', newPatent)
@@ -431,9 +630,38 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center">
-        <Lightbulb size={20} className="mr-2 text-yellow-500" /> Patent Details
+        <Lightbulb size={20} className="mr-2 text-yellow-500" /> Select Worklet
       </h4>
-      <Input
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Associated Worklet <span className="text-red-500">*</span>
+        </label>
+        <select
+          {...register('worklet_id', { required: 'Please select a worklet' })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          disabled={loadingWorklets}>
+          <option value="">Select a completed worklet</option>
+          {completedWorklets.map((worklet) => {
+            const description = worklet.description || worklet.title || 'No description'
+            const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
+            return (
+              <option key={worklet.id} value={worklet.id}>
+                {worklet.cert_id} - {truncatedDesc}
+              </option>
+            )
+          })}
+        </select>
+        {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
+        {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
+        {completedWorklets.length === 0 && !loadingWorklets && (
+          <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+            No completed worklets found. Please complete a worklet first.
+          </p>
+        )}
+      </div>
+      {workletId && (
+        <>
+          <Input
         name="title"
         register={register}
         errors={errors}
@@ -506,6 +734,8 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
           {isSubmitting ? 'Submitting...' : 'Add Patent'}
         </button>
       </div>
+        </>
+      )}
     </form>
   )
 }
@@ -589,6 +819,7 @@ const AddCommercializationForm = ({ onAdd, onCancel }) => {
 
 // --- MAIN PORTFOLIO COMPONENT ---
 const Portfolio = () => {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('achievements')
   const [expandedRows, setExpandedRows] = useState({})
   const [portfolioData, setPortfolioData] = useState(staticPortfolioData)
@@ -596,6 +827,7 @@ const Portfolio = () => {
   const [portfolioError, setPortfolioError] = useState(null)
   const [modalType, setModalType] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // This would fetch real data in a production app
   useEffect(() => {
@@ -658,9 +890,52 @@ const Portfolio = () => {
       <LeftSidebar />
       <div className="flex-1 p-4 lg:p-8">
         <div className="w-full max-w-none mx-auto px-4 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h1 className="text-3xl lg:text-4xl font-bold mb-2 text-black dark:text-white">My Achievements</h1>
             <p className="text-gray-600 dark:text-gray-300">A showcase of my professional journey and contributions.</p>
+          </div>
+
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-yellow-100 text-sm font-medium">Achievements</p>
+                  <p className="text-3xl font-bold mt-2">{portfolioData.achievements.length}</p>
+                </div>
+                <Trophy className="h-12 w-12 text-yellow-200" />
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Total Papers</p>
+                  <p className="text-3xl font-bold mt-2">{portfolioData.papers.length}</p>
+                </div>
+                <FileText className="h-12 w-12 text-blue-200" />
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm font-medium">Total Patents</p>
+                  <p className="text-3xl font-bold mt-2">{portfolioData.patents.length}</p>
+                </div>
+                <Shield className="h-12 w-12 text-purple-200" />
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">Commercializations</p>
+                  <p className="text-3xl font-bold mt-2">{portfolioData.commercializations.length}</p>
+                </div>
+                <Target className="h-12 w-12 text-green-200" />
+              </div>
+            </div>
           </div>
 
           <div className="mb-8">
@@ -686,21 +961,77 @@ const Portfolio = () => {
 
           <div>
             {activeTab === 'achievements' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Achievements rendering logic */}
+              <div>
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">Awards & Recognitions</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {portfolioData.achievements.map((achievement) => {
+                    const Icon = achievementIcon(achievement.type)
+                    return (
+                      <div
+                        key={achievement.id}
+                        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-100 dark:border-gray-700">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 p-3 rounded-lg">
+                            <Icon className="h-6 w-6 text-white" />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+                            {achievement.year}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                          {achievement.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                          {achievement.description}
+                        </p>
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                          <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                            achievement.type === 'Award' 
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          }`}>
+                            {achievement.type}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {portfolioData.achievements.length === 0 && (
+                  <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl">
+                    <Trophy className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-gray-600 dark:text-gray-400">
+                      No achievements added yet.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === 'papers' && (
               <div>
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <h2 className="text-xl font-bold text-gray-800 dark:text-white">Publications</h2>
-                  <button
-                    onClick={() => setModalType('paper')}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300">
-                    <PlusCircle size={18} />
-                    <span>Add Paper</span>
-                  </button>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:flex-initial">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                      <input
+                        type="text"
+                        placeholder="Search papers..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white w-full sm:w-64"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setModalType('paper')}
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300 whitespace-nowrap">
+                      <PlusCircle size={18} />
+                      <span>Add Paper</span>
+                    </button>
+                  </div>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
                   <div className="overflow-x-auto">
@@ -712,6 +1043,7 @@ const Portfolio = () => {
                             Journal
                           </th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Year</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Worklet</th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Status</th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
                             Preview
@@ -719,7 +1051,18 @@ const Portfolio = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {portfolioData.papers.map((paper) => (
+                        {portfolioData.papers
+                          .filter((paper) => {
+                            if (!searchQuery) return true
+                            const query = searchQuery.toLowerCase()
+                            return (
+                              paper.title?.toLowerCase().includes(query) ||
+                              paper.journal?.toLowerCase().includes(query) ||
+                              paper.authors?.some((author) => author.name?.toLowerCase().includes(query)) ||
+                              paper.worklet_cert_id?.toLowerCase().includes(query)
+                            )
+                          })
+                          .map((paper) => (
                           <React.Fragment key={paper.id}>
                             <tr
                               onClick={() => toggleRowExpansion('papers', paper.id)}
@@ -745,6 +1088,21 @@ const Portfolio = () => {
                               </td>
                               <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.journal}</td>
                               <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.year}</td>
+                              <td className="px-6 py-4">
+                                {paper.worklet_cert_id ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      navigate(`/worklet/${paper.worklet_id}`)
+                                    }}
+                                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1">
+                                    {paper.worklet_cert_id}
+                                    <ExternalLink size={14} />
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-400 dark:text-gray-500">—</span>
+                                )}
+                              </td>
                               <td className="px-6 py-4">
                                 <span
                                   className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -784,6 +1142,23 @@ const Portfolio = () => {
                       </tbody>
                     </table>
                   </div>
+                  {portfolioData.papers.filter((paper) => {
+                    if (!searchQuery) return true
+                    const query = searchQuery.toLowerCase()
+                    return (
+                      paper.title?.toLowerCase().includes(query) ||
+                      paper.journal?.toLowerCase().includes(query) ||
+                      paper.authors?.some((author) => author.name?.toLowerCase().includes(query)) ||
+                      paper.worklet_cert_id?.toLowerCase().includes(query)
+                    )
+                  }).length === 0 && (
+                    <div className="text-center py-12">
+                      <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                      <p className="mt-4 text-gray-600 dark:text-gray-400">
+                        {searchQuery ? `No papers found matching "${searchQuery}"` : 'No papers added yet. Click "Add Paper" to get started.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -811,6 +1186,7 @@ const Portfolio = () => {
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
                             Filing Year
                           </th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Worklet</th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Status</th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
                             Preview
@@ -847,6 +1223,21 @@ const Portfolio = () => {
                               </td>
                               <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                                 {patent.filing_year || '—'}
+                              </td>
+                              <td className="px-6 py-4">
+                                {patent.worklet_cert_id ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      navigate(`/worklet/${patent.worklet_id}`)
+                                    }}
+                                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1">
+                                    {patent.worklet_cert_id}
+                                    <ExternalLink size={14} />
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-400 dark:text-gray-500">—</span>
+                                )}
                               </td>
                               <td className="px-6 py-4">
                                 <span
@@ -895,7 +1286,60 @@ const Portfolio = () => {
                   </button>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
-                  {/* Commercializations Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                          <th scope="col" className="px-6 py-3">Title</th>
+                          <th scope="col" className="px-6 py-3">Description</th>
+                          <th scope="col" className="px-6 py-3">Year</th>
+                          <th scope="col" className="px-6 py-3">Revenue ($)</th>
+                          <th scope="col" className="px-6 py-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {portfolioData.commercializations.map((commercialization) => (
+                          <tr
+                            key={commercialization.id}
+                            className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                              {commercialization.title}
+                            </td>
+                            <td className="px-6 py-4">
+                              {commercialization.description && commercialization.description.length > 100
+                                ? commercialization.description.substring(0, 100) + '...'
+                                : commercialization.description}
+                            </td>
+                            <td className="px-6 py-4">{commercialization.year}</td>
+                            <td className="px-6 py-4">
+                              {commercialization.revenue?.toLocaleString() || 'N/A'}
+                            </td>
+                            <td className="px-6 py-4">
+                              {commercialization.link && commercialization.link !== '#' ? (
+                                <a
+                                  href={commercialization.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
+                                  <ExternalLink size={16} />
+                                </a>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-500">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {portfolioData.commercializations.length === 0 && (
+                    <div className="text-center py-12">
+                      <Target className="mx-auto h-12 w-12 text-gray-400" />
+                      <p className="mt-4 text-gray-600 dark:text-gray-400">
+                        No commercializations added yet. Click "Add Record" to get started.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
