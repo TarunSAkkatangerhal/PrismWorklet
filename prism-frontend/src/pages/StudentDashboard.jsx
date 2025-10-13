@@ -84,16 +84,21 @@ export default function StudentDashboard() {
         return;
       }
 
-      const response = await axios.get("http://localhost:8000/api/worklets", {
+      // Prefer student-specific endpoint to fetch only the student's worklets
+      const url = "http://localhost:8000/api/worklets/student/me";
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
-      if (response.data && Array.isArray(response.data)) {
-        const processedWorklets = response.data.map(worklet => ({
+      const payload = response.data;
+      const items = Array.isArray(payload) ? payload : (Array.isArray(payload?.worklets) ? payload.worklets : []);
+
+      if (items.length > 0) {
+        const processedWorklets = items.map(worklet => ({
           ...worklet,
           id: worklet.worklet_id || worklet.id,
           created_at: worklet.created_at ? new Date(worklet.created_at) : new Date(),
-          updated_at: worklet.updated_at ? new Date(worklet.updated_at) : new Date()
+          updated_at: worklet.updated_at ? new Date(worklet.updated_at) : new Date(),
         }));
         setWorkletsData(processedWorklets);
         setLastFetched(new Date());

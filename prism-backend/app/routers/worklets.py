@@ -7,6 +7,7 @@ from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from app.core.email_utils import send_activity_email
+from app.auth import oauth2_scheme, require_access_token
 
 # Helper utility to collect student recipients for a worklet
 def _get_students_for_worklet(db: Session, worklet_id: int):
@@ -94,6 +95,107 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             'student_count': student_count
         })
     return response
+
+# ----------------- Student Worklets (Authenticated) -----------------
+@router.get("/student/me", tags=["worklets"])
+def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    Return worklets associated to the authenticated user as a Student.
+    Response shape mirrors list_worklets for frontend compatibility.
+    """
+    try:
+        payload = require_access_token(token)
+        user_email = payload.get("sub")
+        if not user_email:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        student = db.query(User).filter(User.email == user_email).first()
+        if not student:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Join Worklets via association table where this user is a Student
+        query = (
+            db.query(Worklet)
+            .join(UserWorkletAssociation, Worklet.id == UserWorkletAssociation.worklet_id)
+            .options(joinedload(Worklet.college))
+            .filter(
+                UserWorkletAssociation.user_id == student.id,
+                UserWorkletAssociation.role_in_worklet == "Student",
+            )
+        )
+
+        worklets = query.all()
+        response: List[dict] = []
+        for w in worklets:
+            # derive progress similar to list_worklets
+            progress = getattr(w, 'worklet_progress', None)
+            if progress is None:
+                if w.start_date and w.end_date:
+                    try:
+                        total_days = (w.end_date - w.start_date).days or 1
+                        elapsed_days = (datetime.utcnow().date() - w.start_date).days
+                        if elapsed_days < 0:
+                            elapsed_days = 0
+                        progress = max(0, min(100, int((elapsed_days / total_days) * 100)))
+                    except Exception:
+                        progress = 0
+                else:
+                    progress = 0
+
+            # Determine college: prefer worklet.college, else student's own college, else mentor's
+            college_id = w.college.college_id if getattr(w, "college", None) else None
+            college_name = w.college.college_name if getattr(w, "college", None) else None
+            if college_name is None:
+                college_name = getattr(student, 'college', None)
+                if college_name is None:
+                    mentor_assoc = (
+                        db.query(User)
+                        .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+                        .filter(
+                            UserWorkletAssociation.worklet_id == w.id,
+                            UserWorkletAssociation.role_in_worklet == "Mentor",
+                        )
+                        .first()
+                    )
+                    if mentor_assoc and getattr(mentor_assoc, 'college', None):
+                        college_name = mentor_assoc.college
+
+            # Count students on this worklet for display
+            assoc_students = (
+                db.query(User)
+                .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+                .filter(
+                    UserWorkletAssociation.worklet_id == w.id,
+                    UserWorkletAssociation.role_in_worklet == "Student",
+                )
+                .all()
+            )
+            student_count = len(assoc_students)
+
+            response.append({
+                'id': w.id,
+                'cert_id': w.cert_id,
+                'title': w.title,
+                'description': w.description,
+                'start_date': w.start_date,
+                'end_date': w.end_date,
+                'created_at': w.created_at,
+                'updated_at': w.updated_at,
+                'year': w.year,
+                'domain': w.domain,
+                'status': w.status,
+                'worklet_progress': progress,
+                'college_id': college_id,
+                'college': college_name,
+                'student_count': student_count,
+            })
+
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching student worklets: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{worklet_identifier}")
 def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db)):
