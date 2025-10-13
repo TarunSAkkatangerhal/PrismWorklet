@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import Dashboard from "./pages/Dashboard";
+import StudentDashboard from "./pages/StudentDashboard";
 import RequestUpdate from "./layouts/Requestupdates";
 import Ray from "./layouts/Ray";
 import WorkletsPage from "./components/WorkletsPage";
@@ -14,21 +15,8 @@ import Colleges from "./layouts/Colleges";
 import Meetings from "./layouts/Meetings";
 import NavStat from "./layouts/navStat";
 import NavColl from "./layouts/navColl";
-// --- UPDATED & NEW IMPORTS ---
-// Replaced ProfileEdit and ProfileView with the new components.
-// Make sure these paths are correct for your project structure.
-
-
-// --- ProtectedRoute component (no changes needed) ---
-function ProtectedRoute({ children }) {
-  const accessToken = localStorage.getItem("access_token");
-  const refreshToken = localStorage.getItem("refresh_token");
-  const userEmail = localStorage.getItem("user_email");
-  if (accessToken && refreshToken && userEmail) {
-    return children;
-  }
-  return <Navigate to="/" replace />;
-}
+import { MentorRoute, StudentRoute, ProtectedRoute } from "./components/RoleBasedRoute";
+import RoleRedirect from "./components/RoleRedirect";
 
 export default function App() {
   return (
@@ -36,35 +24,27 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route
-          path="*"
-          element={
-            <ProtectedRoute>
-              <Routes>
-                
-                <Route path="/home" element={<Dashboard />} />
-                <Route path="/statistics" element={<StatisticsDashboard />} />
-                <Route path="/navStat" element={<NavStat />} />
-                <Route path="/navColl" element={<NavColl />} />
-                <Route path="/request-update" element={<RequestUpdate />} />
-                <Route path="/ray" element={<Ray />} />
-                <Route path="/worklets" element={<WorkletsPage />} />
-                <Route path="/worklet/:id" element={<WorkletDetailPage />} />
-                <Route path="/share-suggestion" element={<Dashboard />} />
-                <Route path="/internship-referral" element={<Dashboard />} />
-                <Route path="/submit-feedback" element={<Dashboard />} />
-                <Route path="/Left" element={<LeftSidebar/>}/>
-                <Route path="/meeting" element={<Meetings />} />
-               
-                <Route path="portfolio" element={<Portfolio/>}/>
-                <Route path="/colleges" element={<Colleges />} />
-
-                
-                
-              </Routes>
-            </ProtectedRoute>
-          }
-        />
+        
+        {/* Protected Routes */}
+        <Route path="/home" element={<ProtectedRoute><MentorRoute><Dashboard /></MentorRoute></ProtectedRoute>} />
+        <Route path="/student-dashboard" element={<ProtectedRoute><StudentRoute><StudentDashboard /></StudentRoute></ProtectedRoute>} />
+        <Route path="/statistics" element={<ProtectedRoute><StatisticsDashboard /></ProtectedRoute>} />
+        <Route path="/navStat" element={<ProtectedRoute><NavStat /></ProtectedRoute>} />
+        <Route path="/navColl" element={<ProtectedRoute><NavColl /></ProtectedRoute>} />
+        <Route path="/request-update" element={<ProtectedRoute><RequestUpdate /></ProtectedRoute>} />
+        <Route path="/ray" element={<ProtectedRoute><Ray /></ProtectedRoute>} />
+        <Route path="/worklets" element={<ProtectedRoute><WorkletsPage /></ProtectedRoute>} />
+        <Route path="/worklet/:id" element={<ProtectedRoute><WorkletDetailPage /></ProtectedRoute>} />
+        <Route path="/share-suggestion" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/internship-referral" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/submit-feedback" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/Left" element={<ProtectedRoute><LeftSidebar/></ProtectedRoute>}/>
+        <Route path="/meeting" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+        <Route path="/portfolio" element={<ProtectedRoute><Portfolio/></ProtectedRoute>}/>
+        <Route path="/colleges" element={<ProtectedRoute><Colleges /></ProtectedRoute>} />
+        
+        {/* Default redirect based on role */}
+        <Route path="*" element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
       </Routes>
     </ThemeProvider>
   );

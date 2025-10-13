@@ -7,7 +7,8 @@
 // NOTE: axios imported historically (may be unused now) – kept if future calls needed
 import axios from 'axios'
 import { getMentorWorklets, getMentorOngoingWorkletsById, getMentorAllWorkletsById } from '../services/worklets' // Service helpers for API calls
-import { getCurrentUser } from '../services/auth' // Retrieves authenticated mentor details
+import { getCurrentUser, getCurrentUserFromToken } from '../services/auth' // Secure authentication
+import { sanitizeInput, secureLog } from '../utils/security' // Security utilities
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import LeftSidebar from '../components/Left'   // Persistent navigation rail (left)
@@ -103,7 +104,7 @@ export default function Dashboard() {
         const me = await getCurrentUser()
         if (cancelled) return
         setUserProfileData(me)
-        setUserName(me.name || me.email?.split('@')[0] || 'User')
+        setUserName(sanitizeInput(me.name || me.email?.split('@')[0] || 'User', { maxLength: 50 }))
         localStorage.setItem('user_email', me.email)
         localStorage.setItem('user_name', me.name || '')
       } catch (e) {
