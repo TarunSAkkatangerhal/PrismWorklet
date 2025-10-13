@@ -246,6 +246,13 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
     setStatus("idle");
   };
 
+  const handleCancel = () => {
+    if (window.confirm("Are you sure you want to cancel? All form data will be lost.")) {
+      setFormData(initialFormData);
+      setStatus("idle");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("submitting");
@@ -381,10 +388,25 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
           <h2 className="font-bold text-blue-600 dark:text-blue-400 mb-2">Reason for Referring</h2>
           <textarea name="reason" value={formData.reason} onChange={handleChange} placeholder="Please provide a detailed explanation..." className="border rounded-md p-3 w-full h-28 mb-6 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:placeholder-slate-400" required />
 
-          {/* Submit Button */}
-          <div className="text-center">
-            <button type="submit" disabled={status === "submitting"} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-semibold shadow-md flex items-center justify-center gap-2 mx-auto disabled:bg-blue-400 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-600 dark:disabled:bg-blue-500/50">
-              {status === "submitting" ? (<Loader2 className="animate-spin w-5 h-5" />) : (<Send className="w-5 h-5" />)}
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 pt-4">
+            {/* Cancel Button */}
+            <button 
+              type="button" 
+              onClick={handleCancel}
+              disabled={status === "submitting"}
+              className="px-6 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+
+            {/* Submit Button */}
+            <button 
+              type="submit" 
+              disabled={status === "submitting"} 
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {status === "submitting" ? (<Loader2 className="animate-spin w-4 h-4" />) : (<Send className="w-4 h-4" />)}
               {status === "submitting" ? "Submitting..." : "Submit Referral"}
             </button>
           </div>

@@ -53,7 +53,7 @@ export default function App() {
                 <Route path="/share-suggestion" element={<Dashboard />} />
                 <Route path="/internship-referral" element={<Dashboard />} />
                 <Route path="/submit-feedback" element={<Dashboard />} />
-                <Route path="/Left" element={<LeftSidebar/>}/>
+                {/* <Route path="/Left" element={<LeftSidebar/>}/> */}
                 <Route path="/meeting" element={<Meetings />} />
                
                 <Route path="portfolio" element={<Portfolio/>}/>

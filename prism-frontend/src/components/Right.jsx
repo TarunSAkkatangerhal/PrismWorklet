@@ -7,7 +7,7 @@ import FeedbackForm from "./FeedbackForm";
 import EvaluateModal from "../components/EvaluateModal";
 
 import {
-  RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot
+  RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot,
 } from "lucide-react";
 
 const RightSidebar = () => {
@@ -25,11 +25,13 @@ const RightSidebar = () => {
       setIsSuggestionModalOpen(true);
     } else if (path === "/internship-referral") {
       setIsInternModalOpen(true);
-    } else if (path === "/evaluate") {
+    } else if (path === "/submit-feedback") {
+      setIsFeedbackFormOpen(true);
+    }else if (path === "/evaluate") {
       setISEvaluateModalOpen(true);
-    } else {
+    } 
+    else {
       try {
-        console.log("Navigating to:", path);
         navigate(path);
       } catch (error) {
         console.error("Navigation error:", error);
@@ -65,7 +67,7 @@ const RightSidebar = () => {
         <ActivityButton
           icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
           label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
-          onClick={() => setIsFeedbackFormOpen(true)}
+          onClick={() => handleNavigation("/submit-feedback")}
         />
         <ActivityButton
           icon={<ClipboardCheck className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
@@ -111,9 +113,9 @@ const RightSidebar = () => {
             <div className=" top-0 right-0 flex justify-end bg-white rounded-t-xl p-2 dark:bg-slate-900">
               <button
                 onClick={() => setIsInternModalOpen(false)}
-                className="text-3xl text-purple-700 hover:text-purple-900 font-bold z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors"
+                className="text-3xl  hover:text-purple-900 font-bold z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors"
               >
-                X
+                ×
               </button>
             </div>
             <div className="p-4">
@@ -122,6 +124,7 @@ const RightSidebar = () => {
           </div>
         </div>
       )}
+      
       <EvaluateModal
         isOpen={isEvaluateModalOpen}
         onClose={() => setISEvaluateModalOpen(false)}

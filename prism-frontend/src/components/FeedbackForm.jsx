@@ -90,7 +90,6 @@ export default function FeedbackForm({ isOpen, onClose }) {
     }
 
     if (!selectedMonth || !feedbackContent.trim()) {
-    if (!selectedMonth || !feedbackContent.trim()) {
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
@@ -151,7 +150,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
+    <div className="fixed inset-0 flex items-center justify-center z-[70]">
       <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" onClick={handleClose}></div>
       
       <div className="bg-white rounded-2xl shadow-2xl p-[clamp(1.5rem,3vw,2rem)] mx-[clamp(0.75rem,2vw,1rem)] relative z-10 dark:bg-slate-800 max-w-[clamp(24rem,35vw,32rem)] w-full max-h-[90vh] overflow-y-auto">
@@ -415,4 +414,4 @@ export default function FeedbackForm({ isOpen, onClose }) {
     </div>
   );
 }
-}
+
