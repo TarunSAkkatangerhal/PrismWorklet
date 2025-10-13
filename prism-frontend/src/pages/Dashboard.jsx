@@ -241,7 +241,7 @@ export default function Dashboard() {
         <header className="flex justify-between items-center mb-[3vh]">
           <div>
             <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
-              {loadingName ? 'Loading...' : `Welcome back, ${userName.split(' ')[0]}`}
+              {loadingName ? 'Loading...' : `Welcome , ${userName.split(' ')[0]}`}
             </h1>
             <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">Here's your snapshot for today.</p>
           </div>
