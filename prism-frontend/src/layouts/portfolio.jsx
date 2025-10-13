@@ -89,7 +89,7 @@ const Portfolio = () => {
   const [loadingPortfolio, setLoadingPortfolio] = useState(true)
   const [portfolioError, setPortfolioError] = useState(null)
 
-  // Fetch mentor portfolio
+  // Fetch portfolio: mentor/professor -> mentor endpoint; student -> student endpoint
   useEffect(() => {
     const loadPortfolio = async () => {
       try {
@@ -101,10 +101,57 @@ const Portfolio = () => {
         })
         if (!profRes.ok) throw new Error('Failed to load profile')
         const profile = await profRes.json()
-        const resp = await fetch(`http://localhost:8000/api/portfolio/mentor/${profile.id}`)
-        if (!resp.ok) throw new Error('Failed to load portfolio data')
-        const data = await resp.json()
-        setPortfolioData(data)
+        const role = (profile?.role || '').toLowerCase()
+        const endpoint = role === 'student'
+          ? 'http://localhost:8000/api/portfolio/student/me'
+          : `http://localhost:8000/api/portfolio/mentor/${profile.id}`
+        const resp = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!resp.ok) {
+          // Graceful handling: treat 404 as no data rather than an error banner
+          if (resp.status === 404 || resp.status === 422) {
+            setPortfolioData({
+              mentor: profile,
+              achievements: [],
+              papers: [],
+              patents: [],
+              commercializations: [],
+              worklets: [],
+              stats: {
+                achievements_count: 0,
+                papers_count: 0,
+                patents_count: 0,
+                commercializations_count: 0,
+                worklets_count: 0,
+              },
+            })
+            setPortfolioError(null)
+          } else if (resp.status === 401) {
+            setPortfolioError('Your session has expired. Please log in again.')
+          } else {
+            setPortfolioError('Failed to load portfolio data')
+          }
+        } else {
+          const data = await resp.json()
+          // Ensure safe defaults if backend returns partial data
+          setPortfolioData({
+            mentor: data?.mentor || profile,
+            achievements: Array.isArray(data?.achievements) ? data.achievements : [],
+            papers: Array.isArray(data?.papers) ? data.papers : [],
+            patents: Array.isArray(data?.patents) ? data.patents : [],
+            commercializations: Array.isArray(data?.commercializations) ? data.commercializations : [],
+            worklets: Array.isArray(data?.worklets) ? data.worklets : [],
+            stats: data?.stats || {
+              achievements_count: 0,
+              papers_count: 0,
+              patents_count: 0,
+              commercializations_count: 0,
+              worklets_count: 0,
+            },
+          })
+          setPortfolioError(null)
+        }
       } catch (e) {
         console.error(e)
         setPortfolioError(e.message)
@@ -390,7 +437,22 @@ const Portfolio = () => {
                     <div className="col-span-full text-center text-sm text-red-500">{portfolioError}</div>
                   )}
                   {!loadingPortfolio && portfolioData.achievements.length === 0 && (
-                    <div className="col-span-full text-center text-sm text-gray-500">No achievements yet.</div>
+                    <motion.div
+                      className="col-span-full flex flex-col items-center justify-center text-center py-10"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <motion.div
+                        className="w-16 h-16 mb-4 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center border border-blue-100 dark:border-slate-700"
+                        animate={{ y: [0, -6, 0] }}
+                        transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
+                      >
+                        <Trophy className="w-8 h-8 text-blue-500" />
+                      </motion.div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">No achievements yet</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Start adding your wins to showcase your journey</p>
+                    </motion.div>
                   )}
                   {portfolioData.achievements.map((a) => {
                     const IconComp = achievementIcon(a.type)
