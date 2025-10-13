@@ -106,6 +106,7 @@ const ClockTimePicker = ({ hour, minute, onTimeChange, size = 240 }) => {
           {display12Hour.toString().padStart(2, '0')}:{minute.toString().padStart(2, '0')}
         </span>
         <button
+          type="button"
           onClick={toggleAMPM}
           className="ml-3 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg"
         >
@@ -116,6 +117,7 @@ const ClockTimePicker = ({ hour, minute, onTimeChange, size = 240 }) => {
       {/* Mode Toggle */}
       <div className="flex space-x-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
         <button
+          type="button"
           onClick={() => setMode('hour')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
             mode === 'hour' 
@@ -126,6 +128,7 @@ const ClockTimePicker = ({ hour, minute, onTimeChange, size = 240 }) => {
           Hour
         </button>
         <button
+          type="button"
           onClick={() => setMode('minute')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
             mode === 'minute' 
@@ -288,7 +291,7 @@ const CompactClockPicker = ({ hour, minute, onTimeChange, isOpen, onClose }) => 
   
   if (!isOpen) return null;
 
-  const size = 180;
+  const size = 200; // Increased size for better visibility
   const centerX = size / 2;
   const centerY = size / 2;
   const radius = size * 0.32;
@@ -355,13 +358,15 @@ const CompactClockPicker = ({ hour, minute, onTimeChange, isOpen, onClose }) => 
 
   return (
     <div 
-      className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm z-50 overflow-hidden"
+      className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm z-50 overflow-hidden"
       onClick={(e) => e.stopPropagation()}
       style={{ 
         background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)',
         backdropFilter: 'blur(12px)',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-        width: '300px'
+        width: '350px',
+        maxHeight: '500px',
+        zIndex: 60
       }}
     >
       {/* Header with Clock Icon */}
@@ -377,6 +382,7 @@ const CompactClockPicker = ({ hour, minute, onTimeChange, isOpen, onClose }) => 
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
           >
@@ -546,6 +552,7 @@ const CompactClockPicker = ({ hour, minute, onTimeChange, isOpen, onClose }) => 
           {/* AM/PM Button positioned at top right of clock */}
           <div className="absolute top-0 right-0">
             <button
+              type="button"
               onClick={toggleAMPM}
               className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
@@ -557,6 +564,7 @@ const CompactClockPicker = ({ hour, minute, onTimeChange, isOpen, onClose }) => 
         {/* Mode Toggle */}
         <div className="flex space-x-1 mb-5 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
           <button
+            type="button"
             onClick={() => setMode('hour')}
             className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               mode === 'hour' 
@@ -570,6 +578,7 @@ const CompactClockPicker = ({ hour, minute, onTimeChange, isOpen, onClose }) => 
             </div>
           </button>
           <button
+            type="button"
             onClick={() => setMode('minute')}
             className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               mode === 'minute' 
@@ -587,6 +596,7 @@ const CompactClockPicker = ({ hour, minute, onTimeChange, isOpen, onClose }) => 
         {/* Action Button */}
         <div className="flex justify-center">
           <button
+            type="button"
             onClick={onClose}
             className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
           >
@@ -1105,7 +1115,7 @@ const Meetings = () => {
     // Reason optional now; only require a chosen datetime
     if (!rescheduleDateTime) return;
 
-    // Check for conflicts with the new time
+    // Create the new start time properly from the local datetime string
     const newStartTime = new Date(rescheduleDateTime);
     const conflicts = checkMeetingConflicts(newStartTime, rescheduleDuration, selectedMeeting.id);
     
@@ -1117,12 +1127,12 @@ const Meetings = () => {
     }
 
     // Proceed with the reschedule (either no conflicts or user confirmed)
-    const updatedDate = formatMeetingDate(rescheduleDateTime, rescheduleDuration);
+    const updatedDate = formatMeetingDate(newStartTime, rescheduleDuration);
     
     setMeetings(prev => prev.map(m => m.id === selectedMeeting.id ? {
       ...m,
       date: updatedDate,
-      startISO: new Date(rescheduleDateTime).toISOString(),
+      startISO: newStartTime.toISOString(),
       durationMins: rescheduleDuration,
       lastRescheduledAt: new Date().toISOString(),
       lastRescheduleReason: rescheduleReason.trim() || null
@@ -1268,13 +1278,31 @@ const Meetings = () => {
   const updateFormDateTime = (date, hour, minute) => {
     const dateTime = new Date(date);
     dateTime.setHours(hour, minute, 0, 0);
-    setFormStart(dateTime.toISOString().slice(0, 16));
+    
+    // Create local datetime string to avoid timezone conversion issues
+    const year = dateTime.getFullYear();
+    const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+    const day = String(dateTime.getDate()).padStart(2, '0');
+    const hours = String(hour).padStart(2, '0');
+    const minutes = String(minute).padStart(2, '0');
+    
+    const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+    setFormStart(localDateTimeString);
   };
 
   const updateRescheduleDateTime = (date, hour, minute) => {
     const dateTime = new Date(date);
     dateTime.setHours(hour, minute, 0, 0);
-    setRescheduleDateTime(dateTime.toISOString().slice(0, 16));
+    
+    // Create local datetime string to avoid timezone conversion issues
+    const year = dateTime.getFullYear();
+    const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+    const day = String(dateTime.getDate()).padStart(2, '0');
+    const hours = String(hour).padStart(2, '0');
+    const minutes = String(minute).padStart(2, '0');
+    
+    const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+    setRescheduleDateTime(localDateTimeString);
   };
 
   // Update formStart when enhanced controls change
@@ -1785,11 +1813,11 @@ const Meetings = () => {
 
       {/* Reschedule Meeting Modal */}
       {showRescheduleModal && selectedMeeting && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-lg mx-4 shadow-2xl relative">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-2xl mx-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowRescheduleModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl font-bold"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl font-bold z-10"
               aria-label="Close reschedule modal"
             >
               ×
@@ -1798,11 +1826,11 @@ const Meetings = () => {
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 text-center">Current: {selectedMeeting.date}</p>
             <form
               onSubmit={(e) => { e.preventDefault(); confirmRescheduleMeeting(); }}
-              className="space-y-5"
+              className="space-y-6"
             >
               {/* Simple Date/Time Selection */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">New Date</label>
                     <input
@@ -1829,7 +1857,7 @@ const Meetings = () => {
                     />
                   </div>
                   
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">New Time</label>
                     <div className="relative reschedule-clock-container">
                       <button
@@ -1849,6 +1877,14 @@ const Meetings = () => {
                         </div>
                         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showRescheduleClock ? 'rotate-180' : ''}`} />
                       </button>
+                      
+                      {/* Backdrop when clock is open */}
+                      {showRescheduleClock && (
+                        <div 
+                          className="fixed inset-0 bg-black/20 z-40"
+                          onClick={() => setShowRescheduleClock(false)}
+                        />
+                      )}
                       
                       <CompactClockPicker
                         hour={rescheduleHour}

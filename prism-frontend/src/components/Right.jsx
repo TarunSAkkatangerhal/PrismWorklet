@@ -59,11 +59,13 @@ const RightSidebar = () => {
       setIsSuggestionModalOpen(true);
     } else if (path === "/internship-referral") {
       setIsInternModalOpen(true);
-    } else if (path === "/evaluate") {
+    } else if (path === "/submit-feedback") {
+      setIsFeedbackFormOpen(true);
+    }else if (path === "/evaluate") {
       setISEvaluateModalOpen(true);
-    } else {
+    } 
+    else {
       try {
-        console.log("Navigating to:", path);
         navigate(path);
       } catch (error) {
         console.error("Navigation error:", error);
@@ -176,9 +178,9 @@ const RightSidebar = () => {
             <div className=" top-0 right-0 flex justify-end bg-white rounded-t-xl p-2 dark:bg-slate-900">
               <button
                 onClick={() => setIsInternModalOpen(false)}
-                className="text-3xl text-purple-700 hover:text-purple-900 font-bold z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors"
+                className="text-3xl  hover:text-purple-900 font-bold z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors"
               >
-                X
+                ×
               </button>
             </div>
             <div className="p-4">
@@ -187,6 +189,7 @@ const RightSidebar = () => {
           </div>
         </div>
       )}
+      
       <EvaluateModal
         isOpen={isEvaluateModalOpen}
         onClose={() => setISEvaluateModalOpen(false)}

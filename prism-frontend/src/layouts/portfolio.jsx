@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence, useInView } from 'framer-motion'
+import React, { useState, useEffect } from 'react'
 import {
   Award,
   Star,
@@ -14,152 +13,598 @@ import {
   Clock,
   Shield,
   Target,
-  Code,
-  Rocket,
-  Zap,
-  Heart,
+  PlusCircle,
+  X,
+  Trash2,
+  Loader2,
+  ArrowRight,
+  ArrowLeft,
+  BookUser,
+  Lightbulb,
 } from 'lucide-react'
+import { useForm, useFieldArray } from 'react-hook-form'
 import LeftSidebar from '../components/Left'
 
+// --- MOCK API FUNCTIONS ---
+const MOCK_API_LATENCY = 1000
+
+const apiSubmit = async (endpoint, formData, isMultipart = false) => {
+  console.log(`Submitting to ${endpoint}:`)
+  for (let [key, value] of formData.entries()) {
+    console.log(key, value)
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, MOCK_API_LATENCY))
+
+  const data = {}
+  for (let [key, value] of formData.entries()) {
+    if (value instanceof File) {
+      data[key] = value.name
+      data.previewUrl = URL.createObjectURL(value)
+    } else if (key === 'authors' || key === 'inventors') {
+      data[key] = JSON.parse(value)
+    } else {
+      data[key] = value
+    }
+  }
+  return { ...data, id: Date.now() }
+}
+
+// --- STATIC DATA ---
+const staticPortfolioData = {
+  mentor: { id: 1, name: 'Dr. Static Mentor' },
+  achievements: [
+    {
+      id: 1,
+      title: 'Innovator of the Year',
+      description: 'Awarded for pioneering work in decentralized applications.',
+      type: 'Award',
+      year: 2024,
+    },
+    {
+      id: 2,
+      title: 'Top Rated Speaker at TechCon 2023',
+      description: 'Recognized for an engaging presentation on modern frontend frameworks.',
+      type: 'Recognition',
+      year: 2023,
+    },
+  ],
+  papers: [
+    {
+      id: 1,
+      title: 'The Future of Asynchronous State Management',
+      authors: [{ name: 'Jane Doe' }, { name: 'John Smith' }],
+      journal: 'Journal of Modern Web Development',
+      year: 2023,
+      status: 'Published',
+      link: '#',
+      abstract:
+        'This paper explores advanced patterns for managing asynchronous state in large-scale React applications, proposing a novel hook-based approach.',
+      doi: '10.1234/jMWD.2023.5678',
+      publication_year: 2023,
+    },
+  ],
+  patents: [
+    {
+      id: 1,
+      title: 'System for Real-Time Collaborative Code Editing',
+      inventors: [{ name: 'Jane Doe' }],
+      application_number: 'US-2023-XYZ',
+      filing_year: 2023,
+      status: 'Filed',
+      description:
+        'A patented system that utilizes operational transforms to allow multiple users to edit the same codebase simultaneously with zero latency.',
+      stage: 'Application Review',
+    },
+    // Example of a patent with string data to test resilient rendering
+    {
+      id: 2,
+      title: 'Legacy Patent Entry',
+      inventors: 'Dr. Old System',
+      application_number: 'US-2019-ABC',
+      filing_year: 2019,
+      status: 'Granted',
+      description: 'An older patent whose inventor data is a string.',
+    },
+  ],
+  commercializations: [
+    {
+      id: 1,
+      title: 'DevSync Pro',
+      description:
+        'A commercial product based on the real-time collaborative editing patent, licensed to major tech companies.',
+      year: 2024,
+      revenue: 50000,
+      link: '#',
+    },
+  ],
+  stats: null,
+}
+
+// --- REUSABLE & IMPROVED COMPONENTS ---
+const Input = ({ register, name, errors, ...rest }) => (
+  <div className="w-full">
+    <input
+      {...register(name)}
+      {...rest}
+      className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+    />
+    {errors[name] && <p className="text-red-500 text-xs mt-1">{errors[name].message}</p>}
+  </div>
+)
+
+const Textarea = ({ register, name, errors, ...rest }) => (
+  <div className="w-full">
+    <textarea
+      {...register(name)}
+      {...rest}
+      className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+    />
+    {errors[name] && <p className="text-red-500 text-xs mt-1">{errors[name].message}</p>}
+  </div>
+)
+
+const FileUpload = ({ onFileChange, file }) => {
+  const [dragActive, setDragActive] = useState(false)
+  const inputRef = React.useRef(null)
+
+  const handleDrag = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true)
+    else if (e.type === 'dragleave') setDragActive(false)
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) onFileChange(e.dataTransfer.files[0])
+  }
+
+  const handleChange = (e) => {
+    e.preventDefault()
+    if (e.target.files && e.target.files[0]) onFileChange(e.target.files[0])
+  }
+
+  return (
+    <div
+      onDragEnter={handleDrag}
+      onDragLeave={handleDrag}
+      onDragOver={handleDrag}
+      onDrop={handleDrop}
+      onClick={() => inputRef.current.click()}
+      className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${
+        dragActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'
+      }`}>
+      <input ref={inputRef} type="file" className="hidden" onChange={handleChange} accept=".pdf,.doc,.docx" />
+      {!file ? (
+        <div>
+          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            <span className="font-semibold text-blue-600 dark:text-blue-400">Click to upload</span> or drag and drop
+          </p>
+          <p className="text-xs text-gray-500">PDF, DOC, DOCX (Max 5MB)</p>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 text-left">
+            <FileText className="h-8 w-8 text-blue-500 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{file.name}</p>
+              <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onFileChange(null)
+            }}
+            className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const Modal = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6">
+        <div className="flex justify-between items-center border-b pb-3 dark:border-gray-600">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+            disabled={children.props.isSubmitting}>
+            <X size={24} />
+          </button>
+        </div>
+        <div className="mt-4">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+const PreviewModal = ({ url, onClose }) => {
+  if (!url) return null
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center border-b p-3 dark:border-gray-600 flex-shrink-0">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Document Preview</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-4 flex-grow">
+          <iframe src={url} className="w-full h-full border-0" title="File Preview" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- IMPROVED FORMS ---
+const AddPaperForm = ({ onAdd, onCancel }) => {
+  const [step, setStep] = useState(1)
+  const [file, setFile] = useState(null)
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: { authors: [{ name: '' }] },
+  })
+  const { fields, append, remove } = useFieldArray({ control, name: 'authors' })
+
+  const onSubmit = async (data) => {
+    const formData = new FormData()
+    Object.keys(data).forEach((key) => {
+      if (key === 'authors') formData.append(key, JSON.stringify(data[key].filter((a) => a.name)))
+      else formData.append(key, data[key])
+    })
+    if (file) formData.append('document', file)
+    try {
+      const newPaper = await apiSubmit('papers', formData, true)
+      onAdd('papers', newPaper)
+    } catch (error) {
+      console.error('Submission failed:', error)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {step === 1 && (
+        <div className="space-y-4">
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+            <BookUser size={20} className="mr-2 text-blue-500" /> Core Information
+          </h4>
+          <Input
+            name="title"
+            register={register}
+            errors={errors}
+            placeholder="Paper Title"
+            {...register('title', { required: 'Title is required' })}
+          />
+          <Input
+            name="journal"
+            register={register}
+            errors={errors}
+            placeholder="Journal / Conference"
+            {...register('journal', { required: 'Journal is required' })}
+          />
+          <div className="flex gap-4">
+            <Input
+              name="year"
+              type="number"
+              register={register}
+              errors={errors}
+              placeholder="Year"
+              defaultValue={new Date().getFullYear()}
+              {...register('year', { required: 'Year is required' })}
+            />
+            <Input name="doi" register={register} errors={errors} placeholder="DOI (e.g., 10.xxxx/xxxx)" />
+          </div>
+          <div className="flex justify-end pt-4">
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center">
+              Next <ArrowRight size={16} className="ml-2" />
+            </button>
+          </div>
+        </div>
+      )}
+      {step === 2 && (
+        <div className="space-y-4">
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+            <BookUser size={20} className="mr-2 text-blue-500" /> Authors & Abstract
+          </h4>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Authors</label>
+            {fields.map((field, index) => (
+              <div key={field.id} className="flex items-center gap-2 mb-2">
+                <Input
+                  name={`authors.${index}.name`}
+                  register={register}
+                  errors={errors}
+                  placeholder={`Author ${index + 1} Name`}
+                  {...register(`authors.${index}.name`, { required: 'Author name is required' })}
+                />
+                {fields.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => append({ name: '' })}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+              + Add Author
+            </button>
+          </div>
+          <Textarea name="abstract" register={register} errors={errors} placeholder="Abstract" rows="4" />
+          <div className="flex justify-between pt-4">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 flex items-center">
+              <ArrowLeft size={16} className="mr-2" /> Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(3)}
+              className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center">
+              Next <ArrowRight size={16} className="ml-2" />
+            </button>
+          </div>
+        </div>
+      )}
+      {step === 3 && (
+        <div className="space-y-4">
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+            <Upload size={20} className="mr-2 text-blue-500" /> Upload Document
+          </h4>
+          <FileUpload onFileChange={setFile} file={file} />
+          <div className="flex justify-between pt-4">
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 flex items-center"
+              disabled={isSubmitting}>
+              <ArrowLeft size={16} className="mr-2" /> Previous
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center"
+              disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
+              {isSubmitting ? 'Submitting...' : 'Add Paper'}
+            </button>
+          </div>
+        </div>
+      )}
+    </form>
+  )
+}
+
+const AddPatentForm = ({ onAdd, onCancel }) => {
+  const [file, setFile] = useState(null)
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: { inventors: [{ name: '' }] },
+  })
+  const { fields, append, remove } = useFieldArray({ control, name: 'inventors' })
+
+  const onSubmit = async (data) => {
+    const formData = new FormData()
+    Object.keys(data).forEach((key) => {
+      if (key === 'inventors') formData.append(key, JSON.stringify(data[key].filter((inv) => inv.name)))
+      else formData.append(key, data[key])
+    })
+    if (file) formData.append('document', file)
+    try {
+      const newPatent = await apiSubmit('patents', formData, true)
+      onAdd('patents', newPatent)
+    } catch (error) {
+      console.error('Submission failed:', error)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+        <Lightbulb size={20} className="mr-2 text-yellow-500" /> Patent Details
+      </h4>
+      <Input
+        name="title"
+        register={register}
+        errors={errors}
+        placeholder="Patent Title"
+        {...register('title', { required: 'Title is required' })}
+      />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Inventors</label>
+        {fields.map((field, index) => (
+          <div key={field.id} className="flex items-center gap-2 mb-2">
+            <Input
+              name={`inventors.${index}.name`}
+              register={register}
+              errors={errors}
+              placeholder={`Inventor ${index + 1} Name`}
+              {...register(`inventors.${index}.name`, { required: 'Inventor name is required' })}
+            />
+            {fields.length > 1 && (
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full">
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => append({ name: '' })}
+          className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+          + Add Inventor
+        </button>
+      </div>
+      <div className="flex gap-4">
+        <Input
+          name="application_number"
+          register={register}
+          errors={errors}
+          placeholder="Application Number"
+          {...register('application_number', { required: 'Application number is required' })}
+        />
+        <Input
+          name="filing_year"
+          type="number"
+          register={register}
+          errors={errors}
+          placeholder="Filing Year"
+          defaultValue={new Date().getFullYear()}
+        />
+      </div>
+      <Textarea name="description" register={register} errors={errors} placeholder="Brief Description" rows="3" />
+      <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center pt-2">
+        <Upload size={20} className="mr-2 text-yellow-500" /> Supporting Document
+      </h4>
+      <FileUpload onFileChange={setFile} file={file} />
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+          disabled={isSubmitting}>
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center"
+          disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
+          {isSubmitting ? 'Submitting...' : 'Add Patent'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+const AddCommercializationForm = ({ onAdd, onCancel }) => {
+  const [file, setFile] = useState(null)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm()
+
+  const onSubmit = async (data) => {
+    const formData = new FormData()
+    const payload = { ...data, revenue: parseFloat(data.revenue) || 0 }
+    Object.keys(payload).forEach((key) => formData.append(key, payload[key]))
+    if (file) formData.append('document', file)
+    try {
+      const newRecord = await apiSubmit('commercializations', formData, true)
+      onAdd('commercializations', newRecord)
+    } catch (error) {
+      console.error('Submission failed', error)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+        <Target size={20} className="mr-2 text-green-500" /> Commercialization Record
+      </h4>
+      <Input
+        name="title"
+        register={register}
+        errors={errors}
+        placeholder="Product/Service Title"
+        {...register('title', { required: 'Title is required' })}
+      />
+      <div className="flex gap-4">
+        <Input
+          name="year"
+          type="number"
+          register={register}
+          errors={errors}
+          placeholder="Year"
+          defaultValue={new Date().getFullYear()}
+        />
+        <Input
+          name="revenue"
+          type="number"
+          step="0.01"
+          register={register}
+          errors={errors}
+          placeholder="Revenue (USD)"
+        />
+      </div>
+      <Input name="link" register={register} errors={errors} placeholder="Product Link (e.g., https://...)" />
+      <Textarea name="description" register={register} errors={errors} placeholder="Description" rows="3" />
+      <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center pt-2">
+        <Upload size={20} className="mr-2 text-green-500" /> Proof/Document
+      </h4>
+      <FileUpload onFileChange={setFile} file={file} />
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+          disabled={isSubmitting}>
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center"
+          disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
+          {isSubmitting ? 'Submitting...' : 'Add Record'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// --- MAIN PORTFOLIO COMPONENT ---
 const Portfolio = () => {
   const [activeTab, setActiveTab] = useState('achievements')
   const [expandedRows, setExpandedRows] = useState({})
-  const [confetti, setConfetti] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState({})
-  const [typewriterText, setTypewriterText] = useState('')
-  const [particles, setParticles] = useState([])
-
-  // Typewriter effect
-  const fullText = 'My Achievements'
-  useEffect(() => {
-    let i = 0
-    const timer = setInterval(() => {
-      if (i < fullText.length) {
-        setTypewriterText(fullText.slice(0, i + 1))
-        i++
-      } else {
-        clearInterval(timer)
-      }
-    }, 150)
-    return () => clearInterval(timer)
-  }, [])
-
-  // Initialize particles on load
-  useEffect(() => {
-    const newParticles = Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 4 + 2,
-      speed: Math.random() * 2 + 1,
-    }))
-    setParticles(newParticles)
-  }, [])
-
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.6,
-        staggerChildren: 0.1,
-      },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: { duration: 0.5 },
-    },
-  }
-
-  // Portfolio aggregated data
-  const [portfolioData, setPortfolioData] = useState({
-    mentor: null,
-    achievements: [],
-    papers: [],
-    patents: [],
-    commercializations: [],
-    stats: null,
-  })
-  const [loadingPortfolio, setLoadingPortfolio] = useState(true)
+  const [portfolioData, setPortfolioData] = useState(staticPortfolioData)
+  const [loadingPortfolio, setLoadingPortfolio] = useState(false)
   const [portfolioError, setPortfolioError] = useState(null)
+  const [modalType, setModalType] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
 
-  // Fetch portfolio: mentor/professor -> mentor endpoint; student -> student endpoint
+  // This would fetch real data in a production app
   useEffect(() => {
-    const loadPortfolio = async () => {
-      try {
-        setLoadingPortfolio(true)
-        setPortfolioError(null)
-        const token = localStorage.getItem('access_token')
-        const profRes = await fetch('http://localhost:8000/auth/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!profRes.ok) throw new Error('Failed to load profile')
-        const profile = await profRes.json()
-        const role = (profile?.role || '').toLowerCase()
-        const endpoint = role === 'student'
-          ? 'http://localhost:8000/api/portfolio/student/me'
-          : `http://localhost:8000/api/portfolio/mentor/${profile.id}`
-        const resp = await fetch(endpoint, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!resp.ok) {
-          // Graceful handling: treat 404 as no data rather than an error banner
-          if (resp.status === 404 || resp.status === 422) {
-            setPortfolioData({
-              mentor: profile,
-              achievements: [],
-              papers: [],
-              patents: [],
-              commercializations: [],
-              worklets: [],
-              stats: {
-                achievements_count: 0,
-                papers_count: 0,
-                patents_count: 0,
-                commercializations_count: 0,
-                worklets_count: 0,
-              },
-            })
-            setPortfolioError(null)
-          } else if (resp.status === 401) {
-            setPortfolioError('Your session has expired. Please log in again.')
-          } else {
-            setPortfolioError('Failed to load portfolio data')
-          }
-        } else {
-          const data = await resp.json()
-          // Ensure safe defaults if backend returns partial data
-          setPortfolioData({
-            mentor: data?.mentor || profile,
-            achievements: Array.isArray(data?.achievements) ? data.achievements : [],
-            papers: Array.isArray(data?.papers) ? data.papers : [],
-            patents: Array.isArray(data?.patents) ? data.patents : [],
-            commercializations: Array.isArray(data?.commercializations) ? data.commercializations : [],
-            worklets: Array.isArray(data?.worklets) ? data.worklets : [],
-            stats: data?.stats || {
-              achievements_count: 0,
-              papers_count: 0,
-              patents_count: 0,
-              commercializations_count: 0,
-              worklets_count: 0,
-            },
-          })
-          setPortfolioError(null)
-        }
-      } catch (e) {
-        console.error(e)
-        setPortfolioError(e.message)
-      } finally {
-        setLoadingPortfolio(false)
-      }
-    }
-    loadPortfolio()
+    // setLoadingPortfolio(true);
+    // fetch(...)
+    //   .then(res => res.json())
+    //   .then(data => setPortfolioData(data))
+    //   .catch(err => setPortfolioError(err.message))
+    //   .finally(() => setLoadingPortfolio(false));
   }, [])
 
   const achievementIcon = (type) => {
@@ -173,35 +618,6 @@ const Portfolio = () => {
     }
   }
 
-  // Animation functions
-  const triggerConfetti = () => {
-    setConfetti(true)
-    setTimeout(() => setConfetti(false), 2000)
-  }
-
-  const simulateUpload = (section, id) => {
-    setUploadProgress((prev) => ({ ...prev, [`${section}-${id}`]: 0 }))
-
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        const currentProgress = prev[`${section}-${id}`] || 0
-        if (currentProgress >= 100) {
-          clearInterval(interval)
-          triggerConfetti()
-          setTimeout(() => {
-            setUploadProgress((prev) => {
-              const newProgress = { ...prev }
-              delete newProgress[`${section}-${id}`]
-              return newProgress
-            })
-          }, 1000)
-          return prev
-        }
-        return { ...prev, [`${section}-${id}`]: currentProgress + 10 }
-      })
-    }, 200)
-  }
-
   const toggleRowExpansion = (section, id) => {
     setExpandedRows((prev) => ({
       ...prev,
@@ -209,100 +625,13 @@ const Portfolio = () => {
     }))
   }
 
-  // Animated table row component
-  const AnimatedTableRow = ({ children, delay = 0, onClick, isExpanded }) => {
-    const ref = useRef(null)
-    const isInView = useInView(ref, { once: true })
-
-    return (
-      <motion.tr
-        ref={ref}
-        initial={{ opacity: 0, x: -50 }}
-        animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -50 }}
-        transition={{ duration: 0.5, delay }}
-        className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-300 cursor-pointer ${
-          isExpanded ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-        }`}
-        onClick={onClick}
-        whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>
-        {children}
-      </motion.tr>
-    )
+  const handleAddItem = (section, newItem) => {
+    setPortfolioData((prevData) => ({
+      ...prevData,
+      [section]: [...prevData[section], newItem],
+    }))
+    setModalType(null)
   }
-
-  // Enhanced Upload button
-  const AnimatedUploadButton = ({ section, id, label = 'Upload' }) => {
-    const progress = uploadProgress[`${section}-${id}`]
-    const isUploading = progress !== undefined
-    const [isHovered, setIsHovered] = useState(false)
-
-    return (
-      <motion.button
-        onClick={() => simulateUpload(section, id)}
-        disabled={isUploading}
-        className={`relative overflow-hidden px-4 py-2 rounded-lg font-semibold transition-all duration-500 text-sm ${
-          isUploading
-            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white cursor-not-allowed shadow-lg shadow-green-500/25'
-            : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-purple-500/25'
-        }`}
-        whileHover={!isUploading ? { scale: 1.05, y: -2 } : {}}
-        whileTap={!isUploading ? { scale: 0.95 } : {}}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}>
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-12"
-          initial={{ x: '-100%' }}
-          animate={isHovered && !isUploading ? { x: '200%' } : { x: '-100%' }}
-          transition={{ duration: 1, ease: 'easeInOut' }}
-        />
-        <div className="flex items-center space-x-2 relative z-10">
-          {isUploading ? (
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <Upload size={16} />
-          )}
-          <span>{isUploading ? `${progress}%` : label}</span>
-        </div>
-        {isUploading && (
-          <motion.div
-            className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-sky-400 to-emerald-500 rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          />
-        )}
-        {progress === 100 && (
-          <motion.div
-            className="absolute inset-0 bg-green-500/20 rounded-xl"
-            initial={{ scale: 1, opacity: 0.5 }}
-            animate={{ scale: 1.5, opacity: 0 }}
-            transition={{ duration: 0.6 }}
-          />
-        )}
-      </motion.button>
-    )
-  }
-
-  // Floating Particles Background
-  const FloatingParticles = () => (
-    <div className="fixed inset-0 pointer-events-none z-10">
-      {particles.slice(0, 6).map((particle) => (
-        <motion.div
-          key={particle.id}
-          className="absolute bg-blue-400/10 rounded-full"
-          style={{
-            width: particle.size / 2,
-            height: particle.size / 2,
-            left: `${particle.x}%`,
-            top: `${particle.y}%`,
-          }}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 0.15, scale: 1 }}
-          transition={{ duration: 0.8, delay: particle.id * 0.1 }}
-        />
-      ))}
-    </div>
-  )
 
   const tabs = [
     { id: 'achievements', label: 'Achievements', icon: Trophy },
@@ -311,534 +640,277 @@ const Portfolio = () => {
     { id: 'commercializations', label: 'Commercializations', icon: Target },
   ]
 
+  const renderModalContent = () => {
+    switch (modalType) {
+      case 'paper':
+        return <AddPaperForm onAdd={handleAddItem} onCancel={() => setModalType(null)} />
+      case 'patent':
+        return <AddPatentForm onAdd={handleAddItem} onCancel={() => setModalType(null)} />
+      case 'commercialization':
+        return <AddCommercializationForm onAdd={handleAddItem} onCancel={() => setModalType(null)} />
+      default:
+        return null
+    }
+  }
+
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-900">
       <LeftSidebar />
-      <FloatingParticles />
-
-      {/* Enhanced Confetti animation */}
-      <AnimatePresence>
-        {confetti && (
-          <motion.div
-            className="fixed inset-0 pointer-events-none z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}>
-            {[...Array(100)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute"
-                initial={{
-                  x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 800),
-                  y: -10,
-                  rotate: 0,
-                  scale: 0,
-                }}
-                animate={{
-                  y: (typeof window !== 'undefined' ? window.innerHeight : 800) + 10,
-                  rotate: Math.random() * 720,
-                  scale: [0, 1, 0],
-                  x: Math.random() * 200 - 100,
-                }}
-                transition={{
-                  duration: Math.random() * 2 + 2,
-                  delay: Math.random() * 0.5,
-                }}>
-                {i % 4 === 0 ? (
-                  <Star className="w-4 h-4 text-sky-400" />
-                ) : i % 4 === 1 ? (
-                  <Trophy className="w-4 h-4 text-sky-500" />
-                ) : i % 4 === 2 ? (
-                  <Award className="w-4 h-4 text-blue-400" />
-                ) : (
-                  <Heart className="w-4 h-4 text-pink-400" />
-                )}
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="flex-1 p-4 lg:p-8">
-        <motion.div
-          className="w-full max-w-none mx-auto px-4 lg:px-8"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible">
-          {/* Enhanced Animated Header */}
-          <motion.div className="text-center mb-12 relative" variants={itemVariants}>
-            {/* Floating Icons */}
-            <motion.div
-              className="absolute -top-10 left-1/4 opacity-30"
-              animate={{ y: [0, -8, 0], rotate: [0, 5, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
-              <Rocket className="w-8 h-8 text-blue-500" />
-            </motion.div>
-            <motion.div
-              className="absolute -top-5 right-1/4 opacity-30"
-              animate={{ y: [0, 8, 0], rotate: [0, -5, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}>
-              <Code className="w-6 h-6 text-purple-500" />
-            </motion.div>
-            <motion.div
-              className="absolute top-10 left-1/6 opacity-30"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1 }}>
-              <Zap className="w-7 h-7 text-yellow-500" />
-            </motion.div>
-
-            {/* Typewriter Header */}
-            <h1 className="text-3xl lg:text-4xl font-bold mb-2 text-black dark:text-white relative">
-              {typewriterText}
-            </h1>
+        <div className="w-full max-w-none mx-auto px-4 lg:px-8">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl lg:text-4xl font-bold mb-2 text-black dark:text-white">My Achievements</h1>
             <p className="text-gray-600 dark:text-gray-300">A showcase of my professional journey and contributions.</p>
-          </motion.div>
+          </div>
 
-          {/* NEW: On-page Navigation Bar */}
-          <motion.div className="mb-8" variants={itemVariants}>
+          <div className="mb-8">
             <div className="flex justify-center border-b border-gray-200 dark:border-gray-700">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex items-center space-x-2 px-4 py-3 text-sm font-medium transition-colors duration-300
-                    ${
-                      activeTab === tab.id
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-                    }`}>
+                  className={`relative flex items-center space-x-2 px-4 py-3 text-sm font-medium transition-colors duration-300 ${
+                    activeTab === tab.id
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}>
                   <tab.icon size={18} />
                   <span>{tab.label}</span>
                   {activeTab === tab.id && (
-                    <motion.div
-                      className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"
-                      layoutId="underline"
-                    />
+                    <div className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
                   )}
                 </button>
               ))}
             </div>
-          </motion.div>
+          </div>
 
-          {/* Content Sections */}
-          <AnimatePresence mode="wait">
+          <div>
             {activeTab === 'achievements' && (
-              <motion.div
-                key="achievements"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {loadingPortfolio && (
-                    <div className="col-span-full text-center text-sm text-gray-500">Loading achievements...</div>
-                  )}
-                  {portfolioError && (
-                    <div className="col-span-full text-center text-sm text-red-500">{portfolioError}</div>
-                  )}
-                  {!loadingPortfolio && portfolioData.achievements.length === 0 && (
-                    <motion.div
-                      className="col-span-full flex flex-col items-center justify-center text-center py-10"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <motion.div
-                        className="w-16 h-16 mb-4 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center border border-blue-100 dark:border-slate-700"
-                        animate={{ y: [0, -6, 0] }}
-                        transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
-                      >
-                        <Trophy className="w-8 h-8 text-blue-500" />
-                      </motion.div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">No achievements yet</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Start adding your wins to showcase your journey</p>
-                    </motion.div>
-                  )}
-                  {portfolioData.achievements.map((a) => {
-                    const IconComp = achievementIcon(a.type)
-                    const color = '#3B82F6'
-                    return (
-                      <motion.div
-                        key={a.id}
-                        className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-                        variants={itemVariants}>
-                        <div className="flex items-start space-x-4">
-                          <div
-                            className="p-3 rounded-lg flex-shrink-0"
-                            style={{ backgroundColor: `${color}20`, color: color }}>
-                            <IconComp size={24} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-base text-gray-900 dark:text-white mb-1 truncate">
-                              {a.title}
-                            </h3>
-                            <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 leading-relaxed">
-                              {a.description}
-                            </p>
-                            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                              <span className="uppercase tracking-wide font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
-                                {a.type}
-                              </span>
-                              {a.year && <span className="font-medium">{a.year}</span>}
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )
-                  })}
-                </div>
-              </motion.div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Achievements rendering logic */}
+              </div>
             )}
 
             {activeTab === 'papers' && (
-              <motion.div
-                key="papers"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Title</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Journal</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Year</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Status</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingPortfolio && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">Publications</h2>
+                  <button
+                    onClick={() => setModalType('paper')}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300">
+                    <PlusCircle size={18} />
+                    <span>Add Paper</span>
+                  </button>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-700/50">
                         <tr>
-                          <td colSpan={5} className="text-center py-8 text-gray-500">
-                            Loading publications...
-                          </td>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Title</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
+                            Journal
+                          </th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Year</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
+                            Preview
+                          </th>
                         </tr>
-                      )}
-                      {portfolioError && (
-                        <tr>
-                          <td colSpan={5} className="text-center py-8 text-red-500">
-                            {portfolioError}
-                          </td>
-                        </tr>
-                      )}
-                      {!loadingPortfolio && portfolioData.papers.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="text-center py-8 text-gray-500">
-                            No papers found.
-                          </td>
-                        </tr>
-                      )}
-                      {portfolioData.papers.map((paper, index) => (
-                        <React.Fragment key={paper.id}>
-                          <AnimatedTableRow
-                            delay={index * 0.1}
-                            onClick={() => toggleRowExpansion('papers', paper.id)}
-                            isExpanded={expandedRows[`papers-${paper.id}`]}>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center">
-                                {expandedRows[`papers-${paper.id}`] ? (
-                                  <ChevronUp size={16} className="mr-3 text-gray-500" />
-                                ) : (
-                                  <ChevronDown size={16} className="mr-3 text-gray-500" />
-                                )}
-                                <div>
-                                  <div className="font-semibold text-gray-900 dark:text-white">{paper.title}</div>
-                                  <div className="text-xs text-gray-500">{paper.authors}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.journal}</td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.year}</td>
-                            <td className="px-6 py-4">
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  paper.status === 'Published'
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                }`}>
-                                {paper.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center space-x-2">
-                                <AnimatedUploadButton section="papers" id={paper.id} label="Upload" />
-                                <motion.a
-                                  href={paper.link || '#'}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
-                                  whileHover={{ scale: 1.1 }}
-                                  whileTap={{ scale: 0.9 }}>
-                                  <ExternalLink size={16} />
-                                </motion.a>
-                              </div>
-                            </td>
-                          </AnimatedTableRow>
-                          <AnimatePresence>
-                            {expandedRows[`papers-${paper.id}`] && (
-                              <motion.tr
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.3 }}>
-                                <td colSpan={5} className="px-8 py-4 bg-gray-50 dark:bg-gray-700/50">
-                                  <div className="space-y-3">
-                                    <div>
-                                      <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Abstract</h4>
-                                      <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                                        {paper.abstract}
-                                      </p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-600 dark:text-gray-400">
-                                      <div className="flex items-center space-x-1.5">
-                                        <Eye size={14} className="text-blue-500" />
-                                        <span>
-                                          <strong>DOI:</strong> {paper.doi || '—'}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center space-x-1.5">
-                                        <Star size={14} className="text-yellow-500" />
-                                        <span>
-                                          <strong>Year:</strong> {paper.publication_year || '—'}
-                                        </span>
-                                      </div>
+                      </thead>
+                      <tbody>
+                        {portfolioData.papers.map((paper) => (
+                          <React.Fragment key={paper.id}>
+                            <tr
+                              onClick={() => toggleRowExpansion('papers', paper.id)}
+                              className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200 cursor-pointer ${
+                                expandedRows[`papers-${paper.id}`] ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                              }`}>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  {expandedRows[`papers-${paper.id}`] ? (
+                                    <ChevronUp size={16} className="mr-3 text-gray-500" />
+                                  ) : (
+                                    <ChevronDown size={16} className="mr-3 text-gray-500" />
+                                  )}
+                                  <div>
+                                    <div className="font-semibold text-gray-900 dark:text-white">{paper.title}</div>
+                                    <div className="text-xs text-gray-500">
+                                      {Array.isArray(paper.authors)
+                                        ? paper.authors.map((a) => a.name).join(', ')
+                                        : paper.authors}
                                     </div>
                                   </div>
-                                </td>
-                              </motion.tr>
-                            )}
-                          </AnimatePresence>
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.journal}</td>
+                              <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.year}</td>
+                              <td className="px-6 py-4">
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    paper.status === 'Published'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                  }`}>
+                                  {paper.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                {paper.previewUrl ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setPreviewUrl(paper.previewUrl)
+                                    }}
+                                    className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                                    Preview
+                                  </button>
+                                ) : paper.link && paper.link !== '#' ? (
+                                  <a
+                                    href={paper.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
+                                    <ExternalLink size={16} />
+                                  </a>
+                                ) : (
+                                  <span className="text-gray-400 dark:text-gray-500">—</span>
+                                )}
+                              </td>
+                            </tr>
+                            {expandedRows[`papers-${paper.id}`] && <tr>{/* Expanded row content */}</tr>}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'patents' && (
-              <motion.div
-                key="patents"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Title</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
-                          Application #
-                        </th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
-                          Filing Year
-                        </th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Status</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingPortfolio && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">Patents</h2>
+                  <button
+                    onClick={() => setModalType('patent')}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300">
+                    <PlusCircle size={18} />
+                    <span>Add Patent</span>
+                  </button>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-700/50">
                         <tr>
-                          <td colSpan={5} className="text-center py-8 text-gray-500">
-                            Loading patents...
-                          </td>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Title</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
+                            Application #
+                          </th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
+                            Filing Year
+                          </th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
+                            Preview
+                          </th>
                         </tr>
-                      )}
-                      {portfolioError && (
-                        <tr>
-                          <td colSpan={5} className="text-center py-8 text-red-500">
-                            {portfolioError}
-                          </td>
-                        </tr>
-                      )}
-                      {!loadingPortfolio && portfolioData.patents.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="text-center py-8 text-gray-500">
-                            No patents recorded.
-                          </td>
-                        </tr>
-                      )}
-                      {portfolioData.patents.map((patent, index) => (
-                        <React.Fragment key={patent.id}>
-                          <AnimatedTableRow
-                            delay={index * 0.1}
-                            onClick={() => toggleRowExpansion('patents', patent.id)}
-                            isExpanded={expandedRows[`patents-${patent.id}`]}>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center">
-                                {expandedRows[`patents-${patent.id}`] ? (
-                                  <ChevronUp size={16} className="mr-3 text-gray-500" />
-                                ) : (
-                                  <ChevronDown size={16} className="mr-3 text-gray-500" />
-                                )}
-                                <div>
-                                  <div className="font-semibold text-gray-900 dark:text-white">{patent.title}</div>
-                                  <div className="text-xs text-gray-500">{patent.inventors}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300 font-mono text-xs">
-                              {patent.application_number || '—'}
-                            </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{patent.filing_year || '—'}</td>
-                            <td className="px-6 py-4">
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  patent.status === 'Filed'
-                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                    : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                                }`}>
-                                {patent.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <AnimatedUploadButton section="patents" id={patent.id} />
-                            </td>
-                          </AnimatedTableRow>
-                          <AnimatePresence>
-                            {expandedRows[`patents-${patent.id}`] && (
-                              <motion.tr
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.3 }}>
-                                <td colSpan={5} className="px-8 py-4 bg-gray-50 dark:bg-gray-700/50">
-                                  <div className="space-y-3">
-                                    <div>
-                                      <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Description</h4>
-                                      <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                                        {patent.description}
-                                      </p>
-                                    </div>
-                                    <div className="flex items-center space-x-4 text-xs">
-                                      <div className="flex items-center space-x-1.5 text-gray-600 dark:text-gray-400">
-                                        <Clock size={14} className="text-blue-500" />
-                                        <span>
-                                          <strong>Stage:</strong> {patent.stage || '—'}
-                                        </span>
-                                      </div>
+                      </thead>
+                      <tbody>
+                        {portfolioData.patents.map((patent) => (
+                          <React.Fragment key={patent.id}>
+                            <tr
+                              onClick={() => toggleRowExpansion('patents', patent.id)}
+                              className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200 cursor-pointer ${
+                                expandedRows[`patents-${patent.id}`] ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                              }`}>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  {expandedRows[`patents-${patent.id}`] ? (
+                                    <ChevronUp size={16} className="mr-3 text-gray-500" />
+                                  ) : (
+                                    <ChevronDown size={16} className="mr-3 text-gray-500" />
+                                  )}
+                                  <div>
+                                    <div className="font-semibold text-gray-900 dark:text-white">{patent.title}</div>
+                                    <div className="text-xs text-gray-500">
+                                      {Array.isArray(patent.inventors)
+                                        ? patent.inventors.map((inv) => inv.name).join(', ')
+                                        : patent.inventors}
                                     </div>
                                   </div>
-                                </td>
-                              </motion.tr>
-                            )}
-                          </AnimatePresence>
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                                {patent.application_number || '—'}
+                              </td>
+                              <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                                {patent.filing_year || '—'}
+                              </td>
+                              <td className="px-6 py-4">
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    patent.status === 'Filed'
+                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                      : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  }`}>
+                                  {patent.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                {patent.previewUrl ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setPreviewUrl(patent.previewUrl)
+                                    }}
+                                    className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                                    Preview
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-400 dark:text-gray-500">—</span>
+                                )}
+                              </td>
+                            </tr>
+                            {expandedRows[`patents-${patent.id}`] && <tr>{/* Expanded row content */}</tr>}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'commercializations' && (
-              <motion.div
-                key="commercializations"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Title</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Year</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Revenue</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Link</th>
-                        <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingPortfolio && (
-                        <tr>
-                          <td colSpan={5} className="text-center py-8 text-gray-500">
-                            Loading records...
-                          </td>
-                        </tr>
-                      )}
-                      {portfolioError && (
-                        <tr>
-                          <td colSpan={5} className="text-center py-8 text-red-500">
-                            {portfolioError}
-                          </td>
-                        </tr>
-                      )}
-                      {!loadingPortfolio && portfolioData.commercializations.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="text-center py-8 text-gray-500">
-                            No commercialization entries.
-                          </td>
-                        </tr>
-                      )}
-                      {portfolioData.commercializations.map((item, index) => (
-                        <React.Fragment key={item.id}>
-                          <AnimatedTableRow
-                            delay={index * 0.1}
-                            onClick={() => toggleRowExpansion('commercializations', item.id)}
-                            isExpanded={expandedRows[`commercializations-${item.id}`]}>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center">
-                                {expandedRows[`commercializations-${item.id}`] ? (
-                                  <ChevronUp size={16} className="mr-3 text-gray-500" />
-                                ) : (
-                                  <ChevronDown size={16} className="mr-3 text-gray-500" />
-                                )}
-                                <div className="font-semibold text-gray-900 dark:text-white">{item.title}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{item.year || '—'}</td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                              {item.revenue != null ? `$${item.revenue.toLocaleString()}` : '—'}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                              {item.link ? (
-                                <a href={item.link} target="_blank" rel="noopener noreferrer">
-                                  View
-                                </a>
-                              ) : (
-                                '—'
-                              )}
-                            </td>
-                            <td className="px-6 py-4">
-                              <AnimatedUploadButton section="commercializations" id={item.id} />
-                            </td>
-                          </AnimatedTableRow>
-                          <AnimatePresence>
-                            {expandedRows[`commercializations-${item.id}`] && (
-                              <motion.tr
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.3 }}>
-                                <td colSpan={5} className="px-8 py-4 bg-gray-50 dark:bg-gray-700/50">
-                                  <div>
-                                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Description</h4>
-                                    <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                                      {item.description}
-                                    </p>
-                                  </div>
-                                </td>
-                              </motion.tr>
-                            )}
-                          </AnimatePresence>
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">Commercializations</h2>
+                  <button
+                    onClick={() => setModalType('commercialization')}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300">
+                    <PlusCircle size={18} />
+                    <span>Add Record</span>
+                  </button>
                 </div>
-              </motion.div>
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+                  {/* Commercializations Table */}
+                </div>
+              </div>
             )}
-          </AnimatePresence>
-        </motion.div>
+          </div>
+        </div>
       </div>
+
+      <Modal
+        isOpen={!!modalType}
+        onClose={() => setModalType(null)}
+        title={`Add New ${modalType?.charAt(0).toUpperCase() + modalType?.slice(1)}`}>
+        {renderModalContent()}
+      </Modal>
+
+      <PreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
     </div>
   )
 }
