@@ -715,7 +715,7 @@ const Colleges = () => {
   const [currentView, setCurrentView] = useState('dashboard')
   const [enlargedChartInfo, setEnlargedChartInfo] = useState(null) // State for modal
   const [error, setError] = useState(null)
-  const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000'
+  const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000'
   const [collegeDetailStatus, setCollegeDetailStatus] = useState({}) // tracks detailed fetch status per college
   const allCollegeDataRef = useRef(allCollegeData)
   // Worklet count sort for College Overview table
@@ -830,7 +830,27 @@ const Colleges = () => {
         setAllCollegeData(processedData)
       } catch (err) {
         console.error('Failed to fetch colleges overview:', err)
-        setError('Failed to fetch colleges from backend')
+        console.error('Error details:', {
+          message: err.message,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          url: err.config?.url
+        })
+        
+        if (err.response?.status === 401) {
+          setError('Authentication required. Please log in again.')
+          // Clear auth tokens
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('user_role')
+          localStorage.removeItem('user_email')
+          // Redirect to login
+          window.location.href = '/'
+        } else if (err.response?.status === 404) {
+          setError('Colleges endpoint not found. Please check if the backend is running.')
+        } else {
+          setError(`Failed to fetch colleges: ${err.message}`)
+        }
         setAllCollegeData([])
       } finally {
         setLoading(false)
@@ -957,6 +977,20 @@ const Colleges = () => {
         setCollegeDetailStatus((prev) => ({ ...prev, [collegeId]: 'loaded' }))
       } catch (detailError) {
         console.error(`Failed to fetch detailed worklets for college ${collegeId}`, detailError)
+        console.error('College detail error:', {
+          message: detailError.message,
+          status: detailError.response?.status,
+          statusText: detailError.response?.statusText,
+          url: detailError.config?.url
+        })
+        
+        if (detailError.response?.status === 401) {
+          console.warn('Authentication failed for college details')
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          window.location.href = '/'
+        }
+        
         setCollegeDetailStatus((prev) => ({ ...prev, [collegeId]: 'error' }))
       }
     },

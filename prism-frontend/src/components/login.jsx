@@ -5,7 +5,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import prismLogo from "../assets/logo.jpeg";
 import prismLogoPng from "../assets/prism_logo.png";
-import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as apiSetPassword } from "../services/auth";
+import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as apiSetPassword, login as secureLogin, getCurrentUserFromToken } from "../services/auth";
 import Footer from "./Footer";
 export default function Login() {
   const navigate = useNavigate();
@@ -14,20 +14,27 @@ export default function Login() {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [isUsernameTyping, setIsUsernameTyping] = useState(false);
   
-  // Auto-login on page load if tokens exist
+  // Auto-login on page load if tokens exist - Secure version
   useEffect(() => {
-    const accessToken = localStorage.getItem("access_token");
-    const refreshToken = localStorage.getItem("refresh_token");
-    const userEmail = localStorage.getItem("user_email");
-    if (window.location.pathname === "/home") {
-      // If trying to access /home directly, check tokens
-      if (!(accessToken && refreshToken && userEmail)) {
+    const currentUser = getCurrentUserFromToken();
+    const currentPath = window.location.pathname;
+    
+    if (currentPath === "/home" || currentPath === "/student-dashboard") {
+      // If trying to access protected routes directly, validate authentication
+      if (!currentUser) {
         navigate("/"); // Redirect to login if not authenticated
+        return;
       }
     }
-    // Auto-login on page load if tokens exist and not already on /home
-    if (accessToken && refreshToken && userEmail && window.location.pathname !== "/home") {
-      navigate("/home");
+    
+    // Auto-login on page load if valid token exists and not already on dashboard
+    if (currentUser && currentPath !== "/home" && currentPath !== "/student-dashboard") {
+      // Route based on validated user role from token
+      if (currentUser.role && currentUser.role.toLowerCase() === "student") {
+        navigate("/student-dashboard");
+      } else {
+        navigate("/home"); // Default to mentor/admin dashboard
+      }
     }
   }, [navigate]);
 
@@ -49,58 +56,74 @@ export default function Login() {
     setTimeout(() => setMessage(""), 3000); // Clear message after 3 seconds
   };
 
-  // Login handler
-   const handleLoginSubmit = (e) => {
+  // Secure Login handler
+   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    setShowForgotLink(false); // reset before attempting login
+    setShowForgotLink(false);
+    setMessage("");
+    
+    // Input validation
     if (!email || !password) {
       setMessage("Please fill all fields.");
       return;
     }
-    // Mock login for frontend-only development
+    
+    if (!role) {
+      setMessage("Please select a role.");
+      return;
+    }
+
+    // Mock login for frontend-only development (keep for testing)
     if (email === "test@example.com" && password === "test1234") {
-      localStorage.setItem("access_token", "mock_access_token");
+      // Generate mock JWT-like token for testing
+      const mockToken = btoa(JSON.stringify({
+        sub: "test-user-id",
+        email: email,
+        name: "Test User",
+        role: role,
+        exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+      }));
+      
+      localStorage.setItem("access_token", `mock.${mockToken}.signature`);
       localStorage.setItem("refresh_token", "mock_refresh_token");
       localStorage.setItem("user_email", email);
       localStorage.setItem("user_name", "Test User");
+      localStorage.setItem("user_role", role);
       setMessage("Mock login successful!");
-      // Allow navigation to any protected route
-      navigate("/home");
-      // Optionally, you can navigate to other pages for testing:
-      // navigate("/statistics");
-      // navigate("/profile");
-      // navigate("/worklets");
-      // etc.
+      
+      // Route based on selected role for mock login
+      if (role.toLowerCase() === "student") {
+        navigate("/student-dashboard");
+      } else {
+        navigate("/home");
+      }
       return;
     }
-    // ...existing code for real API login...
-    const formData = new URLSearchParams();
-    formData.append("username", email); // OAuth2PasswordRequestForm expects 'username'
-    formData.append("password", password);
-    formData.append("scope", role); // Send role as scope
-    // Send login request as form data
-    axios.post("http://localhost:8000/auth/login", formData, {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-    }).then((response) => {
-      if (response.data && response.data.access_token) {
-        localStorage.setItem("access_token", response.data.access_token);
-        localStorage.setItem("refresh_token", response.data.refresh_token);
-        localStorage.setItem("user_email", email);
-        // Use the server-returned user object to persist name
-        const serverUser = response.data.user || {};
-        localStorage.setItem("user_name", serverUser.name || "");
-        setMessage("Login successful!");
-        navigate("/home");
+
+    // Real API login with secure implementation
+    try {
+      const loginData = await secureLogin(email, password, role);
+      setMessage("Login successful!");
+      
+      // Route based on validated user role from token
+      const userRole = loginData.user.role || "";
+      if (userRole.toLowerCase() === "student") {
+        navigate("/student-dashboard");
       } else {
-        setMessage("Login failed. Check credentials.");
-        setShowForgotLink(true);
+        navigate("/home");
       }
-    }).catch(() => {
-      setMessage("Login failed. Check credentials.");
+    } catch (error) {
+      console.error("Login error:", error);
+      setMessage(error.message || "Login failed. Please check your credentials.");
       setShowForgotLink(true);
-    });
+      
+      // Clear any partial data on error
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_email");
+      localStorage.removeItem("user_name");
+      localStorage.removeItem("user_role");
+    }
 };
   // Signup handlers
   const sendOtp = async (e) => {
@@ -162,8 +185,16 @@ const handleSignup = async (e) => {
       localStorage.setItem("user_email", email);
       const serverUser = loginResponse.data.user || {};
       localStorage.setItem("user_name", serverUser.name || name || "");
-      setMessage("Login successful!");
-      navigate("/home");
+      localStorage.setItem("user_role", serverUser.role || normalizedRole);
+      setMessage("Registration and login successful!");
+      
+      // Route based on user role
+      const userRole = serverUser.role || normalizedRole;
+      if (userRole.toLowerCase() === "student") {
+        navigate("/student-dashboard");
+      } else {
+        navigate("/home"); // Default to mentor/admin dashboard
+      }
     } else {
       setMessage("Auto-login failed. Please login manually.");
     }
