@@ -206,6 +206,12 @@ class Paper(Base):
     journal = Column(String(255), nullable=True)
     doi = Column(String(255), nullable=True)
     link = Column(String(255), nullable=True)
+    # New optional fields to support richer portfolio data
+    abstract = Column(Text, nullable=True)
+    authors_json = Column(Text, nullable=True)  # JSON-encoded list of {name}
+    document_link = Column(String(255), nullable=True)  # URL to uploaded document
+    worklet_id = Column(Integer, ForeignKey("worklets.worklet_id", ondelete="SET NULL"), nullable=True)
+    worklet_cert_id = Column(String(20), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
 class Patent(Base):
@@ -217,6 +223,10 @@ class Patent(Base):
     filing_year = Column(Integer, nullable=True)
     status = Column(SAEnum("Filed", "Granted", "Published", name="patent_status_enum"), nullable=False, server_default="Filed")
     link = Column(String(255), nullable=True)
+    # New optional fields
+    description = Column(Text, nullable=True)
+    inventors_json = Column(Text, nullable=True)  # JSON-encoded list of {name}
+    document_link = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
 class Commercialization(Base):
@@ -229,5 +239,6 @@ class Commercialization(Base):
     revenue = Column(DECIMAL(12, 2), nullable=True)
     description = Column(Text, nullable=True)
     link = Column(String(255), nullable=True)
+    document_link = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 

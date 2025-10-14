@@ -13,6 +13,7 @@
     "agora-react-uikit": "^1.2.0",
     "axios": "^1.12.2",
     "date-fns": "^2.30.0",
+    "docx-preview": "^0.3.7",
     "dompurify": "^3.2.7",
     "emoji-picker-react": "^4.13.3",
     "express": "^5.1.0",

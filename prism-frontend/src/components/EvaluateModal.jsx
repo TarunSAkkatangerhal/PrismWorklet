@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Award, Star, Trophy, Gift, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
 
@@ -29,6 +29,30 @@ function EvaluateModal({ isOpen, onClose }) {
   const [fetchError, setFetchError] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
+  // Memoized refresher to fetch latest details for a selected worklet
+  const refreshSelectedWorkletDetails = useCallback(async (workletId, { silent = false } = {}) => {
+    if (!workletId) return;
+    try {
+      if (!silent) setDetailsLoading(true);
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('Missing token');
+      // Fetch fresh association-based details for the worklet (mentors + students etc.)
+      const resp = await axios.get(`http://localhost:8000/api/associations/worklet/${workletId}` ,{
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+      const baseInfo = completedWorklets.find(w => w.id === parseInt(workletId));
+      // Merge so new data overwrites stale fields
+      setSelectedWorkletDetails({
+        ...(baseInfo || {}),
+        ...(resp?.data || {})
+      });
+    } catch (err) {
+      console.error('Live detail fetch failed', err?.response?.data || err.message);
+    } finally {
+      if (!silent) setDetailsLoading(false);
+    }
+  }, [completedWorklets]);
+
   // Keep an interval to refresh selected worklet details for 'live' data
   useEffect(() => {
     if (!selectedWorklet) return;
@@ -36,7 +60,7 @@ function EvaluateModal({ isOpen, onClose }) {
       refreshSelectedWorkletDetails(selectedWorklet, { silent: true });
     }, 20000); // refresh every 20s
     return () => clearInterval(interval);
-  }, [selectedWorklet]);
+  }, [selectedWorklet, refreshSelectedWorkletDetails]);
 
   // Fetch completed worklets when modal opens
   useEffect(() => {
@@ -73,29 +97,6 @@ function EvaluateModal({ isOpen, onClose }) {
   };
 
   if (!isOpen) return null;
-
-  const refreshSelectedWorkletDetails = async (workletId, { silent = false } = {}) => {
-    if (!workletId) return;
-    try {
-      if (!silent) setDetailsLoading(true);
-      const token = localStorage.getItem('access_token');
-      if (!token) throw new Error('Missing token');
-      // Fetch fresh association-based details for the worklet (mentors + students etc.)
-      const resp = await axios.get(`http://localhost:8000/api/associations/worklet/${workletId}` ,{
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-      });
-      const baseInfo = completedWorklets.find(w => w.id === parseInt(workletId));
-      // Merge so new data overwrites stale fields
-      setSelectedWorkletDetails({
-        ...(baseInfo || {}),
-        ...(resp?.data || {})
-      });
-    } catch (err) {
-      console.error('Live detail fetch failed', err?.response?.data || err.message);
-    } finally {
-      if (!silent) setDetailsLoading(false);
-    }
-  };
 
   const handleWorkletSelect = async (workletId) => {
     setSelectedWorklet(workletId);
