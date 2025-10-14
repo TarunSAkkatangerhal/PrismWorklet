@@ -221,12 +221,10 @@ const handleSignup = async (e) => {
               <div className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-blue-800/70 to-purple-900/80 flex flex-col justify-center items-center p-12 text-white">
                 {/* Simple Navigation Bar */}
                 <div className="absolute top-6 left-0 right-0 z-20">
-                  <nav className="flex justify-center space-x-6">
+                  <nav className="flex justify-center space-x-8">
                     <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Home</button>
                     <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">About PRISM</button>
                     <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Blog</button>
-                    <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Publications</button>
-                    <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Spark</button>
                   </nav>
                 </div>
 
@@ -317,13 +315,13 @@ const handleSignup = async (e) => {
                     
                     {/* Thought Bubbles */}
                     {isUsernameTyping && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg animate-bounce shadow-lg">
-                        👁️
+                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg shadow-lg">
+                        😊
                       </div>
                     )}
                     {isPasswordFocused && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg animate-bounce shadow-lg">
-                        🙈
+                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg shadow-lg">
+                        🤫
                       </div>
                     )}
                   </div>
@@ -458,12 +456,10 @@ const handleSignup = async (e) => {
               <div className="absolute inset-0 bg-gradient-to-br from-green-900/80 via-blue-800/70 to-purple-900/80 flex flex-col justify-center items-center p-12 text-white">
                 {/* Simple Navigation Bar */}
                 <div className="absolute top-6 left-0 right-0 z-20">
-                  <nav className="flex justify-center space-x-6">
+                  <nav className="flex justify-center space-x-8">
                     <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Home</button>
                     <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">About PRISM</button>
                     <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Blog</button>
-                    <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Publications</button>
-                    <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Spark</button>
                   </nav>
                 </div>
 
