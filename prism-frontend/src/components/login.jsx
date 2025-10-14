@@ -487,17 +487,9 @@ const handleSignup = async (e) => {
                     {/* Mouth */}
                     <div className="absolute bottom-6 w-3 h-1 bg-white rounded-full opacity-60"></div>
                     
-                    {/* Thought Bubbles */}
-                    {isUsernameTyping && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg shadow-lg">
-                        😊
-                      </div>
-                    )}
-                    {isPasswordFocused && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg shadow-lg">
-                        🤫
-                      </div>
-                    )}
+                   
+                    
+                    
                   </div>
                 </div>
 
@@ -770,12 +762,7 @@ const handleSignup = async (e) => {
                       <div className={`w-2 h-2 bg-white rounded-full transition-all duration-300 ${isPasswordFocused ? 'opacity-0' : 'opacity-100'}`}></div>
                     </div>
                     <div className="absolute bottom-6 w-3 h-1 bg-white rounded-full opacity-60"></div>
-                    {isUsernameTyping && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg animate-bounce shadow-lg">👁️</div>
-                    )}
-                    {isPasswordFocused && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg animate-bounce shadow-lg">🤫</div>
-                    )}
+                    
                   </div>
                 </div>
 
@@ -945,7 +932,6 @@ const handleSignup = async (e) => {
                       </button>
                     </>
                   )}
-
                   {otpVerified && (
                     <>
                       <div>
@@ -1004,170 +990,7 @@ const handleSignup = async (e) => {
             </div>
           </div>
         );
-              <div className="w-full max-w-md">
-                <div className="lg:hidden text-center mb-8">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-blue-600 rounded-full flex items-center justify-center">
-                    <span className="text-2xl font-bold text-white">P</span>
-                  </div>
-                  <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Samsung PRISM</h1>
-                  <p className="text-slate-600 dark:text-slate-400">Create your account</p>
-                </div>
 
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Create an account</h2>
-                  <p className="text-slate-600 dark:text-slate-400">Sign up to access PRISM features</p>
-                </div>
-
-                {/* Character Animation (same as login) */}
-                <div className="flex justify-center mb-6">
-                  <div className="relative w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg transform transition-all duration-300 hover:scale-110">
-                    <div className="flex space-x-2">
-                      <div className={`w-2 h-2 bg-white rounded-full transition-all duration-300 ${isPasswordFocused ? 'opacity-0' : 'opacity-100'}`}></div>
-                      <div className={`w-2 h-2 bg-white rounded-full transition-all duration-300 ${isPasswordFocused ? 'opacity-0' : 'opacity-100'}`}></div>
-                    </div>
-                    <div className="absolute bottom-6 w-3 h-1 bg-white rounded-full opacity-60"></div>
-                    {isUsernameTyping && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg animate-bounce shadow-lg">👁️</div>
-                    )}
-                    {isPasswordFocused && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg animate-bounce shadow-lg">🤫</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Signup Form (uses same handlers) */}
-                <form className="space-y-6" onSubmit={otpSent && !otpVerified ? verifyOtp : otpVerified ? handleSignup : sendOtp}>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Full Name</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                      placeholder="Your full name"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Email Address</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); setIsUsernameTyping(e.target.value.length > 0); }}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                      placeholder="Enter your email"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Role</label>
-                    <select
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    >
-                      <option value="student">Student</option>
-                      <option value="mentor">Mentor</option>
-                      <option value="professor">Professor</option>
-                    </select>
-                  </div>
-
-                  {/* OTP / Password Flow */}
-                  {!otpSent && (
-                    <button 
-                      type="submit" 
-                      disabled={isOtpDisabled}
-                      className={`w-full font-semibold py-3 px-4 rounded-lg transition-all duration-200 ${
-                        isOtpDisabled 
-                          ? 'bg-gray-400 cursor-not-allowed text-white' 
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    >
-                      {isOtpDisabled ? `Resend in ${otpTimer}s` : 'Send OTP'}
-                    </button>
-                  )}
-
-                  {otpSent && !otpVerified && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Enter OTP</label>
-                        <input type="text" value={otpInput} onChange={(e) => setOtpInput(e.target.value)} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" required />
-                      </div>
-                      <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200">Verify OTP</button>
-                      
-                      {/* Resend OTP Button */}
-                      <button
-                        type="button"
-                        onClick={sendOtp}
-                        disabled={isOtpDisabled}
-                        className={`w-full font-semibold py-2 px-4 rounded-lg border transition-all duration-200 ${
-                          isOtpDisabled
-                            ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-                            : 'bg-white border-blue-600 text-blue-600 hover:bg-blue-50'
-                        }`}
-                      >
-                        {isOtpDisabled ? `Resend OTP in ${otpTimer}s` : 'Resend OTP'}
-                      </button>
-                    </>
-                  )}
-
-                  {otpVerified && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Choose Password</label>
-                        <input 
-                          type="password" 
-                          value={password} 
-                          onChange={(e) => {
-                            setPassword(e.target.value);
-                            setPasswordValidation(validatePasswordRequirements(e.target.value));
-                            setPasswordError("");
-                          }}
-                          onFocus={() => setIsPasswordFocused(true)} 
-                          onBlur={() => setIsPasswordFocused(false)} 
-                          className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                            passwordError 
-                              ? 'border-red-500 focus:ring-red-500' 
-                              : password && passwordValidation.isValid
-                                ? 'border-green-500 focus:ring-green-500' 
-                                : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
-                          }`}
-                          placeholder="Create your password (8-12 chars)" 
-                          required 
-                        />
-                        
-                        {/* Password Requirements Display */}
-                        {password && (
-                          <div className="mt-2">
-                            <p className={`text-sm ${passwordValidation.color}`}>
-                              {passwordValidation.feedback}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <button 
-                        type="submit" 
-                        disabled={isLoading || (password && !passwordValidation.isValid)}
-                        className={`w-full font-semibold py-3 px-4 rounded-lg transition-all duration-200 ${
-                          isLoading || (password && !passwordValidation.isValid)
-                            ? 'bg-gray-400 cursor-not-allowed text-white' 
-                            : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        }`}
-                      >
-                        {isLoading ? 'Creating Account...' : 'Complete Signup'}
-                      </button>
-                    </>
-                  )}
-                </form>
-
-                <div className="mt-6 text-center">
-                  <p className="text-slate-600 dark:text-slate-400">Already have an account?{' '}
-                    <button onClick={() => { setPage('login'); setOtpSent(false); setOtpInput(''); setOtpVerified(false); setMessage(''); }} className="text-blue-600 hover:text-blue-500 dark:text-blue-400">Login</button>
-                  </p>
-                </div>
-              </div>
           
       default:
         return null;

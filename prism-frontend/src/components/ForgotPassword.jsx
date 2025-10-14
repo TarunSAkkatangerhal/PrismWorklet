@@ -311,17 +311,9 @@ export default function ForgotPassword() {
                 {/* Mouth */}
                 <div className="absolute bottom-6 w-3 h-1 bg-white rounded-full opacity-60"></div>
                 
-                {/* Thought Bubbles */}
-                {isTyping && (
-                  <div className="absolute -top-8 -right-2 bg-white rounded-lg px-2 py-1 text-xs text-gray-700 animate-bounce shadow-lg">
-                    Helping you! 🔐
-                  </div>
-                )}
-                {isPasswordFocused && (
-                  <div className="absolute -top-8 -right-2 bg-white rounded-lg px-2 py-1 text-xs text-gray-700 animate-bounce shadow-lg">
-                    Secure it! 🔒
-                  </div>
-                )}
+                
+                
+                
               </div>
             </div>
 
