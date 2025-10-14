@@ -489,13 +489,13 @@ const handleSignup = async (e) => {
                     
                     {/* Thought Bubbles */}
                     {isUsernameTyping && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg animate-bounce shadow-lg">
-                        👁️
+                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg shadow-lg">
+                        😊
                       </div>
                     )}
                     {isPasswordFocused && (
-                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg animate-bounce shadow-lg">
-                        🙈
+                      <div className="absolute -top-8 -right-2 bg-white rounded-lg px-3 py-2 text-lg shadow-lg">
+                        🤫
                       </div>
                     )}
                   </div>

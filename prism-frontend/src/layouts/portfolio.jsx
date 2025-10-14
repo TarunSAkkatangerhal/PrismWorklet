@@ -128,6 +128,8 @@ const staticPortfolioData = {
         'This paper explores advanced patterns for managing asynchronous state in large-scale React applications, proposing a novel hook-based approach.',
       doi: '10.1234/jMWD.2023.5678',
       publication_year: 2023,
+      worklet_id: 123,
+      worklet_cert_id: 'WK-ABC-001',
     },
   ],
   patents: [
@@ -141,6 +143,8 @@ const staticPortfolioData = {
       description:
         'A patented system that utilizes operational transforms to allow multiple users to edit the same codebase simultaneously with zero latency.',
       stage: 'Application Review',
+      worklet_id: 456,
+      worklet_cert_id: 'WK-DEF-002',
     },
     // Example of a patent with string data to test resilient rendering
     {
@@ -160,8 +164,9 @@ const staticPortfolioData = {
       description:
         'A commercial product based on the real-time collaborative editing patent, licensed to major tech companies.',
       year: 2024,
-      revenue: 50000,
-      link: '#',
+      link: 'https://example.com/devsync',
+      worklet_id: 789,
+      worklet_cert_id: 'WK-GHI-003',
     },
   ],
   stats: null,
@@ -278,12 +283,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
 const PreviewModal = ({ url, onClose }) => {
   if (!url) return null
-  
-  // Open in new tab as a fallback option
-  const openInNewTab = () => {
-    window.open(url, '_blank')
-  }
-  
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4" onClick={onClose}>
       <div
@@ -291,35 +291,12 @@ const PreviewModal = ({ url, onClose }) => {
         onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center border-b p-3 dark:border-gray-600 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Document Preview</h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={openInNewTab}
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 text-sm px-3 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
-              title="Open in new tab">
-              <ExternalLink size={18} />
-              <span>Open in New Tab</span>
-            </button>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
-              <X size={24} />
-            </button>
-          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
+            <X size={24} />
+          </button>
         </div>
-        <div className="flex-grow overflow-hidden bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-8">
-          <div className="text-center">
-            <FileText className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500 mb-4" />
-            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Document Preview Not Available
-            </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Click on "Open in New Tab" button above to view the document
-            </p>
-            <button
-              onClick={openInNewTab}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-              <ExternalLink size={18} />
-              <span>Open in New Tab</span>
-            </button>
-          </div>
+        <div className="flex-grow overflow-hidden bg-gray-100 dark:bg-gray-900">
+          <iframe src={url} title="Document Preview" className="w-full h-full border-none" />
         </div>
       </div>
     </div>
@@ -351,7 +328,7 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
       try {
         const token = localStorage.getItem('access_token')
         if (!token) return
-        
+
         const userResp = await fetch('http://localhost:8000/auth/profile', {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -382,10 +359,10 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
       else formData.append(key, data[key])
     })
     if (file) formData.append('document', file)
-    
+
     // Add worklet cert_id if worklet is selected
     if (data.worklet_id) {
-      const selectedWorklet = completedWorklets.find(w => w.id === parseInt(data.worklet_id))
+      const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
       if (selectedWorklet) {
         formData.append('worklet_cert_id', selectedWorklet.cert_id)
       }
@@ -436,45 +413,45 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
           {workletId && (
             <>
               <Input
-            name="title"
-            register={register}
-            errors={errors}
-            placeholder="Paper Title"
-            {...register('title', { required: 'Title is required' })}
-          />
-          <Input
-            name="journal"
-            register={register}
-            errors={errors}
-            placeholder="Journal / Conference"
-            {...register('journal', { required: 'Journal is required' })}
-          />
-          <div className="flex gap-4">
-            <Input
-              name="year"
-              type="number"
-              register={register}
-              errors={errors}
-              placeholder="Year"
-              defaultValue={new Date().getFullYear()}
-              {...register('year', { required: 'Year is required' })}
-            />
-            <Input name="doi" register={register} errors={errors} placeholder="DOI (e.g., 10.xxxx/xxxx)" />
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center">
-              Next <ArrowRight size={16} className="ml-2" />
-            </button>
-          </div>
+                name="title"
+                register={register}
+                errors={errors}
+                placeholder="Paper Title"
+                {...register('title', { required: 'Title is required' })}
+              />
+              <Input
+                name="journal"
+                register={register}
+                errors={errors}
+                placeholder="Journal / Conference"
+                {...register('journal', { required: 'Journal is required' })}
+              />
+              <div className="flex gap-4">
+                <Input
+                  name="year"
+                  type="number"
+                  register={register}
+                  errors={errors}
+                  placeholder="Year"
+                  defaultValue={new Date().getFullYear()}
+                  {...register('year', { required: 'Year is required' })}
+                />
+                <Input name="doi" register={register} errors={errors} placeholder="DOI (e.g., 10.xxxx/xxxx)" />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center">
+                  Next <ArrowRight size={16} className="ml-2" />
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -512,7 +489,14 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
               + Add Author
             </button>
           </div>
-          <Textarea name="abstract" register={register} errors={errors} placeholder="Abstract" rows="4" />
+          <Textarea
+            name="abstract"
+            register={register}
+            errors={errors}
+            placeholder="Abstract"
+            rows="4"
+            {...register('abstract', { required: 'Abstract is required' })}
+          />
           <div className="flex justify-between pt-4">
             <button
               type="button"
@@ -579,7 +563,7 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
       try {
         const token = localStorage.getItem('access_token')
         if (!token) return
-        
+
         const userResp = await fetch('http://localhost:8000/auth/profile', {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -610,15 +594,15 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
       else formData.append(key, data[key])
     })
     if (file) formData.append('document', file)
-    
+
     // Add worklet cert_id if worklet is selected
     if (data.worklet_id) {
-      const selectedWorklet = completedWorklets.find(w => w.id === parseInt(data.worklet_id))
+      const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
       if (selectedWorklet) {
         formData.append('worklet_cert_id', selectedWorklet.cert_id)
       }
     }
-    
+
     try {
       const newPatent = await apiSubmit('patents', formData, true)
       onAdd('patents', newPatent)
@@ -662,78 +646,85 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
       {workletId && (
         <>
           <Input
-        name="title"
-        register={register}
-        errors={errors}
-        placeholder="Patent Title"
-        {...register('title', { required: 'Title is required' })}
-      />
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Inventors</label>
-        {fields.map((field, index) => (
-          <div key={field.id} className="flex items-center gap-2 mb-2">
+            name="title"
+            register={register}
+            errors={errors}
+            placeholder="Patent Title"
+            {...register('title', { required: 'Title is required' })}
+          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Inventors</label>
+            {fields.map((field, index) => (
+              <div key={field.id} className="flex items-center gap-2 mb-2">
+                <Input
+                  name={`inventors.${index}.name`}
+                  register={register}
+                  errors={errors}
+                  placeholder={`Inventor ${index + 1} Name`}
+                  {...register(`inventors.${index}.name`, { required: 'Inventor name is required' })}
+                />
+                {fields.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => append({ name: '' })}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+              + Add Inventor
+            </button>
+          </div>
+          <div className="flex gap-4">
             <Input
-              name={`inventors.${index}.name`}
+              name="application_number"
               register={register}
               errors={errors}
-              placeholder={`Inventor ${index + 1} Name`}
-              {...register(`inventors.${index}.name`, { required: 'Inventor name is required' })}
+              placeholder="Application Number"
+              {...register('application_number', { required: 'Application number is required' })}
             />
-            {fields.length > 1 && (
-              <button
-                type="button"
-                onClick={() => remove(index)}
-                className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full">
-                <Trash2 size={16} />
-              </button>
-            )}
+            <Input
+              name="filing_year"
+              type="number"
+              register={register}
+              errors={errors}
+              placeholder="Filing Year"
+              defaultValue={new Date().getFullYear()}
+            />
           </div>
-        ))}
-        <button
-          type="button"
-          onClick={() => append({ name: '' })}
-          className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-          + Add Inventor
-        </button>
-      </div>
-      <div className="flex gap-4">
-        <Input
-          name="application_number"
-          register={register}
-          errors={errors}
-          placeholder="Application Number"
-          {...register('application_number', { required: 'Application number is required' })}
-        />
-        <Input
-          name="filing_year"
-          type="number"
-          register={register}
-          errors={errors}
-          placeholder="Filing Year"
-          defaultValue={new Date().getFullYear()}
-        />
-      </div>
-      <Textarea name="description" register={register} errors={errors} placeholder="Brief Description" rows="3" />
-      <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center pt-2">
-        <Upload size={20} className="mr-2 text-yellow-500" /> Supporting Document
-      </h4>
-      <FileUpload onFileChange={setFile} file={file} />
-      <div className="flex justify-end space-x-3 pt-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-          disabled={isSubmitting}>
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center"
-          disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
-          {isSubmitting ? 'Submitting...' : 'Add Patent'}
-        </button>
-      </div>
+          <Textarea
+            name="description"
+            register={register}
+            errors={errors}
+            placeholder="Brief Description"
+            rows="3"
+            {...register('description', { required: 'Description is required' })}
+          />
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center pt-2">
+            <Upload size={20} className="mr-2 text-yellow-500" /> Supporting Document
+          </h4>
+          <FileUpload onFileChange={setFile} file={file} />
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+              disabled={isSubmitting}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center"
+              disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
+              {isSubmitting ? 'Submitting...' : 'Add Patent'}
+            </button>
+          </div>
         </>
       )}
     </form>
@@ -742,17 +733,59 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
 
 const AddCommercializationForm = ({ onAdd, onCancel }) => {
   const [file, setFile] = useState(null)
+  const [completedWorklets, setCompletedWorklets] = useState([])
+  const [loadingWorklets, setLoadingWorklets] = useState(true)
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm()
+  } = useForm({
+    defaultValues: { worklet_id: '' },
+  })
+
+  const workletId = watch('worklet_id')
+
+  useEffect(() => {
+    const fetchCompletedWorklets = async () => {
+      try {
+        const token = localStorage.getItem('access_token')
+        if (!token) return
+
+        const userResp = await fetch('http://localhost:8000/auth/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const userData = await userResp.json()
+        const userId = userData.id
+
+        const response = await fetch(
+          `http://localhost:8000/api/associations/mentor/${userId}/all-worklets`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        )
+        const data = await response.json()
+        setCompletedWorklets(data.completed_worklets || [])
+      } catch (error) {
+        console.error('Error fetching completed worklets:', error)
+      } finally {
+        setLoadingWorklets(false)
+      }
+    }
+    fetchCompletedWorklets()
+  }, [])
 
   const onSubmit = async (data) => {
     const formData = new FormData()
-    const payload = { ...data, revenue: parseFloat(data.revenue) || 0 }
-    Object.keys(payload).forEach((key) => formData.append(key, payload[key]))
+    Object.keys(data).forEach((key) => formData.append(key, data[key]))
     if (file) formData.append('document', file)
+
+    if (data.worklet_id) {
+      const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
+      if (selectedWorklet) {
+        formData.append('worklet_cert_id', selectedWorklet.cert_id)
+      }
+    }
     try {
       const newRecord = await apiSubmit('commercializations', formData, true)
       onAdd('commercializations', newRecord)
@@ -766,53 +799,76 @@ const AddCommercializationForm = ({ onAdd, onCancel }) => {
       <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center">
         <Target size={20} className="mr-2 text-green-500" /> Commercialization Record
       </h4>
-      <Input
-        name="title"
-        register={register}
-        errors={errors}
-        placeholder="Product/Service Title"
-        {...register('title', { required: 'Title is required' })}
-      />
-      <div className="flex gap-4">
-        <Input
-          name="year"
-          type="number"
-          register={register}
-          errors={errors}
-          placeholder="Year"
-          defaultValue={new Date().getFullYear()}
-        />
-        <Input
-          name="revenue"
-          type="number"
-          step="0.01"
-          register={register}
-          errors={errors}
-          placeholder="Revenue (USD)"
-        />
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Associated Worklet <span className="text-red-500">*</span>
+        </label>
+        <select
+          {...register('worklet_id', { required: 'Please select a worklet' })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          disabled={loadingWorklets}>
+          <option value="">Select a completed worklet</option>
+          {completedWorklets.map((worklet) => {
+            const description = worklet.description || worklet.title || 'No description'
+            const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
+            return (
+              <option key={worklet.id} value={worklet.id}>
+                {worklet.cert_id} - {truncatedDesc}
+              </option>
+            )
+          })}
+        </select>
+        {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
+        {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
+        {completedWorklets.length === 0 && !loadingWorklets && (
+          <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+            No completed worklets found. Please complete a worklet first.
+          </p>
+        )}
       </div>
-      <Input name="link" register={register} errors={errors} placeholder="Product Link (e.g., https://...)" />
-      <Textarea name="description" register={register} errors={errors} placeholder="Description" rows="3" />
-      <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center pt-2">
-        <Upload size={20} className="mr-2 text-green-500" /> Proof/Document
-      </h4>
-      <FileUpload onFileChange={setFile} file={file} />
-      <div className="flex justify-end space-x-3 pt-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-          disabled={isSubmitting}>
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center"
-          disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
-          {isSubmitting ? 'Submitting...' : 'Add Record'}
-        </button>
-      </div>
+
+      {workletId && (
+        <>
+          <Input
+            name="title"
+            register={register}
+            errors={errors}
+            placeholder="Product/Service Title"
+            {...register('title', { required: 'Title is required' })}
+          />
+          <Input name="year" type="number" register={register} errors={errors} placeholder="Year" defaultValue={new Date().getFullYear()} />
+          <Input name="link" register={register} errors={errors} placeholder="Product Link (e.g., https://...)" />
+          <Textarea
+            name="description"
+            register={register}
+            errors={errors}
+            placeholder="Description"
+            rows="3"
+            {...register('description', { required: 'Description is required' })}
+          />
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center pt-2">
+            <Upload size={20} className="mr-2 text-green-500" /> Proof/Document
+          </h4>
+          <FileUpload onFileChange={setFile} file={file} />
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+              disabled={isSubmitting}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 flex items-center"
+              disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
+              {isSubmitting ? 'Submitting...' : 'Add Record'}
+            </button>
+          </div>
+        </>
+      )}
     </form>
   )
 }
@@ -906,7 +962,7 @@ const Portfolio = () => {
                 <FileText className="h-12 w-12 text-blue-200" />
               </div>
             </div>
-            
+
             <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -916,7 +972,7 @@ const Portfolio = () => {
                 <Shield className="h-12 w-12 text-purple-200" />
               </div>
             </div>
-            
+
             <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -926,7 +982,7 @@ const Portfolio = () => {
                 <Target className="h-12 w-12 text-green-200" />
               </div>
             </div>
-            
+
             <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -987,11 +1043,12 @@ const Portfolio = () => {
                           {achievement.description}
                         </p>
                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                          <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                            achievement.type === 'Award' 
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          }`}>
+                          <span
+                            className={`text-xs font-medium px-3 py-1 rounded-full ${
+                              achievement.type === 'Award'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            }`}>
                             {achievement.type}
                           </span>
                         </div>
@@ -1063,82 +1120,91 @@ const Portfolio = () => {
                             )
                           })
                           .map((paper) => (
-                          <React.Fragment key={paper.id}>
-                            <tr
-                              onClick={() => toggleRowExpansion('papers', paper.id)}
-                              className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200 cursor-pointer ${
-                                expandedRows[`papers-${paper.id}`] ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                              }`}>
-                              <td className="px-6 py-4">
-                                <div className="flex items-center">
-                                  {expandedRows[`papers-${paper.id}`] ? (
-                                    <ChevronUp size={16} className="mr-3 text-gray-500" />
-                                  ) : (
-                                    <ChevronDown size={16} className="mr-3 text-gray-500" />
-                                  )}
-                                  <div>
-                                    <div className="font-semibold text-gray-900 dark:text-white">{paper.title}</div>
-                                    <div className="text-xs text-gray-500">
-                                      {Array.isArray(paper.authors)
-                                        ? paper.authors.map((a) => a.name).join(', ')
-                                        : paper.authors}
+                            <React.Fragment key={paper.id}>
+                              <tr
+                                onClick={() => toggleRowExpansion('papers', paper.id)}
+                                className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200 cursor-pointer ${
+                                  expandedRows[`papers-${paper.id}`] ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                                }`}>
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center">
+                                    {expandedRows[`papers-${paper.id}`] ? (
+                                      <ChevronUp size={16} className="mr-3 text-gray-500" />
+                                    ) : (
+                                      <ChevronDown size={16} className="mr-3 text-gray-500" />
+                                    )}
+                                    <div>
+                                      <div className="font-semibold text-gray-900 dark:text-white">{paper.title}</div>
+                                      <div className="text-xs text-gray-500">
+                                        {Array.isArray(paper.authors)
+                                          ? paper.authors.map((a) => a.name).join(', ')
+                                          : paper.authors}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.journal}</td>
-                              <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.year}</td>
-                              <td className="px-6 py-4">
-                                {paper.worklet_cert_id ? (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      navigate(`/worklet/${paper.worklet_id}`)
-                                    }}
-                                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1">
-                                    {paper.worklet_cert_id}
-                                    <ExternalLink size={14} />
-                                  </button>
-                                ) : (
-                                  <span className="text-gray-400 dark:text-gray-500">—</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4">
-                                <span
-                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    paper.status === 'Published'
-                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                  }`}>
-                                  {paper.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                {paper.previewUrl ? (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setPreviewUrl(paper.previewUrl)
-                                    }}
-                                    className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
-                                    Preview
-                                  </button>
-                                ) : paper.link && paper.link !== '#' ? (
-                                  <a
-                                    href={paper.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
-                                    <ExternalLink size={16} />
-                                  </a>
-                                ) : (
-                                  <span className="text-gray-400 dark:text-gray-500">—</span>
-                                )}
-                              </td>
-                            </tr>
-                            {expandedRows[`papers-${paper.id}`] && <tr>{/* Expanded row content */}</tr>}
-                          </React.Fragment>
-                        ))}
+                                </td>
+                                <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.journal}</td>
+                                <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{paper.year}</td>
+                                <td className="px-6 py-4">
+                                  {paper.worklet_cert_id ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        navigate(`/worklet/${paper.worklet_id}`)
+                                      }}
+                                      className="text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1">
+                                      {paper.worklet_cert_id}
+                                      <ExternalLink size={14} />
+                                    </button>
+                                  ) : (
+                                    <span className="text-gray-400 dark:text-gray-500">—</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      paper.status === 'Published'
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                    }`}>
+                                    {paper.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {paper.previewUrl ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setPreviewUrl(paper.previewUrl)
+                                      }}
+                                      className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                                      Preview
+                                    </button>
+                                  ) : paper.link && paper.link !== '#' ? (
+                                    <a
+                                      href={paper.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
+                                      <ExternalLink size={16} />
+                                    </a>
+                                  ) : (
+                                    <span className="text-gray-400 dark:text-gray-500">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                              {expandedRows[`papers-${paper.id}`] && (
+                                <tr>
+                                  <td colSpan="6" className="p-4 bg-gray-50 dark:bg-gray-900/50">
+                                    <div className="px-4 py-2">
+                                      <h4 className="font-semibold text-sm mb-2 text-gray-800 dark:text-gray-200">Abstract</h4>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">{paper.abstract || 'No abstract provided.'}</p>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
                       </tbody>
                     </table>
                   </div>
@@ -1264,7 +1330,16 @@ const Portfolio = () => {
                                 )}
                               </td>
                             </tr>
-                            {expandedRows[`patents-${patent.id}`] && <tr>{/* Expanded row content */}</tr>}
+                            {expandedRows[`patents-${patent.id}`] && (
+                              <tr>
+                                <td colSpan="6" className="p-4 bg-gray-50 dark:bg-gray-900/50">
+                                  <div className="px-4 py-2">
+                                      <h4 className="font-semibold text-sm mb-2 text-gray-800 dark:text-gray-200">Description</h4>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">{patent.description || 'No description provided.'}</p>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
                           </React.Fragment>
                         ))}
                       </tbody>
@@ -1290,43 +1365,57 @@ const Portfolio = () => {
                     <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                       <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                         <tr>
-                          <th scope="col" className="px-6 py-3">Title</th>
-                          <th scope="col" className="px-6 py-3">Description</th>
-                          <th scope="col" className="px-6 py-3">Year</th>
-                          <th scope="col" className="px-6 py-3">Revenue ($)</th>
-                          <th scope="col" className="px-6 py-3">Actions</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
+                            Commercialization ID
+                          </th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Title</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Year</th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
+                            Associated Worklet
+                          </th>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Link</th>
+                          
                         </tr>
                       </thead>
                       <tbody>
-                        {portfolioData.commercializations.map((commercialization) => (
+                        {portfolioData.commercializations.map((item) => (
                           <tr
-                            key={commercialization.id}
+                            key={item.id}
                             className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                              {commercialization.title}
+                            <td className="px-6 py-4 font-mono text-xs text-gray-700 dark:text-gray-300">
+                              COMM-{item.id}
+                            </td>
+                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{item.title}</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{item.year}</td>
+                            <td className="px-6 py-4">
+                              {item.worklet_cert_id ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigate(`/worklet/${item.worklet_id}`)
+                                  }}
+                                  className="text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1">
+                                  {item.worklet_cert_id}
+                                  <ExternalLink size={14} />
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-500">—</span>
+                              )}
                             </td>
                             <td className="px-6 py-4">
-                              {commercialization.description && commercialization.description.length > 100
-                                ? commercialization.description.substring(0, 100) + '...'
-                                : commercialization.description}
-                            </td>
-                            <td className="px-6 py-4">{commercialization.year}</td>
-                            <td className="px-6 py-4">
-                              {commercialization.revenue?.toLocaleString() || 'N/A'}
-                            </td>
-                            <td className="px-6 py-4">
-                              {commercialization.link && commercialization.link !== '#' ? (
+                              {item.link && item.link !== '#' ? (
                                 <a
-                                  href={commercialization.link}
+                                  href={item.link}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
+                                  className="p-2 text-blue-600 hover:text-blue-500 dark:text-blue-400 transition-colors">
                                   <ExternalLink size={16} />
                                 </a>
                               ) : (
                                 <span className="text-gray-400 dark:text-gray-500">—</span>
                               )}
                             </td>
+                            
                           </tr>
                         ))}
                       </tbody>
