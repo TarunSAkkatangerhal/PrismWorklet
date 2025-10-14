@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import RequestUpdate from "../layouts/Requestupdates";
 import SuggestionModal from "../layouts/SuggestionModal";
@@ -7,7 +7,7 @@ import FeedbackForm from "./FeedbackForm";
 import EvaluateModal from "../components/EvaluateModal";
 
 import {
-  RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot
+  RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot, Calendar, Star
 } from "lucide-react";
 
 const RightSidebar = () => {
@@ -17,6 +17,40 @@ const RightSidebar = () => {
   const [isInternModalOpen, setIsInternModalOpen] = useState(false);
   const [isFeedbackFormOpen, setIsFeedbackFormOpen] = useState(false);
   const [isEvaluateModalOpen, setISEvaluateModalOpen] = useState(false);
+  
+  // Get user data from validated JWT token
+  const [userData, setUserData] = useState(null);
+
+  // Get user data on component mount
+  useEffect(() => {
+    const getCurrentUserFromToken = () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) return null;
+        
+        const base64Url = token.split('.')[1];
+        if (!base64Url) return null;
+        
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const decoded = JSON.parse(jsonPayload);
+        const currentTime = Date.now() / 1000;
+        
+        if (decoded.exp < currentTime) {
+            return null;
+        }
+        
+        return decoded;
+      } catch (error) {
+        return null;
+      }
+    };
+    
+    setUserData(getCurrentUserFromToken());
+  }, []);
 
   const handleNavigation = (path) => {
     if (path === "/request-update") {
@@ -25,11 +59,13 @@ const RightSidebar = () => {
       setIsSuggestionModalOpen(true);
     } else if (path === "/internship-referral") {
       setIsInternModalOpen(true);
-    } else if (path === "/evaluate") {
+    } else if (path === "/submit-feedback") {
+      setIsFeedbackFormOpen(true);
+    }else if (path === "/evaluate") {
       setISEvaluateModalOpen(true);
-    } else {
+    } 
+    else {
       try {
-        console.log("Navigating to:", path);
         navigate(path);
       } catch (error) {
         console.error("Navigation error:", error);
@@ -40,38 +76,69 @@ const RightSidebar = () => {
   return (
     <aside className="w-[clamp(12rem,18vw,16rem)] bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black shadow-lg px-[clamp(0.75rem,1.5vw,1.25rem)] py-[clamp(1rem,2vh,1.5rem)] flex flex-col justify-between overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div>
-        <button
-          className="w-full bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold rounded-xl py-[clamp(0.5rem,1vh,0.75rem)] mb-[1vh] flex items-center justify-center gap-[clamp(0.5rem,1vw,0.75rem)] text-[clamp(1rem,1.5vw,1.25rem)] dark:bg-blue-900/50 dark:hover:bg-blue-800/60 dark:text-blue-200"
-          onClick={() => handleNavigation("/new-worklet")}
-        >
-          <PlusCircle className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)]" /> <span className="text-[clamp(1.25rem,2vw,1.5rem)]">New Worklet</span>
-        </button>
-        <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold mb-[1vh] text-blue-900 dark:text-white">Activities</h2>
-        <ActivityButton
-          icon={<RefreshCcw className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-blue-600" />}
-          label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Request Update</span>}
-          onClick={() => handleNavigation("/request-update")}
-        />
-        <ActivityButton
-          icon={<Lightbulb className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-sky-500" />}
-          label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Share Suggestion</span>}
-          onClick={() => handleNavigation("/share-suggestion")}
-        />
-        <ActivityButton
-          icon={<Briefcase className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-purple-600" />}
-          label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Internship Referral</span>}
-          onClick={() => handleNavigation("/internship-referral")}
-        />
-        <ActivityButton
-          icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
-          label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
-          onClick={() => setIsFeedbackFormOpen(true)}
-        />
-        <ActivityButton
-          icon={<ClipboardCheck className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
-          label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Evaluate</span>}
-          onClick={() => handleNavigation("/evaluate")}
-        />
+        {/* Role-based content - Using validated token data */}
+        {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
+          // Student-specific content
+          <>
+            <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold mb-[1vh] text-blue-900 dark:text-white">Student Activities</h2>
+            <ActivityButton
+              icon={<RefreshCcw className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-blue-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Provide Update</span>}
+              onClick={() => {/* Empty for now */}}
+            />
+            <ActivityButton
+              icon={<Calendar className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Meeting Updates</span>}
+              onClick={() => {/* Empty for now */}}
+            />
+            <ActivityButton
+              icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
+              onClick={() => {/* Empty for now */}}
+            />
+            <ActivityButton
+              icon={<Star className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-yellow-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Testimonials</span>}
+              onClick={() => {/* Empty for now */}}
+            />
+          </>
+        ) : (
+          // Mentor-specific content (original)
+          <>
+            <button
+              className="w-full bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold rounded-xl py-[clamp(0.5rem,1vh,0.75rem)] mb-[1vh] flex items-center justify-center gap-[clamp(0.5rem,1vw,0.75rem)] text-[clamp(1rem,1.5vw,1.25rem)] dark:bg-blue-900/50 dark:hover:bg-blue-800/60 dark:text-blue-200"
+              onClick={() => handleNavigation("/new-worklet")}
+            >
+              <PlusCircle className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)]" /> <span className="text-[clamp(1.25rem,2vw,1.5rem)]">New Worklet</span>
+            </button>
+            <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold mb-[1vh] text-blue-900 dark:text-white">Activities</h2>
+            <ActivityButton
+              icon={<RefreshCcw className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-blue-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Request Update</span>}
+              onClick={() => handleNavigation("/request-update")}
+            />
+            <ActivityButton
+              icon={<Lightbulb className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-sky-500" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Share Suggestion</span>}
+              onClick={() => handleNavigation("/share-suggestion")}
+            />
+            <ActivityButton
+              icon={<Briefcase className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-purple-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Internship Referral</span>}
+              onClick={() => handleNavigation("/internship-referral")}
+            />
+            <ActivityButton
+              icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
+              onClick={() => setIsFeedbackFormOpen(true)}
+            />
+            <ActivityButton
+              icon={<ClipboardCheck className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Evaluate</span>}
+              onClick={() => handleNavigation("/evaluate")}
+            />
+          </>
+        )}
       </div>
       <div className="text-center">
         <button
@@ -111,9 +178,9 @@ const RightSidebar = () => {
             <div className=" top-0 right-0 flex justify-end bg-white rounded-t-xl p-2 dark:bg-slate-900">
               <button
                 onClick={() => setIsInternModalOpen(false)}
-                className="text-3xl text-purple-700 hover:text-purple-900 font-bold z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors"
+                className="text-3xl  hover:text-purple-900 font-bold z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors"
               >
-                X
+                ×
               </button>
             </div>
             <div className="p-4">
@@ -122,6 +189,7 @@ const RightSidebar = () => {
           </div>
         </div>
       )}
+      
       <EvaluateModal
         isOpen={isEvaluateModalOpen}
         onClose={() => setISEvaluateModalOpen(false)}

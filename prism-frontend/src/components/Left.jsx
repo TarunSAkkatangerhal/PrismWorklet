@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut } from 'lucide-react';
+import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award, Share } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { ThemeContext } from '../context/ThemeContext';
@@ -50,9 +50,44 @@ const LeftSidebar = () => {
     const [imgError, setImgError] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSettingsIconRotating, setIsSettingsIconRotating] = useState(false);
+    
+    // Get user data from validated JWT token instead of localStorage
+    const [userData, setUserData] = useState(null);
 
     // Use global theme state from context
     const { isDarkMode, toggleTheme } = useContext(ThemeContext);
+
+    // Get user data on component mount
+    useEffect(() => {
+        const getCurrentUserFromToken = () => {
+            try {
+                const token = localStorage.getItem('access_token');
+                if (!token) return null;
+                
+                // Simple JWT decode for client-side (validation done server-side)
+                const base64Url = token.split('.')[1];
+                if (!base64Url) return null;
+                
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                
+                const decoded = JSON.parse(jsonPayload);
+                const currentTime = Date.now() / 1000;
+                
+                if (decoded.exp < currentTime) {
+                    return null; // Token expired
+                }
+                
+                return decoded;
+            } catch (error) {
+                return null;
+            }
+        };
+        
+        setUserData(getCurrentUserFromToken());
+    }, []);
 
     // Floating UI hook for robust menu positioning
     const { x, y, refs, strategy } = useFloating({
@@ -64,9 +99,11 @@ const LeftSidebar = () => {
     // Event handlers
     const handleLogout = () => {
         localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_data');
         localStorage.removeItem('user_name');
         localStorage.removeItem('user_email');
+        localStorage.removeItem('user_role');
         navigate('/');
     };
     const handleAboutUs = () => {
@@ -93,11 +130,22 @@ const LeftSidebar = () => {
     return (
         <aside className="w-[clamp(5rem,8vw,7.5rem)] h-screen sticky top-0 bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black flex flex-col py-[1vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <nav className="flex flex-col gap-[2vh] items-center">
-                <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
-                <SidebarItem icon={<BarChart size={20} />} label="Statistics" onClick={() => navigate('/statistics')} />
-                <SidebarItem icon={<GraduationCap size={20} />} label="Colleges" onClick={() => navigate('/colleges')} />
-                <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} />
-                <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
+                {/* Role-based navigation - Using validated token data */}
+                {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
+                    <>
+                        <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/student-dashboard')} />
+                        <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
+                        <SidebarItem icon={<Share size={20} />} label="Share Article/Blogs" onClick={() => {/* Empty for now */}} />
+                    </>
+                ) : userData && userData.role ? (
+                    <>
+                        <SidebarItem icon={<Home size={20} />} label="Dashboard" onClick={() => navigate('/home')} />
+                        <SidebarItem icon={<BarChart size={20} />} label="Statistics" onClick={() => navigate('/statistics')} />
+                        <SidebarItem icon={<GraduationCap size={20} />} label="Colleges" onClick={() => navigate('/colleges')} />
+                        <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} />
+                        <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
+                    </>
+                ) : null}
             </nav>
 
             <div className="mt-auto px-[0.5vw] pt-[1vh] pb-[0.5vh]">

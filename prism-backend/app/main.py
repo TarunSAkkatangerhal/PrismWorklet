@@ -1,4 +1,5 @@
 ﻿from fastapi import FastAPI, Request, Depends
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -34,6 +35,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files for uploaded documents
+import os
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads")))
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # Root route
 @app.get("/")
@@ -103,6 +110,20 @@ app.include_router(evaluations.router, prefix="/evaluations", tags=["evaluations
 app.include_router(associations.router, prefix="/api", tags=["associations"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["portfolio"])
 app.include_router(college.router)
+
+# Backwards-compatible alias for student worklets under /api
+from fastapi import Depends
+from app.auth import oauth2_scheme
+from sqlalchemy.orm import Session
+
+@app.get("/api/worklets", tags=["worklets"])
+def list_worklets_alias(db: Session = Depends(get_db)):
+    # Delegate to the existing list_worklets handler for consistency
+    return worklets.list_worklets(db=db)
+
+@app.get("/api/worklets/student/me", tags=["worklets"])
+def student_worklets_me_alias(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    return worklets.get_student_worklets_me(token=token, db=db)
 
 # Startup and shutdown events
 @app.on_event("startup")

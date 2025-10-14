@@ -1,42 +1,263 @@
-// prism-frontend/src/services/auth.js
+// prism-frontend/src/services/auth.js - Secure Version
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
+import DOMPurify from 'dompurify';
+
 const BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
-// pass role as a parameter
+// Secure token management
+const TOKEN_KEY = 'access_token';
+const REFRESH_KEY = 'refresh_token';
+
+// Input sanitization
+const sanitizeInput = (input) => {
+  if (typeof input !== 'string') return input;
+  return DOMPurify.sanitize(input, { 
+    ALLOWED_TAGS: [], 
+    ALLOWED_ATTR: [] 
+  });
+};
+
+// Token validation
+const validateToken = (token) => {
+  if (!token) return null;
+  
+  try {
+    const decoded = jwtDecode(token);
+    const currentTime = Date.now() / 1000;
+    
+    if (decoded.exp < currentTime) {
+      return null; // Token expired
+    }
+    
+    return {
+      userId: decoded.sub,
+      role: decoded.role,
+      email: decoded.email,
+      name: decoded.name,
+      exp: decoded.exp
+    };
+  } catch (error) {
+    console.error('Invalid token:', error);
+    return null;
+  }
+};
+
+// Secure storage helpers
+const secureStorage = {
+  setTokens: (accessToken, refreshToken) => {
+    try {
+      localStorage.setItem(TOKEN_KEY, accessToken);
+      localStorage.setItem(REFRESH_KEY, refreshToken);
+    } catch (error) {
+      console.error('Storage error:', error);
+    }
+  },
+  
+  getToken: () => {
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  },
+  
+  getRefreshToken: () => {
+    try {
+      return localStorage.getItem(REFRESH_KEY);
+    } catch {
+      return null;
+    }
+  },
+  
+  clearTokens: () => {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_KEY);
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('user_name');
+      localStorage.removeItem('user_role');
+    } catch (error) {
+      console.error('Storage cleanup error:', error);
+    }
+  }
+};
+
+// Secure login function
 export const login = async (email, password, role) => {
-  const params = new URLSearchParams();
-  params.append("username", email); // OAuth2PasswordRequestForm expects "username"
-  params.append("password", password);
-  if (role) {
-    params.append("scope", role); // send role in OAuth2 "scope"
+  // Input validation and sanitization
+  if (!email || !password) {
+    throw new Error('Email and password are required');
+  }
+  
+  const sanitizedEmail = sanitizeInput(email).toLowerCase().trim();
+  const sanitizedRole = role ? sanitizeInput(role) : '';
+  
+  // Email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(sanitizedEmail)) {
+    throw new Error('Invalid email format');
+  }
+  
+  // Password strength validation
+  if (password.length < 6) {
+    throw new Error('Password must be at least 6 characters');
   }
 
-  const response = await axios.post(`${BASE}/auth/login`, params, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
-  const data = response.data;
+  const params = new URLSearchParams();
+  params.append("username", sanitizedEmail);
+  params.append("password", password); // Don't sanitize password
+  if (sanitizedRole) {
+    params.append("scope", sanitizedRole);
+  }
+
   try {
-    if (data?.user?.role) {
-      localStorage.setItem('user_role', data.user.role);
+    const response = await axios.post(`${BASE}/auth/login`, params, {
+      headers: { 
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Timestamp": Date.now().toString()
+      },
+      timeout: 10000 // 10 second timeout
+    });
+    
+    const data = response.data;
+    
+    // Validate response structure
+    if (!data.access_token || !data.refresh_token) {
+      throw new Error('Invalid login response');
     }
-  } catch (_) { /* ignore storage errors */ }
-  return data;
+    
+    // Validate and decode tokens
+    const userData = validateToken(data.access_token);
+    if (!userData) {
+      throw new Error('Invalid access token received');
+    }
+    
+    // Securely store tokens and user data
+    secureStorage.setTokens(data.access_token, data.refresh_token);
+    localStorage.setItem('user_email', userData.email);
+    localStorage.setItem('user_name', userData.name || '');
+    localStorage.setItem('user_role', userData.role || '');
+    
+    return {
+      ...data,
+      user: userData
+    };
+  } catch (error) {
+    // Clear any existing tokens on login failure
+    secureStorage.clearTokens();
+    
+    if (error.response) {
+      const status = error.response.status;
+      if (status === 401) {
+        throw new Error('Invalid credentials');
+      } else if (status === 429) {
+        throw new Error('Too many login attempts. Please try again later.');
+      } else if (status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    
+    throw new Error(error.message || 'Login failed');
+  }
 };
+// Secure getCurrentUser function
 export const getCurrentUser = async () => {
-  const response = await axios.get(`${BASE}/auth/me`);
-  return response.data;
+  const token = secureStorage.getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+  
+  // Validate token before making request
+  const userData = validateToken(token);
+  if (!userData) {
+    throw new Error('Invalid or expired token');
+  }
+
+  try {
+    const response = await axios.get(`${BASE}/auth/me`, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        "X-Timestamp": Date.now().toString()
+      },
+      timeout: 10000
+    });
+    
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      // Token expired, try refresh
+      await refreshToken();
+      // Retry with new token
+      const newToken = secureStorage.getToken();
+      const response = await axios.get(`${BASE}/auth/me`, {
+        headers: { 
+          Authorization: `Bearer ${newToken}`,
+          "X-Timestamp": Date.now().toString()
+        }
+      });
+      return response.data;
+    }
+    throw error;
+  }
 };
 
-// Refresh token (if needed)
+// Secure token refresh
 export const refreshToken = async () => {
-  const refresh_token = localStorage.getItem("refresh_token");
-  if (!refresh_token) throw new Error("No refresh token found");
+  const refresh_token = secureStorage.getRefreshToken();
+  if (!refresh_token) {
+    throw new Error("No refresh token found");
+  }
 
-  const response = await axios.post(`${BASE}/auth/refresh`, { refresh_token });
-  const { access_token } = response.data;
+  try {
+    const response = await axios.post(`${BASE}/auth/refresh`, { 
+      refresh_token 
+    }, {
+      headers: {
+        "X-Timestamp": Date.now().toString()
+      },
+      timeout: 10000
+    });
+    
+    const { access_token, refresh_token: new_refresh_token } = response.data;
+    
+    if (!access_token) {
+      throw new Error('Invalid refresh response');
+    }
+    
+    // Validate new token
+    const userData = validateToken(access_token);
+    if (!userData) {
+      throw new Error('Invalid new access token');
+    }
+    
+    // Store new tokens
+    secureStorage.setTokens(access_token, new_refresh_token || refresh_token);
+    
+    // Update user data
+    localStorage.setItem('user_email', userData.email);
+    localStorage.setItem('user_name', userData.name || '');
+    localStorage.setItem('user_role', userData.role || '');
+    
+    return response.data;
+  } catch (error) {
+    // Refresh failed, clear all tokens
+    secureStorage.clearTokens();
+    throw new Error('Session expired. Please log in again.');
+  }
+};
 
-  localStorage.setItem("access_token", access_token);
-  return response.data;
+// Secure logout
+export const logout = () => {
+  secureStorage.clearTokens();
+  // Redirect to login
+  window.location.href = '/';
+};
+
+// Get current user from token (without API call)
+export const getCurrentUserFromToken = () => {
+  const token = secureStorage.getToken();
+  return validateToken(token);
 };
 
 

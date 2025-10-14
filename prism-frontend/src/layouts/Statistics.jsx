@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import secureAPI from '../services/secureAPI'
 import {
   ChevronDown,
   Users,
@@ -297,12 +298,12 @@ const ModernStatisticsDashboard = () => {
         if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
 
         const [totalsRes, monthlyRes, statusRes] = await Promise.all([
-          axios.get(`${API_BASE}/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
-          axios.get(
-            `${API_BASE}/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`
+          secureAPI.get(`/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
+          secureAPI.get(
+            `/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`
           ),
-          axios.get(
-            `${API_BASE}/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`
+          secureAPI.get(
+            `/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`
           ),
         ])
 
@@ -365,12 +366,12 @@ const ModernStatisticsDashboard = () => {
       if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
 
       const [totalsRes, monthlyRes, statusRes] = await Promise.all([
-        axios.get(`${API_BASE}/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
-        axios.get(
-          `${API_BASE}/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`
+        secureAPI.get(`/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
+        secureAPI.get(
+          `/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`
         ),
-        axios.get(
-          `${API_BASE}/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`
+        secureAPI.get(
+          `/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`
         ),
       ])
 
@@ -435,8 +436,8 @@ const ModernStatisticsDashboard = () => {
       if (flt?.year && flt.year !== 'All') params.set('year', flt.year)
       if (flt?.group && flt.group !== 'All') params.set('domain', flt.group)
       if (flt?.part && flt.part !== 'All') params.set('college', flt.part)
-      const url = `http://localhost:8000/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`
-      const res = await axios.get(url)
+      const url = `/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`
+      const res = await secureAPI.get(url)
       const json = res.data
       setStatisticsData(json)
     } catch (e) {
