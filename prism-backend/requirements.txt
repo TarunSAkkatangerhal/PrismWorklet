@@ -9,3 +9,4 @@ email-validator
 redis
 argon2_cffi
 cryptography
+python-multipart
