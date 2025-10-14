@@ -289,7 +289,7 @@ export default function Dashboard() {
                 )}
                 {/* Refined glass chips row */}
                 <div className="mt-[0.8vw] flex flex-wrap gap-[0.5vw]">
-                  <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-white/40 text-slate-800 border border-white/60 backdrop-blur dark:bg-white/10 dark:text-slate-200 dark:border-white/10">
+                    <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-purple-500/10 text-purple-700 border border-purple-500/20 backdrop-blur dark:text-purple-200">
                     {userProfileData?.role || 'Mentor'}
                   </span>
                   {userProfileData?.college && (
