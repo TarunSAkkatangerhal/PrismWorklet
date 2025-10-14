@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import prismLogo from "../assets/logo.jpeg";
 import prismLogoPng from "../assets/prism_logo.png";
@@ -19,6 +19,81 @@ export default function ForgotPassword() {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
+  // OTP Timer states
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [isOtpDisabled, setIsOtpDisabled] = useState(false);
+
+  // Form validation and loading states
+  const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, text: "", color: "" });
+
+  // Email validation function
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) return "Email is required";
+    if (!emailRegex.test(email)) return "Please enter a valid email address";
+    return "";
+  };
+
+  // Password strength checker
+  const checkPasswordStrength = (password) => {
+    if (!password) return { score: 0, text: "", color: "" };
+    
+    let score = 0;
+    let feedback = [];
+    
+    // Length check
+    if (password.length >= 8) score++;
+    else feedback.push("8+ characters");
+    
+    // Uppercase check
+    if (/[A-Z]/.test(password)) score++;
+    else feedback.push("uppercase letter");
+    
+    // Lowercase check
+    if (/[a-z]/.test(password)) score++;
+    else feedback.push("lowercase letter");
+    
+    // Number check
+    if (/\d/.test(password)) score++;
+    else feedback.push("number");
+    
+    // Special character check
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
+    else feedback.push("special character");
+    
+    const strengthLevels = [
+      { text: "", color: "" },
+      { text: "Very Weak", color: "text-red-500" },
+      { text: "Weak", color: "text-red-400" },
+      { text: "Fair", color: "text-yellow-500" },
+      { text: "Good", color: "text-blue-500" },
+      { text: "Strong", color: "text-green-500" }
+    ];
+    
+    return {
+      score,
+      text: score > 0 ? strengthLevels[score].text : "",
+      color: score > 0 ? strengthLevels[score].color : "",
+      feedback: feedback.length > 0 ? `Missing: ${feedback.join(", ")}` : ""
+    };
+  };
+
+  // OTP Timer effect
+  useEffect(() => {
+    let interval = null;
+    if (otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer(timer => timer - 1);
+      }, 1000);
+    } else if (otpTimer === 0 && isOtpDisabled) {
+      setIsOtpDisabled(false);
+    }
+    return () => clearInterval(interval);
+  }, [otpTimer, isOtpDisabled]);
+
   const showMessage = (msg) => {
     setMessage(msg);
     setTimeout(() => setMessage(""), 3000);
@@ -31,6 +106,8 @@ export default function ForgotPassword() {
       showMessage("Please enter the OTP sent to your email.");
       return;
     }
+    
+    setIsLoading(true);
     try {
       const response = await apiVerifyResetPasswordOtp(email, otp);
       setOtpVerified(true);
@@ -45,15 +122,27 @@ export default function ForgotPassword() {
         }
       }
       showMessage(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    if (!email) {
-      showMessage("Please enter your email.");
+    
+    // Validate email first
+    const emailValidationError = validateEmail(email);
+    if (emailValidationError) {
+      setEmailError(emailValidationError);
+      showMessage("Please enter a valid email address.");
       return;
     }
+    
+    setIsLoading(true);
+    // Start timer and disable button
+    setIsOtpDisabled(true);
+    setOtpTimer(45);
+    
     try {
       const response = await apiForgotPassword(email);
       setOtpSent(true);
@@ -61,6 +150,11 @@ export default function ForgotPassword() {
     } catch (error) {
       let msg = error.response?.data?.detail || "Failed to send OTP.";
       showMessage(msg);
+      // Reset timer on error
+      setIsOtpDisabled(false);
+      setOtpTimer(0);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -75,9 +169,16 @@ export default function ForgotPassword() {
       return;
     }
     if (password !== confirmPassword) {
+      setPasswordError("Passwords do not match.");
       showMessage("Passwords do not match.");
       return;
     }
+    if (passwordStrength.score < 3) {
+      showMessage("Please choose a stronger password.");
+      return;
+    }
+    
+    setIsLoading(true);
     try {
       const payload = {
         email: email,
@@ -97,6 +198,8 @@ export default function ForgotPassword() {
         }
       }
       showMessage(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -113,15 +216,22 @@ export default function ForgotPassword() {
           />
           
           {/* Overlay with Content */}
-          <div className="absolute inset-0 bg-gradient-to-br from-red-900/80 via-orange-800/70 to-yellow-900/80 flex flex-col justify-center items-center p-12 text-white">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-900/80 via-blue-800/70 to-purple-900/80 flex flex-col justify-center items-center p-12 text-white">
             {/* Simple Navigation Bar */}
             <div className="absolute top-6 left-0 right-0 z-20">
               <nav className="flex justify-center space-x-6">
-                <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Home</button>
-                <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">About PRISM</button>
-                <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Blog</button>
-                <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Publications</button>
-                <button className="text-white/80 hover:text-white text-sm transition-colors duration-200">Spark</button>
+                <button 
+                  onClick={() => window.location.href = '/'}
+                  className="text-white/80 hover:text-white text-sm transition-colors duration-200 hover:underline"
+                >
+                  Home
+                </button>
+                <button 
+                  onClick={() => alert('Samsung PRISM is an innovative platform for connecting students with mentors and internship opportunities.')}
+                  className="text-white/80 hover:text-white text-sm transition-colors duration-200 hover:underline"
+                >
+                  About PRISM
+                </button>
               </nav>
             </div>
 
@@ -231,14 +341,36 @@ export default function ForgotPassword() {
                   onChange={(e) => {
                     setEmail(e.target.value);
                     setIsTyping(e.target.value.length > 0);
+                    setEmailError(validateEmail(e.target.value));
                   }}
                   onFocus={() => setIsTyping(true)}
-                  onBlur={() => setIsTyping(email.length > 0)}
+                  onBlur={(e) => {
+                    setIsTyping(email.length > 0);
+                    setEmailError(validateEmail(e.target.value));
+                  }}
                   disabled={otpSent}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    emailError 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : email && !emailError
+                        ? 'border-green-500 focus:ring-green-500' 
+                        : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                  }`}
                   placeholder="Enter your email address"
                   required
                 />
+                {emailError && (
+                  <p className="text-red-500 text-sm mt-1 flex items-center">
+                    <span className="mr-1">⚠️</span>
+                    {emailError}
+                  </p>
+                )}
+                {!emailError && email && (
+                  <p className="text-green-500 text-sm mt-1 flex items-center">
+                    <span className="mr-1">✓</span>
+                    Valid email address
+                  </p>
+                )}
               </div>
 
               {/* OTP Field */}
@@ -271,13 +403,52 @@ export default function ForgotPassword() {
                       id="password"
                       type="password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setPasswordStrength(checkPasswordStrength(e.target.value));
+                        setPasswordError("");
+                      }}
                       onFocus={() => setIsPasswordFocused(true)}
                       onBlur={() => setIsPasswordFocused(false)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        passwordError 
+                          ? 'border-red-500 focus:ring-red-500' 
+                          : password && passwordStrength.score >= 3
+                            ? 'border-green-500 focus:ring-green-500' 
+                            : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                      }`}
                       placeholder="Enter new password"
                       required
                     />
+                    
+                    {/* Password Strength Indicator */}
+                    {password && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm text-slate-600 dark:text-slate-400">Password Strength:</span>
+                          <span className={`text-sm font-medium ${passwordStrength.color}`}>
+                            {passwordStrength.text}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              passwordStrength.score === 1 ? 'bg-red-500 w-1/5' :
+                              passwordStrength.score === 2 ? 'bg-red-400 w-2/5' :
+                              passwordStrength.score === 3 ? 'bg-yellow-500 w-3/5' :
+                              passwordStrength.score === 4 ? 'bg-blue-500 w-4/5' :
+                              passwordStrength.score === 5 ? 'bg-green-500 w-full' :
+                              'bg-gray-300 w-0'
+                            }`}
+                          ></div>
+                        </div>
+                        {passwordStrength.feedback && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            {passwordStrength.feedback}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -287,11 +458,36 @@ export default function ForgotPassword() {
                       id="confirmPassword"
                       type="password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (password && e.target.value && e.target.value !== password) {
+                          setPasswordError("Passwords do not match");
+                        } else {
+                          setPasswordError("");
+                        }
+                      }}
+                      className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        passwordError 
+                          ? 'border-red-500 focus:ring-red-500' 
+                          : confirmPassword && password === confirmPassword
+                            ? 'border-green-500 focus:ring-green-500' 
+                            : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                      }`}
                       placeholder="Confirm new password"
                       required
                     />
+                    {passwordError && (
+                      <p className="text-red-500 text-sm mt-1 flex items-center">
+                        <span className="mr-1">⚠️</span>
+                        {passwordError}
+                      </p>
+                    )}
+                    {!passwordError && confirmPassword && password === confirmPassword && (
+                      <p className="text-green-500 text-sm mt-1 flex items-center">
+                        <span className="mr-1">✓</span>
+                        Passwords match
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -299,10 +495,59 @@ export default function ForgotPassword() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                disabled={(!otpSent && isOtpDisabled) || isLoading}
+                className={`w-full font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl flex items-center justify-center ${
+                  (!otpSent && isOtpDisabled) || isLoading
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
               >
-                {!otpSent ? "Send Reset Code" : !otpVerified ? "Verify Code" : "Reset Password"}
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : !otpSent ? (
+                  isOtpDisabled 
+                    ? `Resend in ${otpTimer}s` 
+                    : "Send Reset Code"
+                ) : !otpVerified ? (
+                  "Verify Code"
+                ) : (
+                  "Reset Password"
+                )}
               </button>
+
+              {/* Resend OTP Button - only show after OTP is sent */}
+              {otpSent && !otpVerified && (
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={isOtpDisabled || isLoading}
+                  className={`w-full font-semibold py-2 px-4 rounded-lg border transition-all duration-200 flex items-center justify-center ${
+                    isOtpDisabled || isLoading
+                      ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border-blue-600 text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending...
+                    </>
+                  ) : isOtpDisabled ? (
+                    `Resend OTP in ${otpTimer}s`
+                  ) : (
+                    'Resend OTP'
+                  )}
+                </button>
+              )}
             </form>
 
             {/* Back to Login */}
