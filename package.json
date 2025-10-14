@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "dompurify": "^3.2.7",
-    "jwt-decode": "^4.0.0"
-  }
-}
