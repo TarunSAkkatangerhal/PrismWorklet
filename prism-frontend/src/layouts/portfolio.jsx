@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Award,
@@ -26,150 +26,52 @@ import {
 } from 'lucide-react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import LeftSidebar from '../components/Left'
+import apiClient from '../services/secureWorkletsAPI' // reuse configured axios instance for auth headers
 
-// --- MOCK API FUNCTIONS ---
-const MOCK_API_LATENCY = 1000
+const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || 'http://localhost:8000'
 
-const apiSubmit = async (endpoint, formData, isMultipart = false) => {
-  console.log(`Submitting to ${endpoint}:`)
-  for (let [key, value] of formData.entries()) {
-    console.log(key, value)
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, MOCK_API_LATENCY))
-
-  const data = {}
-  for (let [key, value] of formData.entries()) {
-    if (value instanceof File && value.size > 0) {
-      // Store both the filename and create a blob URL for preview
-      data[key] = value.name
-      data.previewUrl = URL.createObjectURL(value)
-      console.log(`Created preview URL for ${key}:`, data.previewUrl)
-    } else if (key === 'authors' || key === 'inventors') {
-      data[key] = JSON.parse(value)
-    } else {
-      data[key] = value
-    }
-  }
-  return { ...data, id: Date.now() }
+// --- API HELPERS (live) ---
+const authHeader = () => {
+  const token = localStorage.getItem('access_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-// --- STATIC DATA ---
-const staticPortfolioData = {
-  mentor: { id: 1, name: 'Dr. Static Mentor' },
-  achievements: [
-    {
-      id: 1,
-      title: 'Innovator of the Year 2024',
-      description: 'Awarded for pioneering work in decentralized applications and blockchain technology.',
-      type: 'Award',
-      year: 2024,
-    },
-    {
-      id: 2,
-      title: 'Top Rated Speaker at TechCon 2023',
-      description: 'Recognized for an engaging presentation on modern frontend frameworks.',
-      type: 'Recognition',
-      year: 2023,
-    },
-    {
-      id: 3,
-      title: 'Best Research Paper Award',
-      description: 'Received the best paper award at the International Conference on Web Technologies for groundbreaking research on asynchronous state management.',
-      type: 'Award',
-      year: 2023,
-    },
-    {
-      id: 4,
-      title: 'Outstanding Mentor of the Year',
-      description: 'Recognized for exceptional mentorship and guidance to over 50 students and junior developers.',
-      type: 'Recognition',
-      year: 2024,
-    },
-    {
-      id: 5,
-      title: 'Excellence in Innovation Award',
-      description: 'Honored by the National Innovation Council for contributions to open-source development and community building.',
-      type: 'Award',
-      year: 2022,
-    },
-    {
-      id: 6,
-      title: 'Featured in Tech Leadership Magazine',
-      description: 'Profiled as one of the top 40 under 40 emerging technology leaders in the industry.',
-      type: 'Recognition',
-      year: 2023,
-    },
-    {
-      id: 7,
-      title: 'Startup Accelerator Graduate',
-      description: 'Successfully completed the prestigious Tech Ventures accelerator program with DevSync Pro startup.',
-      type: 'Recognition',
-      year: 2024,
-    },
-    {
-      id: 8,
-      title: 'Community Impact Award',
-      description: 'Awarded for organizing and leading 15+ workshops and coding bootcamps for underserved communities.',
-      type: 'Award',
-      year: 2023,
-    },
-  ],
-  papers: [
-    {
-      id: 1,
-      title: 'The Future of Asynchronous State Management',
-      authors: [{ name: 'Jane Doe' }, { name: 'John Smith' }],
-      journal: 'Journal of Modern Web Development',
-      year: 2023,
-      status: 'Published',
-      link: '#',
-      abstract:
-        'This paper explores advanced patterns for managing asynchronous state in large-scale React applications, proposing a novel hook-based approach.',
-      doi: '10.1234/jMWD.2023.5678',
-      publication_year: 2023,
-      worklet_id: 123,
-      worklet_cert_id: 'WK-ABC-001',
-    },
-  ],
-  patents: [
-    {
-      id: 1,
-      title: 'System for Real-Time Collaborative Code Editing',
-      inventors: [{ name: 'Jane Doe' }],
-      application_number: 'US-2023-XYZ',
-      filing_year: 2023,
-      status: 'Filed',
-      description:
-        'A patented system that utilizes operational transforms to allow multiple users to edit the same codebase simultaneously with zero latency.',
-      stage: 'Application Review',
-      worklet_id: 456,
-      worklet_cert_id: 'WK-DEF-002',
-    },
-    // Example of a patent with string data to test resilient rendering
-    {
-      id: 2,
-      title: 'Legacy Patent Entry',
-      inventors: 'Dr. Old System',
-      application_number: 'US-2019-ABC',
-      filing_year: 2019,
-      status: 'Granted',
-      description: 'An older patent whose inventor data is a string.',
-    },
-  ],
-  commercializations: [
-    {
-      id: 1,
-      title: 'DevSync Pro',
-      description:
-        'A commercial product based on the real-time collaborative editing patent, licensed to major tech companies.',
-      year: 2024,
-      link: 'https://example.com/devsync',
-      worklet_id: 789,
-      worklet_cert_id: 'WK-GHI-003',
-    },
-  ],
+const fetchStudentPortfolio = async () => {
+  const resp = await apiClient.get('/api/portfolio/student/me')
+  return resp.data
+}
+
+const fetchCompletedWorkletsForCurrentUser = async () => {
+  // Use associations endpoint similar to existing code; attempt both mentor & student roles
+  const token = localStorage.getItem('access_token')
+  if (!token) return { completed: [] }
+  const profileResp = await fetch(`${API_BASE}/auth/profile`, { headers: authHeader() })
+  if (!profileResp.ok) throw new Error('Failed to load profile')
+  const profile = await profileResp.json()
+  const userId = profile.id
+  // We need worklets with status Completed regardless of role; try fetching association endpoint (mentor path used previously)
+  const assocResp = await fetch(`${API_BASE}/api/associations/mentor/${userId}/all-worklets`, { headers: authHeader() })
+  if (!assocResp.ok) return { completed: [] }
+  const assocData = await assocResp.json()
+  return { completed: assocData.completed_worklets || [] }
+}
+
+const submitPortfolioItem = async (type, formData) => {
+  const endpoint = `${API_BASE}/api/portfolio/${type}`
+  const resp = await fetch(endpoint, { method: 'POST', headers: { ...authHeader() }, body: formData })
+  if (!resp.ok) throw new Error(`Failed to create ${type.slice(0, -1)}`)
+  return await resp.json()
+}
+
+// --- INITIAL EMPTY STATE ---
+const emptyPortfolio = {
+  mentor: null,
+  achievements: [],
+  papers: [],
+  patents: [],
+  commercializations: [],
   stats: null,
+  worklets: [],
 }
 
 // --- REUSABLE & IMPROVED COMPONENTS ---
@@ -304,11 +206,10 @@ const PreviewModal = ({ url, onClose }) => {
 }
 
 // --- IMPROVED FORMS ---
-const AddPaperForm = ({ onAdd, onCancel }) => {
+const AddPaperForm = ({ onAdd, onCancel, completedWorklets }) => {
   const [step, setStep] = useState(1)
   const [file, setFile] = useState(null)
-  const [completedWorklets, setCompletedWorklets] = useState([])
-  const [loadingWorklets, setLoadingWorklets] = useState(true)
+  const loadingWorklets = false
   const [selectedWorkletId, setSelectedWorkletId] = useState('')
   const {
     register,
@@ -322,35 +223,7 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
   const { fields, append, remove } = useFieldArray({ control, name: 'authors' })
   const workletId = watch('worklet_id')
 
-  // Fetch completed worklets
-  useEffect(() => {
-    const fetchCompletedWorklets = async () => {
-      try {
-        const token = localStorage.getItem('access_token')
-        if (!token) return
-
-        const userResp = await fetch('http://localhost:8000/auth/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const userData = await userResp.json()
-        const userId = userData.id
-
-        const response = await fetch(
-          `http://localhost:8000/api/associations/mentor/${userId}/all-worklets`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        )
-        const data = await response.json()
-        setCompletedWorklets(data.completed_worklets || [])
-      } catch (error) {
-        console.error('Error fetching completed worklets:', error)
-      } finally {
-        setLoadingWorklets(false)
-      }
-    }
-    fetchCompletedWorklets()
-  }, [])
+  // Completed worklets now passed in props
 
   const onSubmit = async (data) => {
     const formData = new FormData()
@@ -369,7 +242,13 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
     }
     
     try {
-      const newPaper = await apiSubmit('papers', formData, true)
+      const newPaper = await submitPortfolioItem('papers', formData)
+      // adapt field name differences
+      if (!newPaper.year && newPaper.publication_year) newPaper.year = newPaper.publication_year
+      if (file) {
+        // optimistic preview if backend served file accessible
+        newPaper.previewUrl = newPaper.document_link || URL.createObjectURL(file)
+      }
       onAdd('papers', newPaper)
     } catch (error) {
       console.error('Submission failed:', error)
@@ -541,10 +420,9 @@ const AddPaperForm = ({ onAdd, onCancel }) => {
   )
 }
 
-const AddPatentForm = ({ onAdd, onCancel }) => {
+const AddPatentForm = ({ onAdd, onCancel, completedWorklets }) => {
   const [file, setFile] = useState(null)
-  const [completedWorklets, setCompletedWorklets] = useState([])
-  const [loadingWorklets, setLoadingWorklets] = useState(true)
+  const loadingWorklets = false
   const {
     register,
     handleSubmit,
@@ -557,35 +435,7 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
   const { fields, append, remove } = useFieldArray({ control, name: 'inventors' })
   const workletId = watch('worklet_id')
 
-  // Fetch completed worklets
-  useEffect(() => {
-    const fetchCompletedWorklets = async () => {
-      try {
-        const token = localStorage.getItem('access_token')
-        if (!token) return
-
-        const userResp = await fetch('http://localhost:8000/auth/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const userData = await userResp.json()
-        const userId = userData.id
-
-        const response = await fetch(
-          `http://localhost:8000/api/associations/mentor/${userId}/all-worklets`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        )
-        const data = await response.json()
-        setCompletedWorklets(data.completed_worklets || [])
-      } catch (error) {
-        console.error('Error fetching completed worklets:', error)
-      } finally {
-        setLoadingWorklets(false)
-      }
-    }
-    fetchCompletedWorklets()
-  }, [])
+  // Completed worklets passed via props
 
   const onSubmit = async (data) => {
     const formData = new FormData()
@@ -604,7 +454,8 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
     }
 
     try {
-      const newPatent = await apiSubmit('patents', formData, true)
+      const newPatent = await submitPortfolioItem('patents', formData)
+      if (file) newPatent.previewUrl = newPatent.document_link || URL.createObjectURL(file)
       onAdd('patents', newPatent)
     } catch (error) {
       console.error('Submission failed:', error)
@@ -731,10 +582,9 @@ const AddPatentForm = ({ onAdd, onCancel }) => {
   )
 }
 
-const AddCommercializationForm = ({ onAdd, onCancel }) => {
+const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
   const [file, setFile] = useState(null)
-  const [completedWorklets, setCompletedWorklets] = useState([])
-  const [loadingWorklets, setLoadingWorklets] = useState(true)
+  const loadingWorklets = false
   const {
     register,
     handleSubmit,
@@ -746,34 +596,7 @@ const AddCommercializationForm = ({ onAdd, onCancel }) => {
 
   const workletId = watch('worklet_id')
 
-  useEffect(() => {
-    const fetchCompletedWorklets = async () => {
-      try {
-        const token = localStorage.getItem('access_token')
-        if (!token) return
-
-        const userResp = await fetch('http://localhost:8000/auth/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const userData = await userResp.json()
-        const userId = userData.id
-
-        const response = await fetch(
-          `http://localhost:8000/api/associations/mentor/${userId}/all-worklets`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        )
-        const data = await response.json()
-        setCompletedWorklets(data.completed_worklets || [])
-      } catch (error) {
-        console.error('Error fetching completed worklets:', error)
-      } finally {
-        setLoadingWorklets(false)
-      }
-    }
-    fetchCompletedWorklets()
-  }, [])
+  // Completed worklets passed via props
 
   const onSubmit = async (data) => {
     const formData = new FormData()
@@ -787,7 +610,8 @@ const AddCommercializationForm = ({ onAdd, onCancel }) => {
       }
     }
     try {
-      const newRecord = await apiSubmit('commercializations', formData, true)
+      const newRecord = await submitPortfolioItem('commercializations', formData)
+      if (file) newRecord.previewUrl = newRecord.document_link || URL.createObjectURL(file)
       onAdd('commercializations', newRecord)
     } catch (error) {
       console.error('Submission failed', error)
@@ -878,22 +702,45 @@ const Portfolio = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('achievements')
   const [expandedRows, setExpandedRows] = useState({})
-  const [portfolioData, setPortfolioData] = useState(staticPortfolioData)
-  const [loadingPortfolio, setLoadingPortfolio] = useState(false)
+  const [portfolioData, setPortfolioData] = useState(emptyPortfolio)
+  const [loadingPortfolio, setLoadingPortfolio] = useState(true)
   const [portfolioError, setPortfolioError] = useState(null)
+  const [completedWorklets, setCompletedWorklets] = useState([])
+  const [loadingCompleted, setLoadingCompleted] = useState(true)
   const [modalType, setModalType] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // This would fetch real data in a production app
-  useEffect(() => {
-    // setLoadingPortfolio(true);
-    // fetch(...)
-    //   .then(res => res.json())
-    //   .then(data => setPortfolioData(data))
-    //   .catch(err => setPortfolioError(err.message))
-    //   .finally(() => setLoadingPortfolio(false));
+  const loadData = useCallback(async () => {
+    try {
+      setLoadingPortfolio(true)
+      const data = await fetchStudentPortfolio()
+      // Map publication_year to year for uniform display
+      data.papers = data.papers.map(p => ({ ...p, year: p.publication_year || p.year }))
+      setPortfolioData(data)
+    } catch (e) {
+      setPortfolioError(e.message || 'Failed to load portfolio')
+    } finally {
+      setLoadingPortfolio(false)
+    }
   }, [])
+
+  const loadCompletedWorklets = useCallback(async () => {
+    try {
+      setLoadingCompleted(true)
+      const { completed } = await fetchCompletedWorkletsForCurrentUser()
+      setCompletedWorklets(completed)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingCompleted(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+    loadCompletedWorklets()
+  }, [loadData, loadCompletedWorklets])
 
   const achievementIcon = (type) => {
     switch (type) {
@@ -931,11 +778,11 @@ const Portfolio = () => {
   const renderModalContent = () => {
     switch (modalType) {
       case 'paper':
-        return <AddPaperForm onAdd={handleAddItem} onCancel={() => setModalType(null)} />
+        return <AddPaperForm completedWorklets={completedWorklets} onAdd={handleAddItem} onCancel={() => setModalType(null)} />
       case 'patent':
-        return <AddPatentForm onAdd={handleAddItem} onCancel={() => setModalType(null)} />
+        return <AddPatentForm completedWorklets={completedWorklets} onAdd={handleAddItem} onCancel={() => setModalType(null)} />
       case 'commercialization':
-        return <AddCommercializationForm onAdd={handleAddItem} onCancel={() => setModalType(null)} />
+        return <AddCommercializationForm completedWorklets={completedWorklets} onAdd={handleAddItem} onCancel={() => setModalType(null)} />
       default:
         return null
     }
@@ -947,9 +794,18 @@ const Portfolio = () => {
       <div className="flex-1 p-4 lg:p-8">
         <div className="w-full max-w-none mx-auto px-4 lg:px-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl lg:text-4xl font-bold mb-2 text-black dark:text-white">My Achievements</h1>
-            <p className="text-gray-600 dark:text-gray-300">A showcase of my professional journey and contributions.</p>
+            <h1 className="text-3xl lg:text-4xl font-bold mb-2 text-black dark:text-white">My Portfolio</h1>
+            <p className="text-gray-600 dark:text-gray-300">Research outputs, achievements, and commercialization records.</p>
           </div>
+
+          {loadingPortfolio && (
+            <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading portfolio...</div>
+          )}
+          {portfolioError && (
+            <div className="text-center py-4 mb-6 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 rounded">
+              {portfolioError}
+            </div>
+          )}
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -1084,7 +940,10 @@ const Portfolio = () => {
                     </div>
                     <button
                       onClick={() => setModalType('paper')}
-                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300 whitespace-nowrap">
+                      disabled={completedWorklets.length === 0}
+                      title={completedWorklets.length === 0 ? 'You need at least one completed worklet to add papers.' : 'Add a new paper'}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg shadow-md transition-all duration-300 whitespace-nowrap ${completedWorklets.length === 0 ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                    >
                       <PlusCircle size={18} />
                       <span>Add Paper</span>
                     </button>
@@ -1235,7 +1094,10 @@ const Portfolio = () => {
                   <h2 className="text-xl font-bold text-gray-800 dark:text-white">Patents</h2>
                   <button
                     onClick={() => setModalType('patent')}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300">
+                    disabled={completedWorklets.length === 0}
+                    title={completedWorklets.length === 0 ? 'You need at least one completed worklet to add patents.' : 'Add a new patent'}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg shadow-md transition-all duration-300 ${completedWorklets.length === 0 ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                  >
                     <PlusCircle size={18} />
                     <span>Add Patent</span>
                   </button>
@@ -1355,7 +1217,10 @@ const Portfolio = () => {
                   <h2 className="text-xl font-bold text-gray-800 dark:text-white">Commercializations</h2>
                   <button
                     onClick={() => setModalType('commercialization')}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300">
+                    disabled={completedWorklets.length === 0}
+                    title={completedWorklets.length === 0 ? 'You need at least one completed worklet to add commercialization records.' : 'Add a commercialization record'}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg shadow-md transition-all duration-300 ${completedWorklets.length === 0 ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                  >
                     <PlusCircle size={18} />
                     <span>Add Record</span>
                   </button>

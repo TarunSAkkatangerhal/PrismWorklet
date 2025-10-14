@@ -1,9 +1,81 @@
 // Secure API Client - Industry Standard
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 // Environment-based configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const API_TIMEOUT = 30000; // 30 seconds
+
+// ---- Token Helpers ----
+const ACCESS_KEY = 'access_token';
+const REFRESH_KEY = 'refresh_token';
+
+const getAccessToken = () => localStorage.getItem(ACCESS_KEY);
+const getRefreshToken = () => localStorage.getItem(REFRESH_KEY);
+const setTokens = (access, refresh) => {
+  if (access) localStorage.setItem(ACCESS_KEY, access);
+  if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
+};
+const clearTokens = () => {
+  localStorage.removeItem(ACCESS_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+};
+
+let refreshInFlight = null; // Promise
+let requestQueue = []; // queued resolvers while refresh happens
+
+const decodeExp = (token) => {
+  try {
+    const dec = jwtDecode(token);
+    return dec.exp ? dec.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+const willExpireSoon = (token, bufferMs = 90_000) => {
+  const expMs = decodeExp(token);
+  if (!expMs) return false;
+  return Date.now() + bufferMs >= expMs; // within buffer window
+};
+
+// Proactively refresh if token close to expiry before sending request
+const ensureFreshToken = async () => {
+  const access = getAccessToken();
+  const refresh = getRefreshToken();
+  if (!access || !refresh) return access;
+  if (!willExpireSoon(access)) return access; // still valid beyond buffer
+  // trigger refresh (will self-queue if already running)
+  await performRefresh();
+  return getAccessToken();
+};
+
+const performRefresh = async () => {
+  if (refreshInFlight) return refreshInFlight; // reuse existing
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+  refreshInFlight = new Promise(async (resolve, reject) => {
+    try {
+      const resp = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refresh });
+      const newAccess = resp.data?.access_token;
+      const newRefresh = resp.data?.refresh_token || refresh; // backend may or may not rotate refresh token
+      if (!newAccess) throw new Error('Invalid refresh response');
+      setTokens(newAccess, newRefresh);
+      // flush queued requests
+      requestQueue.forEach(cb => cb.resolve(newAccess));
+      requestQueue = [];
+      resolve(newAccess);
+    } catch (e) {
+      requestQueue.forEach(cb => cb.reject(e));
+      requestQueue = [];
+      clearTokens();
+      reject(e);
+    } finally {
+      refreshInFlight = null;
+    }
+  });
+  return refreshInFlight;
+};
 
 // Create axios instance with security defaults
 const apiClient = axios.create({
@@ -16,68 +88,76 @@ const apiClient = axios.create({
 
 // Request interceptor - Add auth token
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    // Add request timestamp for replay attack protection
+  async (config) => {
+    // Attempt proactive refresh if near expiry
+    const fresh = await ensureFreshToken();
+    if (fresh) config.headers.Authorization = `Bearer ${fresh}`;
     config.headers['X-Timestamp'] = Date.now().toString();
-    
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor - Handle auth errors
 apiClient.interceptors.response.use(
-  (response) => {
-    // Validate response structure
-    if (response.data && typeof response.data === 'object') {
-      return response;
-    }
-    throw new Error('Invalid response format');
-  },
+  (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    // Handle 401 errors (token expired)
+    const originalRequest = error.config || {};
+    // If unauthorized and we have a refresh token, attempt single refresh sequence
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+
       try {
-        // Attempt token refresh
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refresh_token: refreshToken
+        if (!refreshInFlight) {
+          // Start refresh (will set refreshInFlight)
+          await performRefresh();
+        } else {
+          // Queue until refresh finishes
+          await new Promise((resolve, reject) => {
+            requestQueue.push({ resolve, reject });
           });
-          
-          const newToken = response.data.access_token;
-          localStorage.setItem('access_token', newToken);
-          
-          // Retry original request
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        }
+        const newAccess = getAccessToken();
+        if (newAccess) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newAccess}`;
           return apiClient(originalRequest);
         }
-      } catch (refreshError) {
-        // Refresh failed, logout user
-        localStorage.clear();
-        window.location.href = '/';
+      } catch (e) {
+        // propagate to logout below
       }
+      clearTokens();
+      window.location.href = '/';
+      return Promise.reject(error);
     }
-
-    // Handle other errors
-    if (error.response?.status >= 500) {
-      console.error('Server error:', error);
-    }
-
     return Promise.reject(error);
   }
 );
+
+// Expose manual refresh trigger (e.g., for background interval or visibility change)
+export const forceRefreshIfNeeded = async () => {
+  const token = getAccessToken();
+  if (!token) return false;
+  if (willExpireSoon(token, 120_000)) {
+    try {
+      await performRefresh();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
+
+// Optional: background proactive refresh every 60s
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    forceRefreshIfNeeded();
+  }, 60_000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') forceRefreshIfNeeded();
+  });
+}
 
 // Secure API methods with input validation
 export const workletAPI = {

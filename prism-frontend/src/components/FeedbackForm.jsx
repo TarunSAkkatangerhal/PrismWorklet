@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import apiClient from '../services/secureAPI';
 
 export default function FeedbackForm({ isOpen, onClose }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
@@ -58,19 +58,14 @@ export default function FeedbackForm({ isOpen, onClose }) {
         setLoading(false);
         return;
       }
-      const userResp = await axios.get("http://localhost:8000/auth/profile", {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-      });
+      const userResp = await apiClient.get('/auth/profile');
       const userId = userResp?.data?.id;
       if (!userId) {
         setError("Unable to determine user ID. Please re-login.");
         setLoading(false);
         return;
       }
-      const response = await axios.get(
-        `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
-        { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
-      );
+      const response = await apiClient.get(`/api/associations/mentor/${userId}/ongoing-worklets`);
       const data = response?.data?.ongoing_worklets || [];
       setWorklets(Array.isArray(data) ? data : []);
       if ((data || []).length === 0) setError("No worklets found for this mentor");
@@ -105,16 +100,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
         feedback_content: feedbackContent.trim() // backend expects 'feedback_content'
       };
 
-      const response = await axios.post(
-        "http://localhost:8000/worklets/submit-feedback",
-        feedbackData,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post('/worklets/submit-feedback', feedbackData);
 
       console.log("Feedback submitted successfully:", response.data);
       

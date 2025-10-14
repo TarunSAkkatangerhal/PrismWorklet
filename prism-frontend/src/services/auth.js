@@ -2,6 +2,7 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import DOMPurify from 'dompurify';
+import { forceRefreshIfNeeded } from './secureAPI';
 
 const BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
@@ -203,48 +204,11 @@ export const getCurrentUser = async () => {
 };
 
 // Secure token refresh
+// Refresh is centralized in secureAPI interceptor now; retain legacy export for compatibility.
 export const refreshToken = async () => {
-  const refresh_token = secureStorage.getRefreshToken();
-  if (!refresh_token) {
-    throw new Error("No refresh token found");
-  }
-
-  try {
-    const response = await axios.post(`${BASE}/auth/refresh`, { 
-      refresh_token 
-    }, {
-      headers: {
-        "X-Timestamp": Date.now().toString()
-      },
-      timeout: 10000
-    });
-    
-    const { access_token, refresh_token: new_refresh_token } = response.data;
-    
-    if (!access_token) {
-      throw new Error('Invalid refresh response');
-    }
-    
-    // Validate new token
-    const userData = validateToken(access_token);
-    if (!userData) {
-      throw new Error('Invalid new access token');
-    }
-    
-    // Store new tokens
-    secureStorage.setTokens(access_token, new_refresh_token || refresh_token);
-    
-    // Update user data
-    localStorage.setItem('user_email', userData.email);
-    localStorage.setItem('user_name', userData.name || '');
-    localStorage.setItem('user_role', userData.role || '');
-    
-    return response.data;
-  } catch (error) {
-    // Refresh failed, clear all tokens
-    secureStorage.clearTokens();
-    throw new Error('Session expired. Please log in again.');
-  }
+  const success = await forceRefreshIfNeeded();
+  if (!success) throw new Error('Session expired. Please log in again.');
+  return { access_token: secureStorage.getToken(), refresh_token: secureStorage.getRefreshToken() };
 };
 
 // Secure logout

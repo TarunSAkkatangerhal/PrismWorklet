@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Award, Star, Trophy, Gift, CheckCircle2 } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../services/secureAPI';
 
 function EvaluateModal({ isOpen, onClose }) {
   const [completedWorklets, setCompletedWorklets] = useState([]);
@@ -37,9 +37,7 @@ function EvaluateModal({ isOpen, onClose }) {
       const token = localStorage.getItem('access_token');
       if (!token) throw new Error('Missing token');
       // Fetch fresh association-based details for the worklet (mentors + students etc.)
-      const resp = await axios.get(`http://localhost:8000/api/associations/worklet/${workletId}` ,{
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-      });
+      const resp = await apiClient.get(`/api/associations/worklet/${workletId}`);
       const baseInfo = completedWorklets.find(w => w.id === parseInt(workletId));
       // Merge so new data overwrites stale fields
       setSelectedWorkletDetails({
@@ -76,15 +74,11 @@ function EvaluateModal({ isOpen, onClose }) {
       const token = localStorage.getItem('access_token');
       if (!token) throw new Error('Missing token');
       // Resolve mentor id
-      const profileResp = await axios.get('http://localhost:8000/auth/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const profileResp = await apiClient.get('/auth/profile');
       const mentorId = profileResp?.data?.id;
       if (!mentorId) throw new Error('Unable to resolve mentor id');
       // Get all worklets including completed
-      const assocResp = await axios.get(`http://localhost:8000/api/associations/mentor/${mentorId}/all-worklets`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-      });
+      const assocResp = await apiClient.get(`/api/associations/mentor/${mentorId}/all-worklets`);
       const completed = assocResp?.data?.completed_worklets || [];
       setCompletedWorklets(Array.isArray(completed) ? completed : []);
     } catch (error) {
@@ -153,16 +147,7 @@ function EvaluateModal({ isOpen, onClose }) {
       };
 
       // Submit evaluation (we'll create this endpoint)
-      await axios.post(
-        'http://localhost:8000/evaluations/submit',
-        evaluationPayload,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      await apiClient.post('/evaluations/submit', evaluationPayload);
       setShowSuccess(true);
       // Auto close after short delay
       setTimeout(() => {
