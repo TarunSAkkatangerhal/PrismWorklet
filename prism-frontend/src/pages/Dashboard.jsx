@@ -280,13 +280,9 @@ export default function Dashboard() {
         </header>
 
   {/* Top summary section: Profile card (2 cols) + Stat side column */}
-  <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw]">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw]">
           <div className="lg:col-span-2 relative overflow-visible rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700">
-            {/* Subtle branded gradient aura */}
-            <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-cyan-400/20 blur-3xl"></div>
-            <div className="pointer-events-none absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-blue-600/15 via-indigo-500/10 to-purple-500/15 blur-3xl"></div>
-
-            <div className="flex items-start gap-[1.2vw] relative z-10">
+            <div className="flex items-start gap-[1.2vw]">
               {userProfileData?.mentor_profile?.avatar_url ? (
                 <img
                   src={userProfileData.mentor_profile.avatar_url}
@@ -305,6 +301,11 @@ export default function Dashboard() {
               )}
               <div className="flex-1">
                 <h2 className="text-[clamp(1.125rem,1.8vw,1.5rem)] font-bold text-slate-900 dark:text-white">{userProfileData?.name || userName}</h2>
+                {userProfileData?.email && (
+                  <p className="text-[clamp(0.75rem,0.9vw,0.875rem)] text-slate-600 dark:text-slate-300 mt-[0.2vw]">
+                    {userProfileData.email}
+                  </p>
+                )}
                 {userProfileData?.mentor_profile?.qualification && (
                   <p className="text-[clamp(0.875rem,1.1vw,1rem)] font-medium text-blue-600 dark:text-blue-400">
                     {userProfileData?.mentor_profile?.qualification}
@@ -540,7 +541,7 @@ function WorkletCard({ worklet, layout, navigate }) {
   }
 
   // Utility to keep badge sizes stable
-  const truncateText = (text, maxLength = 25) => {
+  const truncateText = (text, maxLength = 40) => {
     if (text.length <= maxLength) return text
     return text.substring(0, maxLength) + '...'
   }
