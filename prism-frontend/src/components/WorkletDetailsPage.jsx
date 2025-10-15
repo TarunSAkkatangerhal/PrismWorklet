@@ -256,6 +256,15 @@ export default function WorkletDetailPage() {
   const [activityFilter, setActivityFilter] = useState('all')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
+  // --- BACK NAVIGATION STATE ---
+  const [canGoBack, setCanGoBack] = useState(false)
+
+  // --- CHECK IF USER CAN GO BACK ---
+  useEffect(() => {
+    // Check if there's history to go back to
+    setCanGoBack(window.history.length > 1)
+  }, [])
+  
   // --- MILESTONE STATE ---
   const [milestones, setMilestones] = useState([
     {
@@ -401,6 +410,15 @@ export default function WorkletDetailPage() {
   // --- EVENT HANDLERS ---
   const handleNavigation = (path) => {
     navigate(path)
+  }
+
+  // --- BACK NAVIGATION HANDLER ---
+  const handleGoBack = () => {
+    if (canGoBack) {
+      navigate(-1) // Go back to previous page
+    } else {
+      navigate('/worklets') // Fallback to worklets page
+    }
   }
 
   // --- SKELETON LOADER COMPONENT ---
@@ -1395,6 +1413,35 @@ export default function WorkletDetailPage() {
     }))
   }
 
+  // --- PERFORMANCE CALCULATION ---
+  const getWorkletPerformance = (worklet) => {
+    if (!worklet) return 'Needs Attention'
+    
+    const progress = worklet.progress || 0
+    
+    // Performance logic based on progress percentage
+    if (progress > 80) {
+      return 'Excellence'
+    } else if (progress > 70) {
+      return 'Good'
+    } else {
+      return 'Needs Attention'
+    }
+  }
+
+  const getPerformanceColor = (performance) => {
+    switch (performance) {
+      case 'Excellence':
+        return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
+      case 'Good':
+        return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+      case 'Needs Attention':
+        return 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white'
+      default:
+        return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
+    }
+  }
+
   const filteredTeamMembers = worklet?.students?.filter(member =>
     member.toLowerCase().includes(searchTeam.toLowerCase())
   ) || []
@@ -1410,8 +1457,17 @@ export default function WorkletDetailPage() {
           
           {/* Enhanced Header with Glassmorphism */}
           <GlassCard gradient className="p-6 border-0 shadow-xl">
-            {/* Breadcrumb Navigation */}
+            {/* Breadcrumb Navigation with Back Button */}
             <nav className="flex items-center gap-2 text-sm mb-6">
+              <button
+                onClick={handleGoBack}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-600 hover:text-indigo-700 
+                          dark:text-gray-400 dark:hover:text-indigo-400 font-medium transition-all duration-200 
+                          hover:bg-white/50 dark:hover:bg-gray-700/50 border border-gray-200/50 dark:border-gray-600/50"
+                title="Go back to previous page"
+              >
+                <ArrowLeft size={16} />
+              </button>
               <Link 
                 to="/worklets" 
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-600 hover:text-indigo-700 
@@ -1425,7 +1481,7 @@ export default function WorkletDetailPage() {
               <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Project Details</span>
             </nav>
 
-            <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
               {/* Left: Project Info */}
               <div className="flex-1 space-y-4">
                 {/* Organization Badge */}
@@ -1438,7 +1494,7 @@ export default function WorkletDetailPage() {
                 </div>
                 
                 {/* Project Title with Gradient */}
-                <h1 className="text-3xl xl:text-4xl font-bold text-black dark:text-white leading-tight">
+                <h1 className="text-3xl lg:text-4xl font-bold text-black dark:text-white leading-tight">
                   {worklet.title}
                 </h1>
                 
@@ -1446,50 +1502,39 @@ export default function WorkletDetailPage() {
                 <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed max-w-4xl">
                   {worklet.description}
                 </p>
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3 pt-4">
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
-                                    hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
-                                    rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
-                    <Edit size={16} />
-                    <span className="font-medium">Edit Project</span>
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
-                                    hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
-                                    rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
-                    <Share2 size={16} />
-                    <span className="font-medium">Share</span>
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
-                                    hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
-                                    rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
-                    <Download size={16} />
-                    <span className="font-medium">Export</span>
-                  </button>
-                </div>
               </div>
               
-              {/* Right: Status & Progress */}
-              <div className="xl:min-w-[300px] space-y-6">
+              {/* Right: Status & Progress - Now appears above buttons on smaller screens */}
+              <div className="lg:min-w-[300px] space-y-4 order-first lg:order-last">
                 {/* Status Badge Enhanced */}
-                <div className="flex flex-col sm:flex-row xl:flex-col items-start gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${
-                      worklet.status === 'Completed' 
-                        ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white'
-                        : worklet.status === 'Ongoing'
-                        ? 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white' 
-                        : 'bg-gradient-to-r from-orange-400 to-red-500 text-white'
-                    }`}>
-                      {worklet.status === 'Ongoing' && <Activity size={16} className="mr-2 animate-pulse" />}
-                      {worklet.status === 'Completed' && <CheckCircle2 size={16} className="mr-2" />}
-                      {worklet.status}
-                    </span>
+                <div className="flex flex-col sm:flex-row lg:flex-col items-start gap-4">
+                  <div className="flex flex-col gap-3 w-full">
+                    {/* Status and Performance Row */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${
+                        worklet.status === 'Completed' 
+                          ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white'
+                          : worklet.status === 'Ongoing'
+                          ? 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white' 
+                          : 'bg-gradient-to-r from-orange-400 to-red-500 text-white'
+                      }`}>
+                        {worklet.status === 'Ongoing' && <Activity size={16} className="mr-2 animate-pulse" />}
+                        {worklet.status === 'Completed' && <CheckCircle2 size={16} className="mr-2" />}
+                        {worklet.status}
+                      </span>
+                      
+                      {/* Performance Badge */}
+                      <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
+                        {getWorkletPerformance(worklet) === 'Excellence' && <Award size={16} className="mr-2" />}
+                        {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
+                        {getWorkletPerformance(worklet) === 'Needs Attention' && <AlertCircle size={16} className="mr-2" />}
+                        {getWorkletPerformance(worklet)}
+                      </span>
+                    </div>
                   </div>
                   
                   {/* Last Activity Card */}
-                  <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md rounded-xl border border-gray-200/50 dark:border-gray-600/50 p-4">
+                  <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md rounded-xl border border-gray-200/50 dark:border-gray-600/50 p-4 w-full sm:min-w-[250px]">
                     <div className="flex items-start gap-3">
                       <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
                       <div className="flex-1 min-w-0">
@@ -1511,6 +1556,28 @@ export default function WorkletDetailPage() {
                 {/* Enhanced Progress Bar */}
                 <EnhancedProgressBar progress={worklet.progress} size="lg" />
               </div>
+            </div>
+
+            {/* Action Buttons - Now separate section below status and info */}
+            <div className="flex flex-wrap gap-3 pt-4 lg:pt-6">
+              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
+                                hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
+                                rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
+                <Edit size={16} />
+                <span className="font-medium">Edit Project</span>
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
+                                hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
+                                rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
+                <Share2 size={16} />
+                <span className="font-medium">Share</span>
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
+                                hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
+                                rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
+                <Download size={16} />
+                <span className="font-medium">Export</span>
+              </button>
             </div>
           </GlassCard>
 

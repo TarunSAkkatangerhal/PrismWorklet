@@ -114,12 +114,12 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsOpen(true)}
-          className="w-full pl-10 pr-10 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          className="w-full pl-10 pr-16 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
         />
         {value ? (
           <button
             onClick={() => onChange('')}
-            className="absolute right-9 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800">
+            className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800 bg-white dark:bg-slate-600 rounded-full hover:bg-gray-100 dark:hover:bg-slate-500 z-10">
             <X className="w-4 h-4" />
           </button>
         ) : null}
@@ -746,14 +746,23 @@ const Colleges = () => {
 
 
   const uniqueAreas = useMemo(() => {
-    const areas = (allCollegeData || [])
+    let colleges = allCollegeData || []
+    
+    // If a specific college is selected, only show areas for that college
+    if (collegeSearch && collegeSearch !== '') {
+      colleges = colleges.filter((college) => 
+        (college.college_name || college.name).toLowerCase() === collegeSearch.toLowerCase()
+      )
+    }
+    
+    const areas = colleges
       .map((college) => college.areaOfExpertise)
       .filter((area) => area && typeof area === 'string')
     // Some areaOfExpertise may be comma-separated lists
     const splitAreas = areas.flatMap((area) => area.split(',').map((a) => a.trim()))
     const unique = Array.from(new Set(splitAreas)).sort()
     return unique
-  }, [allCollegeData])
+  }, [allCollegeData, collegeSearch])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -865,6 +874,13 @@ const Colleges = () => {
       setCollegeSearch(location.state.collegeName)
     }
   }, [location.state?.collegeName])
+
+  // Reset area selection if currently selected area is no longer available after college change
+  useEffect(() => {
+    if (selectedArea !== 'Select Area' && !uniqueAreas.includes(selectedArea)) {
+      setSelectedArea('Select Area')
+    }
+  }, [uniqueAreas, selectedArea])
 
   useEffect(() => {
     allCollegeDataRef.current = allCollegeData
@@ -1096,6 +1112,8 @@ const Colleges = () => {
 
   const handleCollegeSelect = (collegeName) => {
     setCollegeSearch(collegeName)
+    // Reset area selection when college changes since available areas will be different
+    setSelectedArea('Select Area')
   }
 
   // New handler for opening the chart modal
@@ -1584,7 +1602,9 @@ const Colleges = () => {
                 <SearchableDropdown
                   options={allCollegeData}
                   value={collegeSearch}
-                  onChange={handleCollegeSelect}
+                  onChange={(newValue) => {
+                    handleCollegeSelect(newValue)
+                  }}
                   placeholder="Search or select college..."
                 />
               </div>
@@ -1609,8 +1629,18 @@ const Colleges = () => {
                   <select
                     value={selectedArea}
                     onChange={(e) => setSelectedArea(e.target.value)}
-                    className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
-                    <option>Select Area</option>
+                    disabled={uniqueAreas.length === 0}
+                    className={`appearance-none border rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      uniqueAreas.length === 0 
+                        ? 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+                        : 'bg-purple-50 dark:bg-slate-700 border-purple-200 dark:border-slate-600 text-gray-900 dark:text-gray-200 focus:ring-purple-500'
+                    }`}>
+                    <option value="Select Area">
+                      {collegeSearch ? 
+                        (uniqueAreas.length > 0 ? 'Select Area' : 'No areas available') : 
+                        'Select Area'
+                      }
+                    </option>
                     {uniqueAreas.map((area) => (
                       <option key={area} value={area}>{area}</option>
                     ))}
