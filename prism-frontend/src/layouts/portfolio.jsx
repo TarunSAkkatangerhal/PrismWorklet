@@ -184,6 +184,53 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 }
 
 const PreviewModal = ({ url, onClose }) => {
+  const [showError, setShowError] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const iframeRef = React.useRef(null)
+
+  const handleOpenInNewTab = () => {
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleIframeError = () => {
+    setShowError(true)
+    setIsLoading(false)
+  }
+
+  const handleIframeLoad = () => {
+    setIsLoading(false)
+    try {
+      // Try to access iframe content - if blocked, this will fail
+      const iframe = iframeRef.current
+      if (iframe && iframe.contentDocument === null) {
+        setShowError(true)
+      }
+    } catch (e) {
+      setShowError(true)
+    }
+  }
+
+  React.useEffect(() => {
+    if (!url) return
+
+    const iframe = iframeRef.current
+    if (!iframe) return
+
+    // Reset states when url changes
+    setShowError(false)
+    setIsLoading(true)
+
+    // Set a shorter timeout to check if iframe loaded successfully
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        setShowError(true)
+        setIsLoading(false)
+      }
+    }, 800) // Reduced from 2000ms to 800ms
+
+    return () => clearTimeout(timeoutId)
+  }, [url, isLoading])
+
   if (!url) return null
 
   return (
@@ -193,12 +240,70 @@ const PreviewModal = ({ url, onClose }) => {
         onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center border-b p-3 dark:border-gray-600 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Document Preview</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleOpenInNewTab}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
+              title="Open in new tab">
+              <ExternalLink size={16} />
+              <span>Open in New Tab</span>
+            </button>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
+              <X size={24} />
+            </button>
+          </div>
         </div>
-        <div className="flex-grow overflow-hidden bg-gray-100 dark:bg-gray-900">
-          <iframe src={url} title="Document Preview" className="w-full h-full border-none" />
+        <div className="flex-grow overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
+          {showError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-gray-200 dark:border-gray-700">
+                <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4">
+                  <Eye className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  Preview Not Available
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
+                  This document cannot be previewed directly in the browser. Please open it in a new tab to view the content.
+                </p>
+                <button
+                  onClick={handleOpenInNewTab}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
+                  <ExternalLink size={20} />
+                  <span>Open in New Tab</span>
+                </button>
+              </div>
+            </div>
+          ) : isLoading ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-gray-200 dark:border-gray-700">
+                <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4">
+                  <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  Loading Preview...
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
+                  Please wait while we load the document preview.
+                </p>
+                <button
+                  onClick={handleOpenInNewTab}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
+                  <ExternalLink size={20} />
+                  <span>Open in New Tab Instead</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <iframe
+              ref={iframeRef}
+              src={url}
+              title="Document Preview"
+              className="w-full h-full border-none"
+              onError={handleIframeError}
+              onLoad={handleIframeLoad}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -583,7 +688,6 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets }) => {
 }
 
 const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
-  const [file, setFile] = useState(null)
   const loadingWorklets = false
   const {
     register,
@@ -601,7 +705,6 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
   const onSubmit = async (data) => {
     const formData = new FormData()
     Object.keys(data).forEach((key) => formData.append(key, data[key]))
-    if (file) formData.append('document', file)
 
     if (data.worklet_id) {
       const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
@@ -611,7 +714,6 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
     }
     try {
       const newRecord = await submitPortfolioItem('commercializations', formData)
-      if (file) newRecord.previewUrl = newRecord.document_link || URL.createObjectURL(file)
       onAdd('commercializations', newRecord)
     } catch (error) {
       console.error('Submission failed', error)
@@ -671,10 +773,6 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
             rows="3"
             {...register('description', { required: 'Description is required' })}
           />
-          <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center pt-2">
-            <Upload size={20} className="mr-2 text-green-500" /> Proof/Document
-          </h4>
-          <FileUpload onFileChange={setFile} file={file} />
           <div className="flex justify-end space-x-3 pt-4">
             <button
               type="button"
@@ -715,8 +813,22 @@ const Portfolio = () => {
     try {
       setLoadingPortfolio(true)
       const data = await fetchStudentPortfolio()
-      // Map publication_year to year for uniform display
-      data.papers = data.papers.map(p => ({ ...p, year: p.publication_year || p.year }))
+      // Map publication_year to year for uniform display and add previewUrl
+      data.papers = data.papers.map(p => ({ 
+        ...p, 
+        year: p.publication_year || p.year,
+        previewUrl: p.document_link || p.previewUrl
+      }))
+      // Add previewUrl to patents
+      data.patents = data.patents.map(pt => ({ 
+        ...pt, 
+        previewUrl: pt.document_link || pt.previewUrl
+      }))
+      // Add previewUrl to commercializations
+      data.commercializations = data.commercializations.map(c => ({ 
+        ...c, 
+        previewUrl: c.document_link || c.previewUrl
+      }))
       setPortfolioData(data)
     } catch (e) {
       setPortfolioError(e.message || 'Failed to load portfolio')
@@ -1036,7 +1148,8 @@ const Portfolio = () => {
                                         e.stopPropagation()
                                         setPreviewUrl(paper.previewUrl)
                                       }}
-                                      className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                                      className="font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                                      <Eye size={16} />
                                       Preview
                                     </button>
                                   ) : paper.link && paper.link !== '#' ? (
@@ -1184,7 +1297,8 @@ const Portfolio = () => {
                                       e.stopPropagation()
                                       setPreviewUrl(patent.previewUrl)
                                     }}
-                                    className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                                    className="font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                                    <Eye size={16} />
                                     Preview
                                   </button>
                                 ) : (
@@ -1230,16 +1344,12 @@ const Portfolio = () => {
                     <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                       <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                         <tr>
-                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
-                            Commercialization ID
-                          </th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Title</th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Year</th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
                             Associated Worklet
                           </th>
-                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Link</th>
-                          
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Target (Link)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1247,9 +1357,6 @@ const Portfolio = () => {
                           <tr
                             key={item.id}
                             className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                            <td className="px-6 py-4 font-mono text-xs text-gray-700 dark:text-gray-300">
-                              COMM-{item.id}
-                            </td>
                             <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{item.title}</td>
                             <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{item.year}</td>
                             <td className="px-6 py-4">
@@ -1280,7 +1387,6 @@ const Portfolio = () => {
                                 <span className="text-gray-400 dark:text-gray-500">—</span>
                               )}
                             </td>
-                            
                           </tr>
                         ))}
                       </tbody>
