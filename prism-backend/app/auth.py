@@ -72,6 +72,29 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+def decode_refresh_token(token: str) -> dict:
+    """Decode refresh token, allowing expired tokens within grace period (e.g., for token rotation)."""
+    try:
+        # Try normal decode first
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except ExpiredSignatureError:
+        # For refresh tokens, we can allow a small grace period after expiry
+        # This prevents edge cases where the token expires right as refresh is called
+        try:
+            # Decode without verification to check expiry time
+            unverified = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+            exp_time = unverified.get("exp")
+            if exp_time:
+                # Allow refresh tokens expired less than 1 hour ago (grace period)
+                if datetime.utcnow().timestamp() - exp_time < 3600:
+                    return unverified
+        except JWTError:
+            pass
+        raise HTTPException(status_code=401, detail="Refresh token has expired beyond grace period")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
 def require_access_token(token: str) -> dict:
     """Decode token and ensure it is an access token."""
     payload = decode_token(token)
@@ -273,8 +296,8 @@ def refresh_tokens(request: Request, payload: Optional[schemas.TokenRefreshReque
     if not raw_token:
         raise HTTPException(status_code=400, detail="Missing refresh token. Provide in JSON body or Authorization header.")
 
-    # Decode & validate refresh token
-    decoded = decode_token(raw_token)
+    # Decode & validate refresh token (allows recently expired tokens)
+    decoded = decode_refresh_token(raw_token)
     # Backwards-compat: old tokens may not have a 'type' claim
     tok_type = decoded.get("type", "refresh")
     if tok_type != "refresh":
