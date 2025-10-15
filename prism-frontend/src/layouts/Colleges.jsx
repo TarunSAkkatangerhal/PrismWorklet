@@ -74,7 +74,6 @@ const ChartModal = ({ chartInfo, onClose }) => {
     </div>
   )
 }
-// ...existing code...
 
 // --- Searchable Dropdown Component ---
 const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
@@ -297,15 +296,15 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
       <div
         className="flex justify-between items-center mb-4"
         // FIX: Stop click event from bubbling up to the parent container
-        onClick={(e) => e.stopPropagation()} 
+        onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Worklet Count per College</h3>
         <div className="flex items-center space-x-2 text-xs">
-           <select 
-              value={sortOrder} 
-              onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
-              className="bg-gray-100 dark:bg-slate-700 border-none rounded-md p-1 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
-            >
+           <select
+             value={sortOrder}
+             onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
+             className="bg-gray-100 dark:bg-slate-700 border-none rounded-md p-1 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
+           >
              <option value="desc">Most First</option>
              <option value="asc">Fewest First</option>
              <option value="alpha">Alphabetical</option>
@@ -354,16 +353,16 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
         )}
       </div>
        {pageCount > 1 && (
-        <div 
-          className="flex justify-center items-center pt-4 space-x-2 text-sm"
-          // FIX: Stop click event from bubbling up to the parent container
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 bg-gray-200 dark:bg-slate-700 rounded-md disabled:opacity-50">Prev</button>
-          <span className="text-gray-700 dark:text-gray-300">Page {currentPage} of {pageCount}</span>
-          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === pageCount} className="px-3 py-1 bg-gray-200 dark:bg-slate-700 rounded-md disabled:opacity-50">Next</button>
-        </div>
-      )}
+         <div
+           className="flex justify-center items-center pt-4 space-x-2 text-sm"
+           // FIX: Stop click event from bubbling up to the parent container
+           onClick={(e) => e.stopPropagation()}
+         >
+           <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 bg-gray-200 dark:bg-slate-700 rounded-md disabled:opacity-50">Prev</button>
+           <span className="text-gray-700 dark:text-gray-300">Page {currentPage} of {pageCount}</span>
+           <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === pageCount} className="px-3 py-1 bg-gray-200 dark:bg-slate-700 rounded-md disabled:opacity-50">Next</button>
+         </div>
+       )}
     </div>
   );
 };
@@ -744,7 +743,7 @@ const Colleges = () => {
     return sumStatuses
   }, [])
 
-  
+
 
   const uniqueAreas = useMemo(() => {
     const areas = (allCollegeData || [])
@@ -836,7 +835,7 @@ const Colleges = () => {
           statusText: err.response?.statusText,
           url: err.config?.url
         })
-        
+
         if (err.response?.status === 401) {
           setError('Authentication required. Please log in again.')
           // Clear auth tokens
@@ -983,14 +982,14 @@ const Colleges = () => {
           statusText: detailError.response?.statusText,
           url: detailError.config?.url
         })
-        
+
         if (detailError.response?.status === 401) {
           console.warn('Authentication failed for college details')
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
           window.location.href = '/'
         }
-        
+
         setCollegeDetailStatus((prev) => ({ ...prev, [collegeId]: 'error' }))
       }
     },
@@ -1107,10 +1106,10 @@ const Colleges = () => {
   // Navigation handler to go to navColl component with filter details
   const handleNavigateToFilter = (filter, collegeName = null) => {
     const targetCollege = collegeName || (filteredColleges.length === 1 ? filteredColleges[0].name : null)
-    
+
     if (targetCollege) {
       let count = 0
-      
+
       if (targetCollege === 'All Colleges') {
         // Handle multi-college aggregated counts
         switch (filter) {
@@ -1163,7 +1162,7 @@ const Colleges = () => {
           }
         }
       }
-      
+
       navigate('/navColl', {
         state: {
           filter,
@@ -1343,9 +1342,9 @@ const Colleges = () => {
               </div>
             </button>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* MODIFIED: This container now only holds one chart */}
+          <div className="mt-8">
             <WorkletPerformanceChart data={filteredColleges} onEnlarge={handleEnlargeChart} />
-            <StudentsPerWorkletChart data={filteredColleges} onEnlarge={handleEnlargeChart} />
           </div>
         </div>
       )
@@ -1644,7 +1643,7 @@ const Colleges = () => {
             {renderDashboard()}
           </div>
         )
-    }
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
