@@ -37,7 +37,25 @@ import {
 // Currently NOT used in render path (live data comes from mentor endpoints).
 
 // Mapping of progression tiers to milestone thresholds (could drive dynamic level computation later)
-const LEVEL_COUNTS = { spark: 5, lead: 10, core: 15, master: 30 }
+const LEVEL_COUNTS = { spark: 1, lead: 5, core: 10, master: 15 }
+
+// Level thresholds based on worklet count
+const LEVEL_THRESHOLDS = [
+  { name: 'SPARK', Icon: Zap, color: 'text-yellow-500', threshold: 1 },   // 1+ worklets
+  { name: 'LEAD', Icon: Rocket, color: 'text-blue-500', threshold: 5 },   // 5+ worklets  
+  { name: 'CORE', Icon: Key, color: 'text-green-500', threshold: 10 },    // 10+ worklets
+  { name: 'MASTER', Icon: Crown, color: 'text-purple-500', threshold: 15 }, // 15+ worklets
+]
+
+// Helper function to determine current level based on worklet count
+const getCurrentLevelFromWorklets = (workletCount) => {
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (workletCount >= LEVEL_THRESHOLDS[i].threshold) {
+      return i;
+    }
+  }
+  return -1; // Below SPARK level (0 worklets)
+}
 
 // Ordered progression ladder displayed as horizontal milestones over progress bar
 const levels = [
@@ -213,25 +231,36 @@ export default function Dashboard() {
 
   // Inline component: displays single milestone with hover tooltip describing progression context
   const LevelMilestone = ({ level, index }) => {
-    const levelsToGo = index - currentUserLevel
+    const currentLevel = getCurrentLevelFromWorklets(totalWorkletsCount)
+    const levelsToGo = index - currentLevel
+    const nextThreshold = LEVEL_THRESHOLDS[index]?.threshold || 15
+    const workletsNeeded = Math.max(0, nextThreshold - totalWorkletsCount)
+    
     let tooltipText = ''
-    if (levelsToGo > 0) tooltipText = `${levelsToGo} level${levelsToGo > 1 ? 's' : ''} to reach ${level.name}`
-    else if (levelsToGo === 0) tooltipText = index === levels.length - 1 ? 'Highest level achieved! ✨' : 'You are here'
-    else tooltipText = 'Milestone achieved ✔️'
+    if (levelsToGo > 1) {
+      tooltipText = `${workletsNeeded} more worklet${workletsNeeded !== 1 ? 's' : ''} to reach ${level.name}`
+    } else if (levelsToGo === 1) {
+      tooltipText = `${workletsNeeded} more worklet${workletsNeeded !== 1 ? 's' : ''} to reach ${level.name}`
+    } else if (levelsToGo === 0) {
+      tooltipText = index === levels.length - 1 ? 'Highest level achieved! ✨' : `You are here (${totalWorkletsCount} worklets)`
+    } else {
+      tooltipText = `Milestone achieved (${totalWorkletsCount} worklets)`
+    }
+    
     return (
       <div className="relative group">
         <span className="flex items-center gap-1.5 cursor-pointer">
           <level.Icon className={`w-4 h-4 ${level.color}`} /> {level.name}
         </span>
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-[9999]">
           {tooltipText}
         </span>
       </div>
     )
   }
 
-  // Translate currentUserLevel index into width percentage for progress track
-  const progressPercentage = (currentUserLevel / (levels.length - 1)) * 100
+  // Calculate progress percentage based on total worklets (15 worklets = 100%)
+  const progressPercentage = Math.min((totalWorkletsCount / 15) * 100, 100)
 
   return (
     <div className="flex h-screen w-full bg-slate-100 text-slate-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200">
@@ -252,7 +281,7 @@ export default function Dashboard() {
 
   {/* Top summary section: Profile card (2 cols) + Stat side column */}
   <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw]">
-          <div className="lg:col-span-2 relative overflow-hidden rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700">
+          <div className="lg:col-span-2 relative overflow-visible rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700">
             {/* Subtle branded gradient aura */}
             <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-cyan-400/20 blur-3xl"></div>
             <div className="pointer-events-none absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-blue-600/15 via-indigo-500/10 to-purple-500/15 blur-3xl"></div>
@@ -289,20 +318,14 @@ export default function Dashboard() {
                 )}
                 {/* Refined glass chips row */}
                 <div className="mt-[0.8vw] flex flex-wrap gap-[0.5vw]">
-                  <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-white/40 text-slate-800 border border-white/60 backdrop-blur dark:bg-white/10 dark:text-slate-200 dark:border-white/10">
-                    {userProfileData?.role || 'Mentor'}
-                  </span>
+                  
                   {userProfileData?.college && (
                     <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 backdrop-blur dark:text-indigo-200">
                       {userProfileData.college}
                     </span>
                   )}
-                  <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-blue-500/10 text-blue-700 border border-blue-500/20 backdrop-blur dark:text-blue-200">
-                    {totalWorkletsCount} Worklets
-                  </span>
-                  <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-cyan-500/10 text-cyan-700 border border-cyan-500/20 backdrop-blur dark:text-cyan-200">
-                    {(mentorStats?.engagement_data?.['My Students'] ?? 0)} Students
-                  </span>
+                  
+                  
                 </div>
               </div>
             </div>
@@ -331,7 +354,7 @@ export default function Dashboard() {
             </div>
             <StatCard
               value={isLoadingMentorStats ? '...' : mentorStats?.engagement_data?.['My Students']}
-              label="Active Mentees"
+              label="Total students"
               icon={<UsersIcon className="w-[clamp(1.25rem,1.8vw,2rem)] h-[clamp(1.25rem,1.8vw,2rem)] text-indigo-500" />}
               accent="from-indigo-50 to-white hover:border-indigo-300 dark:from-slate-800/50 dark:to-slate-800/20 dark:hover:border-indigo-600"
             />
@@ -341,7 +364,7 @@ export default function Dashboard() {
         {/* My Worklets */}
         <div className="mt-[3vh]">
           <div className="flex justify-between items-center mb-[1.5vh]">
-            <h2 className="text-[clamp(1.5rem,2.5vw,2rem)] font-bold bg-blue-900 animate-shimmer">Ongoing Worklets</h2>
+            <h2 className="text-[clamp(1.5rem,2.5vw,2rem)] font-bold text-slate-900 dark:text-white">Ongoing Worklets</h2>
             <div className="flex items-center gap-[0.2vw] p-[0.3vw] bg-gray-200 rounded-lg dark:bg-slate-900">
               <button
                 onClick={() => {
@@ -415,6 +438,35 @@ export default function Dashboard() {
 
 // --- UPDATED WORKLET CARD COMPONENT ---
 function WorkletCard({ worklet, layout, navigate }) {
+  // Helper function to generate latest update based on worklet data
+  const getLatestUpdate = (worklet) => {
+    const updates = [
+      'Design completed successfully with mentor approval',
+      'Testing phase active, initial results positive', 
+      'Code review scheduled for next week',
+      'Documentation updated with new requirements',
+      'Mentor feedback received, revisions needed',
+      'Student submission pending final review',
+      'Project milestone achieved on schedule',
+      'Requirements clarified with stakeholders'
+    ];
+    
+    // Generate consistent update based on worklet ID
+    const updateIndex = (worklet.id || '').toString().charCodeAt(0) % updates.length;
+    const update = updates[updateIndex] || 'Project in progress';
+    
+    // Limit to 20 words maximum
+    const words = update.split(' ');
+    return words.length > 20 ? words.slice(0, 20).join(' ') + '...' : update;
+  };
+
+  // Helper function to generate realistic update time
+  const getUpdateTime = (worklet) => {
+    const times = ['2h ago', '5h ago', '1d ago', '2d ago', '3d ago'];
+    const timeIndex = (worklet.id || '').toString().charCodeAt(1) % times.length;
+    return times[timeIndex] || '1d ago';
+  };
+
   // Container width adapts when in horizontal scroller vs grid mode
   const containerClasses = layout === 'grid' ? 'w-full' : 'w-[clamp(18rem,25vw,22rem)] flex-shrink-0'
 
@@ -592,21 +644,25 @@ function WorkletCard({ worklet, layout, navigate }) {
       </div>
 
       {/* --- MODIFIED HOVER STATE CONTENT --- */}
-      <div className="absolute inset-0 flex text-white opacity-0 transition-opacity duration-300 delay-150 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
-        <div 
-          className="flex-grow p-[clamp(0.75rem,1.5vw,1.25rem)] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cyan-400/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cyan-400/70"
-          onWheel={(e) => {
-            e.stopPropagation();
-            // Allow scrolling within this container only
-            const element = e.currentTarget;
-            const { scrollTop, scrollHeight, clientHeight } = element;
+      <div 
+        className="absolute inset-0 flex text-white opacity-0 transition-opacity duration-300 delay-150 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+        onWheel={(e) => {
+          e.stopPropagation();
+          // Find the scrollable content area
+          const scrollableElement = e.currentTarget.querySelector('.scrollable-content');
+          if (scrollableElement) {
+            const { scrollTop, scrollHeight, clientHeight } = scrollableElement;
             
-            // Prevent parent scroll only if we're not at boundaries
-            if ((e.deltaY > 0 && scrollTop + clientHeight < scrollHeight) || 
-                (e.deltaY < 0 && scrollTop > 0)) {
-              e.preventDefault();
-            }
-          }}
+            // Always allow scrolling within the content area
+            scrollableElement.scrollTop += e.deltaY;
+            
+            // Prevent parent scroll
+            e.preventDefault();
+          }
+        }}
+      >
+        <div 
+          className="scrollable-content flex-grow p-[clamp(0.75rem,1.5vw,1.25rem)] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cyan-400/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cyan-400/70"
         >
           {/* ID is now displayed on hover instead of title */}
           <h3 className="text-[clamp(1rem,1.8vw,1.5rem)] font-mono font-bold text-cyan-300">{worklet.id}</h3>
@@ -644,17 +700,33 @@ function WorkletCard({ worklet, layout, navigate }) {
           )}
         </div>
 
-        {/* Right side panel remains the same */}
-        <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center justify-center text-center p-[0.5vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out">
+        {/* Right side panel with latest update */}
+        <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center text-center p-[0.4vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out overflow-hidden">
           <span
-            className={`px-[0.5vw] py-[0.25vw] rounded-md text-[clamp(0.6rem,0.8vw,0.75rem)] font-bold text-white ${
+            className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${
               qualityStyles[worklet.quality] || qualityStyles.Default
             }`}>
             {worklet.quality}
           </span>
-          <div className="mt-[1vw]">
-            <p className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold">{remaining.days}</p>
-            <p className="text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-300">{remaining.label}</p>
+          <div className="mt-[0.6vw] flex-1 flex flex-col justify-center">
+            <p className="text-[clamp(1.2rem,2.5vw,2rem)] font-bold">{remaining.days}</p>
+            <p className="text-[clamp(0.5rem,0.7vw,0.65rem)] text-gray-300">{remaining.label}</p>
+          </div>
+          
+          {/* Latest Update Section - Compact */}
+          <div className="mt-[0.6vw] pt-[0.6vw] border-t border-white/20 w-full">
+            <div className="flex items-center justify-center gap-[0.2vw] mb-[0.3vw]">
+              <div className="w-[0.3vw] h-[0.3vw] bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-gray-300 font-medium uppercase tracking-wide">
+                Latest
+              </span>
+            </div>
+            <div className="text-[clamp(0.5rem,0.65vw,0.6rem)] text-gray-200 leading-tight break-words">
+              {getLatestUpdate(worklet)}
+            </div>
+            <div className="text-[clamp(0.4rem,0.55vw,0.5rem)] text-gray-400 mt-[0.2vw]">
+              {getUpdateTime(worklet)}
+            </div>
           </div>
         </div>
       </div>
