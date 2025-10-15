@@ -1671,29 +1671,27 @@ const Meetings = () => {
                               Join
                             </button>
                           )}
-                          {/* Only show Reschedule and Cancel buttons if meeting is not completed */}
-                          {status !== 'completed' && (
-                            <>
-                              <button
-                                onClick={() => handleRescheduleMeeting(meeting.id)}
-                                className="px-4 py-2 bg-slate-100 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors"
-                              >
-                                Reschedule
-                              </button>
+                          {/* Reschedule allowed for all meetings; Cancel only when not completed */}
+                          <>
+                            <button
+                              onClick={() => handleRescheduleMeeting(meeting.id)}
+                              className="px-4 py-2 bg-slate-100 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors"
+                            >
+                              Reschedule
+                            </button>
+                            {status !== 'completed' ? (
                               <button
                                 onClick={() => handleCancelMeeting(meeting.id)}
                                 className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                               >
                                 Cancel
                               </button>
-                            </>
-                          )}
-                          {/* Show completion status for completed meetings */}
-                          {status === 'completed' && (
-                            <div className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm rounded-lg text-center">
-                              Meeting Completed
-                            </div>
-                          )}
+                            ) : (
+                              <div className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm rounded-lg text-center">
+                                Meeting Completed
+                              </div>
+                            )}
+                          </>
                         </div>
                       </div>
                     </div>

@@ -82,17 +82,16 @@ import {
 } from 'lucide-react'
 
 // --- Enhanced Activity Button Component ---
-const ActivityButton = ({ icon, label, onClick, badge, status }) => {
+const ActivityButton = ({ icon, label, onClick, badge, status, disabled = false }) => {
   return (
     <button
-      onClick={onClick}
-      className="group relative w-full flex items-center gap-3 p-4 text-left rounded-xl 
-                 bg-white/70 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl
-                 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-indigo-50/80 hover:to-purple-50/80
-                 dark:bg-gray-800/70 dark:border-gray-600/20 dark:hover:from-indigo-900/30 dark:hover:to-purple-900/30
-                 hover:text-indigo-700 dark:hover:text-indigo-300 transition-all duration-300 hover:scale-105
-                 hover:border-indigo-200/50 dark:hover:border-indigo-700/50">
-      <div className="flex-shrink-0 text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-all duration-300">
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`group relative w-full flex items-center gap-3 p-4 text-left rounded-xl 
+                 bg-white/70 backdrop-blur-sm border border-white/20 shadow-lg
+                 text-gray-700 dark:text-gray-300
+                 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl hover:bg-gradient-to-r hover:from-indigo-50/80 hover:to-purple-50/80 dark:bg-gray-800/70 dark:border-gray-600/20 dark:hover:from-indigo-900/30 dark:hover:to-purple-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-all duration-300 hover:scale-105 hover:border-indigo-200/50 dark:hover:border-indigo-700/50'}`}>
+      <div className={`flex-shrink-0 text-gray-500 transition-all duration-300 ${!disabled ? 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400' : ''}`}>
         {icon}
       </div>
       <div className="flex-grow">
@@ -107,7 +106,7 @@ const ActivityButton = ({ icon, label, onClick, badge, status }) => {
           {badge}
         </div>
       )}
-      <ChevronRight size={16} className="text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all duration-300" />
+      <ChevronRight size={16} className={`text-gray-400 transition-all duration-300 ${!disabled ? 'group-hover:text-indigo-500 group-hover:translate-x-1' : ''}`} />
     </button>
   )
 }
@@ -603,53 +602,7 @@ export default function WorkletDetailPage() {
             </div>
           </div>
 
-          {/* Repository Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="flex items-center justify-center gap-1 text-green-600 dark:text-green-400 mb-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <span className="text-lg font-bold">47</span>
-              </div>
-              <span className="text-xs text-green-700 dark:text-green-400">Commits</span>
-            </div>
-
-            <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center justify-center gap-1 text-blue-600 dark:text-blue-400 mb-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                  />
-                </svg>
-                <span className="text-lg font-bold">3</span>
-              </div>
-              <span className="text-xs text-blue-700 dark:text-blue-400">Branches</span>
-            </div>
-
-            <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="flex items-center justify-center gap-1 text-purple-600 dark:text-purple-400 mb-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <span className="text-lg font-bold">12</span>
-              </div>
-              <span className="text-xs text-purple-700 dark:text-purple-400">Issues</span>
-            </div>
-          </div>
+          {/* Repository stats removed per request */}
         </div>
       </div>
     </div>
@@ -1851,32 +1804,7 @@ export default function WorkletDetailPage() {
                     </div>
                   </div>
 
-                  {/* Repository Stats */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="text-center p-4 bg-green-50/80 dark:bg-green-900/20 rounded-xl border border-green-200/50 dark:border-green-800 backdrop-blur-sm">
-                      <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 mb-2">
-                        <CheckCircle2 size={16} />
-                        <span className="text-2xl font-bold">47</span>
-                      </div>
-                      <span className="text-xs text-green-700 dark:text-green-400 font-semibold uppercase tracking-wider">Commits</span>
-                    </div>
-
-                    <div className="text-center p-4 bg-blue-50/80 dark:bg-blue-900/20 rounded-xl border border-blue-200/50 dark:border-blue-800 backdrop-blur-sm">
-                      <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 mb-2">
-                        <GitBranch size={16} />
-                        <span className="text-2xl font-bold">3</span>
-                      </div>
-                      <span className="text-xs text-blue-700 dark:text-blue-400 font-semibold uppercase tracking-wider">Branches</span>
-                    </div>
-
-                    <div className="text-center p-4 bg-purple-50/80 dark:bg-purple-900/20 rounded-xl border border-purple-200/50 dark:border-purple-800 backdrop-blur-sm">
-                      <div className="flex items-center justify-center gap-2 text-purple-600 dark:text-purple-400 mb-2">
-                        <AlertCircle size={16} />
-                        <span className="text-2xl font-bold">12</span>
-                      </div>
-                      <span className="text-xs text-purple-700 dark:text-purple-400 font-semibold uppercase tracking-wider">Issues</span>
-                    </div>
-                  </div>
+                  {/* Repository stats removed per request */}
                 </div>
               </GlassCard>
             </div>
@@ -1902,24 +1830,28 @@ export default function WorkletDetailPage() {
                     label="Request Update"
                     status="Submit progress updates"
                     onClick={() => setIsRequestUpdateOpen(true)}
+                    disabled={worklet.status === 'Completed' || worklet.progress === 100}
                   />
                   <ActivityButton
                     icon={<Lightbulb size={18} />}
                     label="Submit Suggestion"
                     status="Share your ideas"
                     onClick={() => setIsSuggestionModalOpen(true)}
+                    disabled={worklet.status === 'Completed' || worklet.progress === 100}
                   />
                   <ActivityButton
                     icon={<MessageSquare size={18} />}
                     label="Provide Feedback"
                     status="Give project feedback"
                     onClick={() => setIsFeedbackOpen(true)}
+                    // disabled={worklet.status === 'Completed' || worklet.progress === 100}
                   />
                   <ActivityButton
                     icon={<Users size={18} />}
                     label="Intern Referral"
                     status="Refer talented candidates"
                     onClick={() => setIsInternModalOpen(true)}
+                    // disabled={worklet.status === 'Completed' || worklet.progress === 100}
                   />
                 </div>
               </GlassCard>
@@ -2099,3 +2031,4 @@ export default function WorkletDetailPage() {
     </div>
   )
 }
+//quick Action

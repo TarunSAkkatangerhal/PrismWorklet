@@ -34,19 +34,7 @@ import {
   Legend,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ScatterChart,
-  Scatter,
-  ComposedChart,
+  
 } from 'recharts'
 import {
   Card,
