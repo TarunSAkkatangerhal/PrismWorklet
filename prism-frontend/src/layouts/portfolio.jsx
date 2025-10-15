@@ -343,11 +343,17 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets }) => {
       const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
       if (selectedWorklet) {
         formData.append('worklet_cert_id', selectedWorklet.cert_id)
+        formData.append('worklet_id', selectedWorklet.id) // Also send the worklet ID
+        console.log('Sending worklet data (paper):', { 
+          worklet_id: selectedWorklet.id, 
+          worklet_cert_id: selectedWorklet.cert_id 
+        })
       }
     }
     
     try {
       const newPaper = await submitPortfolioItem('papers', formData)
+      console.log('Backend response (paper):', newPaper)
       
       // Add worklet information to the new paper object
       if (data.worklet_id) {
@@ -364,6 +370,12 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets }) => {
         // optimistic preview if backend served file accessible
         newPaper.previewUrl = newPaper.document_link || URL.createObjectURL(file)
       }
+      
+      // Ensure the record has an ID for display
+      if (!newPaper.id) {
+        newPaper.id = Date.now() // Temporary ID until backend refresh
+      }
+      
       onAdd('papers', newPaper)
     } catch (error) {
       console.error('Submission failed:', error)
@@ -565,11 +577,17 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets }) => {
       const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
       if (selectedWorklet) {
         formData.append('worklet_cert_id', selectedWorklet.cert_id)
+        formData.append('worklet_id', selectedWorklet.id) // Also send the worklet ID
+        console.log('Sending worklet data (patent):', { 
+          worklet_id: selectedWorklet.id, 
+          worklet_cert_id: selectedWorklet.cert_id 
+        })
       }
     }
 
     try {
       const newPatent = await submitPortfolioItem('patents', formData)
+      console.log('Backend response (patent):', newPatent)
       
       // Add worklet information to the new patent object
       if (data.worklet_id) {
@@ -581,6 +599,12 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets }) => {
       }
       
       if (file) newPatent.previewUrl = newPatent.document_link || URL.createObjectURL(file)
+      
+      // Ensure the record has an ID for display
+      if (!newPatent.id) {
+        newPatent.id = Date.now() // Temporary ID until backend refresh
+      }
+      
       onAdd('patents', newPatent)
     } catch (error) {
       console.error('Submission failed:', error)
@@ -730,10 +754,16 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
       const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
       if (selectedWorklet) {
         formData.append('worklet_cert_id', selectedWorklet.cert_id)
+        formData.append('worklet_id', selectedWorklet.id) // Also send the worklet ID
+        console.log('Sending worklet data:', { 
+          worklet_id: selectedWorklet.id, 
+          worklet_cert_id: selectedWorklet.cert_id 
+        })
       }
     }
     try {
       const newRecord = await submitPortfolioItem('commercializations', formData)
+      console.log('Backend response:', newRecord)
       
       // Add worklet information to the new commercialization object
       if (data.worklet_id) {
@@ -742,6 +772,11 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
           newRecord.worklet_cert_id = selectedWorklet.cert_id
           newRecord.worklet_id = selectedWorklet.id
         }
+      }
+      
+      // Ensure the record has an ID for display
+      if (!newRecord.id) {
+        newRecord.id = Date.now() // Temporary ID until backend refresh
       }
       
       onAdd('commercializations', newRecord)
@@ -843,6 +878,7 @@ const Portfolio = () => {
     try {
       setLoadingPortfolio(true)
       const data = await fetchStudentPortfolio()
+      
       // Map publication_year to year for uniform display and add previewUrl
       data.papers = data.papers.map(p => ({ 
         ...p, 
@@ -859,6 +895,7 @@ const Portfolio = () => {
         ...c, 
         previewUrl: c.document_link || c.previewUrl
       }))
+      
       setPortfolioData(data)
     } catch (e) {
       setPortfolioError(e.message || 'Failed to load portfolio')
@@ -883,6 +920,18 @@ const Portfolio = () => {
     loadData()
     loadCompletedWorklets()
   }, [loadData, loadCompletedWorklets])
+
+  // Reload data when returning to this page (in case we navigated away and back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [loadData])
 
   const achievementIcon = (type) => {
     switch (type) {
@@ -1374,6 +1423,9 @@ const Portfolio = () => {
                     <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                       <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                         <tr>
+                          <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
+                            Commercialization ID
+                          </th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Title</th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Year</th>
                           <th className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">
@@ -1387,6 +1439,9 @@ const Portfolio = () => {
                           <tr
                             key={item.id}
                             className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <td className="px-6 py-4 font-mono text-xs text-gray-700 dark:text-gray-300">
+                              COMM-{item.id}
+                            </td>
                             <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{item.title}</td>
                             <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{item.year}</td>
                             <td className="px-6 py-4">
