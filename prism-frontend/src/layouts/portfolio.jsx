@@ -348,6 +348,16 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets }) => {
     
     try {
       const newPaper = await submitPortfolioItem('papers', formData)
+      
+      // Add worklet information to the new paper object
+      if (data.worklet_id) {
+        const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
+        if (selectedWorklet) {
+          newPaper.worklet_cert_id = selectedWorklet.cert_id
+          newPaper.worklet_id = selectedWorklet.id
+        }
+      }
+      
       // adapt field name differences
       if (!newPaper.year && newPaper.publication_year) newPaper.year = newPaper.publication_year
       if (file) {
@@ -560,6 +570,16 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets }) => {
 
     try {
       const newPatent = await submitPortfolioItem('patents', formData)
+      
+      // Add worklet information to the new patent object
+      if (data.worklet_id) {
+        const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
+        if (selectedWorklet) {
+          newPatent.worklet_cert_id = selectedWorklet.cert_id
+          newPatent.worklet_id = selectedWorklet.id
+        }
+      }
+      
       if (file) newPatent.previewUrl = newPatent.document_link || URL.createObjectURL(file)
       onAdd('patents', newPatent)
     } catch (error) {
@@ -714,6 +734,16 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
     }
     try {
       const newRecord = await submitPortfolioItem('commercializations', formData)
+      
+      // Add worklet information to the new commercialization object
+      if (data.worklet_id) {
+        const selectedWorklet = completedWorklets.find((w) => w.id === parseInt(data.worklet_id))
+        if (selectedWorklet) {
+          newRecord.worklet_cert_id = selectedWorklet.cert_id
+          newRecord.worklet_id = selectedWorklet.id
+        }
+      }
+      
       onAdd('commercializations', newRecord)
     } catch (error) {
       console.error('Submission failed', error)
