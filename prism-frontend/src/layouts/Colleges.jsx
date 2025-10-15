@@ -720,14 +720,35 @@ const Colleges = () => {
   // Worklet count sort for College Overview table
   const [overviewSortOrder, setOverviewSortOrder] = useState('desc') // 'desc' (Highest→Lowest) | 'asc' (Lowest→Highest)
 
-  // Extract unique years and areas from backend data (after allCollegeData is declared)
+  // Extract unique years from backend data - filtered by college and area selections
   const uniqueYears = useMemo(() => {
-    const years = (allCollegeData || [])
+    // Start with all colleges
+    let collegesToUse = allCollegeData || []
+    
+    // Filter by selected college if one is chosen
+    if (collegeSearch) {
+      collegesToUse = collegesToUse.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
+    }
+    
+    // Filter by selected area if one is chosen
+    if (selectedArea && selectedArea !== 'Select Area') {
+      collegesToUse = collegesToUse.filter((college) => {
+        const area = college.areaOfExpertise
+        if (Array.isArray(area)) {
+          return area.some((item) => typeof item === 'string' && item === selectedArea)
+        } else if (typeof area === 'string') {
+          return area.split(',').map((item) => item.trim()).includes(selectedArea)
+        }
+        return false
+      })
+    }
+    
+    const years = collegesToUse
       .map((college) => college.established)
       .filter((year) => year && !isNaN(Number(year)))
     const unique = Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))
     return unique
-  }, [allCollegeData])
+  }, [allCollegeData, collegeSearch, selectedArea])
 
   // Helper: robust worklet count computation aligned with charts
   const getWorkletCount = useCallback((college) => {
@@ -746,16 +767,14 @@ const Colleges = () => {
 
 
   const uniqueAreas = useMemo(() => {
-    let colleges = allCollegeData || []
+    // If a college is selected, only show areas from that college
+    let collegesToUse = allCollegeData || []
     
-    // If a specific college is selected, only show areas for that college
-    if (collegeSearch && collegeSearch !== '') {
-      colleges = colleges.filter((college) => 
-        (college.college_name || college.name).toLowerCase() === collegeSearch.toLowerCase()
-      )
+    if (collegeSearch) {
+      collegesToUse = allCollegeData.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
     }
     
-    const areas = colleges
+    const areas = collegesToUse
       .map((college) => college.areaOfExpertise)
       .filter((area) => area && typeof area === 'string')
     // Some areaOfExpertise may be comma-separated lists
@@ -875,12 +894,16 @@ const Colleges = () => {
     }
   }, [location.state?.collegeName])
 
-  // Reset area selection if currently selected area is no longer available after college change
+  // Reset selected area and year when college selection changes
   useEffect(() => {
-    if (selectedArea !== 'Select Area' && !uniqueAreas.includes(selectedArea)) {
-      setSelectedArea('Select Area')
-    }
-  }, [uniqueAreas, selectedArea])
+    setSelectedArea('Select Area')
+    setSelectedYear('All Years')
+  }, [collegeSearch])
+
+  // Reset selected year when area selection changes
+  useEffect(() => {
+    setSelectedYear('All Years')
+  }, [selectedArea])
 
   useEffect(() => {
     allCollegeDataRef.current = allCollegeData

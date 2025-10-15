@@ -35,25 +35,41 @@ const decodeExp = (token) => {
 
 const willExpireSoon = (token, bufferMs = 90_000) => {
   const expMs = decodeExp(token);
-  if (!expMs) return false;
-  return Date.now() + bufferMs >= expMs; // within buffer window
+  if (!expMs) return true; // No expiry means invalid token, should refresh
+  return Date.now() + bufferMs >= expMs; // within buffer window or already expired
 };
 
 // Proactively refresh if token close to expiry before sending request
 const ensureFreshToken = async () => {
   const access = getAccessToken();
   const refresh = getRefreshToken();
-  if (!access || !refresh) return access;
+  if (!access && !refresh) {
+    // No tokens at all
+    return null;
+  }
+  if (!access && refresh) {
+    // Have refresh token but no access token, try to get one
+    await performRefresh();
+    return getAccessToken();
+  }
   if (!willExpireSoon(access)) return access; // still valid beyond buffer
   // trigger refresh (will self-queue if already running)
-  await performRefresh();
-  return getAccessToken();
+  try {
+    await performRefresh();
+    return getAccessToken();
+  } catch (e) {
+    console.error('Failed to refresh token proactively:', e);
+    return access; // Return current token and let interceptor handle it
+  }
 };
 
 const performRefresh = async () => {
   if (refreshInFlight) return refreshInFlight; // reuse existing
   const refresh = getRefreshToken();
-  if (!refresh) return null;
+  if (!refresh) {
+    clearTokens();
+    return null;
+  }
   refreshInFlight = new Promise(async (resolve, reject) => {
     try {
       const resp = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refresh });
@@ -66,6 +82,7 @@ const performRefresh = async () => {
       requestQueue = [];
       resolve(newAccess);
     } catch (e) {
+      console.error('Token refresh failed:', e);
       requestQueue.forEach(cb => cb.reject(e));
       requestQueue = [];
       clearTokens();
@@ -107,6 +124,14 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        // No refresh token available, redirect to login
+        clearTokens();
+        window.location.href = '/';
+        return Promise.reject(error);
+      }
+
       try {
         if (!refreshInFlight) {
           // Start refresh (will set refreshInFlight)
@@ -122,13 +147,17 @@ apiClient.interceptors.response.use(
           originalRequest.headers = originalRequest.headers || {};
           originalRequest.headers.Authorization = `Bearer ${newAccess}`;
           return apiClient(originalRequest);
+        } else {
+          // Refresh succeeded but no token (should not happen)
+          throw new Error('No access token after refresh');
         }
       } catch (e) {
-        // propagate to logout below
+        // Refresh failed, redirect to login
+        console.error('Token refresh failed in interceptor:', e);
+        clearTokens();
+        window.location.href = '/';
+        return Promise.reject(error);
       }
-      clearTokens();
-      window.location.href = '/';
-      return Promise.reject(error);
     }
     return Promise.reject(error);
   }
@@ -137,25 +166,40 @@ apiClient.interceptors.response.use(
 // Expose manual refresh trigger (e.g., for background interval or visibility change)
 export const forceRefreshIfNeeded = async () => {
   const token = getAccessToken();
-  if (!token) return false;
-  if (willExpireSoon(token, 120_000)) {
+  const refresh = getRefreshToken();
+  
+  // If no tokens at all, can't refresh
+  if (!token && !refresh) return false;
+  
+  // If we have a refresh token but no access token, or token is expired/will expire soon
+  if (!token || willExpireSoon(token, 120_000)) {
     try {
       await performRefresh();
       return true;
-    } catch {
+    } catch (e) {
+      console.error('Force refresh failed:', e);
       return false;
     }
   }
-  return false;
+  return true; // Token is still valid
 };
 
-// Optional: background proactive refresh every 60s
+// Optional: background proactive refresh every 5 minutes
 if (typeof window !== 'undefined') {
+  // Check every 5 minutes (300 seconds)
   setInterval(() => {
-    forceRefreshIfNeeded();
-  }, 60_000);
+    forceRefreshIfNeeded().catch(err => {
+      console.error('Background token refresh failed:', err);
+    });
+  }, 5 * 60 * 1000); // 5 minutes
+  
+  // Also check when page becomes visible again
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') forceRefreshIfNeeded();
+    if (document.visibilityState === 'visible') {
+      forceRefreshIfNeeded().catch(err => {
+        console.error('Visibility change token refresh failed:', err);
+      });
+    }
   });
 }
 

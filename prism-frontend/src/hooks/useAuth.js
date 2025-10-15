@@ -76,7 +76,8 @@ export const useAuth = () => {
       const refreshToken = localStorage.getItem(REFRESH_KEY);
       if (!refreshToken) throw new Error('No refresh token');
 
-      const response = await fetch('/api/auth/refresh', {
+      const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${BASE_URL}/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,6 +89,7 @@ export const useAuth = () => {
 
       const data = await response.json();
       secureStorage.setToken(data.access_token);
+      localStorage.setItem(REFRESH_KEY, data.refresh_token);
       
       const userData = validateAndDecodeToken(data.access_token);
       setUser(userData);
