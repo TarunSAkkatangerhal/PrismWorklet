@@ -131,6 +131,10 @@ class Worklet(Base):
     # Progress now tracked per worklet (moved from users table)
     worklet_progress = Column(Integer, nullable=False, server_default="0")  # 0-100
     college_id = Column(Integer, ForeignKey("colleges.college_id"), nullable=True)
+    # New fields for detailed worklet information
+    problem_statement = Column(Text, nullable=True)
+    expectation = Column(Text, nullable=True)
+    prerequisites = Column(Text, nullable=True)
 
     # Relationships
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")

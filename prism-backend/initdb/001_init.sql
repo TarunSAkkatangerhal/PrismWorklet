@@ -60,6 +60,9 @@ CREATE TABLE IF NOT EXISTS worklets (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   completed_date Date,
   college_id INT NULL,
+  problem_statement TEXT,
+  expectation TEXT,
+  prerequisites TEXT,
   CONSTRAINT fk_worklets_college FOREIGN KEY (college_id) REFERENCES colleges(college_id)
 );
 

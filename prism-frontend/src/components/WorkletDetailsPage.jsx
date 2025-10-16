@@ -351,7 +351,7 @@ export default function WorkletDetailPage() {
             college: response.data.college || 'Not specified',
             team: response.data.team || 'Not specified',
             problem_statement: response.data.problem_statement || 'No problem statement provided',
-            expectations: response.data.expectations || 'No expectations specified',
+            expectation: response.data.expectation || 'No expectations specified',
             prerequisites: response.data.prerequisites || 'No prerequisites specified',
           }
 
@@ -377,7 +377,7 @@ export default function WorkletDetailPage() {
           team: 'Web Development Team Alpha',
           problem_statement:
             'Develop a comprehensive learning platform that enables students to master full-stack web development through hands-on projects, mentorship, and real-world application scenarios. The platform should incorporate modern development practices, version control, testing, and deployment workflows.',
-          expectations:
+          expectation:
             'Students are expected to complete weekly coding assignments, participate in code reviews, contribute to team projects, and demonstrate proficiency in React, Node.js, Express, MongoDB, and modern development tools. By the end of the program, students should be able to build and deploy full-stack applications independently.',
           prerequisites:
             'Basic understanding of HTML, CSS, and JavaScript. Familiarity with programming concepts such as variables, functions, loops, and conditionals. Access to a computer with internet connection. Git and GitHub account setup is recommended but not required initially.',
@@ -640,10 +640,10 @@ export default function WorkletDetailPage() {
         </div>
       )}
 
-      {worklet.expectations && (
+      {worklet.expectation && (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Expectations</h3>
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{worklet.expectations}</p>
+          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{worklet.expectation}</p>
         </div>
       )}
 
@@ -1715,26 +1715,35 @@ export default function WorkletDetailPage() {
                           isExpanded={expandedSections.problemStatement}
                           onToggle={() => toggleSection('problemStatement')}
                         >
-                          {worklet.problem_statement}
-                        </CollapsibleSection>
+                        <p style={{ whiteSpace: 'pre-line' }}>
+                        {worklet.problem_statement || 'No problem statement specified.'}
+                        </p>
+                      </CollapsibleSection>
 
-                        <CollapsibleSection
-                          title="EXPECTATIONS"
-                          icon={<Target size={18} />}
-                          isExpanded={expandedSections.expectations}
-                          onToggle={() => toggleSection('expectations')}
-                        >
-                          {worklet.expectations}
-                        </CollapsibleSection>
 
-                        <CollapsibleSection
-                          title="PREREQUISITES"
-                          icon={<BookOpen size={18} />}
-                          isExpanded={expandedSections.prerequisites}
-                          onToggle={() => toggleSection('prerequisites')}
-                        >
-                          {worklet.prerequisites}
-                        </CollapsibleSection>
+<CollapsibleSection
+  title="EXPECTATIONS"
+  icon={<Target size={18} />}
+  isExpanded={expandedSections.expectations}
+  onToggle={() => toggleSection('expectations')}
+>
+  <p style={{ whiteSpace: 'pre-line' }}>
+    {worklet.expectation || 'No expectations specified.'}
+  </p>
+</CollapsibleSection>
+
+<CollapsibleSection
+  title="PREREQUISITES"
+  icon={<BookOpen size={18} />}
+  isExpanded={expandedSections.prerequisites}
+  onToggle={() => toggleSection('prerequisites')}
+>
+  <p style={{ whiteSpace: 'pre-line' }}>
+                        {worklet.prerequisites || 'No prerequisites specified.'}
+                        </p>
+                       </CollapsibleSection>
+
+
                       </div>
                     </GlassCard>
                   </div>

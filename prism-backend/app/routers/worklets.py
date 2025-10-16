@@ -276,6 +276,10 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         "student_count": len(students),
         "professors": professors,
         "professor_count": len(professors),
+        "problem_statement": getattr(worklet, "problem_statement", None),
+        "expectation": getattr(worklet, "expectation", None),
+        "prerequisites": getattr(worklet, "prerequisites", None),
+        "college": worklet.college.college_name if getattr(worklet, "college", None) else None,
     }
 
 @router.put("/{worklet_id}", response_model=WorkletResponse)
@@ -366,7 +370,7 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
                 "team": getattr(worklet, "team", None),
                 "college": worklet_college,
                 "problem_statement": getattr(worklet, "problem_statement", None),
-                "expectations": getattr(worklet, "expectations", None),
+                "expectation": getattr(worklet, "expectation", None),
                 "prerequisites": getattr(worklet, "prerequisites", None),
                 "worklet_progress": getattr(worklet, "worklet_progress", None),
                 "percentage_completion": percentage_completion,
