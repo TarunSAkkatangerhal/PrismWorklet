@@ -286,12 +286,71 @@ const ModernStatisticsDashboard = () => {
         if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
         if (filters?.domain && filters.domain !== 'All') params.set('domain', filters.domain)
 
+        // If "All Years" is selected, fetch data for all available years
+        let monthlyData = []
+        let statusMonthlyData = []
+        let allYearsList = []
+        
+        if (filters?.year === 'All') {
+          // First, get the list of available years
+          const initialRes = await secureAPI.get('/api/dashboard/platform-monthly-trends')
+          allYearsList = initialRes?.data?.years || []
+          
+          // Fetch data for each year and combine
+          const yearlyPromises = allYearsList.map(year => {
+            const yearParams = new URLSearchParams()
+            yearParams.set('year', year)
+            if (filters?.domain && filters.domain !== 'All') yearParams.set('domain', filters.domain)
+            
+            return Promise.all([
+              secureAPI.get(`/api/dashboard/platform-monthly-trends?${yearParams.toString()}`),
+              secureAPI.get(`/api/dashboard/platform-status-trends?${yearParams.toString()}`)
+            ])
+          })
+          
+          const yearlyResults = await Promise.all(yearlyPromises)
+          
+          // Aggregate data by year (sum all months for each year)
+          const yearlyAggregated = {}
+          const yearlyStatusAggregated = {}
+          
+          yearlyResults.forEach(([monthlyRes, statusRes], index) => {
+            const year = allYearsList[index]
+            const monthlyDataForYear = monthlyRes?.data?.monthly || []
+            const statusDataForYear = statusRes?.data?.monthly || []
+            
+            // Aggregate monthly data for this year
+            yearlyAggregated[year] = {
+              month: String(year),
+              worklets: monthlyDataForYear.reduce((sum, m) => sum + (m.worklets || 0), 0),
+              completed: monthlyDataForYear.reduce((sum, m) => sum + (m.completed || 0), 0),
+              students: monthlyDataForYear.reduce((sum, m) => sum + (m.students || 0), 0),
+              month_key: String(year)
+            }
+            
+            // Aggregate status data for this year
+            yearlyStatusAggregated[year] = {
+              month: String(year),
+              completed: statusDataForYear.reduce((sum, m) => sum + (m.completed || 0), 0),
+              ongoing: statusDataForYear.reduce((sum, m) => sum + (m.ongoing || 0), 0),
+              on_hold: statusDataForYear.reduce((sum, m) => sum + (m.on_hold || 0), 0),
+              dropped: statusDataForYear.reduce((sum, m) => sum + (m.dropped || 0), 0),
+              terminated: statusDataForYear.reduce((sum, m) => sum + (m.terminated || 0), 0),
+              month_key: String(year)
+            }
+          })
+          
+          // Convert to arrays sorted by year
+          monthlyData = Object.keys(yearlyAggregated).sort().map(year => yearlyAggregated[year])
+          statusMonthlyData = Object.keys(yearlyStatusAggregated).sort().map(year => yearlyStatusAggregated[year])
+        }
+        
         const [totalsRes, monthlyRes, statusRes] = await Promise.all([
           secureAPI.get(`/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
-          secureAPI.get(
+          filters?.year === 'All' ? Promise.resolve({ data: { monthly: monthlyData, years: allYearsList } }) : secureAPI.get(
             `/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`
           ),
-          secureAPI.get(
+          filters?.year === 'All' ? Promise.resolve({ data: { monthly: statusMonthlyData, years: allYearsList } }) : secureAPI.get(
             `/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`
           ),
         ])
@@ -365,12 +424,71 @@ const ModernStatisticsDashboard = () => {
       if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
       if (filters?.domain && filters.domain !== 'All') params.set('domain', filters.domain)
 
+      // If "All Years" is selected, fetch data for all available years
+      let monthlyData = []
+      let statusMonthlyData = []
+      let allYearsList = []
+      
+      if (filters?.year === 'All') {
+        // First, get the list of available years
+        const initialRes = await secureAPI.get('/api/dashboard/platform-monthly-trends')
+        allYearsList = initialRes?.data?.years || []
+        
+        // Fetch data for each year and combine
+        const yearlyPromises = allYearsList.map(year => {
+          const yearParams = new URLSearchParams()
+          yearParams.set('year', year)
+          if (filters?.domain && filters.domain !== 'All') yearParams.set('domain', filters.domain)
+          
+          return Promise.all([
+            secureAPI.get(`/api/dashboard/platform-monthly-trends?${yearParams.toString()}`),
+            secureAPI.get(`/api/dashboard/platform-status-trends?${yearParams.toString()}`)
+          ])
+        })
+        
+        const yearlyResults = await Promise.all(yearlyPromises)
+        
+        // Aggregate data by year (sum all months for each year)
+        const yearlyAggregated = {}
+        const yearlyStatusAggregated = {}
+        
+        yearlyResults.forEach(([monthlyRes, statusRes], index) => {
+          const year = allYearsList[index]
+          const monthlyDataForYear = monthlyRes?.data?.monthly || []
+          const statusDataForYear = statusRes?.data?.monthly || []
+          
+          // Aggregate monthly data for this year
+          yearlyAggregated[year] = {
+            month: String(year),
+            worklets: monthlyDataForYear.reduce((sum, m) => sum + (m.worklets || 0), 0),
+            completed: monthlyDataForYear.reduce((sum, m) => sum + (m.completed || 0), 0),
+            students: monthlyDataForYear.reduce((sum, m) => sum + (m.students || 0), 0),
+            month_key: String(year)
+          }
+          
+          // Aggregate status data for this year
+          yearlyStatusAggregated[year] = {
+            month: String(year),
+            completed: statusDataForYear.reduce((sum, m) => sum + (m.completed || 0), 0),
+            ongoing: statusDataForYear.reduce((sum, m) => sum + (m.ongoing || 0), 0),
+            on_hold: statusDataForYear.reduce((sum, m) => sum + (m.on_hold || 0), 0),
+            dropped: statusDataForYear.reduce((sum, m) => sum + (m.dropped || 0), 0),
+            terminated: statusDataForYear.reduce((sum, m) => sum + (m.terminated || 0), 0),
+            month_key: String(year)
+          }
+        })
+        
+        // Convert to arrays sorted by year
+        monthlyData = Object.keys(yearlyAggregated).sort().map(year => yearlyAggregated[year])
+        statusMonthlyData = Object.keys(yearlyStatusAggregated).sort().map(year => yearlyStatusAggregated[year])
+      }
+
       const [totalsRes, monthlyRes, statusRes] = await Promise.all([
         secureAPI.get(`/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
-        secureAPI.get(
+        filters?.year === 'All' ? Promise.resolve({ data: { monthly: monthlyData, years: allYearsList } }) : secureAPI.get(
           `/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`
         ),
-        secureAPI.get(
+        filters?.year === 'All' ? Promise.resolve({ data: { monthly: statusMonthlyData, years: allYearsList } }) : secureAPI.get(
           `/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`
         ),
       ])
@@ -767,7 +885,8 @@ const ModernStatisticsDashboard = () => {
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    📊 {statisticsData?.monthly_data?.length || 12} months of data available (Jan-Dec 2025)
+                    📊 {statisticsData?.monthly_data?.length || 0} {filters.year === 'All' ? 'years' : 'months'} of data available
+                    {filters.year === 'All' ? ' (Year-wise aggregated)' : ` (${filters.year})`}
                   </p>
                   <button
                     onClick={() => {
@@ -796,7 +915,7 @@ const ModernStatisticsDashboard = () => {
                 </div>
               </div>
               <div className="overflow-x-auto pb-4 custom-scrollbar">
-                <div className="min-w-[1200px]">
+                <div className={filters.year === 'All' ? 'min-w-full' : 'min-w-[1200px]'}>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={statisticsData?.monthly_data || generateMonthlyData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
@@ -903,10 +1022,8 @@ const ModernStatisticsDashboard = () => {
               isDark={isDarkMode}
               exportAction={() => exportData('status_trends')}>
               <div className="overflow-x-auto pb-4 custom-scrollbar">
-                {/* ===== CHANGE THE WIDTH HERE ===== */}
-                <div className="min-w-[1200px]">
-                  {' '}
-                  {/* Changed from 720px to 1200px for 12 months */}
+                {/* Dynamic width based on filter selection */}
+                <div className={filters.year === 'All' ? 'min-w-full' : 'min-w-[1200px]'}>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={statisticsData?.worklet_status_data || generateWorkletStatusData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
