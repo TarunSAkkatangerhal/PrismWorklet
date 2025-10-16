@@ -224,7 +224,7 @@ function EvaluateModal({ isOpen, onClose }) {
                 {completedWorklets.length > 0 ? (
                   completedWorklets.map(worklet => (
                     <option key={worklet.id} value={worklet.id}>
-                      {worklet.cert_id} {worklet.domain ? `- ${worklet.domain}` : ''}
+                      {(worklet.cert_id || worklet.id)} - {worklet.description?.substring(0, 50) || ''}
                     </option>
                   ))
                 ) : (

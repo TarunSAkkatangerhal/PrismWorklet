@@ -345,7 +345,7 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-[1vw]">
-            <div onClick={() => navigate('/worklets')} className="cursor-pointer">
+            <div onClick={() => navigate('/worklets?tab=All')} className="cursor-pointer">
               <StatCard
                 value={isLoadingWorklets ? '...' : totalWorkletsCount}
                 label="Total Worklets"
@@ -666,7 +666,7 @@ function WorkletCard({ worklet, layout, navigate }) {
           className="scrollable-content flex-grow p-[clamp(0.75rem,1.5vw,1.25rem)] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cyan-400/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cyan-400/70"
         >
           {/* ID is now displayed on hover instead of title */}
-          <h3 className="text-[clamp(1rem,1.8vw,1.5rem)] font-mono font-bold text-cyan-300">{worklet.id}</h3>
+
           <div className="mt-[0.25vw] text-[clamp(0.6rem,0.8vw,0.75rem)] text-blue-300">{worklet.college}</div>
 
           {/* DESCRIPTION is now displayed on hover */}
