@@ -394,6 +394,7 @@ const NavColl = () => {
         if (allowedStatuses.includes(worklet.progressStatus)) {
           result.push({
             id: `${college.id}-${worklet.id}`,
+            workletId: worklet.id, // Add the actual worklet ID for navigation
             collegeId: college.id,
             collegeName: worklet.collegeName || college.name,
             location: college.location,
@@ -772,9 +773,19 @@ const NavColl = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ delay: index * 0.1 }}
-                        className={`border cursor-pointer transition-all duration-200 group ${
+                        onClick={() => {
+                          // Navigate to worklet details only for worklet items (not students)
+                          if (activeFilter !== 'students' && item.workletId) {
+                            navigate(`/worklet/${item.workletId}`);
+                          }
+                        }}
+                        className={`border transition-all duration-200 group ${
+                          activeFilter === 'students' ? 'cursor-default' : 'cursor-pointer'
+                        } ${
                           viewMode === 'grid' 
-                            ? `p-5 rounded-xl hover:scale-[1.02] h-full flex flex-col ${
+                            ? `p-5 rounded-xl h-full flex flex-col ${
+                                activeFilter !== 'students' ? 'hover:scale-[1.02]' : ''
+                              } ${
                                 isDarkMode 
                                   ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 hover:border-gray-500 hover:shadow-xl' 
                                   : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 hover:shadow-xl'
@@ -805,10 +816,18 @@ const NavColl = () => {
                                     {item.status}
                                   </span>
                                 )}
-                                <ExternalLink 
-                                  size={16} 
-                                  className={`${isDarkMode ? 'text-gray-400 group-hover:text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} transition-colors`} 
-                                />
+                                {activeFilter !== 'students' ? (
+                                  <ExternalLink 
+                                    size={16} 
+                                    className={`${isDarkMode ? 'text-gray-400 group-hover:text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} transition-colors`} 
+                                    title="View worklet details"
+                                  />
+                                ) : (
+                                  <ExternalLink 
+                                    size={16} 
+                                    className={`${isDarkMode ? 'text-gray-400 group-hover:text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} transition-colors`} 
+                                  />
+                                )}
                               </div>
                             </div>
 
@@ -894,7 +913,18 @@ const NavColl = () => {
                                   {item.status}
                                 </span>
                               )}
-                              <ExternalLink size={16} className={`${isDarkMode ? 'text-gray-400 group-hover:text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} transition-colors`} />
+                              {activeFilter !== 'students' ? (
+                                <ExternalLink 
+                                  size={16} 
+                                  className={`${isDarkMode ? 'text-gray-400 group-hover:text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} transition-colors`}
+                                  title="View worklet details"
+                                />
+                              ) : (
+                                <ExternalLink 
+                                  size={16} 
+                                  className={`${isDarkMode ? 'text-gray-400 group-hover:text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} transition-colors`} 
+                                />
+                              )}
                             </div>
                           </div>
                         )}
