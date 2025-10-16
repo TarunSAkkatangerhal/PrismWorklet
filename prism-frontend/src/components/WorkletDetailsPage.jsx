@@ -214,11 +214,9 @@ const TeamMemberCard = ({ member, role = "Team Member", avatar }) => {
               {getInitials(member)}
             </div>
           )}
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
         </div>
         <div className="flex-grow">
           <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{member}</h4>
-          <p className="text-xs text-gray-600 dark:text-gray-400">{role}</p>
         </div>
         <button className="opacity-0 group-hover:opacity-100 p-2 rounded-full bg-gray-100 dark:bg-gray-700 
                           hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200">
@@ -1797,7 +1795,7 @@ export default function WorkletDetailPage() {
                                 <TeamMemberCard 
                                   key={index} 
                                   member={member} 
-                                  role={`Developer • Level ${index % 3 + 1}`} 
+                                  
                                 />
                               ))
                             ) : (
