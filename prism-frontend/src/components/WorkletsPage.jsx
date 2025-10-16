@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
   Calendar, 
@@ -41,7 +41,6 @@ const loadViewState = () => {
     return null;
   }
 };
-
 export default function WorkletsPage() {
   const [workletsData, setWorkletsData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,9 +49,31 @@ export default function WorkletsPage() {
   
   // Initialize state with persisted values or defaults
   const savedState = loadViewState();
-  const [activeTab, setActiveTab] = useState(savedState?.activeTab || "Ongoing");
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Prefer URL query param 'tab' if present (enables cross-page linking without localStorage)
+  const urlParams = new URLSearchParams(location.search);
+  const initialTabFromUrl = urlParams.get('tab');
+  // Do NOT initialize activeTab from savedState to avoid persisting tab selection in localStorage
+  const [activeTab, setActiveTab] = useState(initialTabFromUrl || "Ongoing");
   const [layout, setLayout] = useState(savedState?.layout || "grid");
   const [searchTerm, setSearchTerm] = useState(savedState?.searchTerm || "");
+
+  // If a URL param 'tab' was used to initialize activeTab, remove it from the address bar
+  // to keep the URL clean while preserving other query params. Use replace so history isn't polluted.
+  useEffect(() => {
+    if (!initialTabFromUrl) return;
+    try {
+      const params = new URLSearchParams(location.search);
+      params.delete('tab');
+      const newSearch = params.toString();
+      const newPath = location.pathname + (newSearch ? `?${newSearch}` : '');
+      navigate(newPath, { replace: true });
+    } catch (e) {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const transformStatus = (raw) => {
     if (!raw) return 'Ongoing';
@@ -157,15 +178,16 @@ export default function WorkletsPage() {
     return () => clearInterval(interval);
   }, [fetchWorklets, loading, error]);
 
-  // Persist view state changes to localStorage
+  // Persist view state changes to localStorage (do not persist activeTab)
   useEffect(() => {
     const viewState = {
-      activeTab,
       layout,
       searchTerm
     };
     saveViewState(viewState);
-  }, [activeTab, layout, searchTerm]);
+  }, [layout, searchTerm]);
+
+  // If a URL param 'tab' is present it was already read during initialization and used for activeTab.
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -230,17 +252,8 @@ export default function WorkletsPage() {
               <div>
                 <h1 className="text-4xl font-bold text-black dark:text-white mb-3 flex items-center gap-4">
                   Worklets Overview
-                  {lastFetched && (
-                    <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-md">
-                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse" /> live
-                    </span>
-                  )}
-                  <button
-                    onClick={fetchWorklets}
-                    disabled={loading}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold shadow hover:shadow-lg transition disabled:opacity-40 disabled:cursor-not-allowed">
-                    Refresh
-                  </button>
+                  
+                  
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400 text-lg">
                   Manage and track project progress across all teams
@@ -266,12 +279,6 @@ export default function WorkletsPage() {
                   <div className="text-2xl font-bold text-green-600">{getTabCount("Completed")}</div>
                   <div className="text-sm text-slate-500 dark:text-slate-400">Completed</div>
                 </div>
-                {lastFetched && (
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold">Last Sync</div>
-                    <div className="text-xs text-slate-600 dark:text-slate-300">{lastFetched.toLocaleTimeString()}</div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
