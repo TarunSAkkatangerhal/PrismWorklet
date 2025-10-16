@@ -541,7 +541,7 @@ function WorkletCard({ worklet, layout, navigate }) {
   }
 
   // Utility to keep badge sizes stable
-  const truncateText = (text, maxLength = 25) => {
+  const truncateText = (text, maxLength = 40) => {
     if (text.length <= maxLength) return text
     return text.substring(0, maxLength) + '...'
   }

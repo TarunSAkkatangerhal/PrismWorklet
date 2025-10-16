@@ -255,21 +255,21 @@ const ModernStatisticsDashboard = () => {
   
   // Navigation handlers for worklet cards
   const handleTotalWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'total', year: filters.year } })
+    navigate('/navStat', { state: { filter: 'total', year: filters.year, domain: filters.domain } })
   }
   
   const handleOngoingWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'ongoing', year: filters.year } })
+    navigate('/navStat', { state: { filter: 'ongoing', year: filters.year, domain: filters.domain } })
   }
   
   const handleCompletedWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'completed', year: filters.year } })
+    navigate('/navStat', { state: { filter: 'completed', year: filters.year, domain: filters.domain } })
   }
   
   const [statisticsData, setStatisticsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [filters, setFilters] = useState({ group: 'All', part: 'All', year: 'All' })
+  const [filters, setFilters] = useState({ group: 'All', part: 'All', year: 'All', domain: 'All' })
   const [options, setOptions] = useState({ years: [], domains: [], colleges: [] })
   const [selectedMetric, setSelectedMetric] = useState('overview')
   const [mentorStats, setMentorStats] = useState(null)
@@ -284,6 +284,7 @@ const ModernStatisticsDashboard = () => {
 
         const params = new URLSearchParams()
         if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
+        if (filters?.domain && filters.domain !== 'All') params.set('domain', filters.domain)
 
         const [totalsRes, monthlyRes, statusRes] = await Promise.all([
           secureAPI.get(`/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
@@ -295,6 +296,16 @@ const ModernStatisticsDashboard = () => {
           ),
         ])
 
+        // Try to fetch domains separately, but don't fail if endpoint doesn't exist
+        let domains = []
+        try {
+          const domainsRes = await secureAPI.get('/api/dashboard/domains')
+          domains = domainsRes?.data?.domains || []
+        } catch (domainError) {
+          console.log('Domains endpoint not available, using default domains')
+          domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
+        }
+
         const totals = totalsRes?.data || {}
         const monthly = monthlyRes?.data?.monthly || []
         const statusMonthly = statusRes?.data?.monthly || []
@@ -302,7 +313,7 @@ const ModernStatisticsDashboard = () => {
           new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])
         ).sort()
         // Only show backend-provided years; do not add hardcoded ones
-        setOptions((prev) => ({ ...prev, years: yearsList }))
+        setOptions((prev) => ({ ...prev, years: yearsList, domains: domains }))
 
         setStatisticsData((prev) => ({
           ...(prev || {}),
@@ -344,7 +355,7 @@ const ModernStatisticsDashboard = () => {
     // periodic refresh
     const interval = setInterval(loadAll, 300000)
     return () => clearInterval(interval)
-  }, [filters.year, isDarkMode])
+  }, [filters.year, filters.domain, isDarkMode])
 
   // Manual refresh function
   const handleManualRefresh = async () => {
@@ -352,6 +363,7 @@ const ModernStatisticsDashboard = () => {
     try {
       const params = new URLSearchParams()
       if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
+      if (filters?.domain && filters.domain !== 'All') params.set('domain', filters.domain)
 
       const [totalsRes, monthlyRes, statusRes] = await Promise.all([
         secureAPI.get(`/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`),
@@ -363,6 +375,16 @@ const ModernStatisticsDashboard = () => {
         ),
       ])
 
+      // Try to fetch domains separately, but don't fail if endpoint doesn't exist
+      let domains = []
+      try {
+        const domainsRes = await secureAPI.get('/api/dashboard/domains')
+        domains = domainsRes?.data?.domains || []
+      } catch (domainError) {
+        console.log('Domains endpoint not available, using default domains')
+        domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
+      }
+
       const totals = totalsRes?.data || {}
       const monthly = monthlyRes?.data?.monthly || []
       const statusMonthly = statusRes?.data?.monthly || []
@@ -370,7 +392,7 @@ const ModernStatisticsDashboard = () => {
         new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])
       ).sort()
       
-      setOptions((prev) => ({ ...prev, years: yearsList }))
+      setOptions((prev) => ({ ...prev, years: yearsList, domains: domains }))
 
       setStatisticsData((prev) => ({
         ...(prev || {}),
@@ -620,6 +642,17 @@ const ModernStatisticsDashboard = () => {
               {(options.years || []).map((year) => (
                 <option key={year} value={year}>
                   {year}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filters.domain}
+              onChange={(e) => setFilters({ ...filters, domain: e.target.value })}
+              className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
+              <option value="All">All Domains</option>
+              {(options.domains || []).map((domain) => (
+                <option key={domain} value={domain}>
+                  {domain}
                 </option>
               ))}
             </select>
