@@ -15,7 +15,6 @@ import {
   Users,
   ArrowLeft,
   PlusCircle,
-  RefreshCcw,
   Lightbulb,
   Briefcase,
   MessageSquare,
@@ -46,6 +45,7 @@ import {
   TrendingUp,
   Settings,
   Filter,
+  RefreshCcw,
   Home,
   Search,
   ChevronDown,
@@ -55,7 +55,6 @@ import {
   Trophy,
   Eye,
   Edit,
-  Share2,
   Upload,
   FolderOpen,
   Code,
@@ -214,11 +213,9 @@ const TeamMemberCard = ({ member, role = "Team Member", avatar }) => {
               {getInitials(member)}
             </div>
           )}
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
         </div>
         <div className="flex-grow">
           <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{member}</h4>
-          <p className="text-xs text-gray-600 dark:text-gray-400">{role}</p>
         </div>
         <button className="opacity-0 group-hover:opacity-100 p-2 rounded-full bg-gray-100 dark:bg-gray-700 
                           hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200">
@@ -244,6 +241,13 @@ export default function WorkletDetailPage() {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
   const [isInternModalOpen, setIsInternModalOpen] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  const [mentorWorkletIds, setMentorWorkletIds] = useState([])
+  
+  // --- CHECK IF CURRENT USER IS A MENTOR FOR THIS WORKLET ---
+  const currentUserEmail = localStorage.getItem('user_email')
+  const currentUserRole = localStorage.getItem('user_role')
+  const isCurrentUserMentor = currentUserRole?.toLowerCase() === 'mentor' && 
+    mentorWorkletIds.includes(parseInt(id))
   
   // --- NEW ENHANCED STATE ---
   const [darkMode, setDarkMode] = useState(false)
@@ -264,6 +268,39 @@ export default function WorkletDetailPage() {
     // Check if there's history to go back to
     setCanGoBack(window.history.length > 1)
   }, [])
+
+  // --- FETCH MENTOR'S WORKLETS IF USER IS A MENTOR ---
+  useEffect(() => {
+    const fetchMentorWorklets = async () => {
+      if (currentUserRole?.toLowerCase() !== 'mentor' || !currentUserEmail) {
+        return
+      }
+
+      try {
+        const token = localStorage.getItem('access_token')
+        if (!token) return
+
+        const response = await axios.get(
+          `http://localhost:8000/worklets/mentor/${encodeURIComponent(currentUserEmail)}/worklets`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+            },
+          }
+        )
+
+        if (response.data && response.data.worklets) {
+          const workletIds = response.data.worklets.map(w => w.id)
+          setMentorWorkletIds(workletIds)
+        }
+      } catch (error) {
+        console.error('Error fetching mentor worklets:', error)
+      }
+    }
+
+    fetchMentorWorklets()
+  }, [currentUserEmail, currentUserRole])
   
   // --- MILESTONE STATE ---
   const [milestones, setMilestones] = useState([
@@ -353,7 +390,7 @@ export default function WorkletDetailPage() {
             college: response.data.college || 'Not specified',
             team: response.data.team || 'Not specified',
             problem_statement: response.data.problem_statement || 'No problem statement provided',
-            expectations: response.data.expectations || 'No expectations specified',
+            expectation: response.data.expectation || 'No expectations specified',
             prerequisites: response.data.prerequisites || 'No prerequisites specified',
           }
 
@@ -379,7 +416,7 @@ export default function WorkletDetailPage() {
           team: 'Web Development Team Alpha',
           problem_statement:
             'Develop a comprehensive learning platform that enables students to master full-stack web development through hands-on projects, mentorship, and real-world application scenarios. The platform should incorporate modern development practices, version control, testing, and deployment workflows.',
-          expectations:
+          expectation:
             'Students are expected to complete weekly coding assignments, participate in code reviews, contribute to team projects, and demonstrate proficiency in React, Node.js, Express, MongoDB, and modern development tools. By the end of the program, students should be able to build and deploy full-stack applications independently.',
           prerequisites:
             'Basic understanding of HTML, CSS, and JavaScript. Familiarity with programming concepts such as variables, functions, loops, and conditionals. Access to a computer with internet connection. Git and GitHub account setup is recommended but not required initially.',
@@ -642,10 +679,10 @@ export default function WorkletDetailPage() {
         </div>
       )}
 
-      {worklet.expectations && (
+      {worklet.expectation && (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Expectations</h3>
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{worklet.expectations}</p>
+          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{worklet.expectation}</p>
         </div>
       )}
 
@@ -1413,6 +1450,51 @@ export default function WorkletDetailPage() {
     }))
   }
 
+  // --- EXPORT FUNCTION ---
+  const handleExportWorklet = () => {
+    if (!worklet) return
+
+    // Create the content to export
+    const content = `
+WORKLET DETAILS
+===============
+
+Title: ${worklet.title || 'N/A'}
+
+Description:
+${worklet.description || 'No description provided'}
+
+Prerequisites:
+${worklet.prerequisites || 'No prerequisites specified'}
+
+Problem Statement:
+${worklet.problem_statement || 'No problem statement provided'}
+
+Expectations:
+${worklet.expectations || 'No expectations specified'}
+
+===============
+Generated on: ${new Date().toLocaleString()}
+    `.trim()
+
+    // Create a blob from the content
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    
+    // Create download link
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${worklet.title?.replace(/[^a-z0-9]/gi, '_') || 'worklet'}_details.txt`
+    
+    // Trigger download
+    document.body.appendChild(link)
+    link.click()
+    
+    // Cleanup
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   // --- PERFORMANCE CALCULATION ---
   const getWorkletPerformance = (worklet) => {
     if (!worklet) return 'Needs Attention'
@@ -1457,28 +1539,42 @@ export default function WorkletDetailPage() {
           
           {/* Enhanced Header with Glassmorphism */}
           <GlassCard gradient className="p-6 border-0 shadow-xl">
-            {/* Breadcrumb Navigation with Back Button */}
-            <nav className="flex items-center gap-2 text-sm mb-6">
-              <button
-                onClick={handleGoBack}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-600 hover:text-indigo-700 
-                          dark:text-gray-400 dark:hover:text-indigo-400 font-medium transition-all duration-200 
-                          hover:bg-white/50 dark:hover:bg-gray-700/50 border border-gray-200/50 dark:border-gray-600/50"
-                title="Go back to previous page"
+            {/* Breadcrumb Navigation with Back Button and Export */}
+            <nav className="flex items-center justify-between gap-2 text-sm mb-6">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleGoBack}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-600 hover:text-indigo-700 
+                            dark:text-gray-400 dark:hover:text-indigo-400 font-medium transition-all duration-200 
+                            hover:bg-white/50 dark:hover:bg-gray-700/50 border border-gray-200/50 dark:border-gray-600/50"
+                  title="Go back to previous page"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <Link 
+                  to="/worklets" 
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-600 hover:text-indigo-700 
+                            dark:text-gray-400 dark:hover:text-indigo-400 font-medium transition-all duration-200 
+                            hover:bg-white/50 dark:hover:bg-gray-700/50"
+                >
+                  <Home size={16} />
+                  <span>Worklets</span>
+                </Link>
+                <ChevronRight size={16} className="text-gray-400" />
+                <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Project Details</span>
+              </div>
+              
+              {/* Export Button - Top Right */}
+              <button 
+                onClick={handleExportWorklet}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
+                          hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
+                          rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105"
+                title="Export worklet details"
               >
-                <ArrowLeft size={16} />
+                <Download size={16} />
+                <span className="font-medium">Export</span>
               </button>
-              <Link 
-                to="/worklets" 
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-600 hover:text-indigo-700 
-                          dark:text-gray-400 dark:hover:text-indigo-400 font-medium transition-all duration-200 
-                          hover:bg-white/50 dark:hover:bg-gray-700/50"
-              >
-                <Home size={16} />
-                <span>Worklets</span>
-              </Link>
-              <ChevronRight size={16} className="text-gray-400" />
-              <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Project Details</span>
             </nav>
 
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
@@ -1565,18 +1661,6 @@ export default function WorkletDetailPage() {
                                 rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
                 <Edit size={16} />
                 <span className="font-medium">Edit Project</span>
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
-                                hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
-                                rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
-                <Share2 size={16} />
-                <span className="font-medium">Share</span>
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
-                                hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
-                                rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
-                <Download size={16} />
-                <span className="font-medium">Export</span>
               </button>
             </div>
           </GlassCard>
@@ -1717,26 +1801,35 @@ export default function WorkletDetailPage() {
                           isExpanded={expandedSections.problemStatement}
                           onToggle={() => toggleSection('problemStatement')}
                         >
-                          {worklet.problem_statement}
-                        </CollapsibleSection>
+                        <p style={{ whiteSpace: 'pre-line' }}>
+                        {worklet.problem_statement || 'No problem statement specified.'}
+                        </p>
+                      </CollapsibleSection>
 
-                        <CollapsibleSection
-                          title="EXPECTATIONS"
-                          icon={<Target size={18} />}
-                          isExpanded={expandedSections.expectations}
-                          onToggle={() => toggleSection('expectations')}
-                        >
-                          {worklet.expectations}
-                        </CollapsibleSection>
 
-                        <CollapsibleSection
-                          title="PREREQUISITES"
-                          icon={<BookOpen size={18} />}
-                          isExpanded={expandedSections.prerequisites}
-                          onToggle={() => toggleSection('prerequisites')}
-                        >
-                          {worklet.prerequisites}
-                        </CollapsibleSection>
+<CollapsibleSection
+  title="EXPECTATIONS"
+  icon={<Target size={18} />}
+  isExpanded={expandedSections.expectations}
+  onToggle={() => toggleSection('expectations')}
+>
+  <p style={{ whiteSpace: 'pre-line' }}>
+    {worklet.expectation || 'No expectations specified.'}
+  </p>
+</CollapsibleSection>
+
+<CollapsibleSection
+  title="PREREQUISITES"
+  icon={<BookOpen size={18} />}
+  isExpanded={expandedSections.prerequisites}
+  onToggle={() => toggleSection('prerequisites')}
+>
+  <p style={{ whiteSpace: 'pre-line' }}>
+                        {worklet.prerequisites || 'No prerequisites specified.'}
+                        </p>
+                       </CollapsibleSection>
+
+
                       </div>
                     </GlassCard>
                   </div>
@@ -1797,7 +1890,7 @@ export default function WorkletDetailPage() {
                                 <TeamMemberCard 
                                   key={index} 
                                   member={member} 
-                                  role={`Developer • Level ${index % 3 + 1}`} 
+                                  
                                 />
                               ))
                             ) : (
@@ -1897,69 +1990,33 @@ export default function WorkletDetailPage() {
                     label="Request Update"
                     status="Submit progress updates"
                     onClick={() => setIsRequestUpdateOpen(true)}
-                    disabled={worklet.status === 'Completed' || worklet.progress === 100}
+                    disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100}
                   />
                   <ActivityButton
                     icon={<Lightbulb size={18} />}
                     label="Submit Suggestion"
                     status="Share your ideas"
                     onClick={() => setIsSuggestionModalOpen(true)}
-                    disabled={worklet.status === 'Completed' || worklet.progress === 100}
+                    disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100}
                   />
                   <ActivityButton
                     icon={<MessageSquare size={18} />}
                     label="Provide Feedback"
                     status="Give project feedback"
                     onClick={() => setIsFeedbackOpen(true)}
-                    // disabled={worklet.status === 'Completed' || worklet.progress === 100}
+                    disabled={!isCurrentUserMentor}
                   />
                   <ActivityButton
                     icon={<Users size={18} />}
                     label="Intern Referral"
                     status="Refer talented candidates"
                     onClick={() => setIsInternModalOpen(true)}
-                    // disabled={worklet.status === 'Completed' || worklet.progress === 100}
+                    disabled={!isCurrentUserMentor}
                   />
                 </div>
               </GlassCard>
 
-              {/* Project Statistics */}
-              <GlassCard gradient className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
-                    <BarChart3 size={20} className="text-white" />
-                  </div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">PROJECT STATS</h3>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Days Remaining */}
-                  <div className="p-4 bg-white/50 dark:bg-gray-700/50 rounded-xl backdrop-blur-sm border border-white/20">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Days Remaining</span>
-                      <span className="text-lg font-bold text-blue-600 dark:text-purple-400">45</span>
-                    </div>
-                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-2 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full transition-all duration-1000"
-                        style={{ width: `65%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Other Stats */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 bg-blue-50/80 dark:bg-blue-900/20 rounded-xl">
-                      <div className="text-xl font-bold text-blue-600 dark:text-blue-400">15</div>
-                      <div className="text-xs text-blue-700 dark:text-blue-400 font-medium">Tasks Done</div>
-                    </div>
-                    <div className="text-center p-3 bg-orange-50/80 dark:bg-orange-900/20 rounded-xl">
-                      <div className="text-xl font-bold text-red-600 dark:text-red-400">8</div>
-                      <div className="text-xs text-red-600 dark:text-red-300 font-medium">Pending</div>
-                    </div>
-                  </div>
-                </div>
-              </GlassCard>
+             
 
               {/* Achievement Badges */}
               <GlassCard gradient className="p-6">

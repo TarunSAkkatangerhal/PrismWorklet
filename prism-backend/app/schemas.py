@@ -181,6 +181,9 @@ class WorkletBase(BaseModel):
     status: Optional[WorkletStatusEnum] = WorkletStatusEnum.ongoing
     year: int
     domain: Optional[str] = None
+    problem_statement: Optional[str] = None
+    expectation: Optional[str] = None
+    prerequisites: Optional[str] = None
 
 class WorkletCreate(WorkletBase):
     pass
@@ -194,6 +197,9 @@ class WorkletUpdate(BaseModel):
     status: Optional[WorkletStatusEnum] = None
     year: Optional[int] = None
     domain: Optional[str] = None
+    problem_statement: Optional[str] = None
+    expectation: Optional[str] = None
+    prerequisites: Optional[str] = None
 
 class WorkletResponse(BaseModel):
     id: int
@@ -210,6 +216,9 @@ class WorkletResponse(BaseModel):
     worklet_progress: Optional[int] = 0
     college: Optional[str] = None
     student_count: Optional[int] = 0
+    problem_statement: Optional[str] = None
+    expectation: Optional[str] = None
+    prerequisites: Optional[str] = None
     
     class Config:
         from_attributes = True
