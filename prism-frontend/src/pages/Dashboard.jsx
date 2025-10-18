@@ -247,12 +247,16 @@ export default function Dashboard() {
       tooltipText = `Milestone achieved (${totalWorkletsCount} worklets)`
     }
     
+    // If this is the first dot (Spark), shift tooltip right to avoid sidebar clipping
+    const tooltipStyle = index === 0
+      ? { left: '2.5rem', transform: 'none', zIndex: 9999, minWidth: '8rem' }
+      : { left: '50%', transform: 'translateX(-50%)', zIndex: 9999 };
     return (
       <div className="relative group">
         <span className="flex items-center gap-1.5 cursor-pointer">
           <level.Icon className={`w-4 h-4 ${level.color}`} /> {level.name}
         </span>
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-[9999]">
+        <span className=" absolute bottom-full mb-2 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap" style={tooltipStyle}>
           {tooltipText}
         </span>
       </div>
@@ -331,14 +335,61 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="relative mt-[1.5vw]">
-              <div className="h-[0.5vw] w-full bg-slate-200 rounded-full shadow-inner dark:bg-slate-700">
+              {/* Progress bar with small milestone dots that fill when passed, no numbers */}
+              <div className="relative h-[0.5vw] w-full bg-slate-200 rounded-full shadow-inner dark:bg-slate-700 mt-[1vw]">
                 <div
                   className="h-[0.5vw] bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
-                  style={{ width: `${progressPercentage}%` }}></div>
+                  style={{ width: `${totalWorkletsCount >= 1 ? Math.max(progressPercentage, 5) : progressPercentage}%` }}></div>
+                {levels.map((level, idx) => {
+                  const percent = [0, 33, 66, 100][idx];
+                  const currentLevel = getCurrentLevelFromWorklets(totalWorkletsCount);
+                  const levelsToGo = idx - currentLevel;
+                  const nextThreshold = LEVEL_THRESHOLDS[idx]?.threshold || 15;
+                  const workletsNeeded = Math.max(0, nextThreshold - totalWorkletsCount);
+                  let tooltipText = '';
+                  if (levelsToGo > 1) {
+                    tooltipText = `${workletsNeeded} more worklet${workletsNeeded !== 1 ? 's' : ''} to reach ${level.name}`;
+                  } else if (levelsToGo === 1) {
+                    tooltipText = `${workletsNeeded} more worklet${workletsNeeded !== 1 ? 's' : ''} to reach ${level.name}`;
+                  } else if (levelsToGo === 0) {
+                    tooltipText = idx === levels.length - 1 ? 'Highest level achieved! ✨' : `You are here (${totalWorkletsCount} worklets)`;
+                  } else {
+                    tooltipText = `Milestone achieved ✅)`;
+                  }
+                  // Spark dot: filled if user has at least one worklet
+                  let filled;
+                  if (idx === 0) {
+                    filled = totalWorkletsCount >= 1;
+                  } else {
+                    filled = progressPercentage >= percent;
+                  }
+                  // Tooltip style: Spark dot (idx 0) gets fixed left offset, others centered
+                  const tooltipStyle = idx === 0
+                    ? { left: '0.5rem', transform: 'none', zIndex: 9999, minWidth: '8rem' }
+                    : { left: '50%', transform: 'translateX(-50%)', zIndex: 9999 };
+                  return (
+                    <div
+                      key={level.name}
+                      className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 group flex items-center justify-center`}
+                      style={{ left: `calc(${percent}% - 0.75rem)` }}
+                    >
+                      <span
+                        className={`w-3 h-3 rounded-full border-2 shadow-lg transition-all duration-500 ${filled ? level.color : 'border-gray-300 bg-gray-200'}`}
+                        style={filled
+                          ? { borderColor: 'currentColor', backgroundColor: 'currentColor' }
+                          : { borderColor: '#d1d5db', backgroundColor: '#e5e7eb' }}
+                      ></span>
+                      <span className="absolute -top-7 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap" style={tooltipStyle}>
+                        {tooltipText}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex justify-between text-[clamp(0.75rem,0.9vw,0.875rem)] mt-[0.5vw] text-slate-600 font-medium dark:text-slate-400">
-                {levels.map((level, index) => (
-                  <LevelMilestone key={level.name} level={level} index={index} />
+              {/* Level names below the bar */}
+              <div className="flex justify-between text-[clamp(0.75rem,0.9vw,0.875rem)] mt-[1vw] text-slate-600 font-medium dark:text-slate-400">
+                {levels.map((level, idx) => (
+                  <span key={level.name} className={`text-xs font-semibold ${level.color}`}>{level.name}</span>
                 ))}
               </div>
             </div>
@@ -421,7 +472,7 @@ export default function Dashboard() {
               className={
                 layout === 'grid'
                   ? 'grid grid-cols-3 gap-[clamp(1rem,2vw,2rem)]'
-                  : 'flex overflow-x-auto gap-[clamp(1rem,2vw,2rem)] pb-[1vh] overflow-y-hidden [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-blue-400/50 [&::-webkit-scrollbar-thumb]:rounded-full'
+                  : 'flex z-50 overflow-x-auto gap-[clamp(1rem,2vw,2rem)] pb-[1vh] overflow-y-visible [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-blue-400/50 [&::-webkit-scrollbar-thumb]:rounded-full'
               }>
               {workletsData.map((worklet) => (
                 <WorkletCard key={worklet.id} worklet={worklet} layout={layout} navigate={navigate} />

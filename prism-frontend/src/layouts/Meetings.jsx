@@ -1381,7 +1381,7 @@ const Meetings = () => {
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
                 }`}
               >
-                Department Meetings
+                AT line 1384 change the name 
               </button>
               <button
                 onClick={() => setSelectedTab('mentor-meetings')}
@@ -1391,7 +1391,7 @@ const Meetings = () => {
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
                 }`}
               >
-                Mentor Meetings
+                At line 1394
               </button>
             </nav>
           </div>

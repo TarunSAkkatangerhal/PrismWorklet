@@ -123,15 +123,17 @@ const RightSidebar = () => {
               onClick={() => handleNavigation("/share-suggestion")}
             />
             <ActivityButton
-              icon={<Briefcase className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-purple-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Internship Referral</span>}
-              onClick={() => handleNavigation("/internship-referral")}
-            />
-            <ActivityButton
               icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
               label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
               onClick={() => setIsFeedbackFormOpen(true)}
             />
+            
+            <ActivityButton
+              icon={<Briefcase className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-purple-600" />}
+              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Internship Referral</span>}
+              onClick={() => handleNavigation("/internship-referral")}
+            />
+
             <ActivityButton
               icon={<ClipboardCheck className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
               label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Evaluate</span>}

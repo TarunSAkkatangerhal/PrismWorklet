@@ -1450,50 +1450,6 @@ export default function WorkletDetailPage() {
     }))
   }
 
-  // --- EXPORT FUNCTION ---
-  const handleExportWorklet = () => {
-    if (!worklet) return
-
-    // Create the content to export
-    const content = `
-WORKLET DETAILS
-===============
-
-Title: ${worklet.title || 'N/A'}
-
-Description:
-${worklet.description || 'No description provided'}
-
-Prerequisites:
-${worklet.prerequisites || 'No prerequisites specified'}
-
-Problem Statement:
-${worklet.problem_statement || 'No problem statement provided'}
-
-Expectations:
-${worklet.expectations || 'No expectations specified'}
-
-===============
-Generated on: ${new Date().toLocaleString()}
-    `.trim()
-
-    // Create a blob from the content
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    
-    // Create download link
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${worklet.title?.replace(/[^a-z0-9]/gi, '_') || 'worklet'}_details.txt`
-    
-    // Trigger download
-    document.body.appendChild(link)
-    link.click()
-    
-    // Cleanup
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
 
   // --- PERFORMANCE CALCULATION ---
   const getWorkletPerformance = (worklet) => {
@@ -1564,17 +1520,6 @@ Generated on: ${new Date().toLocaleString()}
                 <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Project Details</span>
               </div>
               
-              {/* Export Button - Top Right */}
-              <button 
-                onClick={handleExportWorklet}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
-                          hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
-                          rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105"
-                title="Export worklet details"
-              >
-                <Download size={16} />
-                <span className="font-medium">Export</span>
-              </button>
             </nav>
 
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
@@ -1629,39 +1574,19 @@ Generated on: ${new Date().toLocaleString()}
                     </div>
                   </div>
                   
-                  {/* Last Activity Card */}
-                  <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md rounded-xl border border-gray-200/50 dark:border-gray-600/50 p-4 w-full sm:min-w-[250px]">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-900 dark:text-white font-medium mb-1">
-                          Latest Update
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                          Code review completed for authentication module
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">2 hours ago</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  {/* Latest Update section removed as requested */}
+                </div>*
                 
-                {/* Enhanced Progress Bar */}
-                <EnhancedProgressBar progress={worklet.progress} size="lg" />
+                {/* Enhanced Progress Bar moved below for better layout */}
               </div>
             </div>
 
             {/* Action Buttons - Now separate section below status and info */}
-            <div className="flex flex-wrap gap-3 pt-4 lg:pt-6">
-              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-violet-100 
-                                hover:from-purple-200 hover:to-violet-200 text-purple-700 border border-purple-300/50 
-                                rounded-xl shadow-lg hover:shadow-xl backdrop-blur-sm transition-all duration-300 hover:scale-105">
-                <Edit size={16} />
-                <span className="font-medium">Edit Project</span>
-              </button>
+            {/* Removed Export and Edit Project buttons as requested */}
+
+            {/* Progress Bar now appears here for improved visual balance */}
+            <div className="mt-6">
+              <EnhancedProgressBar progress={worklet.progress} size="lg" />
             </div>
           </GlassCard>
 
