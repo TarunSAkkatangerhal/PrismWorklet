@@ -1,41 +1,31 @@
 import { useState, useEffect } from "react";
+import axios from 'axios';
 import apiClient from '../services/secureAPI';
 
 export default function FeedbackForm({ isOpen, onClose }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedStage, setSelectedStage] = useState("");
   const [feedbackContent, setFeedbackContent] = useState("");
   const [worklets, setWorklets] = useState([]);
+  const [milestones, setMilestones] = useState([]);
+  const [availableStages, setAvailableStages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
 
-  // Function to generate timeline months for selected worklet
-  const getWorkletTimelineMonths = () => {
-    if (!selectedWorklet) return [];
-    
-    const worklet = worklets.find(w => w.id === parseInt(selectedWorklet));
-    if (!worklet || !worklet.start_date || !worklet.end_date) return [];
-    
-    const startDate = new Date(worklet.start_date);
-    const endDate = new Date(worklet.end_date);
-    const months = [];
-    
-    const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-    
-    while (current <= end) {
-      const monthName = current.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      months.push(monthName);
-      current.setMonth(current.getMonth() + 1);
-    }
-    
-    return months;
-  };
-
-  const timelineMonths = getWorkletTimelineMonths();
+  // Define all possible stages
+  const allStages = [
+    { value: 'first_review', label: 'First Review' },
+    { value: 'second_review', label: 'Second Review' },
+    { value: 'mid_review', label: 'Mid Review' },
+    { value: 'fourth_review', label: 'Fourth Review' },
+    { value: 'fifth_review', label: 'Fifth Review' },
+    { value: 'end_review', label: 'End Review' },
+    { value: 'extended', label: 'Extended' },
+    { value: 'ad_hoc', label: 'Ad-Hoc' }
+  ];
 
   useEffect(() => {
     if (isOpen) {
@@ -43,9 +33,70 @@ export default function FeedbackForm({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // Reset month selection when worklet changes
+  // Fetch milestones when worklet changes
   useEffect(() => {
-    setSelectedMonth("");
+    const fetchMilestones = async () => {
+      if (!selectedWorklet) {
+        setMilestones([]);
+        setAvailableStages([]);
+        setSelectedStage("");
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) return;
+
+        const response = await axios.get(
+          `http://localhost:8000/worklets/${selectedWorklet}/milestones`,
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        const fetchedMilestones = response.data?.milestones || [];
+        setMilestones(fetchedMilestones);
+
+        // Extract milestone types/stages that have been added by students
+        const milestoneTitles = fetchedMilestones.map(m => m.title?.toLowerCase() || '');
+        
+        // Map milestone titles to stage values
+        const stageMapping = {
+          'first review': 'first_review',
+          'weekly meeting': 'first_review',
+          'second review': 'second_review',
+          'monthly meeting': 'second_review',
+          'mid review': 'mid_review',
+          'mid-review': 'mid_review',
+          'fourth review': 'fourth_review',
+          'fifth review': 'fifth_review',
+          'end review': 'end_review',
+          'extended': 'extended',
+          'ad-hoc': 'ad_hoc',
+          'ad hoc': 'ad_hoc',
+          'others': 'ad_hoc'
+        };
+
+        // Find which stages are available based on milestones
+        const available = allStages.filter(stage => {
+          return milestoneTitles.some(title => {
+            return stageMapping[title] === stage.value || title.includes(stage.label.toLowerCase());
+          });
+        });
+
+        setAvailableStages(available);
+        setSelectedStage(""); // Reset selection when worklet changes
+      } catch (error) {
+        console.error("Error fetching milestones:", error);
+        setMilestones([]);
+        setAvailableStages([]);
+      }
+    };
+
+    fetchMilestones();
   }, [selectedWorklet]);
 
   const fetchWorklets = async () => {
@@ -84,7 +135,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
       return;
     }
 
-    if (!selectedMonth || !feedbackContent.trim()) {
+    if (!selectedStage || !feedbackContent.trim()) {
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
@@ -96,8 +147,8 @@ export default function FeedbackForm({ isOpen, onClose }) {
 
       const feedbackData = {
         worklet_id: parseInt(selectedWorklet, 10),
-        month: selectedMonth, // backend expects a string; send the month name
-        feedback_content: feedbackContent.trim() // backend expects 'feedback_content'
+        stage: selectedStage, // Send stage instead of month
+        feedback_content: feedbackContent.trim()
       };
 
       const response = await apiClient.post('/worklets/submit-feedback', feedbackData);
@@ -106,8 +157,10 @@ export default function FeedbackForm({ isOpen, onClose }) {
       
       // Reset form
       setSelectedWorklet("");
-      setSelectedMonth("");
+      setSelectedStage("");
       setFeedbackContent("");
+      setMilestones([]);
+      setAvailableStages([]);
       
       // Show success popup
       setShowSuccessPopup(true);
@@ -127,8 +180,10 @@ export default function FeedbackForm({ isOpen, onClose }) {
 
   const handleClose = () => {
     setSelectedWorklet("");
-    setSelectedMonth("");
+    setSelectedStage("");
     setFeedbackContent("");
+    setMilestones([]);
+    setAvailableStages([]);
     setError(null);
     onClose();
   };
@@ -186,36 +241,68 @@ export default function FeedbackForm({ isOpen, onClose }) {
                 value={selectedWorklet}
                 onChange={(e) => setSelectedWorklet(e.target.value)}
                 className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                style={{
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
               >
                 <option value="">Choose a worklet...</option>
-                {worklets.map((worklet) => (
-                  <option key={worklet.id} value={worklet.id}>
-                    {worklet.cert_id} - {worklet.description || worklet.title}
-                  </option>
-                ))}
+                {worklets.map((worklet) => {
+                  const displayText = `${worklet.cert_id} - ${worklet.description || worklet.title || ''}`;
+                  const truncatedText = displayText.length > 60 
+                    ? displayText.substring(0, 60) + '...' 
+                    : displayText;
+                  return (
+                    <option 
+                      key={worklet.id} 
+                      value={worklet.id}
+                      title={displayText}
+                    >
+                      {truncatedText}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
-            {/* Month Selection */}
+            {/* Stage Selection */}
             <div>
               <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
-                Feedback Month *
+                Feedback Stage *
               </label>
               <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                value={selectedStage}
+                onChange={(e) => setSelectedStage(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                disabled={!selectedWorklet}
+                disabled={!selectedWorklet || availableStages.length === 0}
               >
                 <option value="">
-                  {!selectedWorklet ? "Select a worklet first..." : "Select month..."}
+                  {!selectedWorklet 
+                    ? "Select a worklet first..." 
+                    : availableStages.length === 0 
+                      ? "No milestones available" 
+                      : "Select a stage..."}
                 </option>
-                {timelineMonths.map((month) => (
-                  <option key={month} value={month}>
-                    {month}
-                  </option>
-                ))}
+                {allStages.map((stageOption) => {
+                  const isAvailable = availableStages.some(s => s.value === stageOption.value);
+                  return (
+                    <option 
+                      key={stageOption.value} 
+                      value={stageOption.value}
+                      disabled={!isAvailable}
+                    >
+                      {stageOption.label} {!isAvailable ? "(No milestone)" : ""}
+                    </option>
+                  );
+                })}
               </select>
+              {selectedWorklet && availableStages.length === 0 && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  ⚠️ Student hasn't added any milestones yet
+                </p>
+              )}
             </div>
 
             {/* Feedback Content */}
@@ -344,7 +431,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
                 Please fill in all required fields.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Worklet, month, and content are required.
+                Worklet, stage, and content are required.
               </p>
             </div>
           </div>

@@ -783,6 +783,31 @@ const Colleges = () => {
     return unique
   }, [allCollegeData, collegeSearch])
 
+  // Filter colleges based on selected area and year
+  const uniqueColleges = useMemo(() => {
+    let collegesToUse = allCollegeData || []
+    
+    // Filter by selected area if one is chosen
+    if (selectedArea && selectedArea !== 'Select Area') {
+      collegesToUse = collegesToUse.filter((college) => {
+        const area = college.areaOfExpertise
+        if (Array.isArray(area)) {
+          return area.some((item) => typeof item === 'string' && item === selectedArea)
+        } else if (typeof area === 'string') {
+          return area.split(',').map((item) => item.trim()).includes(selectedArea)
+        }
+        return false
+      })
+    }
+    
+    // Filter by selected year if one is chosen
+    if (selectedYear && selectedYear !== 'All Years') {
+      collegesToUse = collegesToUse.filter((college) => String(college.established) === selectedYear)
+    }
+    
+    return collegesToUse
+  }, [allCollegeData, selectedArea, selectedYear])
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
@@ -900,10 +925,29 @@ const Colleges = () => {
     setSelectedYear('All Years')
   }, [collegeSearch])
 
-  // Reset selected year when area selection changes
+  // Reset college search and year when area selection changes
   useEffect(() => {
+    // When area is selected, check if current college matches the area
+    if (selectedArea && selectedArea !== 'Select Area') {
+      if (collegeSearch) {
+        const currentCollege = allCollegeData.find((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
+        if (currentCollege) {
+          const area = currentCollege.areaOfExpertise
+          let hasArea = false
+          if (Array.isArray(area)) {
+            hasArea = area.some((item) => typeof item === 'string' && item === selectedArea)
+          } else if (typeof area === 'string') {
+            hasArea = area.split(',').map((item) => item.trim()).includes(selectedArea)
+          }
+          // If current college doesn't have the selected area, clear the college search
+          if (!hasArea) {
+            setCollegeSearch('')
+          }
+        }
+      }
+    }
     setSelectedYear('All Years')
-  }, [selectedArea])
+  }, [selectedArea, allCollegeData, collegeSearch])
 
   useEffect(() => {
     allCollegeDataRef.current = allCollegeData
@@ -1116,8 +1160,6 @@ const Colleges = () => {
     link.click()
     document.body.removeChild(link)
   }
-
-  const handleNewWorklet = () => alert('Opening form to create a new worklet...')
 
   const handleGetProfessors = () => {
     if (filteredColleges.length === 1) {
@@ -1396,27 +1438,25 @@ const Colleges = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {filteredColleges.length > 1 && (
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{filteredColleges.length}</p>
-                  </div>
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                    <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  </div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{filteredColleges.length}</p>
+                </div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
-            )}
+            </div>
             <button
-              onClick={() => handleNavigateToFilter('total', 'All Colleges')}
+              onClick={() => handleNavigateToFilter('total', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Worklets</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {allCollegeData.reduce(
+                    {filteredColleges.reduce(
                       (acc, curr) =>
                         acc +
                         (curr.completedCount || 0) +
@@ -1433,13 +1473,13 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('students', 'All Colleges')}
+              onClick={() => handleNavigateToFilter('students', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {allCollegeData.reduce((acc, curr) => acc + curr.totalStudents, 0)}
+                    {filteredColleges.reduce((acc, curr) => acc + (curr.totalStudents || 0), 0)}
                   </p>
                 </div>
                 <div className="p-3 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg">
@@ -1448,13 +1488,13 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('ongoing', 'All Colleges')}
+              onClick={() => handleNavigateToFilter('ongoing', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ongoing</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {allCollegeData.reduce((acc, curr) => acc + curr.ongoingCount, 0)}
+                    {filteredColleges.reduce((acc, curr) => acc + (curr.ongoingCount || 0), 0)}
                   </p>
                 </div>
                 <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
@@ -1463,13 +1503,13 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('completed', 'All Colleges')}
+              onClick={() => handleNavigateToFilter('completed', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {allCollegeData.reduce((acc, curr) => acc + curr.completedCount, 0)}
+                    {filteredColleges.reduce((acc, curr) => acc + (curr.completedCount || 0), 0)}
                   </p>
                 </div>
                 <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
@@ -1478,13 +1518,13 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('onhold', 'All Colleges')}
+              onClick={() => handleNavigateToFilter('onhold', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">On Hold</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {allCollegeData.reduce((acc, curr) => acc + curr.onHoldCount, 0)}
+                    {filteredColleges.reduce((acc, curr) => acc + (curr.onHoldCount || 0), 0)}
                   </p>
                 </div>
                 <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
@@ -1493,13 +1533,13 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('terminated', 'All Colleges')}
+              onClick={() => handleNavigateToFilter('terminated', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Terminated</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {allCollegeData.reduce((acc, curr) => acc + curr.terminatedCount, 0)}
+                    {filteredColleges.reduce((acc, curr) => acc + (curr.terminatedCount || 0), 0)}
                   </p>
                 </div>
                 <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
@@ -1611,19 +1651,11 @@ const Colleges = () => {
                 : 'Monitor and manage college partnerships and worklet performance'}
             </p>
           </div>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleNewWorklet}
-                  className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 active:scale-95">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Worklet
-                </button>
-              </div>
             </div>
             <div className="flex flex-col md:flex-row flex-wrap items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-md shadow-slate-200/50 dark:shadow-black/20 mb-8">
               <div className="w-full md:w-64">
                 <SearchableDropdown
-                  options={allCollegeData}
+                  options={uniqueColleges}
                   value={collegeSearch}
                   onChange={(newValue) => {
                     handleCollegeSelect(newValue)

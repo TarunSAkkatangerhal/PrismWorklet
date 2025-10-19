@@ -312,21 +312,9 @@ export default function WorkletDetailPage() {
       date: 'Oct 7, 2025, 2:59:07 PM',
       observations: 'Frontend architecture completed with Redux integration. All UI components implemented and tested successfully.',
       challenges: 'State management complexity resolved. Performance optimization completed through component refactoring.',
-      likes: 1,
+      feedbackStatus: 'completed', // 'completed' or 'pending'
       status: 'current',
       color: 'from-blue-500 to-purple-600'
-    },
-    {
-      id: 2,
-      title: 'Initial Planning & Setup',
-      author: 'Dr. Sarah Johnson',
-      authorInitials: 'DS',
-      date: 'Sep 15, 2024, 10:30:15 AM',
-      observations: 'Project foundation established. Team roles defined, development environment configured successfully.',
-      challenges: 'Technology stack finalization and resource allocation optimized after initial assessment.',
-      likes: 3,
-      status: 'completed',
-      color: 'from-green-500 to-teal-600'
     }
   ])
   const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false)
@@ -894,7 +882,7 @@ export default function WorkletDetailPage() {
           size: selectedFile.size,
           type: selectedFile.type
         } : null,
-        likes: 0,
+        feedbackStatus: 'pending', // New milestones default to pending
         status: 'current',
         color: 'from-indigo-500 to-blue-600'
       }
@@ -1321,36 +1309,20 @@ export default function WorkletDetailPage() {
   }
 
   const MilestoneTab = () => {
-    const handleLikeMilestone = (milestoneId) => {
-      setMilestones(prev => prev.map(milestone => 
-        milestone.id === milestoneId 
-          ? { ...milestone, likes: milestone.likes + 1 }
-          : milestone
-      ))
-    }
-
     return (
       <div className="space-y-4">
-        {/* Header with Add Button */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Project Milestones</h3>
-          <button 
-            onClick={() => setIsAddMilestoneModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium 
-                     transition-all duration-200 flex items-center gap-2"
-          >
-            <Plus size={14} />
-            Add Milestone
-          </button>
         </div>
 
         {/* Dynamic Milestone Cards */}
         <div className="space-y-4">
           {milestones.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-              <Target size={48} className="mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">No milestones yet</p>
-              <p className="text-sm">Click "Add Milestone" to create your first milestone</p>
+            <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+              <Target size={40} className="mx-auto mb-3 opacity-50" />
+              <p className="text-base font-medium mb-1">No milestones yet</p>
+              <p className="text-sm">Milestones will appear here once added</p>
             </div>
           ) : (
             milestones.map((milestone) => (
@@ -1406,25 +1378,21 @@ export default function WorkletDetailPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => handleLikeMilestone(milestone.id)}
-                        className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-xs transition-colors"
-                      >
-                        <ThumbsUp size={12} />
-                        <span>{milestone.likes} {milestone.likes === 1 ? 'Like' : 'Likes'}</span>
-                      </button>
-                      <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-xs">
-                        <MessageCircle size={12} />
-                        <span>Add Comment</span>
-                      </button>
-                    </div>
+                  {/* Mentor Feedback Status */}
+                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">GitHub Files</span>
-                      <div className="w-8 h-4 bg-blue-500 rounded-full relative">
-                        <div className="w-3 h-3 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-                      </div>
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Mentor Feedback Status:</span>
+                      {milestone.feedbackStatus === 'completed' ? (
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle size={14} className="text-green-600 dark:text-green-400" />
+                          <span className="text-xs font-semibold text-green-600 dark:text-green-400">Completed</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={14} className="text-amber-600 dark:text-amber-400" />
+                          <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Pending</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1575,7 +1543,7 @@ export default function WorkletDetailPage() {
                   </div>
                   
                   {/* Latest Update section removed as requested */}
-                </div>*
+                </div>
                 
                 {/* Enhanced Progress Bar moved below for better layout */}
               </div>
@@ -1591,7 +1559,7 @@ export default function WorkletDetailPage() {
           </GlassCard>
 
           {/* Quick Project Insights */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Team Size */}
             <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-600/50">
               <div className="flex items-center gap-3">
@@ -1627,7 +1595,7 @@ export default function WorkletDetailPage() {
               </div>
             </div>
 
-            {/* Current Phase */}
+            {/* Current Stage */}
             <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-600/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
@@ -1635,39 +1603,15 @@ export default function WorkletDetailPage() {
                 </div>
                 <div>
                   <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {worklet.progress >= 80 ? 'Final' : worklet.progress >= 60 ? 'Testing' : worklet.progress >= 40 ? 'Development' : worklet.progress >= 20 ? 'Design' : 'Planning'}
+                    {worklet.progress >= 100 ? 'End Review' : 
+                     worklet.progress >= 83 ? 'Fifth Review' : 
+                     worklet.progress >= 66 ? 'Fourth Review' : 
+                     worklet.progress >= 50 ? 'Mid Review' : 
+                     worklet.progress >= 33 ? 'Second Review' : 
+                     worklet.progress >= 16 ? 'First Review' : 
+                     'Not Started'}
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Current Phase</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Feedback Received */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-600/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                  <MessageCircle size={20} className="text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {worklet.feedback_count || 12}
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Feedback Received</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mentor Suggestions */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-600/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
-                  <Lightbulb size={20} className="text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {worklet.suggestions_count || 8}
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Mentor Suggestions</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Current Stage</div>
                 </div>
               </div>
             </div>
@@ -1686,6 +1630,7 @@ export default function WorkletDetailPage() {
                     { id: 'overview', label: 'Overview', icon: <BookOpen size={16} /> },
                     { id: 'team', label: 'Team', icon: <Users size={16} /> },
                     { id: 'milestone', label: 'Milestones', icon: <Target size={16} /> },
+                    { id: 'suggestions', label: 'Suggestions', icon: <Lightbulb size={16} /> },
                     { id: 'files', label: 'Files', icon: <FolderOpen size={16} /> }
                   ].map((tab) => (
                     <button
@@ -1777,20 +1722,6 @@ export default function WorkletDetailPage() {
                         </div>
                       </div>
 
-                      {/* Search Bar */}
-                      <div className="relative mb-6">
-                        <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search team members..."
-                          value={searchTeam}
-                          onChange={(e) => setSearchTeam(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-gray-700/70 border border-gray-200/50 
-                                    dark:border-gray-600/50 rounded-xl backdrop-blur-sm focus:outline-none focus:ring-2 
-                                    focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                        />
-                      </div>
-
                       {/* Team Members Grid */}
                       <div className="grid gap-4">
                         {/* Professors Section */}
@@ -1834,7 +1765,54 @@ export default function WorkletDetailPage() {
                 {/* Other tabs can be added here following the same pattern */}
                 {activeTab === 'milestone' && <MilestoneTab />}
 
+                {/* Suggestions Tab */}
+                {activeTab === 'suggestions' && (
+                  <GlassCard className="p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg">
+                        <Lightbulb size={20} className="text-white" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">MENTOR SUGGESTIONS</h3>
+                    </div>
 
+                    <div className="space-y-4">
+                      {/* Placeholder for suggestions */}
+                      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                        <Lightbulb size={48} className="mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium mb-2">No suggestions yet</p>
+                        <p className="text-sm">Mentor suggestions will appear here once shared</p>
+                      </div>
+
+                      {/* Example suggestion card structure (to be populated with real data) */}
+                      {/* <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-semibold">
+                            M
+                          </div>
+                          <div className="flex-grow">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-semibold text-gray-900 dark:text-gray-100">Suggestion Title</h4>
+                              <span className="text-xs text-gray-500">2 days ago</span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                              Suggestion content goes here...
+                            </p>
+                            <div className="flex items-center gap-4">
+                              <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-xs">
+                                <ThumbsUp size={12} />
+                                <span>Helpful</span>
+                              </button>
+                              <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-xs">
+                                <MessageCircle size={12} />
+                                <span>Comment</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div> */}
+                    </div>
+                  </GlassCard>
+                )}
 
                 {activeTab === 'files' && (
                   <GlassCard className="p-6">
@@ -1847,7 +1825,7 @@ export default function WorkletDetailPage() {
                 )}
               </div>
 
-              {/* GitHub Repository Enhanced - Always Visible */}
+              {/* GitHub Repository Section - Moved Below Tabs */}
               <GlassCard gradient className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-gradient-to-br from-gray-800 to-black rounded-lg">
@@ -1938,55 +1916,6 @@ export default function WorkletDetailPage() {
                     onClick={() => setIsInternModalOpen(true)}
                     disabled={!isCurrentUserMentor}
                   />
-                </div>
-              </GlassCard>
-
-             
-
-              {/* Achievement Badges */}
-              <GlassCard gradient className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
-                    <Trophy size={20} className="text-white" />
-                  </div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">ACHIEVEMENTS</h3>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50/80 to-indigo-50/80 
-                                  dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl border border-purple-200/50">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full 
-                                    flex items-center justify-center">
-                      <Star size={16} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900 dark:text-white text-sm">First Milestone</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Completed project setup</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50/80 to-purple-50/80 
-                                  dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200/50">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full 
-                                    flex items-center justify-center">
-                      <Users size={16} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900 dark:text-white text-sm">Team Player</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Great collaboration</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 bg-slate-50/80 dark:bg-slate-700/50 rounded-xl 
-                                  border border-slate-200/50 opacity-50">
-                    <div className="w-10 h-10 bg-slate-300 dark:bg-slate-600 rounded-full flex items-center justify-center">
-                      <Award size={16} className="text-slate-500" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-slate-600 dark:text-slate-400 text-sm">Project Complete</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-500">Finish all milestones</div>
-                    </div>
-                  </div>
                 </div>
               </GlassCard>
             </div>

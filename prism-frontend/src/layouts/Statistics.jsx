@@ -17,6 +17,7 @@ import {
   FileText,
   Shield,
   GraduationCap,
+  RotateCcw,
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
 // import { ThemeContext } from '../context/ThemeContext'; // <-- Removed ThemeContext dependency
@@ -255,22 +256,22 @@ const ModernStatisticsDashboard = () => {
   
   // Navigation handlers for worklet cards
   const handleTotalWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'total', year: filters.year, domain: filters.domain } })
+    navigate('/navStat', { state: { filter: 'total', year: filters.year, domain: filters.domain, team: filters.team } })
   }
   
   const handleOngoingWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'ongoing', year: filters.year, domain: filters.domain } })
+    navigate('/navStat', { state: { filter: 'ongoing', year: filters.year, domain: filters.domain, team: filters.team } })
   }
   
   const handleCompletedWorkletsClick = () => {
-    navigate('/navStat', { state: { filter: 'completed', year: filters.year, domain: filters.domain } })
+    navigate('/navStat', { state: { filter: 'completed', year: filters.year, domain: filters.domain, team: filters.team } })
   }
   
   const [statisticsData, setStatisticsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [filters, setFilters] = useState({ group: 'All', part: 'All', year: 'All', domain: 'All' })
-  const [options, setOptions] = useState({ years: [], domains: [], colleges: [] })
+  const [filters, setFilters] = useState({ group: 'All', part: 'All', year: 'All', domain: 'All', team: 'All' })
+  const [options, setOptions] = useState({ years: [], domains: [], colleges: [], teams: [] })
   const [selectedMetric, setSelectedMetric] = useState('overview')
   const [mentorStats, setMentorStats] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -285,6 +286,7 @@ const ModernStatisticsDashboard = () => {
         const params = new URLSearchParams()
         if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
         if (filters?.domain && filters.domain !== 'All') params.set('domain', filters.domain)
+        if (filters?.team && filters.team !== 'All') params.set('team', filters.team)
 
         // If "All Years" is selected, fetch data for all available years
         let monthlyData = []
@@ -301,6 +303,8 @@ const ModernStatisticsDashboard = () => {
             const yearParams = new URLSearchParams()
             yearParams.set('year', year)
             if (filters?.domain && filters.domain !== 'All') yearParams.set('domain', filters.domain)
+            if (filters?.team && filters.team !== 'All') yearParams.set('team', filters.team)
+            if (filters?.team && filters.team !== 'All') yearParams.set('team', filters.team)
             
             return Promise.all([
               secureAPI.get(`/api/dashboard/platform-monthly-trends?${yearParams.toString()}`),
@@ -355,24 +359,39 @@ const ModernStatisticsDashboard = () => {
           ),
         ])
 
-        // Try to fetch domains separately, but don't fail if endpoint doesn't exist
-        let domains = []
-        try {
-          const domainsRes = await secureAPI.get('/api/dashboard/domains')
-          domains = domainsRes?.data?.domains || []
-        } catch (domainError) {
-          console.log('Domains endpoint not available, using default domains')
-          domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
-        }
+      // Fetch domains based on selected year (nested filtering)
+      let domains = []
+      let teams = []
+      try {
+        const domainsParams = new URLSearchParams()
+        if (filters?.year && filters.year !== 'All') domainsParams.set('year', filters.year)
+        
+        const domainsRes = await secureAPI.get(`/api/dashboard/domains${domainsParams.toString() ? `?${domainsParams.toString()}` : ''}`)
+        domains = domainsRes?.data?.domains || []
+      } catch (domainError) {
+        console.log('Domains endpoint not available, using default domains')
+        domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
+      }
 
-        const totals = totalsRes?.data || {}
+      // Fetch teams based on selected year and domain (nested filtering)
+      try {
+        const teamsParams = new URLSearchParams()
+        if (filters?.year && filters.year !== 'All') teamsParams.set('year', filters.year)
+        if (filters?.domain && filters.domain !== 'All') teamsParams.set('domain', filters.domain)
+        
+        const teamsRes = await secureAPI.get(`/api/dashboard/teams${teamsParams.toString() ? `?${teamsParams.toString()}` : ''}`)
+        teams = teamsRes?.data?.teams || []
+      } catch (teamError) {
+        console.log('Teams endpoint not available, using default teams')
+        teams = ['Vision', 'Innovation', 'Research', 'Development', 'Analytics', 'Design']
+      }        const totals = totalsRes?.data || {}
         const monthly = monthlyRes?.data?.monthly || []
         const statusMonthly = statusRes?.data?.monthly || []
         const yearsList = Array.from(
           new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])
         ).sort()
         // Only show backend-provided years; do not add hardcoded ones
-        setOptions((prev) => ({ ...prev, years: yearsList, domains: domains }))
+        setOptions((prev) => ({ ...prev, years: yearsList, domains: domains, teams: teams }))
 
         setStatisticsData((prev) => ({
           ...(prev || {}),
@@ -414,7 +433,60 @@ const ModernStatisticsDashboard = () => {
     // periodic refresh
     const interval = setInterval(loadAll, 300000)
     return () => clearInterval(interval)
-  }, [filters.year, filters.domain, isDarkMode])
+  }, [filters.year, filters.domain, filters.team, isDarkMode])
+
+  // Update domains and teams list when year changes (nested filtering behavior)
+  useEffect(() => {
+    const fetchFilteredOptions = async () => {
+      // Fetch domains based on selected year
+      try {
+        const domainsParams = new URLSearchParams()
+        if (filters?.year && filters.year !== 'All') domainsParams.set('year', filters.year)
+        
+        const domainsRes = await secureAPI.get(`/api/dashboard/domains${domainsParams.toString() ? `?${domainsParams.toString()}` : ''}`)
+        const domains = domainsRes?.data?.domains || []
+        
+        setOptions((prev) => ({ ...prev, domains: domains }))
+        
+        // Reset domain filter to 'All' if current selection is not in the new list
+        if (filters.domain !== 'All' && !domains.includes(filters.domain)) {
+          setFilters((prev) => ({ ...prev, domain: 'All' }))
+        }
+      } catch (error) {
+        console.log('Failed to fetch domains, using default domains')
+        const defaultDomains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
+        setOptions((prev) => ({ ...prev, domains: defaultDomains }))
+      }
+
+      // Fetch teams based on selected year and domain
+      try {
+        const teamsParams = new URLSearchParams()
+        if (filters?.year && filters.year !== 'All') teamsParams.set('year', filters.year)
+        if (filters?.domain && filters.domain !== 'All') teamsParams.set('domain', filters.domain)
+        
+        const teamsRes = await secureAPI.get(`/api/dashboard/teams${teamsParams.toString() ? `?${teamsParams.toString()}` : ''}`)
+        const teams = teamsRes?.data?.teams || []
+        
+        setOptions((prev) => ({ ...prev, teams: teams }))
+        
+        // Reset team filter to 'All' if current selection is not in the new list
+        if (filters.team !== 'All' && !teams.includes(filters.team)) {
+          setFilters((prev) => ({ ...prev, team: 'All' }))
+        }
+      } catch (error) {
+        console.log('Failed to fetch teams, using default teams')
+        const defaultTeams = ['Vision', 'Innovation', 'Research', 'Development', 'Analytics', 'Design']
+        setOptions((prev) => ({ ...prev, teams: defaultTeams }))
+      }
+    }
+
+    fetchFilteredOptions()
+  }, [filters.year, filters.domain])
+
+  // Reset all filters to default values
+  const handleResetFilters = () => {
+    setFilters({ group: 'All', part: 'All', year: 'All', domain: 'All', team: 'All' })
+  }
 
   // Manual refresh function
   const handleManualRefresh = async () => {
@@ -423,6 +495,7 @@ const ModernStatisticsDashboard = () => {
       const params = new URLSearchParams()
       if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
       if (filters?.domain && filters.domain !== 'All') params.set('domain', filters.domain)
+      if (filters?.team && filters.team !== 'All') params.set('team', filters.team)
 
       // If "All Years" is selected, fetch data for all available years
       let monthlyData = []
@@ -495,12 +568,38 @@ const ModernStatisticsDashboard = () => {
 
       // Try to fetch domains separately, but don't fail if endpoint doesn't exist
       let domains = []
+      let teams = []
       try {
         const domainsRes = await secureAPI.get('/api/dashboard/domains')
         domains = domainsRes?.data?.domains || []
       } catch (domainError) {
         console.log('Domains endpoint not available, using default domains')
         domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
+      }
+
+      // Fetch domains based on selected year (nested filtering)
+      try {
+        const domainsParams = new URLSearchParams()
+        if (filters?.year && filters.year !== 'All') domainsParams.set('year', filters.year)
+        
+        const domainsRes = await secureAPI.get(`/api/dashboard/domains${domainsParams.toString() ? `?${domainsParams.toString()}` : ''}`)
+        domains = domainsRes?.data?.domains || []
+      } catch (domainError) {
+        console.log('Domains endpoint not available, using default domains')
+        domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
+      }
+
+      // Fetch teams based on selected year and domain (nested filtering)
+      try {
+        const teamsParams = new URLSearchParams()
+        if (filters?.year && filters.year !== 'All') teamsParams.set('year', filters.year)
+        if (filters?.domain && filters.domain !== 'All') teamsParams.set('domain', filters.domain)
+        
+        const teamsRes = await secureAPI.get(`/api/dashboard/teams${teamsParams.toString() ? `?${teamsParams.toString()}` : ''}`)
+        teams = teamsRes?.data?.teams || []
+      } catch (teamError) {
+        console.log('Teams endpoint not available, using default teams')
+        teams = ['Vision', 'Innovation', 'Research', 'Development', 'Analytics', 'Design']
       }
 
       const totals = totalsRes?.data || {}
@@ -510,7 +609,7 @@ const ModernStatisticsDashboard = () => {
         new Set([...(monthlyRes?.data?.years || []), ...(statusRes?.data?.years || [])])
       ).sort()
       
-      setOptions((prev) => ({ ...prev, years: yearsList, domains: domains }))
+      setOptions((prev) => ({ ...prev, years: yearsList, domains: domains, teams: teams }))
 
       setStatisticsData((prev) => ({
         ...(prev || {}),
@@ -774,6 +873,23 @@ const ModernStatisticsDashboard = () => {
                 </option>
               ))}
             </select>
+            <select
+              value={filters.team}
+              onChange={(e) => setFilters({ ...filters, team: e.target.value })}
+              className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
+              <option value="All">All Teams</option>
+              {(options.teams || []).map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleResetFilters}
+              className="flex items-center justify-center px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              title="Reset all filters">
+              <RotateCcw className="w-4 h-4" />
+            </button>
             <button
               onClick={handleManualRefresh}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
