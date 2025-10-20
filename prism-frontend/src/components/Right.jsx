@@ -5,6 +5,9 @@ import SuggestionModal from "../layouts/SuggestionModal";
 import InternReferralForm from "../layouts/Intern";
 import FeedbackForm from "./FeedbackForm";
 import EvaluateModal from "../components/EvaluateModal";
+import ProvideUpdateModal from "../components/ProvideUpdateModal";
+import MeetingUpdatesModal from "../components/MeetingUpdatesModal";
+import TestimonialModal from "../components/TestimonialModal";
 
 import {
   RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot, Calendar, Star
@@ -17,6 +20,11 @@ const RightSidebar = () => {
   const [isInternModalOpen, setIsInternModalOpen] = useState(false);
   const [isFeedbackFormOpen, setIsFeedbackFormOpen] = useState(false);
   const [isEvaluateModalOpen, setISEvaluateModalOpen] = useState(false);
+  
+  // Student modal states
+  const [isProvideUpdateOpen, setIsProvideUpdateOpen] = useState(false);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+  const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false);
   
   // Get user data from validated JWT token
   const [userData, setUserData] = useState(null);
@@ -80,27 +88,29 @@ const RightSidebar = () => {
         {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
           // Student-specific content
           <>
-            <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold mb-[1vh] text-blue-900 dark:text-white">Student Activities</h2>
-            <ActivityButton
-              icon={<RefreshCcw className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-blue-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Provide Update</span>}
-              onClick={() => {/* Empty for now */}}
-            />
-            <ActivityButton
-              icon={<Calendar className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Meeting Updates</span>}
-              onClick={() => {/* Empty for now */}}
-            />
-            <ActivityButton
-              icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
-              onClick={() => {/* Empty for now */}}
-            />
-            <ActivityButton
-              icon={<Star className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-yellow-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Testimonials</span>}
-              onClick={() => {/* Empty for now */}}
-            />
+            <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold mb-[2vh] text-blue-900 dark:text-white">Activities</h2>
+            <div className="space-y-[1.5vh]">
+              <ActivityButton
+                icon={<RefreshCcw className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-blue-600" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Provide Update</span>}
+                onClick={() => setIsProvideUpdateOpen(true)}
+              />
+              <ActivityButton
+                icon={<Calendar className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Meeting Updates</span>}
+                onClick={() => setIsMeetingModalOpen(true)}
+              />
+              <ActivityButton
+                icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
+                onClick={() => setIsFeedbackFormOpen(true)}
+              />
+              <ActivityButton
+                icon={<Star className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-yellow-600" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Testimonials</span>}
+                onClick={() => setIsTestimonialModalOpen(true)}
+              />
+            </div>
           </>
         ) : (
           // Mentor-specific content (original)
@@ -111,34 +121,34 @@ const RightSidebar = () => {
             >
               <PlusCircle className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)]" /> <span className="text-[clamp(1.25rem,2vw,1.5rem)]">New Worklet</span>
             </button>
-            <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold mb-[1vh] text-blue-900 dark:text-white">Activities</h2>
-            <ActivityButton
-              icon={<RefreshCcw className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-blue-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Request Update</span>}
-              onClick={() => handleNavigation("/request-update")}
-            />
-            <ActivityButton
-              icon={<Lightbulb className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-sky-500" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Share Suggestion</span>}
-              onClick={() => handleNavigation("/share-suggestion")}
-            />
-            <ActivityButton
-              icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
-              onClick={() => setIsFeedbackFormOpen(true)}
-            />
-            
-            <ActivityButton
-              icon={<Briefcase className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-purple-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Internship Referral</span>}
-              onClick={() => handleNavigation("/internship-referral")}
-            />
-
-            <ActivityButton
-              icon={<ClipboardCheck className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
-              label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Evaluate</span>}
-              onClick={() => handleNavigation("/evaluate")}
-            />
+            <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold mb-[2vh] text-blue-900 dark:text-white">Activities</h2>
+            <div className="space-y-[1.5vh]">
+              <ActivityButton
+                icon={<RefreshCcw className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-blue-600" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Request Update</span>}
+                onClick={() => handleNavigation("/request-update")}
+              />
+              <ActivityButton
+                icon={<Lightbulb className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-sky-500" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Share Suggestion</span>}
+                onClick={() => handleNavigation("/share-suggestion")}
+              />
+              <ActivityButton
+                icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
+                onClick={() => setIsFeedbackFormOpen(true)}
+              />
+              <ActivityButton
+                icon={<Briefcase className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-purple-600" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Internship Referral</span>}
+                onClick={() => handleNavigation("/internship-referral")}
+              />
+              <ActivityButton
+                icon={<ClipboardCheck className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Evaluate</span>}
+                onClick={() => handleNavigation("/evaluate")}
+              />
+            </div>
           </>
         )}
       </div>
@@ -196,6 +206,25 @@ const RightSidebar = () => {
         isOpen={isEvaluateModalOpen}
         onClose={() => setISEvaluateModalOpen(false)}
       />
+
+      {/* Student Modals */}
+      <ProvideUpdateModal
+        isOpen={isProvideUpdateOpen}
+        onClose={() => setIsProvideUpdateOpen(false)}
+        worklet={null}
+      />
+
+      <MeetingUpdatesModal
+        isOpen={isMeetingModalOpen}
+        onClose={() => setIsMeetingModalOpen(false)}
+        worklet={null}
+      />
+
+      <TestimonialModal
+        isOpen={isTestimonialModalOpen}
+        onClose={() => setIsTestimonialModalOpen(false)}
+        worklet={null}
+      />
     </aside>
   );
 };
@@ -205,7 +234,7 @@ export default RightSidebar;
 function ActivityButton({ icon, label, primary, onClick }) {
   return (
     <button
-      className={`w-full flex items-center gap-[clamp(0.5rem,1vw,0.75rem)] px-[clamp(0.75rem,1.5vw,1rem)] py-[clamp(0.5rem,1vh,0.75rem)] mb-[clamp(0.5rem,1vh,0.75rem)] rounded-xl text-[clamp(0.75rem,1vw,0.875rem)] font-medium shadow-sm transition-all duration-200 transform hover:scale-105 hover:shadow-md ${
+      className={`w-full flex items-center gap-[clamp(0.5rem,1vw,0.75rem)] px-[clamp(0.75rem,1.5vw,1rem)] py-[clamp(0.5rem,1vh,0.75rem)] rounded-xl text-[clamp(0.75rem,1vw,0.875rem)] font-medium shadow-sm transition-all duration-200 transform hover:scale-105 hover:shadow-md ${
         primary
           ? "bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
           : "bg-white hover:bg-purple-100 text-gray-700 border border-gray-200 hover:border-purple-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 dark:hover:border-slate-600"

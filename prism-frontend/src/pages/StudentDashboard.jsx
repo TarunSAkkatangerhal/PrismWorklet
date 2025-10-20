@@ -1,12 +1,12 @@
-// Student Dashboard - Shows worklets content with student sidebars
+// Student Dashboard - Shows worklets content with student-focused UI
 import React, { useState, useEffect, useCallback } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from 'axios';
 import { 
   Calendar, 
   Users, 
   LayoutGrid,
-  List,
+  Columns,
   Search,
   Filter,
   Clock,
@@ -15,15 +15,29 @@ import {
   User,
   AlertCircle,
   CheckCircle,
-  Circle
+  Circle,
+  BookOpen,
+  Target,
+  Zap,
+  Rocket,
+  Key,
+  Crown,
+  MapPin,
+  TrendingUp,
+  List,
+  ArrowRightLeft,
 } from "lucide-react";
 import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
+import StatCard from '../components/StatCard';
+import { getCurrentUser } from '../services/auth';
+import { sanitizeInput } from '../utils/security';
+import samsungLogo from '../assets/prism_logo.png';
 
-// Status options and utility functions (copied from WorkletsPage)
+// Status options and utility functions
 const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "Under Review", "On Hold", "Dropped"]; 
 
-const STORAGE_KEY = 'worklets_view_state';
+const STORAGE_KEY = 'student_worklets_view_state';
 
 const saveViewState = (state) => {
   try {
@@ -43,38 +57,175 @@ const loadViewState = () => {
   }
 };
 
+// Level thresholds based on worklet count
+const LEVEL_THRESHOLDS = [
+  { name: 'SPARK', Icon: Zap, color: 'text-yellow-500', threshold: 1 },
+  { name: 'LEAD', Icon: Rocket, color: 'text-blue-500', threshold: 3 },
+  { name: 'CORE', Icon: Key, color: 'text-green-500', threshold: 6 },
+  { name: 'MASTER', Icon: Crown, color: 'text-purple-500', threshold: 10 },
+];
+
+const levels = [
+  { name: 'SPARK', Icon: Zap, color: 'text-yellow-500' },
+  { name: 'LEAD', Icon: Rocket, color: 'text-blue-500' },
+  { name: 'CORE', Icon: Key, color: 'text-green-500' },
+  { name: 'MASTER', Icon: Crown, color: 'text-purple-500' },
+];
+
+// Helper to get initials from name
+const getInitials = (name) => {
+  if (!name) return '';
+  const nameParts = name.split(' ');
+  if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
+  return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+};
+
+// Helper to generate color from name
+const generateColorFromName = (name) => {
+  const colors = ['#0077b6', '#0096c7', '#48cae4', '#90e0ef', '#ade8f4'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash % colors.length)];
+};
+
+// Helper to get current level from worklet count
+const getCurrentLevelFromWorklets = (workletCount) => {
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (workletCount >= LEVEL_THRESHOLDS[i].threshold) {
+      return i;
+    }
+  }
+  return -1;
+};
+
 export default function StudentDashboard() {
-  const [workletsData, setWorkletsData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastFetched, setLastFetched] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Hardcoded data for now
+  const [workletsData] = useState([
+    {
+      id: 1,
+      title: "AI-Powered Chatbot Development",
+      description: "Build an intelligent chatbot using natural language processing and machine learning algorithms",
+      status: "Ongoing",
+      progress: 65,
+      created_at: "2025-09-15",
+      team_name: "Tech Innovators",
+      college: "MIT"
+    },
+    {
+      id: 2,
+      title: "Mobile App for Campus Navigation",
+      description: "Create a mobile application to help students navigate through the campus with real-time updates",
+      status: "Completed",
+      progress: 100,
+      created_at: "2025-08-20",
+      team_name: "Code Masters",
+      college: "Stanford"
+    },
+    {
+      id: 3,
+      title: "Blockchain-based Voting System",
+      description: "Develop a secure and transparent voting system using blockchain technology",
+      status: "Ongoing",
+      progress: 45,
+      created_at: "2025-10-01",
+      team_name: "Crypto Pioneers",
+      college: "Berkeley"
+    },
+    {
+      id: 4,
+      title: "Smart Home Automation",
+      description: "Design and implement an IoT-based smart home system with voice control features",
+      status: "Completed",
+      progress: 100,
+      created_at: "2025-07-10",
+      team_name: "IoT Warriors",
+      college: "MIT"
+    },
+    {
+      id: 5,
+      title: "E-Learning Platform",
+      description: "Build a comprehensive online learning platform with interactive courses and assessments",
+      status: "Ongoing",
+      progress: 80,
+      created_at: "2025-09-25",
+      team_name: "EduTech Squad",
+      college: "Harvard"
+    },
+  ]);
+  
+  const [loading] = useState(false);
+  const [error] = useState(null);
+  const [lastFetched] = useState(new Date());
+  
+  // User profile state with hardcoded data
+  const [userName] = useState('John Doe');
+  const [loadingName] = useState(false);
+  const [userProfileData] = useState({
+    name: 'John Doe',
+    email: 'john.doe@university.edu',
+    college: 'Massachusetts Institute of Technology',
+    avatar_url: null
+  });
   
   // View state management
-  const [viewType, setViewType] = useState('grid');
-  const [selectedStatus, setSelectedStatus] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
+  const [layout, setLayout] = useState(() => localStorage.getItem('student_worklet_layout') || 'list');
+  
+  // Filter state for stat card clicks
+  const [selectedFilter, setSelectedFilter] = useState('all'); // 'all', 'total', 'completed'
+  
+  // Icon rotation states
+  const [isListIconRotating, setIsListIconRotating] = useState(false);
+  const [isHorizontalIconRotating, setIsHorizontalIconRotating] = useState(false);
 
-  const location = useLocation();
-
-  // Load saved view state
+  // Load saved layout preference
   useEffect(() => {
-    const savedState = loadViewState();
-    if (savedState) {
-      setViewType(savedState.viewType || 'grid');
-      setSelectedStatus(savedState.selectedStatus || 'All');
-      setSearchTerm(savedState.searchTerm || '');
-      setSortBy(savedState.sortBy || 'newest');
+    const savedLayout = localStorage.getItem('student_worklet_layout');
+    if (savedLayout) {
+      setLayout(savedLayout);
     }
   }, []);
 
-  // Save view state when it changes
+  // Save layout preference when it changes
   useEffect(() => {
-    saveViewState({ viewType, selectedStatus, searchTerm, sortBy });
-  }, [viewType, selectedStatus, searchTerm, sortBy]);
+    localStorage.setItem('student_worklet_layout', layout);
+  }, [layout]);
 
-  // Fetch worklets function
+  // Fetch current user (using hardcoded data for now)
+  useEffect(() => {
+    let cancelled = false;
+    const loadUser = async () => {
+      // Using hardcoded data - uncomment below for real API
+      /*
+      setLoadingName(true);
+      try {
+        const me = await getCurrentUser();
+        if (cancelled) return;
+        setUserProfileData(me);
+        setUserName(sanitizeInput(me.name || me.email?.split('@')[0] || 'Student', { maxLength: 50 }));
+        localStorage.setItem('user_email', me.email);
+        localStorage.setItem('user_name', me.name || '');
+      } catch (e) {
+        if (!cancelled) {
+          setUserName('Student');
+        }
+      } finally {
+        if (!cancelled) setLoadingName(false);
+      }
+      */
+    };
+    loadUser();
+    return () => { cancelled = true };
+  }, []);
+
+  // Fetch worklets function (using hardcoded data for now)
   const fetchWorklets = useCallback(async () => {
+    // Using hardcoded data - uncomment below for real API
+    /*
     setLoading(true);
     setError(null);
     try {
@@ -118,6 +269,7 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false);
     }
+    */
   }, []);
 
   // Load worklets on component mount and location change
@@ -135,29 +287,23 @@ export default function StudentDashboard() {
     }
   };
 
-  // Filter and sort worklets
-  const processedWorklets = workletsData
-    .filter(worklet => {
-      const matchesStatus = selectedStatus === 'All' || worklet.status === selectedStatus;
-      const matchesSearch = searchTerm === '' || 
-        worklet.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        worklet.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesStatus && matchesSearch;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'newest': return new Date(b.created_at) - new Date(a.created_at);
-        case 'oldest': return new Date(a.created_at) - new Date(b.created_at);
-        case 'name': return (a.title || '').localeCompare(b.title || '');
-        default: return 0;
-      }
-    });
+  // Filter worklets based on selected filter
+  const processedWorklets = React.useMemo(() => {
+    if (selectedFilter === 'completed') {
+      return workletsData.filter(w => w.status === 'Completed');
+    }
+    return workletsData; // 'all' or 'total' shows all worklets
+  }, [workletsData, selectedFilter]);
+
+  // Calculate stats
+  const totalWorklets = workletsData.length;
+  const completedWorklets = workletsData.filter(w => w.status === 'Completed').length;
 
   if (loading) {
     return (
       <div className="flex h-screen bg-slate-100 dark:bg-slate-900">
         <LeftSidebar />
-        <div className="flex-1 flex items-center justify-center lg:ml-64">
+        <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-slate-600 dark:text-slate-400">Loading worklets...</p>
@@ -169,211 +315,322 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="flex h-screen w-full bg-slate-100 text-slate-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200">
       <LeftSidebar />
-      
-      <main className="flex-1 overflow-y-auto lg:ml-64 lg:mr-64">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-5 dark:opacity-10 pointer-events-none">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto p-6">
-          {/* Enhanced Header */}
-          <div className="mb-8 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20 dark:border-slate-700/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold text-black dark:text-white mb-3 flex items-center gap-4">
-                  Student Worklets
-                  {lastFetched && (
-                    <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-md">
-                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse" /> live
-                    </span>
-                  )}
-                  <button
-                    onClick={fetchWorklets}
-                    disabled={loading}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold shadow hover:shadow-lg transition disabled:opacity-40 disabled:cursor-not-allowed">
-                    Refresh
-                  </button>
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400 text-lg">
-                  Browse and explore available worklets
-                </p>
-                {error && (
-                  <div className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-4 py-2 rounded-lg">
-                    {error}
-                  </div>
+
+      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:hidden scrollbar-hide">
+        <header className="flex justify-between items-center mb-[3vh]">
+          <div>
+            <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
+              {loadingName ? 'Loading...' : `Welcome, ${userName.split(' ')[0]}`}
+            </h1>
+            <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">
+              Track your learning journey and worklet progress
+            </p>
+          </div>
+          <div className="flex items-center gap-[1vw]">
+            <img src={samsungLogo} alt="PRISM" className="h-[clamp(2.5rem,4vw,3.5rem)] opacity-90" />
+          </div>
+        </header>
+
+        {/* Profile and Stats Section */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw] mb-[3vh]">
+          {/* Profile Card */}
+          <div className="lg:col-span-2 relative overflow-visible rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700">
+            <div className="flex items-start gap-[1.2vw]">
+              {userProfileData?.avatar_url ? (
+                <img
+                  src={userProfileData.avatar_url}
+                  alt="Student"
+                  className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full object-cover shadow-md"
+                />
+              ) : (
+                <div
+                  className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full flex items-center justify-center text-white font-bold text-[clamp(1.5rem,2.5vw,2rem)] shadow-md flex-shrink-0"
+                  style={{ backgroundColor: generateColorFromName(userProfileData?.name || 'Student') }}
+                >
+                  <span>{getInitials(userProfileData?.name || 'Student')}</span>
+                </div>
+              )}
+              <div className="flex-1">
+                <h2 className="text-[clamp(1.125rem,1.8vw,1.5rem)] font-bold text-slate-900 dark:text-white">
+                  {userProfileData?.name || userName}
+                </h2>
+                {userProfileData?.email && (
+                  <p className="text-[clamp(0.75rem,0.9vw,0.875rem)] text-slate-600 dark:text-slate-300 mt-[0.2vw]">
+                    {userProfileData.email}
+                  </p>
+                )}
+                {userProfileData?.college && (
+                  <p className="text-[clamp(0.875rem,1.1vw,1rem)] font-medium text-blue-600 dark:text-blue-400 mt-[0.3vw]">
+                    {userProfileData.college}
+                  </p>
                 )}
               </div>
-              
-              {/* Stats Badge */}
-              <div className="text-right">
-                <div className="text-3xl font-bold text-black dark:text-white">
-                  {processedWorklets.length}
-                </div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
-                  Available Worklets
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Controls */}
-          <div className="mb-6 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20 dark:border-slate-700/50">
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Search */}
-              <div className="flex-1 min-w-[200px] relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search worklets..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white/60 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-400"
-                />
-              </div>
+          {/* Stats Cards */}
+          <div className="space-y-[1vw]">
+            <div 
+              onClick={() => setSelectedFilter(selectedFilter === 'total' ? 'all' : 'total')} 
+              className="cursor-pointer"
+            >
+              <StatCard
+                value={loading ? '...' : totalWorklets}
+                label="Total Worklets"
+                icon={<BookOpen className="w-[clamp(1.25rem,1.8vw,2rem)] h-[clamp(1.25rem,1.8vw,2rem)] text-blue-500" />}
+                accent={selectedFilter === 'total' 
+                  ? "from-blue-100 to-blue-50 border-blue-400 dark:from-blue-900/50 dark:to-blue-800/30 dark:border-blue-500"
+                  : "from-blue-50 to-white hover:border-blue-300 dark:from-slate-800/50 dark:to-slate-800/20 dark:hover:border-blue-600"
+                }
+              />
+            </div>
+            <div 
+              onClick={() => setSelectedFilter(selectedFilter === 'completed' ? 'all' : 'completed')} 
+              className="cursor-pointer"
+            >
+              <StatCard
+                value={loading ? '...' : completedWorklets}
+                label="Completed"
+                icon={<CheckCircle className="w-[clamp(1.25rem,1.8vw,2rem)] h-[clamp(1.25rem,1.8vw,2rem)] text-green-500" />}
+                accent={selectedFilter === 'completed'
+                  ? "from-green-100 to-green-50 border-green-400 dark:from-green-900/50 dark:to-green-800/30 dark:border-green-500"
+                  : "from-green-50 to-white hover:border-green-300 dark:from-slate-800/50 dark:to-slate-800/20 dark:hover:border-green-600"
+                }
+              />
+            </div>
+          </div>
+        </section>
 
-              {/* Status Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="pl-10 pr-8 py-2.5 bg-white/60 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white appearance-none cursor-pointer">
-                  {STATUS_OPTIONS.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
+        {/* Worklets Display */}
+        <section>
+          {/* Section Title with Layout Toggle */}
+          <div className="mb-[2vh] flex items-center justify-between">
+            <h2 className="text-[clamp(1.5rem,2.5vw,2rem)] font-bold text-slate-900 dark:text-white">
+              {selectedFilter === 'completed' ? 'Completed Worklets' : 
+               selectedFilter === 'total' ? 'All Worklets' : 'My Worklets'}
+            </h2>
 
-              {/* Sort */}
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2.5 bg-white/60 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white cursor-pointer">
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="name">Name A-Z</option>
-              </select>
-
-              {/* View Toggle */}
-              <div className="flex bg-white/60 dark:bg-slate-700/60 rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
-                <button
-                  onClick={() => setViewType('grid')}
-                  className={`p-2.5 transition ${viewType === 'grid' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewType('list')}
-                  className={`p-2.5 transition ${viewType === 'list' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
+            {/* Layout Toggle */}
+            <div className="flex items-center gap-[0.5vw] p-1 bg-white/60 dark:bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 dark:border-slate-700 shadow-lg">
+              <button
+                onClick={() => {
+                  setLayout('list');
+                  setIsListIconRotating(true);
+                  setTimeout(() => setIsListIconRotating(false), 600);
+                }}
+                className={`p-2.5 rounded-lg transition-all duration-200 ${
+                  layout === 'list'
+                    ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
+                }`}
+                title="List View"
+              >
+                <List className={`w-5 h-5 ${isListIconRotating ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={() => {
+                  setLayout('horizontal');
+                  setIsHorizontalIconRotating(true);
+                  setTimeout(() => setIsHorizontalIconRotating(false), 600);
+                }}
+                className={`p-2.5 rounded-lg transition-all duration-200 ${
+                  layout === 'horizontal'
+                    ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
+                }`}
+                title="Horizontal Scroll View"
+              >
+                <ArrowRightLeft className={`w-5 h-5 ${isHorizontalIconRotating ? 'animate-spin' : ''}`} />
+              </button>
             </div>
           </div>
 
-          {/* Worklets Display */}
           {processedWorklets.length === 0 ? (
-            <div className="text-center py-12 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-700/50">
-              <div className="text-6xl mb-4">📚</div>
+            <div className="flex flex-col items-center justify-center py-[8vh] bg-white/60 dark:bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 dark:border-slate-700 shadow-lg">
+              <BookOpen className="w-16 h-16 text-slate-300 dark:text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                {searchTerm || selectedStatus !== 'All' ? 'No matching worklets' : 'No worklets available'}
+                No worklets available
               </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                {searchTerm || selectedStatus !== 'All' 
-                  ? 'Try adjusting your search or filter criteria'
-                  : 'Check back later for new worklets'}
+              <p className="text-slate-600 dark:text-slate-400 text-center max-w-md">
+                Your worklets will appear here once assigned
               </p>
             </div>
-          ) : viewType === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {processedWorklets.map((worklet) => (
-                <Link
-                  key={worklet.id}
-                  to={`/worklet/${worklet.id}`}
-                  className="group bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-600 transform hover:-translate-y-1"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(worklet.status)}
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                        {worklet.status || 'Pending'}
+          ) : layout === 'horizontal' ? (
+            <div className="overflow-x-auto pb-4 -mx-[2vw] px-[2vw] [&::-webkit-scrollbar]:hidden scrollbar-hide">
+              <div className="flex gap-[1.5vw] min-w-max">
+                {processedWorklets.map((worklet) => (
+                  <div
+                    key={worklet.id}
+                    onClick={() => navigate(`/worklet/${worklet.id}`)}
+                    className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.2vw] cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] dark:bg-slate-900/50 dark:border-slate-700 dark:hover:border-blue-500/50 w-[350px] flex-shrink-0"
+                  >
+                    {/* Status Badge */}
+                    <div className="flex items-center justify-between mb-[0.8vw]">
+                      <span className={`px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] font-medium ${
+                        worklet.status === 'Completed'
+                          ? 'bg-green-500/10 text-green-700 border border-green-500/20 dark:text-green-300'
+                          : 'bg-blue-500/10 text-blue-700 border border-blue-500/20 dark:text-blue-300'
+                      }`}>
+                        {worklet.status || 'Ongoing'}
                       </span>
+                      <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all dark:text-slate-500 dark:group-hover:text-blue-400" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
-                  </div>
-                  
-                  <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {worklet.title || 'Untitled Worklet'}
-                  </h3>
-                  
-                  <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 line-clamp-3">
-                    {worklet.description || 'No description available'}
-                  </p>
-                  
-                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {worklet.created_at instanceof Date 
-                        ? worklet.created_at.toLocaleDateString()
-                        : 'Unknown date'}
-                    </div>
-                    {worklet.college && (
-                      <div className="flex items-center gap-1">
-                        <Building2 className="w-3 h-3" />
-                        {worklet.college}
+
+                    {/* Title */}
+                    <h3 className="text-[clamp(1rem,1.3vw,1.125rem)] font-bold text-slate-900 dark:text-white mb-[0.5vw] line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      {worklet.title || 'Untitled Worklet'}
+                    </h3>
+
+                    {/* Description */}
+                    <p className="text-[clamp(0.8rem,0.95vw,0.875rem)] text-slate-600 dark:text-slate-400 mb-[1vw] line-clamp-2">
+                      {worklet.description || 'No description available'}
+                    </p>
+
+                    {/* Progress Bar (if available) */}
+                    {worklet.progress !== undefined && (
+                      <div className="mb-[1vw]">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[clamp(0.7rem,0.85vw,0.75rem)] text-slate-600 dark:text-slate-400 font-medium">
+                            Progress
+                          </span>
+                          <span className="text-[clamp(0.7rem,0.85vw,0.75rem)] font-semibold text-blue-600 dark:text-blue-400">
+                            {worklet.progress}%
+                          </span>
+                        </div>
+                        <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
+                            style={{ width: `${worklet.progress}%` }}
+                          />
+                        </div>
                       </div>
                     )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 dark:border-slate-700/50 overflow-hidden">
-              {processedWorklets.map((worklet, index) => (
-                <Link
-                  key={worklet.id}
-                  to={`/worklet/${worklet.id}`}
-                  className={`flex items-center p-6 hover:bg-white/40 dark:hover:bg-slate-700/40 transition-colors group ${
-                    index !== processedWorklets.length - 1 ? 'border-b border-slate-200 dark:border-slate-700' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    {getStatusIcon(worklet.status)}
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {worklet.title || 'Untitled Worklet'}
-                      </h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                        {worklet.description || 'No description available'}
-                      </p>
+
+                    {/* Metadata */}
+                    <div className="flex items-center justify-between text-[clamp(0.7rem,0.85vw,0.75rem)] text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>
+                          {worklet.created_at
+                            ? new Date(worklet.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : 'No date'}
+                        </span>
+                      </div>
+                      {worklet.team_name && (
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          <span className="truncate max-w-[120px]">{worklet.team_name}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                    <span className="px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700">
-                      {worklet.status || 'Pending'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {worklet.created_at instanceof Date 
-                        ? worklet.created_at.toLocaleDateString()
-                        : 'Unknown'}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-[1vw]">
+              {processedWorklets.map((worklet) => (
+                <div
+                  key={worklet.id}
+                  onClick={() => navigate(`/worklet/${worklet.id}`)}
+                  className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.2vw] cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.01] dark:bg-slate-900/50 dark:border-slate-700 dark:hover:border-blue-500/50"
+                >
+                  <div className="flex items-center gap-[1.5vw]">
+                    {/* Status Icon */}
+                    <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
+                      worklet.status === 'Completed'
+                        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                        : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                    }`}>
+                      {worklet.status === 'Completed' ? (
+                        <CheckCircle className="w-6 h-6" />
+                      ) : (
+                        <Target className="w-6 h-6" />
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-[clamp(1rem,1.3vw,1.125rem)] font-bold text-slate-900 dark:text-white mb-1 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {worklet.title || 'Untitled Worklet'}
+                          </h3>
+                          <p className="text-[clamp(0.8rem,0.95vw,0.875rem)] text-slate-600 dark:text-slate-400 line-clamp-1">
+                            {worklet.description || 'No description available'}
+                          </p>
+                        </div>
+                        <span className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] font-medium ${
+                          worklet.status === 'Completed'
+                            ? 'bg-green-500/10 text-green-700 border border-green-500/20 dark:text-green-300'
+                            : 'bg-blue-500/10 text-blue-700 border border-blue-500/20 dark:text-blue-300'
+                        }`}>
+                          {worklet.status || 'Ongoing'}
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      {worklet.progress !== undefined && (
+                        <div className="mb-2">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[clamp(0.7rem,0.85vw,0.75rem)] text-slate-600 dark:text-slate-400 font-medium">
+                              Progress
+                            </span>
+                            <span className="text-[clamp(0.7rem,0.85vw,0.75rem)] font-semibold text-blue-600 dark:text-blue-400">
+                              {worklet.progress}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
+                              style={{ width: `${worklet.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Metadata */}
+                      <div className="flex items-center gap-4 text-[clamp(0.7rem,0.85vw,0.75rem)] text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>
+                            {worklet.created_at
+                              ? new Date(worklet.created_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })
+                              : 'No date'}
+                          </span>
+                        </div>
+                        {worklet.team_name && (
+                          <div className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            <span>{worklet.team_name}</span>
+                          </div>
+                        )}
+                        {worklet.college && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            <span className="truncate">{worklet.college}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Arrow */}
+                    <ChevronRight className="flex-shrink-0 w-6 h-6 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all dark:text-slate-500 dark:group-hover:text-blue-400" />
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
       </main>
       
       <RightSidebar />

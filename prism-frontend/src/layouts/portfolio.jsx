@@ -22,11 +22,11 @@ import {
   ArrowLeft,
   BookUser,
   Lightbulb,
-  Search,
 } from 'lucide-react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import LeftSidebar from '../components/Left'
 import apiClient from '../services/secureWorkletsAPI' // reuse configured axios instance for auth headers
+import { useAuth } from '../hooks/useAuth' // Import useAuth hook to detect user role
 
 const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || 'http://localhost:8000'
 
@@ -311,7 +311,7 @@ const PreviewModal = ({ url, onClose }) => {
 }
 
 // --- IMPROVED FORMS ---
-const AddPaperForm = ({ onAdd, onCancel, completedWorklets }) => {
+const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
   const [step, setStep] = useState(1)
   const [file, setFile] = useState(null)
   const loadingWorklets = false
@@ -332,10 +332,18 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets }) => {
 
   const onSubmit = async (data) => {
     const formData = new FormData()
+    
+    // Set status automatically based on user role (don't ask user for input)
+    const status = isStudent ? 'Filed' : 'Draft'
+    
     Object.keys(data).forEach((key) => {
       if (key === 'authors') formData.append(key, JSON.stringify(data[key].filter((a) => a.name)))
       else formData.append(key, data[key])
     })
+    
+    // Add status field
+    formData.append('status', status)
+    
     if (file) formData.append('document', file)
 
     // Add worklet cert_id if worklet is selected
@@ -547,7 +555,7 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets }) => {
   )
 }
 
-const AddPatentForm = ({ onAdd, onCancel, completedWorklets }) => {
+const AddPatentForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
   const [file, setFile] = useState(null)
   const loadingWorklets = false
   const {
@@ -566,10 +574,18 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets }) => {
 
   const onSubmit = async (data) => {
     const formData = new FormData()
+    
+    // Set status automatically based on user role (don't ask user for input)
+    const status = isStudent ? 'Filed' : 'Draft'
+    
     Object.keys(data).forEach((key) => {
       if (key === 'inventors') formData.append(key, JSON.stringify(data[key].filter((inv) => inv.name)))
       else formData.append(key, data[key])
     })
+    
+    // Add status field
+    formData.append('status', status)
+    
     if (file) formData.append('document', file)
 
     // Add worklet cert_id if worklet is selected
@@ -863,6 +879,7 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
 // --- MAIN PORTFOLIO COMPONENT ---
 const Portfolio = () => {
   const navigate = useNavigate()
+  const { isStudent, user } = useAuth() // Detect if user is a student and get user info
   const [activeTab, setActiveTab] = useState('achievements')
   const [expandedRows, setExpandedRows] = useState({})
   const [portfolioData, setPortfolioData] = useState(emptyPortfolio)
@@ -872,12 +889,24 @@ const Portfolio = () => {
   const [loadingCompleted, setLoadingCompleted] = useState(true)
   const [modalType, setModalType] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [currentUserId, setCurrentUserId] = useState(null)
+  const [currentUserRole, setCurrentUserRole] = useState(null)
 
   const loadData = useCallback(async () => {
     try {
       setLoadingPortfolio(true)
       const data = await fetchStudentPortfolio()
+      
+      // Get current user info
+      const token = localStorage.getItem('access_token')
+      if (token) {
+        const profileResp = await fetch(`${API_BASE}/auth/profile`, { headers: authHeader() })
+        if (profileResp.ok) {
+          const profile = await profileResp.json()
+          setCurrentUserId(profile.id)
+          setCurrentUserRole(profile.role)
+        }
+      }
       
       // Map publication_year to year for uniform display and add previewUrl
       data.papers = data.papers.map(p => ({ 
@@ -952,26 +981,51 @@ const Portfolio = () => {
   }
 
   const handleAddItem = (section, newItem) => {
+    // Add current user ID to newly created items
+    const itemWithUserId = {
+      ...newItem,
+      user_id: currentUserId,
+      created_by_role: currentUserRole
+    }
+    
     setPortfolioData((prevData) => ({
       ...prevData,
-      [section]: [...prevData[section], newItem],
+      [section]: [...prevData[section], itemWithUserId],
     }))
     setModalType(null)
   }
 
-  const tabs = [
-    { id: 'achievements', label: 'Achievements', icon: Trophy },
-    { id: 'papers', label: 'Papers', icon: FileText },
-    { id: 'patents', label: 'Patents', icon: Shield },
-    { id: 'commercializations', label: 'Commercializations', icon: Target },
-  ]
+  // For frontend-only filtering: Show only current user's papers and patents
+  // Note: This is a temporary solution. Proper implementation needs backend support
+  // to include creator role information in the response
+  const filteredPapers = currentUserId 
+    ? portfolioData.papers.filter(paper => paper.user_id === currentUserId)
+    : portfolioData.papers
+    
+  const filteredPatents = currentUserId
+    ? portfolioData.patents.filter(patent => patent.user_id === currentUserId)
+    : portfolioData.patents
+
+  // Filter tabs based on user role - students don't see commercializations
+  const tabs = isStudent 
+    ? [
+        { id: 'achievements', label: 'Achievements', icon: Trophy },
+        { id: 'papers', label: 'Papers', icon: FileText },
+        { id: 'patents', label: 'Patents', icon: Shield },
+      ]
+    : [
+        { id: 'achievements', label: 'Achievements', icon: Trophy },
+        { id: 'papers', label: 'Papers', icon: FileText },
+        { id: 'patents', label: 'Patents', icon: Shield },
+        { id: 'commercializations', label: 'Commercializations', icon: Target },
+      ]
 
   const renderModalContent = () => {
     switch (modalType) {
       case 'paper':
-        return <AddPaperForm completedWorklets={completedWorklets} onAdd={handleAddItem} onCancel={() => setModalType(null)} />
+        return <AddPaperForm isStudent={isStudent} completedWorklets={completedWorklets} onAdd={handleAddItem} onCancel={() => setModalType(null)} />
       case 'patent':
-        return <AddPatentForm completedWorklets={completedWorklets} onAdd={handleAddItem} onCancel={() => setModalType(null)} />
+        return <AddPatentForm isStudent={isStudent} completedWorklets={completedWorklets} onAdd={handleAddItem} onCancel={() => setModalType(null)} />
       case 'commercialization':
         return <AddCommercializationForm completedWorklets={completedWorklets} onAdd={handleAddItem} onCancel={() => setModalType(null)} />
       default:
@@ -999,12 +1053,12 @@ const Portfolio = () => {
           )}
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${isStudent ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6 mb-8`}>
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm font-medium">Total Papers</p>
-                  <p className="text-3xl font-bold mt-2">{portfolioData.papers.length}</p>
+                  <p className="text-3xl font-bold mt-2">{filteredPapers.length}</p>
                 </div>
                 <FileText className="h-12 w-12 text-blue-200" />
               </div>
@@ -1014,21 +1068,23 @@ const Portfolio = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm font-medium">Total Patents</p>
-                  <p className="text-3xl font-bold mt-2">{portfolioData.patents.length}</p>
+                  <p className="text-3xl font-bold mt-2">{filteredPatents.length}</p>
                 </div>
                 <Shield className="h-12 w-12 text-purple-200" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm font-medium">Commercializations</p>
-                  <p className="text-3xl font-bold mt-2">{portfolioData.commercializations.length}</p>
+            {!isStudent && (
+              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium">Commercializations</p>
+                    <p className="text-3xl font-bold mt-2">{portfolioData.commercializations.length}</p>
+                  </div>
+                  <Target className="h-12 w-12 text-green-200" />
                 </div>
-                <Target className="h-12 w-12 text-green-200" />
               </div>
-            </div>
+            )}
 
             <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
@@ -1118,27 +1174,15 @@ const Portfolio = () => {
               <div>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <h2 className="text-xl font-bold text-gray-800 dark:text-white">Publications</h2>
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:flex-initial">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                      <input
-                        type="text"
-                        placeholder="Search papers..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white w-full sm:w-64"
-                      />
-                    </div>
-                    <button
-                      onClick={() => setModalType('paper')}
-                      disabled={completedWorklets.length === 0}
-                      title={completedWorklets.length === 0 ? 'You need at least one completed worklet to add papers.' : 'Add a new paper'}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg shadow-md transition-all duration-300 whitespace-nowrap ${completedWorklets.length === 0 ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-                    >
-                      <PlusCircle size={18} />
-                      <span>Add Paper</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setModalType('paper')}
+                    disabled={completedWorklets.length === 0}
+                    title={completedWorklets.length === 0 ? 'You need at least one completed worklet to add papers.' : 'Add a new paper'}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg shadow-md transition-all duration-300 whitespace-nowrap ${completedWorklets.length === 0 ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                  >
+                    <PlusCircle size={18} />
+                    <span>Add Paper</span>
+                  </button>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
                   <div className="overflow-x-auto">
@@ -1158,18 +1202,7 @@ const Portfolio = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {portfolioData.papers
-                          .filter((paper) => {
-                            if (!searchQuery) return true
-                            const query = searchQuery.toLowerCase()
-                            return (
-                              paper.title?.toLowerCase().includes(query) ||
-                              paper.journal?.toLowerCase().includes(query) ||
-                              paper.authors?.some((author) => author.name?.toLowerCase().includes(query)) ||
-                              paper.worklet_cert_id?.toLowerCase().includes(query)
-                            )
-                          })
-                          .map((paper) => (
+                        {filteredPapers.map((paper) => (
                             <React.Fragment key={paper.id}>
                               <tr
                                 onClick={() => toggleRowExpansion('papers', paper.id)}
@@ -1213,11 +1246,15 @@ const Portfolio = () => {
                                 <td className="px-6 py-4">
                                   <span
                                     className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      paper.status === 'Published'
+                                      paper.status === 'Accepted' || paper.status === 'Published'
                                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                        : paper.status === 'Rejected' || paper.status === 'Declined'
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                        : paper.status === 'Submitted' || paper.status === 'Filed'
+                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                                         : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                     }`}>
-                                    {paper.status}
+                                    {paper.status || 'Draft'}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4">
@@ -1259,20 +1296,11 @@ const Portfolio = () => {
                       </tbody>
                     </table>
                   </div>
-                  {portfolioData.papers.filter((paper) => {
-                    if (!searchQuery) return true
-                    const query = searchQuery.toLowerCase()
-                    return (
-                      paper.title?.toLowerCase().includes(query) ||
-                      paper.journal?.toLowerCase().includes(query) ||
-                      paper.authors?.some((author) => author.name?.toLowerCase().includes(query)) ||
-                      paper.worklet_cert_id?.toLowerCase().includes(query)
-                    )
-                  }).length === 0 && (
+                  {filteredPapers.length === 0 && (
                     <div className="text-center py-12">
                       <FileText className="mx-auto h-12 w-12 text-gray-400" />
                       <p className="mt-4 text-gray-600 dark:text-gray-400">
-                        {searchQuery ? `No papers found matching "${searchQuery}"` : 'No papers added yet. Click "Add Paper" to get started.'}
+                        No papers added yet. Click "Add Paper" to get started.
                       </p>
                     </div>
                   )}
@@ -1314,7 +1342,7 @@ const Portfolio = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {portfolioData.patents.map((patent) => (
+                        {filteredPatents.map((patent) => (
                           <React.Fragment key={patent.id}>
                             <tr
                               onClick={() => toggleRowExpansion('patents', patent.id)}
@@ -1362,11 +1390,15 @@ const Portfolio = () => {
                               <td className="px-6 py-4">
                                 <span
                                   className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    patent.status === 'Filed'
+                                    patent.status === 'Accepted'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : patent.status === 'Rejected' || patent.status === 'Declined'
+                                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                      : patent.status === 'Submitted' || patent.status === 'Filed'
                                       ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                      : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                   }`}>
-                                  {patent.status}
+                                  {patent.status || 'Draft'}
                                 </span>
                               </td>
                               <td className="px-6 py-4">
