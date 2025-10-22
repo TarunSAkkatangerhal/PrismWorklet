@@ -53,13 +53,13 @@ def get_college_stats(college: College, db: Session):
             # If no evaluations exist, consider it needs attention
             stats["needsAttentionCount"] += 1
             
-        # Count worklets by status (map from status_id)
-        status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+        # Count worklets by status (new mapping)
+        status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
         status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
         if status_text == "Completed":
             stats["completedCount"] += 1
-        elif status_text == "Ongoing" or status_text == "Approved":
-            stats["ongoingCount"] += 1
+        elif status_text in ("Ongoing", "To Start"):
+            stats["ongoingCount"] += 1  # treat "To Start" with ongoing for summary continuity
         elif status_text == "On Hold":
             stats["onHoldCount"] += 1
         elif status_text in ["Dropped", "Terminated"]:
@@ -121,7 +121,7 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
             if student.email
         ]
 
-        status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+        status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
         status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
         response.append({
             "id": worklet.id,

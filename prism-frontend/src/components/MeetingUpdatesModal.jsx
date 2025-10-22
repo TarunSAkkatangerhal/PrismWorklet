@@ -49,16 +49,9 @@ const MeetingUpdatesModal = ({ isOpen, onClose, worklet }) => {
       }
     } catch (error) {
       console.error('Error fetching worklets:', error);
-      const dummyWorklets = [
-        {
-          id: 1,
-          cert_id: 'FSWD-2024-001',
-          title: 'Full Stack Web Development',
-          status: 'Ongoing'
-        }
-      ];
-      setAvailableWorklets(dummyWorklets);
-      setSelectedWorklet(dummyWorklets[0]);
+      // Do not use dummy data; show empty state instead
+      setAvailableWorklets([]);
+      setSelectedWorklet(null);
     } finally {
       setLoadingWorklets(false);
     }

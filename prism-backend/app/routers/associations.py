@@ -134,7 +134,7 @@ def get_worklet_with_users(
         "created_at": getattr(worklet, "created_at", None),
     "year": None,
     "domain": getattr(worklet, "domain", None),
-    "status": {1: 'Approved', 2: 'Ongoing', 3: 'Completed', 4: 'Dropped', 5: 'On Hold'}.get(getattr(worklet, 'status_id', None), 'Ongoing'),
+    "status": {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}.get(getattr(worklet, 'status_id', None), 'Ongoing'),
         "mentors": mentors,
         "students": students,
         "collaborators": collaborators,
@@ -197,8 +197,12 @@ def get_mentor_ongoing_worklets(
     """Get ongoing worklets for a specific mentor"""
     
     # Get mentor user
+    # Some legacy rows may store role in a different case; accept either
     mentor = db.query(User).filter(
-        and_(User.id == mentor_id, User.role == "Mentor")
+        and_(
+            User.id == mentor_id,
+            or_(User.role == "Mentor", User.role == "mentor")
+        )
     ).first()
     
     if not mentor:
@@ -208,35 +212,33 @@ def get_mentor_ongoing_worklets(
     associations = db.query(UserWorkletAssociation).filter(
         and_(
             UserWorkletAssociation.user_id == mentor_id,
-            # compare to enum string value
-            UserWorkletAssociation.role_in_worklet == WorkletRoleEnum.mentor.value
+            # compare to enum string value; allow legacy lowercase values
+            UserWorkletAssociation.role_in_worklet.in_([WorkletRoleEnum.mentor.value, WorkletRoleEnum.mentor.value.lower()])
         )
     ).all()
     
-    # Get worklets with additional details (only Ongoing)
+    # Get worklets with additional details (only status_id == 1)
     ongoing_worklets = []
+    all_student_ids: set[int] = set()
     for assoc in associations:
         worklet = assoc.worklet
-        # Only include worklets with status 'Ongoing'
-        # Map status via status_id
-        status_map = {1: 'Approved', 2: 'Ongoing', 3: 'Completed', 4: 'Dropped', 5: 'On Hold'}
-        status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
-        if status_text != 'Ongoing':
+        # Only include worklets with status_id 1 (Ongoing)
+        if getattr(worklet, 'status_id', None) != 1:
             continue
+        # Map status via status_id for response
+        status_map = {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}
+        status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
         
         # Get students for this worklet
         student_associations = db.query(UserWorkletAssociation).filter(
             and_(
                 UserWorkletAssociation.worklet_id == worklet.id,
-                UserWorkletAssociation.role_in_worklet == WorkletRoleEnum.student.value
+                UserWorkletAssociation.role_in_worklet.in_([WorkletRoleEnum.student.value, WorkletRoleEnum.student.value.lower()])
             )
         ).all()
         
         students = [sa.user for sa in student_associations]
         # Collect unique student ids across all worklets for total mentee count
-        # Initialize the set if not already
-        if 'all_student_ids' not in locals():
-            all_student_ids = set()
         for s in students:
             if s.id is not None:
                 all_student_ids.add(s.id)
@@ -307,7 +309,7 @@ def get_mentor_ongoing_worklets(
         "ongoing_worklets": ongoing_worklets,
         "total_ongoing": len(ongoing_worklets),
         "total_worklets": len(ongoing_worklets),
-        "total_mentees": len(all_student_ids) if 'all_student_ids' in locals() else 0
+        "total_mentees": len(all_student_ids)
     }
 
 @router.get("/mentor/{mentor_id}/all-worklets")
@@ -323,14 +325,17 @@ def get_mentor_all_worklets(
       - total_mentees: distinct students across all worklets mentored
     """
 
-    mentor = db.query(User).filter(and_(User.id == mentor_id, User.role == "Mentor")).first()
+    # Accept legacy role casing
+    mentor = db.query(User).filter(
+        and_(User.id == mentor_id, or_(User.role == "Mentor", User.role == "mentor"))
+    ).first()
     if not mentor:
         raise HTTPException(status_code=404, detail="Mentor not found")
 
     associations = db.query(UserWorkletAssociation).filter(
         and_(
             UserWorkletAssociation.user_id == mentor_id,
-            UserWorkletAssociation.role_in_worklet == WorkletRoleEnum.mentor.value
+            UserWorkletAssociation.role_in_worklet.in_([WorkletRoleEnum.mentor.value, WorkletRoleEnum.mentor.value.lower()])
         )
     ).all()
 
@@ -343,7 +348,7 @@ def get_mentor_all_worklets(
         student_associations = db.query(UserWorkletAssociation).filter(
             and_(
                 UserWorkletAssociation.worklet_id == worklet.id,
-                UserWorkletAssociation.role_in_worklet == WorkletRoleEnum.student.value
+                UserWorkletAssociation.role_in_worklet.in_([WorkletRoleEnum.student.value, WorkletRoleEnum.student.value.lower()])
             )
         ).all()
         students = [sa.user for sa in student_associations]
@@ -373,7 +378,8 @@ def get_mentor_all_worklets(
             else:
                 percentage_completion = 0
 
-        status_map = {1: 'Approved', 2: 'Ongoing', 3: 'Completed', 4: 'Dropped', 5: 'On Hold'}
+        # Compute status and quality consistently regardless of progress source
+        status_map = {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}
         status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
         if status_text == 'Completed':
             quality = 'Excellence'

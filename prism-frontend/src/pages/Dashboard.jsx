@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // Dashboard page: Presents mentor snapshot including profile, stats, and ongoing worklets.
 // Focus points:
 // 1. Fetch mentor profile & worklets once and cache lightweight view state (layout) in localStorage

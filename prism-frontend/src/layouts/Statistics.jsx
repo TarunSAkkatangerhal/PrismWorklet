@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
@@ -314,7 +315,9 @@ const ModernStatisticsDashboard = () => {
           
           const yearlyResults = await Promise.all(yearlyPromises)
           
-          // Aggregate data by year (sum all months for each year)
+          // Aggregate data by year without inflating counts
+          // Use max across months for active/ongoing type series (approximate unique concurrent counts)
+          // and sum for event-like series (completed)
           const yearlyAggregated = {}
           const yearlyStatusAggregated = {}
           
@@ -323,22 +326,22 @@ const ModernStatisticsDashboard = () => {
             const monthlyDataForYear = monthlyRes?.data?.monthly || []
             const statusDataForYear = statusRes?.data?.monthly || []
             
-            // Aggregate monthly data for this year
+            // Aggregate monthly data for this year (max for concurrent counts, sum for completed)
             yearlyAggregated[year] = {
               month: String(year),
-              worklets: monthlyDataForYear.reduce((sum, m) => sum + (m.worklets || 0), 0),
+              worklets: monthlyDataForYear.reduce((mx, m) => Math.max(mx, (m.worklets || 0)), 0),
               completed: monthlyDataForYear.reduce((sum, m) => sum + (m.completed || 0), 0),
-              students: monthlyDataForYear.reduce((sum, m) => sum + (m.students || 0), 0),
+              students: monthlyDataForYear.reduce((mx, m) => Math.max(mx, (m.students || 0)), 0),
               month_key: String(year)
             }
             
-            // Aggregate status data for this year
+            // Aggregate status data for this year (max for ongoing/on_hold, sum for completed/terminated)
             yearlyStatusAggregated[year] = {
               month: String(year),
               completed: statusDataForYear.reduce((sum, m) => sum + (m.completed || 0), 0),
-              ongoing: statusDataForYear.reduce((sum, m) => sum + (m.ongoing || 0), 0),
-              on_hold: statusDataForYear.reduce((sum, m) => sum + (m.on_hold || 0), 0),
-              dropped: statusDataForYear.reduce((sum, m) => sum + (m.dropped || 0), 0),
+              ongoing: statusDataForYear.reduce((mx, m) => Math.max(mx, (m.ongoing || 0)), 0),
+              on_hold: statusDataForYear.reduce((mx, m) => Math.max(mx, (m.on_hold || 0)), 0),
+              dropped: statusDataForYear.reduce((mx, m) => Math.max(mx, (m.dropped || 0)), 0),
               terminated: statusDataForYear.reduce((sum, m) => sum + (m.terminated || 0), 0),
               month_key: String(year)
             }
@@ -521,7 +524,9 @@ const ModernStatisticsDashboard = () => {
         
         const yearlyResults = await Promise.all(yearlyPromises)
         
-        // Aggregate data by year (sum all months for each year)
+  // Aggregate data by year without inflating counts
+  // Use max across months for active/ongoing type series (approximate unique concurrent counts)
+  // and sum for event-like series (completed)
         const yearlyAggregated = {}
         const yearlyStatusAggregated = {}
         
@@ -530,22 +535,22 @@ const ModernStatisticsDashboard = () => {
           const monthlyDataForYear = monthlyRes?.data?.monthly || []
           const statusDataForYear = statusRes?.data?.monthly || []
           
-          // Aggregate monthly data for this year
+          // Aggregate monthly data for this year (max for concurrent counts, sum for completed)
           yearlyAggregated[year] = {
             month: String(year),
-            worklets: monthlyDataForYear.reduce((sum, m) => sum + (m.worklets || 0), 0),
+            worklets: monthlyDataForYear.reduce((mx, m) => Math.max(mx, (m.worklets || 0)), 0),
             completed: monthlyDataForYear.reduce((sum, m) => sum + (m.completed || 0), 0),
-            students: monthlyDataForYear.reduce((sum, m) => sum + (m.students || 0), 0),
+            students: monthlyDataForYear.reduce((mx, m) => Math.max(mx, (m.students || 0)), 0),
             month_key: String(year)
           }
           
-          // Aggregate status data for this year
+          // Aggregate status data for this year (max for ongoing/on_hold, sum for completed/terminated)
           yearlyStatusAggregated[year] = {
             month: String(year),
             completed: statusDataForYear.reduce((sum, m) => sum + (m.completed || 0), 0),
-            ongoing: statusDataForYear.reduce((sum, m) => sum + (m.ongoing || 0), 0),
-            on_hold: statusDataForYear.reduce((sum, m) => sum + (m.on_hold || 0), 0),
-            dropped: statusDataForYear.reduce((sum, m) => sum + (m.dropped || 0), 0),
+            ongoing: statusDataForYear.reduce((mx, m) => Math.max(mx, (m.ongoing || 0)), 0),
+            on_hold: statusDataForYear.reduce((mx, m) => Math.max(mx, (m.on_hold || 0)), 0),
+            dropped: statusDataForYear.reduce((mx, m) => Math.max(mx, (m.dropped || 0)), 0),
             terminated: statusDataForYear.reduce((sum, m) => sum + (m.terminated || 0), 0),
             month_key: String(year)
           }
@@ -1033,17 +1038,15 @@ const ModernStatisticsDashboard = () => {
               <div className="overflow-x-auto pb-4 custom-scrollbar">
                 <div className={filters.year === 'All' ? 'min-w-full' : 'min-w-[1200px]'}>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={statisticsData?.monthly_data || generateMonthlyData()}>
+                    <LineChart data={statisticsData?.monthly_data || []}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
                       <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
                       <YAxis
                         stroke={isDarkMode ? '#9CA3AF' : '#6B7280'}
                         domain={(() => {
-                          const data = statisticsData?.worklet_status_data || generateWorkletStatusData()
+                          const data = statisticsData?.monthly_data || []
                           const max = Math.max(
-                            ...data.map(
-                              (d) => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)
-                            ),
+                            ...data.map((d) => Math.max(d.worklets || 0, d.completed || 0)),
                             0
                           )
                           if (max <= 5) return [0, 5]
@@ -1052,11 +1055,9 @@ const ModernStatisticsDashboard = () => {
                         allowDecimals={false}
                         tickFormatter={(v) => (Number.isInteger(v) ? v : '')}
                         ticks={(() => {
-                          const data = statisticsData?.worklet_status_data || generateWorkletStatusData()
+                          const data = statisticsData?.monthly_data || []
                           const max = Math.max(
-                            ...data.map(
-                              (d) => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)
-                            ),
+                            ...data.map((d) => Math.max(d.worklets || 0, d.completed || 0)),
                             0
                           )
                           if (max <= 5) return [0, 1, 2, 3, 4, 5]
@@ -1141,7 +1142,7 @@ const ModernStatisticsDashboard = () => {
                 {/* Dynamic width based on filter selection */}
                 <div className={filters.year === 'All' ? 'min-w-full' : 'min-w-[1200px]'}>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={statisticsData?.worklet_status_data || generateWorkletStatusData()}>
+                    <BarChart data={statisticsData?.worklet_status_data || []}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
                       <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
                       <YAxis
@@ -1149,14 +1150,24 @@ const ModernStatisticsDashboard = () => {
                         allowDecimals={false}
                         tickFormatter={(v) => (Number.isInteger(v) ? v : '')}
                         domain={(() => {
-                          const data = statisticsData?.monthly_data || generateMonthlyData()
-                          const max = Math.max(...data.map((d) => (d.worklets || 0) + (d.completed || 0)), 0)
+                          const data = statisticsData?.worklet_status_data || []
+                          const max = Math.max(
+                            ...data.map(
+                              (d) => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)
+                            ),
+                            0
+                          )
                           if (max <= 5) return [0, 5]
                           return [0, 'auto']
                         })()}
                         ticks={(() => {
-                          const data = statisticsData?.monthly_data || generateMonthlyData()
-                          const max = Math.max(...data.map((d) => (d.worklets || 0) + (d.completed || 0)), 0)
+                          const data = statisticsData?.worklet_status_data || []
+                          const max = Math.max(
+                            ...data.map(
+                              (d) => (d.completed || 0) + (d.ongoing || 0) + (d.on_hold || 0) + (d.terminated || 0)
+                            ),
+                            0
+                          )
                           if (max <= 5) return [0, 1, 2, 3, 4, 5]
                           const step = Math.ceil((max + 1) / 5)
                           return Array.from({ length: step * 5 + 1 }, (_, i) => i).filter((x) => x % step === 0)

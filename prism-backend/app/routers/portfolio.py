@@ -63,7 +63,7 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
         if worklet_ids:
             worklets = db.query(Worklet).filter(Worklet.id.in_(worklet_ids)).all()
             for w in worklets:
-                status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+                status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
                 status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
                 worklets_data.append({
                     "id": w.id,
@@ -188,7 +188,7 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
         if worklet_ids:
             worklets = db.query(Worklet).filter(Worklet.id.in_(worklet_ids)).all()
             for w in worklets:
-                status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+                status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
                 status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
                 worklets_data.append({
                     "id": w.id,

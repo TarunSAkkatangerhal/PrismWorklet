@@ -180,8 +180,8 @@ export default function Login() {
       return;
     }
 
-    // Mock login for frontend-only development (keep for testing)
-    if (email === "test@example.com" && password === "test1234") {
+    // Optional mock login for local development (disabled by default)
+    if (process.env.REACT_APP_ENABLE_MOCK_LOGIN === 'true' && email === "test@example.com" && password === "test1234") {
       // Generate mock JWT-like token for testing
       const mockToken = btoa(JSON.stringify({
         sub: "test-user-id",

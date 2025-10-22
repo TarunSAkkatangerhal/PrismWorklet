@@ -59,16 +59,9 @@ const TestimonialModal = ({ isOpen, onClose, worklet }) => {
       }
     } catch (error) {
       console.error('Error fetching worklets:', error);
-      const dummyWorklets = [
-        {
-          id: 1,
-          cert_id: 'FSWD-2024-001',
-          title: 'Full Stack Web Development',
-          status: 'Ongoing'
-        }
-      ];
-      setAvailableWorklets(dummyWorklets);
-      setSelectedWorklet(dummyWorklets[0]);
+      // Do not use dummy data; show empty state instead
+      setAvailableWorklets([]);
+      setSelectedWorklet(null);
     } finally {
       setLoadingWorklets(false);
     }
@@ -494,7 +487,7 @@ const TestimonialModal = ({ isOpen, onClose, worklet }) => {
               </button>
               <button
                 type="submit"
-                disabled={!feedbackScore && feedbackScore !== 0 || !feedbackTestimonial.trim() || !feedbackRecommendation.trim() || feedbackWouldRecommend === null}
+                disabled={((!feedbackScore && feedbackScore !== 0) || !feedbackTestimonial.trim() || !feedbackRecommendation.trim() || feedbackWouldRecommend === null)}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 
                           text-white rounded-lg transition-all duration-200 font-medium shadow-lg hover:shadow-xl
                           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"

@@ -84,168 +84,7 @@ const NavColl = () => {
     }
   ]
 
-  // Static data aligned with Colleges.jsx (same structure)
-  const staticColleges = [
-    {
-      id: 1,
-      name: 'VIT Vellore',
-      location: 'Vellore, Tamil Nadu',
-      established: 1984,
-      areaOfExpertise: ['IoT', 'GenAI'],
-      worklets: [
-        {
-          id: 101,
-          title: 'AI-Powered Chatbot',
-          description: 'Develop a customer service chatbot using modern NLP techniques.',
-          assignedStudents: [
-            { name: 'Anika Sharma', email: 'anika.s@example.com' },
-            { name: 'Rohan Gupta', email: 'rohan.g@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 102,
-          title: 'Smart Home Automation',
-          description: 'Control home appliances remotely via an IoT-enabled mobile app.',
-          assignedStudents: [
-            { name: 'Siddharth Jain', email: 'sid.j@example.com' },
-            { name: 'Meera Reddy', email: 'meera.r@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 103,
-          title: 'Sentiment Analysis Model',
-          description: 'Build and train a model to analyze product review sentiments.',
-          assignedStudents: [
-            { name: 'Priya Singh', email: 'priya.s@example.com' },
-            { name: 'Arjun Verma', email: 'arjun.v@example.com' },
-          ],
-          performanceStatus: 'Good',
-          progressStatus: 'Ongoing',
-        },
-        {
-          id: 104,
-          title: 'E-commerce Recommendation',
-          description: 'Design a collaborative filtering engine for product recommendations.',
-          assignedStudents: [
-            { name: 'Anika Sharma', email: 'anika.s@example.com' },
-            { name: 'Vikram Kumar', email: 'vikram.k@example.com' },
-          ],
-          performanceStatus: 'Good',
-          progressStatus: 'On Hold',
-        },
-        {
-          id: 105,
-          title: 'IoT Weather Station',
-          description: 'Assemble a device to collect and display real-time local weather data.',
-          assignedStudents: [
-            { name: 'Meera Reddy', email: 'meera.r@example.com' },
-            { name: 'Rohan Gupta', email: 'rohan.g@example.com' },
-          ],
-          performanceStatus: 'Needs Attention',
-          progressStatus: 'Ongoing',
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: 'MIT Cambridge',
-      location: 'Cambridge, MA',
-      established: 1861,
-      areaOfExpertise: ['AI & Machine Learning', 'Robotics'],
-      worklets: [
-        {
-          id: 201,
-          title: 'Robotic Arm Control System',
-          description: 'Develop a high-precision inverse kinematics control algorithm.',
-          assignedStudents: [
-            { name: 'John Doe', email: 'john.d@example.com' },
-            { name: 'Jane Smith', email: 'jane.s@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 202,
-          title: 'Predictive Analytics Model',
-          description: 'Build a time-series model to predict stock market trends.',
-          assignedStudents: [
-            { name: 'Emily White', email: 'emily.w@example.com' },
-            { name: 'Chris Green', email: 'chris.g@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 203,
-          title: 'Autonomous Drone Navigation',
-          description: 'Implement a SLAM-based system for autonomous drone pathfinding.',
-          assignedStudents: [
-            { name: 'Peter Jones', email: 'peter.j@example.com' },
-            { name: 'John Doe', email: 'john.d@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Ongoing',
-        },
-        {
-          id: 204,
-          title: 'Computer Vision for QC',
-          description: 'Use a CNN for automated quality control on a manufacturing line.',
-          assignedStudents: [
-            { name: 'Jane Smith', email: 'jane.s@example.com' },
-            { name: 'Laura Brown', email: 'laura.b@example.com' },
-          ],
-          performanceStatus: 'Good',
-          progressStatus: 'Terminated',
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: 'Stanford University',
-      location: 'Stanford, CA',
-      established: 1885,
-      areaOfExpertise: ['Cybersecurity', 'Biotech'],
-      worklets: [
-        {
-          id: 301,
-          title: 'Network Intrusion Detection',
-          description: 'Implement an ML-based system to detect and flag network anomalies.',
-          assignedStudents: [
-            { name: 'Michael Chen', email: 'michael.c@example.com' },
-            { name: 'Sarah Lee', email: 'sarah.l@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'Completed',
-        },
-        {
-          id: 302,
-          title: 'Gene Sequencing Algorithm',
-          description: 'Optimize a parallel processing algorithm for faster DNA analysis.',
-          assignedStudents: [
-            { name: 'David Kim', email: 'david.k@example.com' },
-            { name: 'Laura Ortiz', email: 'laura.o@example.com' },
-          ],
-          performanceStatus: 'Excellent',
-          progressStatus: 'On Hold',
-        },
-        {
-          id: 303,
-          title: 'Blockchain for Secure Voting',
-          description: 'Develop a proof-of-concept decentralized voting application.',
-          assignedStudents: [
-            { name: 'Ben Carter', email: 'ben.c@example.com' },
-            { name: 'Michael Chen', email: 'michael.c@example.com' },
-          ],
-          performanceStatus: 'Good',
-          progressStatus: 'Ongoing',
-        },
-      ],
-    },
-  ]
+  // Removed staticColleges fallback; rely solely on backend data
 
 
   const fetchColleges = useCallback(async () => {
@@ -257,16 +96,20 @@ const NavColl = () => {
       const token = localStorage.getItem('access_token')
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
 
-      // Fetch colleges and all worklets concurrently
-      const [collegesResponse, workletsResponse] = await Promise.all([
-        axios.get(`${base}/colleges`, { headers, timeout: 10000 }),
-        axios.get(`${base}/worklets`, { headers, timeout: 15000 }),
-      ])
-
+      // Fetch colleges first to ensure page loads even if worklets call fails
+      const collegesResponse = await axios.get(`${base}/colleges`, { headers, timeout: 10000 })
       const collegesData = Array.isArray(collegesResponse.data) ? collegesResponse.data : []
-      const workletsData = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
 
-      // Fetch real students per college
+      // Try to fetch all worklets; proceed with empty list on failure
+      let workletsData = []
+      try {
+        const workletsResponse = await axios.get(`${base}/worklets`, { headers, timeout: 15000 })
+        workletsData = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
+      } catch (e) {
+        console.warn('Worklets fetch failed in navColl; proceeding with colleges only', e)
+      }
+
+      // Fetch real students per college (best effort per college)
       const studentsByCollege = new Map()
       await Promise.all(
         collegesData.map(async (c) => {
@@ -276,7 +119,6 @@ const NavColl = () => {
             const arr = Array.isArray(resp.data) ? resp.data : []
             studentsByCollege.set(cid, arr)
           } catch (e) {
-            // If endpoint fails, use empty list; we'll gracefully fallback in UI
             studentsByCollege.set(cid, [])
           }
         })
@@ -336,7 +178,7 @@ const NavColl = () => {
       console.error('Failed to fetch colleges:', err)
       const errorMessage = err.response?.data?.message || err.message || 'Unknown error'
       setError(`Failed to load colleges: ${errorMessage}`)
-      setColleges(staticColleges)
+      setColleges([])
     } finally {
       setLoading(false)
     }

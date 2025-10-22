@@ -32,6 +32,33 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
+@router.get("/debug/summary")
+def debug_summary(db: Session = Depends(get_db)):
+    """Lightweight debug endpoint to verify DB connection and basic Worklet counts.
+    Returns only non-sensitive info when DEBUG is enabled.
+    """
+    from app.core.config import settings as app_settings
+    if not getattr(app_settings, "DEBUG", False):
+        raise HTTPException(status_code=403, detail="Debug disabled")
+
+    try:
+        total = db.query(Worklet).count()
+        by_status = db.query(Worklet.status_id, func.count(Worklet.id)).group_by(Worklet.status_id).all()
+        status_counts = {int(s if s is not None else 0): int(c) for s, c in by_status}
+        sample = db.query(Worklet.id, Worklet.cert_id, Worklet.title).limit(5).all()
+        return {
+            "db_name": getattr(app_settings, "DB_NAME", None),
+            "db_host": getattr(app_settings, "DB_HOST", None),
+            "worklet_total": int(total),
+            "status_counts": status_counts,
+            "sample_worklets": [
+                {"id": int(r.id), "cert_id": r.cert_id, "title": r.title} for r in sample
+            ],
+        }
+    except Exception as e:
+        print(f"[DEBUG] debug_summary error: {e}")
+        raise HTTPException(status_code=500, detail="Debug query failed")
+
 @router.get("/statistics")
 def get_dashboard_statistics(year: int | None = None, debug: bool | None = False, db: Session = Depends(get_db)):
     """Get platform-wide dashboard statistics.
@@ -71,8 +98,8 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
             total_professors = len(professors_list)
 
             total_worklets = safe_count(db.query(Worklet))
-            completed_worklets = safe_count(db.query(Worklet).filter(getattr(Worklet, 'status_id') == 3))
-            ongoing_worklets = safe_count(db.query(Worklet).filter(getattr(Worklet, 'status_id') == 2))
+            completed_worklets = safe_count(db.query(Worklet).filter(getattr(Worklet, 'status_id') == 2))
+            ongoing_worklets = safe_count(db.query(Worklet).filter(getattr(Worklet, 'status_id') == 1))
 
             # Debug: show distinct role distribution in Users table
             role_distribution = db.query(User.role, func.count(User.id)).group_by(User.role).all()
@@ -114,10 +141,10 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
                     year_active_ids.add(w.id)
                     status_id = getattr(w, 'status_id', None)
                     end_d = getattr(w, 'end_date', None)
-                    if status_id == 3 and end_d is not None and year_start <= end_d <= year_end:
+                    if status_id == 2 and end_d is not None and year_start <= end_d <= year_end:
                         completed_in_year += 1
                     is_terminated_in_year = False
-                    is_completed_in_year = (status_id == 3 and end_d is not None and year_start <= end_d <= year_end)
+                    is_completed_in_year = (status_id == 2 and end_d is not None and year_start <= end_d <= year_end)
                     if not is_terminated_in_year and not is_completed_in_year:
                         ongoing_in_year += 1
 
@@ -446,16 +473,16 @@ def get_platform_status_trends(
                 overlaps = (start_eff is not None and end_eff is not None and not (end_eff < m['start'] or start_eff > m['end']))
                 if not overlaps:
                     continue
-                if status_id == 3:  # Completed
+                if status_id == 2:  # Completed
                     if end_date_val is not None and (m['start'] <= end_date_val <= m['end']):
                         m['completed'] += 1
                     elif end_date_val is not None and m['end'] < date(end_date_val.year, end_date_val.month, monthrange(end_date_val.year, end_date_val.month)[1]):
                         m['ongoing'] += 1
                     elif end_date_val is None:
                         m['ongoing'] += 1
-                elif status_id in (1, 2):  # Approved or Ongoing
+                elif status_id in (0, 1):  # To Start or On Going
                     m['ongoing'] += 1
-                elif status_id == 5:  # On Hold
+                elif status_id == 3:  # On Hold
                     m['on_hold'] += 1
                 elif False:
                     m['terminated'] += 1

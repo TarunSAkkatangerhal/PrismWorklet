@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
@@ -845,132 +846,8 @@ const Meetings = () => {
     return `${day}-${month}-${year}, ${formatTime(start)} - ${formatTime(end)}`;
   };
 
-  // Static meetings data for the current user's personal dashboard
-  const staticMeetings = [
-    {
-      id: 1,
-      title: 'IoT Development Review',
-      college: 'VIT Vellore',
-      date: '11-Oct-25, 2:00 PM - 3:00 PM', 
-      startISO: '2025-10-11T14:00:00.000Z',
-      durationMins: 60,
-      type: 'Project Review',
-      participants: 12,
-      workletCode: '2STS04VIT',
-      description: 'Monthly project review for IoT devices worklet',
-      meetingLink: 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_1'
-    },
-    {
-      id: 2,
-      title: 'ML Algorithm Workshop',
-      college: 'SRM Chennai', 
-      date: '10-Oct-25, 10:00 AM - 11:30 AM', // Today, past time
-      startISO: '2025-10-10T10:00:00.000Z',
-      durationMins: 90,
-      type: 'Workshop',
-      participants: 25,
-      workletCode: 'AI2024B1',
-      description: 'Introduction to Machine Learning algorithms',
-      meetingLink: 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_2'
-    },
-    {
-      id: 3,
-      title: 'Data Science Progress Meeting',
-      college: 'AMRITA Coimbatore',
-      date: '09-Oct-25, 3:00 PM - 4:00 PM', // Yesterday
-      startISO: '2025-10-09T15:00:00.000Z',
-      durationMins: 60,
-      type: 'Progress Review',
-      participants: 15,
-      workletCode: 'DATA2024',
-      description: 'Weekly progress review for data science projects',
-      meetingLink: 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_3'
-    },
-    {
-      id: 4,
-      title: 'Mobile App Development Sync',
-      college: 'AMRITA Coimbatore',
-      date: '11-Oct-25, 4:00 PM - 4:30 PM', 
-      startISO: '2025-10-11T14:00:00.000Z', 
-      durationMins: 30,
-      type: 'Weekly Sync',
-      participants: 8,
-      workletCode: 'MOBILE2024',
-      description: 'Progress sync for mobile application development',
-      meetingLink: 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_4'
-    },
-    {
-      id: 5,
-      title: 'Current Live Session',
-      college: 'VIT Vellore',
-      date: '10-Oct-25, 2:00 PM - 5:00 PM', // Today, long meeting (adjust time as needed for testing)
-      startISO: '2025-10-10T14:00:00.000Z',
-      durationMins: 180,
-      type: 'Technical Session',
-      participants: 20,
-      workletCode: '2STS05SRM',
-      description: 'Integration session for cross-platform compatibility',
-      meetingLink: 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_5'
-    },
-    {
-      id: 6,
-      title: 'Final Project Presentation',
-      college: 'SRM Chennai',
-      date: '08-Oct-25, 9:00 AM - 11:00 AM', // Two days ago
-      startISO: '2025-10-08T09:00:00.000Z',
-      durationMins: 120,
-      type: 'Presentation',
-      participants: 30,
-      workletCode: 'AI2024B1',
-      description: 'Final project presentations for AI batch 1',
-      meetingLink: 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_6'
-    },
-    {
-      id: 7,
-      title: 'Upcoming Session (Soon Joinable)',
-      college: 'VIT Vellore',
-      date: '10-Oct-25, 3:30 PM - 4:30 PM', // Today, later time (for testing join button activation)
-      startISO: '2025-10-10T15:30:00.000Z',
-      durationMins: 60,
-      type: 'Demo Session',
-      participants: 15,
-      workletCode: 'DEMO2024',
-      description: 'Demo session for testing join button functionality',
-      meetingLink: 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_7'
-    }
-  ];
-
-  // Meetings state 
-  const [meetings, setMeetings] = useState(staticMeetings);
-
-  // Check for existing conflicts in static data (for debugging)
-  useEffect(() => {
-    const conflictPairs = [];
-    staticMeetings.forEach((meeting1, index1) => {
-      staticMeetings.forEach((meeting2, index2) => {
-        if (index1 !== index2 && index1 < index2) { // Avoid duplicate checks
-          const start1 = new Date(meeting1.startISO);
-          const end1 = new Date(start1.getTime() + meeting1.durationMins * 60000);
-          const start2 = new Date(meeting2.startISO);
-          const end2 = new Date(start2.getTime() + meeting2.durationMins * 60000);
-          
-          // Check for overlap
-          if (start1 < end2 && start2 < end1) {
-            conflictPairs.push({
-              meeting1: meeting1.title,
-              meeting2: meeting2.title,
-              time1: meeting1.date,
-              time2: meeting2.date
-            });
-          }
-        }
-      });
-    });
-    
-    if (conflictPairs.length > 0) {
-      console.warn('⚠️ Conflicting meetings detected in static data:', conflictPairs);
-    }
-  }, []);
+  // Meetings state - start empty; load from backend when available
+  const [meetings, setMeetings] = useState([]);
   // Reschedule form state
   const [rescheduleDateTime, setRescheduleDateTime] = useState('');
   const [rescheduleDuration, setRescheduleDuration] = useState(60);

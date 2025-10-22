@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import LeftSidebar from "./Left";
 
-// Expanded to include all backend statuses; 'Approved' shown as 'Under Review' for continuity
-const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "Under Review", "On Hold", "Dropped"]; 
+// Status options for tabs (UI remains unchanged; no 'To Start' tab)
+const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "On Hold", "Dropped"]; 
 
 // localStorage utility functions
 const STORAGE_KEY = 'worklets_view_state';
@@ -75,11 +75,8 @@ export default function WorkletsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const transformStatus = (raw) => {
-    if (!raw) return 'Ongoing';
-    if (raw === 'Approved') return 'Under Review';
-    return raw;
-  };
+  // Use raw status as provided by backend/UI conventions
+  const toDisplayStatus = (raw) => raw || 'Ongoing';
 
   const computeProgress = (w) => {
     if (typeof w.worklet_progress === 'number') return w.worklet_progress;
@@ -137,7 +134,7 @@ export default function WorkletsPage() {
       }
 
       const normalized = data.map(w => {
-        const status = transformStatus(w.status);
+        const status = toDisplayStatus(w.status);
         const progress = computeProgress(w);
         const studentsCount = Array.isArray(w.students) ? w.students.length : (w.student_count || w.students || 0);
         return {
@@ -193,7 +190,6 @@ export default function WorkletsPage() {
     switch (status) {
       case 'Ongoing': return <Circle className="w-4 h-4 text-blue-500 fill-current" />;
       case 'Completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'Under Review': return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       default: return <Circle className="w-4 h-4 text-gray-400" />;
     }
   };
@@ -202,7 +198,6 @@ export default function WorkletsPage() {
     switch (status) {
       case 'Ongoing': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Under Review': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };

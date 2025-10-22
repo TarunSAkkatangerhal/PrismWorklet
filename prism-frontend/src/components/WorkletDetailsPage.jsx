@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
@@ -464,42 +465,13 @@ export default function WorkletDetailPage() {
         }
       } catch (error) {
         console.error('Error fetching worklet:', error)
-
-        // For demo purposes, load dummy data instead of showing error
-        const dummyWorklet = {
-          id: id || '1',
-          cert_id: 'FSWD-2024-BATCH-01',
-          title: 'Full Stack Web Development Bootcamp',
-          status: 'Ongoing',
-          progress: 67,
-          description:
-            'A comprehensive full-stack web development program covering modern technologies including React, Node.js, databases, and deployment strategies. Students will build real-world projects and gain hands-on experience with industry-standard tools and practices.',
-          imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop',
-          startDate: 'Sep 15, 2024',
-          endDate: 'Dec 20, 2024',
-          students: ['Alice Johnson', 'Bob Smith', 'Carol Davis', 'David Wilson', 'Emma Brown', 'Frank Miller'],
-          college: 'Cambridge Institute of Technology',
-          team: 'Web Development Team Alpha',
-          problem_statement:
-            'Develop a comprehensive learning platform that enables students to master full-stack web development through hands-on projects, mentorship, and real-world application scenarios. The platform should incorporate modern development practices, version control, testing, and deployment workflows.',
-          expectation:
-            'Students are expected to complete weekly coding assignments, participate in code reviews, contribute to team projects, and demonstrate proficiency in React, Node.js, Express, MongoDB, and modern development tools. By the end of the program, students should be able to build and deploy full-stack applications independently.',
-          prerequisites:
-            'Basic understanding of HTML, CSS, and JavaScript. Familiarity with programming concepts such as variables, functions, loops, and conditionals. Access to a computer with internet connection. Git and GitHub account setup is recommended but not required initially.',
-          github_repo: 'stanford-bootcamp/fullstack-web-development',
-          github_repo_url: 'https://github.com/stanford-bootcamp/fullstack-web-development',
+        if (error?.response?.status === 404) {
+          setError('Worklet not found')
+        } else if (error?.response?.status === 401) {
+          setError('Authentication failed. Please login again.')
+        } else {
+          setError('Failed to load worklet details. Please check your connection.')
         }
-
-        setWorklet(dummyWorklet)
-
-        // Uncomment below to show actual errors instead of dummy data
-        // if (error.response?.status === 404) {
-        //   setError("Worklet not found");
-        // } else if (error.response?.status === 401) {
-        //   setError("Authentication failed. Please login again.");
-        // } else {
-        //   setError("Failed to load worklet details. Please check your connection.");
-        // }
       } finally {
         setLoading(false)
       }

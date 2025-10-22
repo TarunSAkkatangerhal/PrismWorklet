@@ -49,54 +49,59 @@ CREATE TABLE user_profiles (
   CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id)
     REFERENCES users(user_id) ON DELETE CASCADE
 );
-CREATE TABLE `Prism_Worklet` (
-  `WorkletID` INT NOT NULL AUTO_INCREMENT,
-  `Title` LONGTEXT NOT NULL,
-  `ImagePath` LONGTEXT NOT NULL,
-  `ProblemStmt` LONGTEXT NOT NULL,
-  `Expectations` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-  `Prerequest` LONGTEXT NOT NULL,
-  `TechDomainID` INT NOT NULL,
-  `GitHubUrl` VARCHAR(500) DEFAULT NULL,
-  `StatusID` INT NOT NULL,
-  `CreatedOn` DATETIME NOT NULL,
-  `CreatedMentorID` INT NOT NULL,
-  `Progress` INT NOT NULL,
-  `StartDate` DATE NOT NULL,
-  `EndDate` DATE NOT NULL,
-  `CertID` VARCHAR(500) DEFAULT NULL,
-  `TeamMGID` INT DEFAULT NULL,
-  `GroupMGID` INT DEFAULT NULL,
-  `PartMGID` INT DEFAULT NULL,
-  
-  `StudentCount` INT DEFAULT NULL,
-  `Degree` INT DEFAULT NULL,
-  `Stream` INT DEFAULT NULL,
-  `WorkletComplexity` INT DEFAULT NULL,
-  `Research` INT DEFAULT NULL,
-  `Doc` INT DEFAULT NULL,
-  `DataCollection` INT DEFAULT NULL,
-  `LinkedProject` INT DEFAULT NULL,
-  `ProjectID` INT DEFAULT NULL,
-  `Performance` VARCHAR(45) DEFAULT NULL,
-  `RiskStatus` VARCHAR(45) DEFAULT NULL,
-  `RiskStatusNote` LONGTEXT,
-  `PaperDetail` INT DEFAULT NULL,
-  `PatentDetail` INT DEFAULT NULL,
-  `CommercializationDetail` INT DEFAULT NULL,
-  `GroupHeadComments` LONGTEXT,
-  `IsSync` INT DEFAULT NULL,
-  `IsActive` INT NOT NULL,
-  `IsExcellent` INT DEFAULT 0,
-  `StageID` INT DEFAULT NULL,
-  `IsDataCollected` INT DEFAULT 0,
-  `IsGenAIFF` INT DEFAULT 0,
-  `Modality` INT DEFAULT NULL,
-  `Category` int Default NULL,
-  PRIMARY KEY (`WorkletID`)
-) ENGINE=InnoDB AUTO_INCREMENT=2430 
+CREATE TABLE Prism_Worklet (
+  WorkletID INT NOT NULL AUTO_INCREMENT,
+  Title LONGTEXT NOT NULL,
+  ImagePath LONGTEXT NOT NULL,
+  ProblemStmt LONGTEXT NOT NULL,
+  Expectations LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Prerequest LONGTEXT NOT NULL,
+  TechDomainID INT NOT NULL,
+  GitHubUrl VARCHAR(500) DEFAULT NULL,
+  StatusID INT NOT NULL,
+  CreatedOn DATETIME NOT NULL,
+  CreatedMentorID INT NOT NULL,
+  Progress INT NOT NULL,
+  StartDate DATE NOT NULL,
+  EndDate DATE NOT NULL,
+  CertID VARCHAR(500) DEFAULT NULL,
+  TeamMGID INT DEFAULT NULL,
+  GroupMGID INT DEFAULT NULL,
+  PartMGID INT DEFAULT NULL,
+  StudentCount INT DEFAULT NULL,
+  Degree INT DEFAULT NULL,
+  Stream INT DEFAULT NULL,
+  WorkletComplexity INT DEFAULT NULL,
+  Research INT DEFAULT NULL,
+  Doc INT DEFAULT NULL,
+  DataCollection INT DEFAULT NULL,
+  LinkedProject INT DEFAULT NULL,
+  ProjectID INT DEFAULT NULL,
+  Performance VARCHAR(45) DEFAULT NULL,
+  RiskStatus VARCHAR(45) DEFAULT NULL,
+  RiskStatusNote LONGTEXT,
+  PaperDetail INT DEFAULT NULL,
+  PatentDetail INT DEFAULT NULL,
+  CommercializationDetail INT DEFAULT NULL,
+  GroupHeadComments LONGTEXT,
+  IsSync INT DEFAULT NULL,
+  IsActive INT NOT NULL,
+  IsExcellent INT DEFAULT 0,
+  StageID INT DEFAULT NULL,
+  IsDataCollected INT DEFAULT 0,
+  IsGenAIFF INT DEFAULT 0,
+  Modality INT DEFAULT NULL,
+  Category INT DEFAULT NULL,
+  PRIMARY KEY (WorkletID),
+  CONSTRAINT fk_worklet_status FOREIGN KEY (StatusID)
+      REFERENCES status(StatusID)
+      ON DELETE RESTRICT
+      ON UPDATE CASCADE
+) ENGINE=InnoDB 
+  AUTO_INCREMENT=2430 
   DEFAULT CHARSET=utf8mb4 
   COLLATE=utf8mb4_0900_ai_ci;
+
 
 
 -- ========================
@@ -205,6 +210,10 @@ CREATE TABLE commercializations (
     REFERENCES Prism_Worklet(WorkletID) ON DELETE SET NULL
 );
 
+CREATE TABLE status (
+  StatusID INT PRIMARY KEY,
+  StatusName VARCHAR(50) NOT NULL
+);
 -- ========================
 -- 10. Helpful Indexes
 -- ========================

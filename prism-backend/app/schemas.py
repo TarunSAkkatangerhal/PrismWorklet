@@ -41,11 +41,11 @@ class StudentOut(BaseModel):
 
 # Enums
 class WorkletStatusEnum(str, Enum):
-    approved = "Approved"
-    ongoing = "Ongoing"
+    to_start = "To Start"
+    on_going = "On Going"
     completed = "Completed"
-    dropped = "Dropped"
     on_hold = "On Hold"
+    dropped = "Dropped"
 
 class WorkletRoleEnum(str, Enum):
     mentor = "Mentor"
@@ -178,7 +178,7 @@ class WorkletBase(BaseModel):
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    status: Optional[WorkletStatusEnum] = WorkletStatusEnum.ongoing
+    status: Optional[WorkletStatusEnum] = WorkletStatusEnum.on_going
     year: int
     domain: Optional[str] = None
     problem_statement: Optional[str] = None

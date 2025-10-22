@@ -5,30 +5,8 @@ import RightSidebar from '../components/Right';
 import { Award, Star, Trophy, FileText } from 'lucide-react';
 
 const Portfolio = () => {
-  // Mock data for display
-  const mockAchievements = [
-    {
-      id: 1,
-      type: 'Award',
-      title: 'Outstanding Student Award',
-      description: 'Recognized for academic excellence',
-      date: '2024-05-15'
-    },
-    {
-      id: 2,
-      type: 'Certificate',
-      title: 'React Development Certification',
-      description: 'Completed advanced React course',
-      date: '2024-03-10'
-    },
-    {
-      id: 3,
-      type: 'Project',
-      title: 'E-commerce Website',
-      description: 'Built a full-stack e-commerce platform',
-      date: '2024-01-20'
-    }
-  ];
+  // Removed mock data; show an empty state until real achievements are fetched from backend (use portfolio.jsx)
+  const mockAchievements = [];
 
   const achievementIcon = (type) => {
     switch (type) {
@@ -68,38 +46,44 @@ const Portfolio = () => {
               Achievements & Projects
             </h2>
             
-            <div className="space-y-4">
-              {mockAchievements.map((achievement) => (
-                <div 
-                  key={achievement.id}
-                  className="flex items-start space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                >
-                  <div className="flex-shrink-0 mt-1">
-                    {achievementIcon(achievement.type)}
+            {mockAchievements.length === 0 ? (
+              <div className="p-6 text-center text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                No achievements yet. Use the Portfolio page to add and manage your achievements.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {mockAchievements.map((achievement) => (
+                  <div 
+                    key={achievement.id}
+                    className="flex items-start space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <div className="flex-shrink-0 mt-1">
+                      {achievementIcon(achievement.type)}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        {achievement.title}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1">
+                        {achievement.description}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                        {new Date(achievement.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        achievement.type === 'Award' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        achievement.type === 'Certificate' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      }`}>
+                        {achievement.type}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {achievement.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">
-                      {achievement.description}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                      {new Date(achievement.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      achievement.type === 'Award' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                      achievement.type === 'Certificate' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                      'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    }`}>
-                      {achievement.type}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Upload Section */}
             <div className="mt-8 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">

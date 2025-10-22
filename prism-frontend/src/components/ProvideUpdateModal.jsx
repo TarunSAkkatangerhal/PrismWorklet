@@ -54,26 +54,10 @@ const ProvideUpdateModal = ({ isOpen, onClose, worklet }) => {
       }
     } catch (error) {
       console.error('Error fetching worklets:', error);
-      // Fallback to dummy data for testing
-      const dummyWorklets = [
-        {
-          id: 1,
-          cert_id: 'FSWD-2024-001',
-          title: 'Full Stack Web Development',
-          worklet_progress: 67,
-          status: 'Ongoing'
-        },
-        {
-          id: 2,
-          cert_id: 'ML-2024-002',
-          title: 'Machine Learning Fundamentals',
-          worklet_progress: 45,
-          status: 'Ongoing'
-        }
-      ];
-      setAvailableWorklets(dummyWorklets);
-      setSelectedWorklet(dummyWorklets[0]);
-      setProgress(dummyWorklets[0].worklet_progress || 50);
+      // Do not use dummy data; show empty state instead
+      setAvailableWorklets([]);
+      setSelectedWorklet(null);
+      setProgress(50);
     } finally {
       setLoadingWorklets(false);
     }

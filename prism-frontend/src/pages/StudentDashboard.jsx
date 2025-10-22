@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // Student Dashboard - Shows worklets content with student-focused UI
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -34,8 +35,8 @@ import { getCurrentUser } from '../services/auth';
 import { sanitizeInput } from '../utils/security';
 import samsungLogo from '../assets/prism_logo.png';
 
-// Status options and utility functions
-const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "Under Review", "On Hold", "Dropped"]; 
+// Status options (UI unchanged; no 'To Start' tab)
+const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "On Hold", "Dropped"]; 
 
 const STORAGE_KEY = 'student_worklets_view_state';
 
@@ -282,7 +283,6 @@ export default function StudentDashboard() {
     switch (status) {
       case 'Ongoing': return <Circle className="w-4 h-4 text-blue-500 fill-current" />;
       case 'Completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'Under Review': return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       default: return <Circle className="w-4 h-4 text-gray-400" />;
     }
   };

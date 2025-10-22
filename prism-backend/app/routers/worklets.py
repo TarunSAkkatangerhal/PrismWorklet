@@ -44,10 +44,11 @@ def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme
     if not worklet_in.start_date or not worklet_in.end_date:
         raise HTTPException(status_code=400, detail="start_date and end_date are required")
 
-    # Map status to StatusID (default Ongoing=2)
-    status_to_id = {"Approved": 1, "Ongoing": 2, "Completed": 3, "Dropped": 4, "On Hold": 5}
-    status_text = (worklet_in.status.value if hasattr(worklet_in.status, 'value') else worklet_in.status) or "Ongoing"
-    status_id = status_to_id.get(status_text, 2)
+    # Map status to StatusID (new mapping, default On Going=1)
+    # Accept both 'On Going' and 'Ongoing' inbound
+    status_to_id = {"To Start": 0, "On Going": 1, "Ongoing": 1, "Completed": 2, "On Hold": 3, "Dropped": 4}
+    status_text = (worklet_in.status.value if hasattr(worklet_in.status, 'value') else worklet_in.status) or "On Going"
+    status_id = status_to_id.get(status_text, 1)
 
     tech_domain_id = None
     if worklet_in.domain is not None:
@@ -135,14 +136,8 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
                 college_name = mentor_assoc.college
                 college_id = getattr(mentor_assoc, "college_id", None)
 
-        # Map status_id to textual status for API compatibility
-        status_map = {
-            1: "Approved",
-            2: "Ongoing",
-            3: "Completed",
-            4: "Dropped",
-            5: "On Hold",
-        }
+        # Map status_id to textual status for API compatibility (normalize to 'Ongoing')
+        status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
         status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
 
         # Derive a year from date range (fallback to current year)
@@ -248,14 +243,8 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
             )
             student_count = len(assoc_students)
 
-            # Map status
-            status_map = {
-                1: "Approved",
-                2: "Ongoing",
-                3: "Completed",
-                4: "Dropped",
-                5: "On Hold",
-            }
+            # Map status (new mapping)
+            status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
             status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
 
             # Derive a year from date range (fallback to current year)
@@ -328,8 +317,8 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         else:
             percentage_completion = 0
 
-    # Map status
-    status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+    # Map status (new mapping)
+    status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
     status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
 
     if status_text == "Completed":
@@ -415,7 +404,7 @@ def update_worklet(worklet_id: int, worklet_in: WorkletUpdate, db: Session = Dep
     if "end_date" in payload:
         worklet.end_date = payload["end_date"]
     if "status" in payload and payload["status"] is not None:
-        status_to_id = {"Approved": 1, "Ongoing": 2, "Completed": 3, "Dropped": 4, "On Hold": 5}
+        status_to_id = {"To Start": 0, "On Going": 1, "Ongoing": 1, "Completed": 2, "On Hold": 3, "Dropped": 4}
         status_text = payload["status"].value if hasattr(payload["status"], 'value') else payload["status"]
         worklet.status_id = status_to_id.get(status_text, worklet.status_id)
     if "domain" in payload and payload["domain"] is not None:
@@ -447,9 +436,9 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
         # Robust join to get all worklets for which this user is a mentor
         query = db.query(Worklet).join(UserWorkletAssociation, Worklet.id == UserWorkletAssociation.worklet_id)
         query = query.filter(UserWorkletAssociation.user_id == mentor.id, UserWorkletAssociation.role_in_worklet == "Mentor")
-        # Filter by status_id for ongoing if requested
+        # Filter by status_id for ongoing if requested (On Going id=1)
         if only_ongoing:
-            query = query.filter(getattr(Worklet, 'status_id') == 2)
+            query = query.filter(getattr(Worklet, 'status_id') == 1)
         worklets = query.all()
 
         worklets_data = []
@@ -486,7 +475,7 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
                 else:
                     percentage_completion = 0
 
-            status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+            status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
             status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
             if status_text == "Completed":
                 quality = "Excellence"
@@ -775,8 +764,8 @@ def get_completed_worklets_for_mentor(mentor_email: str, db: Session = Depends(g
     mentor_email = urllib.parse.unquote(mentor_email)
     
     # For now, return all completed worklets (mentor filter will be added via associations)
-    # Filter via status_id == 3 (Completed)
-    completed_worklets = db.query(Worklet).filter(getattr(Worklet, 'status_id') == 3).all()
+    # Filter via status_id == 2 (Completed in new mapping)
+    completed_worklets = db.query(Worklet).filter(getattr(Worklet, 'status_id') == 2).all()
     
     # Convert to dict format
     worklets_data = []
