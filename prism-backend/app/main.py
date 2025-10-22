@@ -51,8 +51,8 @@ def read_root():
 @app.get("/completed-worklets")
 def get_completed_worklets_root(db: Session = Depends(get_db)):
     from app.models import Worklet
-    # Get all completed worklets
-    completed_worklets = db.query(Worklet).filter(Worklet.status == "Completed").all()
+    # Get all completed worklets (status_id == 3)
+    completed_worklets = db.query(Worklet).filter(getattr(Worklet, 'status_id') == 3).all()
     
     # Convert to dict format
     worklets_data = []
@@ -61,8 +61,8 @@ def get_completed_worklets_root(db: Session = Depends(get_db)):
             "id": worklet.id,
             "cert_id": worklet.cert_id,
             "title": worklet.title,
-            "description": worklet.description,
-            "status": worklet.status,
+            "description": getattr(worklet, "problem_statement", None),
+            "status": "Completed",
             "domain": worklet.domain,
             "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
             "end_date": worklet.end_date.isoformat() if worklet.end_date else None

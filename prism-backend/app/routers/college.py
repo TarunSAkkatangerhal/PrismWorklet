@@ -14,7 +14,16 @@ router = APIRouter(
 
 # Get all colleges with summary stats
 def get_college_stats(college: College, db: Session):
-    worklets = db.query(Worklet).filter(Worklet.college_id == college.college_id).all()
+    # Derive worklets for a college via student associations (or mentor fallback)
+    assoc_worklet_ids = [
+        r[0]
+        for r in db.query(UserWorkletAssociation.worklet_id)
+        .join(User, User.id == UserWorkletAssociation.user_id)
+        .filter(User.college_id == college.college_id)
+        .distinct()
+        .all()
+    ]
+    worklets = db.query(Worklet).filter(Worklet.id.in_(assoc_worklet_ids) if assoc_worklet_ids else False).all()
     stats = {
         "workletCount": len(worklets),
         "excellentCount": 0,
@@ -44,14 +53,16 @@ def get_college_stats(college: College, db: Session):
             # If no evaluations exist, consider it needs attention
             stats["needsAttentionCount"] += 1
             
-        # Count worklets by status
-        if w.status == "Completed":
+        # Count worklets by status (map from status_id)
+        status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+        status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
+        if status_text == "Completed":
             stats["completedCount"] += 1
-        elif w.status == "Ongoing":
+        elif status_text == "Ongoing" or status_text == "Approved":
             stats["ongoingCount"] += 1
-        elif w.status == "On Hold":
+        elif status_text == "On Hold":
             stats["onHoldCount"] += 1
-        elif w.status in ["Dropped", "Terminated"]:
+        elif status_text in ["Dropped", "Terminated"]:
             stats["terminatedCount"] += 1
 
     # Count all students in the college using User.college_id
@@ -82,11 +93,16 @@ def get_college(college_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{college_id}/worklets", response_model=List[WorkletOut])
 def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
-    worklets = (
-        db.query(Worklet)
-        .filter(Worklet.college_id == college_id)
+    # Worklets for a college: any worklet that has at least one associated user in that college
+    assoc_worklet_ids = [
+        r[0]
+        for r in db.query(UserWorkletAssociation.worklet_id)
+        .join(User, User.id == UserWorkletAssociation.user_id)
+        .filter(User.college_id == college_id)
+        .distinct()
         .all()
-    )
+    ]
+    worklets = db.query(Worklet).filter(Worklet.id.in_(assoc_worklet_ids) if assoc_worklet_ids else False).all()
 
     response = []
     for worklet in worklets:
@@ -105,17 +121,17 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
             if student.email
         ]
 
-        response.append(
-            {
-                "id": worklet.id,
-                "title": worklet.title,
-                "description": worklet.description,
-                "assignedStudents": assigned_students,
-                "performanceStatus": getattr(worklet, "performance_status", None),
-                "progressStatus": worklet.status,
-                "collegeName": worklet.college.college_name if getattr(worklet, "college", None) else None,
-            }
-        )
+        status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+        status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
+        response.append({
+            "id": worklet.id,
+            "title": worklet.title,
+            "description": getattr(worklet, 'problem_statement', None),
+            "assignedStudents": assigned_students,
+            "performanceStatus": None,
+            "progressStatus": status_text,
+            "collegeName": db.query(College.college_name).filter(College.college_id == college_id).scalar(),
+        })
 
     return response
 

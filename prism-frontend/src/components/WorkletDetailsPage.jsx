@@ -1575,7 +1575,7 @@ export default function WorkletDetailPage() {
                   </div>
                   
                   {/* Latest Update section removed as requested */}
-                </div>*
+                </div>
                 
                 {/* Enhanced Progress Bar moved below for better layout */}
               </div>

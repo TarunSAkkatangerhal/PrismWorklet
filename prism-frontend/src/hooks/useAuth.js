@@ -110,50 +110,20 @@ export const useAuth = () => {
 
     if (userData) {
       setUser(userData);
-      setLoading(false);
     } else {
-      // Token is expired or invalid, try to refresh
-      const refreshToken = localStorage.getItem(REFRESH_KEY);
-      if (!refreshToken) {
-        setError('Authentication required');
-        setLoading(false);
-        return;
-      }
-
       // Try to refresh token
-      try {
-        const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${BASE_URL}/auth/refresh`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Refresh failed');
-        }
-
-        const data = await response.json();
-        secureStorage.setToken(data.access_token);
-        localStorage.setItem(REFRESH_KEY, data.refresh_token);
-        
-        const newUserData = validateAndDecodeToken(data.access_token);
-        setUser(newUserData);
-      } catch (error) {
-        console.error('Token refresh failed in checkAuth:', error);
+      const refreshed = await refreshToken();
+      if (!refreshed) {
         setError('Authentication required');
-        secureStorage.removeToken();
       }
-      setLoading(false);
     }
-  }, []); // Empty dependency array - only create once
+
+    setLoading(false);
+  }, [refreshToken]);
 
   useEffect(() => {
     checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, [checkAuth]);
 
   return {
     user,

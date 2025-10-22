@@ -63,13 +63,15 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
         if worklet_ids:
             worklets = db.query(Worklet).filter(Worklet.id.in_(worklet_ids)).all()
             for w in worklets:
+                status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+                status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
                 worklets_data.append({
                     "id": w.id,
                     "cert_id": w.cert_id,
                     "title": w.title,
-                    "status": w.status,
-                    "year": w.year,
-                    "domain": w.domain,
+                    "status": status_text,
+                    "year": None,
+                    "domain": getattr(w, 'domain', None),
                     "start_date": w.start_date.isoformat() if w.start_date else None,
                     "end_date": w.end_date.isoformat() if w.end_date else None,
                 })
@@ -100,7 +102,8 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
         "papers": [
             {
                 **with_abs_link(serialize(p)),
-                "authors": (json.loads(p.authors_json) if getattr(p, "authors_json", None) else None),
+                # authors not persisted in schema; frontend can attach at create time
+                "authors": None,
                 "status": "Pending",
             }
             for p in papers
@@ -108,7 +111,8 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
         "patents": [
             {
                 **with_abs_link(serialize(p)),
-                "inventors": (json.loads(p.inventors_json) if getattr(p, "inventors_json", None) else None),
+                # inventors not persisted in schema; frontend can attach at create time
+                "inventors": None,
             }
             for p in patents
         ],
@@ -184,13 +188,15 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
         if worklet_ids:
             worklets = db.query(Worklet).filter(Worklet.id.in_(worklet_ids)).all()
             for w in worklets:
+                status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+                status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
                 worklets_data.append({
                     "id": w.id,
                     "cert_id": w.cert_id,
                     "title": w.title,
-                    "status": w.status,
-                    "year": w.year,
-                    "domain": w.domain,
+                    "status": status_text,
+                    "year": None,
+                    "domain": getattr(w, 'domain', None),
                     "start_date": w.start_date.isoformat() if w.start_date else None,
                     "end_date": w.end_date.isoformat() if w.end_date else None,
                 })
@@ -220,7 +226,7 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
         "papers": [
             {
                 **with_abs_link(serialize(p)),
-                "authors": (json.loads(p.authors_json) if getattr(p, "authors_json", None) else None),
+                "authors": None,
                 "status": "Pending",
             }
             for p in papers
@@ -228,7 +234,7 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
         "patents": [
             {
                 **with_abs_link(serialize(p)),
-                "inventors": (json.loads(p.inventors_json) if getattr(p, "inventors_json", None) else None),
+                "inventors": None,
             }
             for p in patents
         ],
@@ -277,7 +283,7 @@ async def create_paper(
     publication_year: int = Form(None),
     doi: str = Form(None),
     abstract: str = Form(None),
-    authors: str = Form(None),  # JSON string
+    authors: str = Form(None),  # JSON string (not stored; returned in response)
     worklet_id: int = Form(None),
     worklet_cert_id: str = Form(None),
     document: UploadFile = File(None),
@@ -293,16 +299,9 @@ async def create_paper(
             f.write(await document.read())
         # build absolute URL
         base_url = str(request.base_url).rstrip('/')
-        document_link = f"{base_url}/uploads/{filename}"
+    document_link = f"{base_url}/uploads/{filename}"
 
-    try:
-        authors_json = None
-        if authors:
-            # validate JSON
-            parsed = json.loads(authors)
-            authors_json = json.dumps(parsed)
-    except Exception:
-        authors_json = None
+    # authors not stored in DB per schema
 
     paper = Paper(
         user_id=user.id,
@@ -310,11 +309,8 @@ async def create_paper(
         journal=journal,
         publication_year=publication_year,
         doi=doi,
-        abstract=abstract,
-        authors_json=authors_json,
-        document_link=document_link,
+        link=document_link,
         worklet_id=worklet_id,
-        worklet_cert_id=worklet_cert_id,
     )
     db.add(paper)
     db.commit()
@@ -327,11 +323,11 @@ async def create_paper(
         "journal": paper.journal,
         "publication_year": paper.publication_year,
         "doi": paper.doi,
-        "abstract": paper.abstract,
-        "authors": json.loads(paper.authors_json) if paper.authors_json else None,
-        "document_link": paper.document_link,
+        "abstract": abstract,
+        "authors": (json.loads(authors) if authors else None),
+        "document_link": paper.link,
         "worklet_id": paper.worklet_id,
-        "worklet_cert_id": paper.worklet_cert_id,
+        "worklet_cert_id": worklet_cert_id,
         "status": "Pending",
     }
     return JSONResponse(status_code=201, content=resp)
@@ -347,7 +343,7 @@ async def create_patent(
     filing_year: int = Form(None),
     status: str = Form("Filed"),
     description: str = Form(None),
-    inventors: str = Form(None),  # JSON string
+    inventors: str = Form(None),  # JSON string (not stored; returned in response)
     document: UploadFile = File(None),
 ):
     user = _current_user(db, token)
@@ -360,15 +356,9 @@ async def create_patent(
         with open(file_path, "wb") as f:
             f.write(await document.read())
         base_url = str(request.base_url).rstrip('/')
-        document_link = f"{base_url}/uploads/{filename}"
+    document_link = f"{base_url}/uploads/{filename}"
 
-    try:
-        inventors_json = None
-        if inventors:
-            parsed = json.loads(inventors)
-            inventors_json = json.dumps(parsed)
-    except Exception:
-        inventors_json = None
+    # inventors not stored in DB per schema
 
     patent = Patent(
         user_id=user.id,
@@ -376,9 +366,7 @@ async def create_patent(
         application_number=application_number,
         filing_year=filing_year,
         status=status if status in ("Filed", "Granted", "Published") else "Filed",
-        description=description,
-        inventors_json=inventors_json,
-        document_link=document_link,
+        link=document_link,
     )
     db.add(patent)
     db.commit()
@@ -390,9 +378,9 @@ async def create_patent(
         "application_number": patent.application_number,
         "filing_year": patent.filing_year,
         "status": patent.status,
-        "description": patent.description,
-        "inventors": json.loads(patent.inventors_json) if patent.inventors_json else None,
-        "document_link": patent.document_link,
+    "description": description,
+    "inventors": (json.loads(inventors) if inventors else None),
+    "document_link": patent.link,
     }
     return JSONResponse(status_code=201, content=resp)
 
@@ -420,7 +408,7 @@ async def create_commercialization(
         with open(file_path, "wb") as f:
             f.write(await document.read())
         base_url = str(request.base_url).rstrip('/')
-        document_link = f"{base_url}/uploads/{filename}"
+    document_link = f"{base_url}/uploads/{filename}"
 
     rec = Commercialization(
         user_id=user.id,
@@ -428,9 +416,8 @@ async def create_commercialization(
         description=description,
         year=year,
         revenue=revenue,
-        link=link,
+        link=document_link or link,
         worklet_id=worklet_id,
-        document_link=document_link,
     )
     db.add(rec)
     db.commit()
@@ -443,6 +430,6 @@ async def create_commercialization(
         "year": rec.year,
         "revenue": float(rec.revenue) if rec.revenue is not None else None,
         "link": rec.link,
-        "document_link": rec.document_link,
+        "document_link": rec.link,
     }
     return JSONResponse(status_code=201, content=resp)

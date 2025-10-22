@@ -381,24 +381,26 @@ const NavColl = () => {
 
     // Worklets list based on filter
     const allowedStatuses = {
-      total: ['Ongoing', 'Completed', 'On Hold', 'Terminated'],
+      total: ['Ongoing', 'Completed', 'On Hold', 'Terminated', 'Dropped'],
       ongoing: ['Ongoing'],
       completed: ['Completed'],
       onhold: ['On Hold'],
-      terminated: ['Terminated']
-    }[activeFilter] || ['Ongoing', 'Completed', 'On Hold', 'Terminated']
+      terminated: ['Terminated', 'Dropped']
+    }[activeFilter] || ['Ongoing', 'Completed', 'On Hold', 'Terminated', 'Dropped']
 
     colleges.forEach((college) => {
       if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
       college.worklets.forEach((worklet) => {
-        if (allowedStatuses.includes(worklet.progressStatus)) {
+        // Map 'Dropped' to 'Terminated' for UI consistency
+        const statusForUi = worklet.status === 'Dropped' ? 'Terminated' : (worklet.status || worklet.progressStatus)
+        if (allowedStatuses.includes(worklet.status) || allowedStatuses.includes(worklet.progressStatus) || (worklet.status === 'Dropped' && allowedStatuses.includes('Terminated'))) {
           result.push({
             id: `${college.id}-${worklet.id}`,
             workletId: worklet.id, // Add the actual worklet ID for navigation
             collegeId: college.id,
             collegeName: worklet.collegeName || college.name,
             location: college.location,
-            status: worklet.status || worklet.progressStatus,
+            status: statusForUi,
             domain: worklet.domain || (college.areaOfExpertise && college.areaOfExpertise[0]) || 'General',
             title: worklet.title,
             description: worklet.description,
@@ -529,7 +531,8 @@ const NavColl = () => {
       'Ongoing': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
       'Completed': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
       'On Hold': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
-      'Terminated': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+      'Terminated': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+      'Dropped': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
     }
     return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
   }

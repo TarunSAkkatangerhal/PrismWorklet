@@ -70,22 +70,19 @@ const performRefresh = async () => {
     clearTokens();
     return null;
   }
-  
   refreshInFlight = new Promise(async (resolve, reject) => {
     try {
       const resp = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refresh });
       const newAccess = resp.data?.access_token;
       const newRefresh = resp.data?.refresh_token || refresh; // backend may or may not rotate refresh token
       if (!newAccess) throw new Error('Invalid refresh response');
-      
       setTokens(newAccess, newRefresh);
-      
       // flush queued requests
       requestQueue.forEach(cb => cb.resolve(newAccess));
       requestQueue = [];
       resolve(newAccess);
     } catch (e) {
-      console.error('Token refresh failed:', e.response?.data || e.message);
+      console.error('Token refresh failed:', e);
       requestQueue.forEach(cb => cb.reject(e));
       requestQueue = [];
       clearTokens();
@@ -123,65 +120,46 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config || {};
-    
-    // Only handle 401 errors
-    if (error.response?.status !== 401) {
-      return Promise.reject(error);
-    }
-    
-    // If we already tried to refresh for this request, don't retry
-    if (originalRequest._retry) {
-      console.warn('⚠️ Already retried this request, giving up');
-      clearTokens();
-      window.location.href = '/';
-      return Promise.reject(error);
-    }
+    // If unauthorized and we have a refresh token, attempt single refresh sequence
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
 
-    originalRequest._retry = true;
-
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) {
-      // No refresh token available, redirect to login
-      console.warn('⚠️ No refresh token, redirecting to login');
-      clearTokens();
-      window.location.href = '/';
-      return Promise.reject(error);
-    }
-
-    try {
-      console.log('🔄 401 error, attempting token refresh...');
-      
-      if (!refreshInFlight) {
-        // Start refresh (will set refreshInFlight)
-        await performRefresh();
-      } else {
-        // Queue until refresh finishes
-        await new Promise((resolve, reject) => {
-          requestQueue.push({ resolve, reject });
-        });
-      }
-      
-      const newAccess = getAccessToken();
-      if (newAccess) {
-        console.log('✅ Retrying request with new token');
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${newAccess}`;
-        return apiClient(originalRequest);
-      } else {
-        // Refresh succeeded but no token (should not happen)
-        throw new Error('No access token after refresh');
-      }
-    } catch (e) {
-      // Refresh failed, redirect to login
-      console.error('❌ Token refresh failed in interceptor:', e);
-      clearTokens();
-      
-      // Only redirect if we're not already on login page
-      if (window.location.pathname !== '/') {
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        // No refresh token available, redirect to login
+        clearTokens();
         window.location.href = '/';
+        return Promise.reject(error);
       }
-      return Promise.reject(error);
+
+      try {
+        if (!refreshInFlight) {
+          // Start refresh (will set refreshInFlight)
+          await performRefresh();
+        } else {
+          // Queue until refresh finishes
+          await new Promise((resolve, reject) => {
+            requestQueue.push({ resolve, reject });
+          });
+        }
+        const newAccess = getAccessToken();
+        if (newAccess) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+          return apiClient(originalRequest);
+        } else {
+          // Refresh succeeded but no token (should not happen)
+          throw new Error('No access token after refresh');
+        }
+      } catch (e) {
+        // Refresh failed, redirect to login
+        console.error('Token refresh failed in interceptor:', e);
+        clearTokens();
+        window.location.href = '/';
+        return Promise.reject(error);
+      }
     }
+    return Promise.reject(error);
   }
 );
 

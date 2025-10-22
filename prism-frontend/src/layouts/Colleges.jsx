@@ -114,12 +114,12 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsOpen(true)}
-          className="w-full pl-10 pr-16 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          className="w-full pl-10 pr-10 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
         />
         {value ? (
           <button
             onClick={() => onChange('')}
-            className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800 bg-white dark:bg-slate-600 rounded-full hover:bg-gray-100 dark:hover:bg-slate-500 z-10">
+            className="absolute right-9 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800">
             <X className="w-4 h-4" />
           </button>
         ) : null}
@@ -720,35 +720,14 @@ const Colleges = () => {
   // Worklet count sort for College Overview table
   const [overviewSortOrder, setOverviewSortOrder] = useState('desc') // 'desc' (Highest→Lowest) | 'asc' (Lowest→Highest)
 
-  // Extract unique years from backend data - filtered by college and area selections
+  // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
-    // Start with all colleges
-    let collegesToUse = allCollegeData || []
-    
-    // Filter by selected college if one is chosen
-    if (collegeSearch) {
-      collegesToUse = collegesToUse.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
-    }
-    
-    // Filter by selected area if one is chosen
-    if (selectedArea && selectedArea !== 'Select Area') {
-      collegesToUse = collegesToUse.filter((college) => {
-        const area = college.areaOfExpertise
-        if (Array.isArray(area)) {
-          return area.some((item) => typeof item === 'string' && item === selectedArea)
-        } else if (typeof area === 'string') {
-          return area.split(',').map((item) => item.trim()).includes(selectedArea)
-        }
-        return false
-      })
-    }
-    
-    const years = collegesToUse
+    const years = (allCollegeData || [])
       .map((college) => college.established)
       .filter((year) => year && !isNaN(Number(year)))
     const unique = Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))
     return unique
-  }, [allCollegeData, collegeSearch, selectedArea])
+  }, [allCollegeData])
 
   // Helper: robust worklet count computation aligned with charts
   const getWorkletCount = useCallback((college) => {
@@ -767,21 +746,14 @@ const Colleges = () => {
 
 
   const uniqueAreas = useMemo(() => {
-    // If a college is selected, only show areas from that college
-    let collegesToUse = allCollegeData || []
-    
-    if (collegeSearch) {
-      collegesToUse = allCollegeData.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
-    }
-    
-    const areas = collegesToUse
+    const areas = (allCollegeData || [])
       .map((college) => college.areaOfExpertise)
       .filter((area) => area && typeof area === 'string')
     // Some areaOfExpertise may be comma-separated lists
     const splitAreas = areas.flatMap((area) => area.split(',').map((a) => a.trim()))
     const unique = Array.from(new Set(splitAreas)).sort()
     return unique
-  }, [allCollegeData, collegeSearch])
+  }, [allCollegeData])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -893,17 +865,6 @@ const Colleges = () => {
       setCollegeSearch(location.state.collegeName)
     }
   }, [location.state?.collegeName])
-
-  // Reset selected area and year when college selection changes
-  useEffect(() => {
-    setSelectedArea('Select Area')
-    setSelectedYear('All Years')
-  }, [collegeSearch])
-
-  // Reset selected year when area selection changes
-  useEffect(() => {
-    setSelectedYear('All Years')
-  }, [selectedArea])
 
   useEffect(() => {
     allCollegeDataRef.current = allCollegeData
@@ -1135,8 +1096,6 @@ const Colleges = () => {
 
   const handleCollegeSelect = (collegeName) => {
     setCollegeSearch(collegeName)
-    // Reset area selection when college changes since available areas will be different
-    setSelectedArea('Select Area')
   }
 
   // New handler for opening the chart modal
@@ -1625,9 +1584,7 @@ const Colleges = () => {
                 <SearchableDropdown
                   options={allCollegeData}
                   value={collegeSearch}
-                  onChange={(newValue) => {
-                    handleCollegeSelect(newValue)
-                  }}
+                  onChange={handleCollegeSelect}
                   placeholder="Search or select college..."
                 />
               </div>
@@ -1652,18 +1609,8 @@ const Colleges = () => {
                   <select
                     value={selectedArea}
                     onChange={(e) => setSelectedArea(e.target.value)}
-                    disabled={uniqueAreas.length === 0}
-                    className={`appearance-none border rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 transition-all duration-200 ${
-                      uniqueAreas.length === 0 
-                        ? 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
-                        : 'bg-purple-50 dark:bg-slate-700 border-purple-200 dark:border-slate-600 text-gray-900 dark:text-gray-200 focus:ring-purple-500'
-                    }`}>
-                    <option value="Select Area">
-                      {collegeSearch ? 
-                        (uniqueAreas.length > 0 ? 'Select Area' : 'No areas available') : 
-                        'Select Area'
-                      }
-                    </option>
+                    className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
+                    <option>Select Area</option>
                     {uniqueAreas.map((area) => (
                       <option key={area} value={area}>{area}</option>
                     ))}

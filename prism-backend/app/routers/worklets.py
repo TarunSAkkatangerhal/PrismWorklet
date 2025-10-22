@@ -1,5 +1,5 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from app.models import Worklet, User, UserWorkletAssociation
 from app.schemas import WorkletCreate, WorkletUpdate, WorkletResponse
 from app.database import get_db
@@ -26,9 +26,53 @@ def _get_students_for_worklet(db: Session, worklet_id: int):
 router = APIRouter()
 
 @router.post("/", response_model=WorkletResponse, status_code=status.HTTP_201_CREATED)
-def create_worklet(worklet_in: WorkletCreate, db: Session = Depends(get_db)):
-    # Create worklet using new schema fields (no direct mentor mapping here)
-    worklet = Worklet(**worklet_in.dict())
+def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    # Map input to Prism_Worklet columns
+    creator_id = None
+    try:
+        payload = require_access_token(token)
+        user_email = payload.get("sub")
+        if user_email:
+            user = db.query(User).filter(User.email == user_email).first()
+            creator_id = user.id if user else None
+    except Exception:
+        creator_id = None
+
+    # Validate required fields for Prism_Worklet
+    if not worklet_in.title:
+        raise HTTPException(status_code=400, detail="title is required")
+    if not worklet_in.start_date or not worklet_in.end_date:
+        raise HTTPException(status_code=400, detail="start_date and end_date are required")
+
+    # Map status to StatusID (default Ongoing=2)
+    status_to_id = {"Approved": 1, "Ongoing": 2, "Completed": 3, "Dropped": 4, "On Hold": 5}
+    status_text = (worklet_in.status.value if hasattr(worklet_in.status, 'value') else worklet_in.status) or "Ongoing"
+    status_id = status_to_id.get(status_text, 2)
+
+    tech_domain_id = None
+    if worklet_in.domain is not None:
+        try:
+            tech_domain_id = int(str(worklet_in.domain).strip())
+        except Exception:
+            tech_domain_id = None
+    if tech_domain_id is None:
+        tech_domain_id = 0  # Prism requires NOT NULL
+
+    worklet = Worklet(
+        title=worklet_in.title,
+        cert_id=worklet_in.cert_id,
+        problem_statement=worklet_in.problem_statement or worklet_in.description,
+        expectation=worklet_in.expectation,
+        prerequisites=worklet_in.prerequisites,
+        start_date=worklet_in.start_date,
+        end_date=worklet_in.end_date,
+        worklet_progress=0,
+        status_id=status_id,
+        tech_domain_id=tech_domain_id,
+        created_on=datetime.utcnow(),
+        created_mentor_id=creator_id or 0,
+        is_active=1,
+    )
     db.add(worklet)
     db.commit()
     db.refresh(worklet)
@@ -37,9 +81,8 @@ def create_worklet(worklet_in: WorkletCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=List[WorkletResponse])
 def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
     # Eager-load College relationship to avoid N+1 queries and ensure non-null college when linked
-    query = db.query(Worklet).options(joinedload(Worklet.college))
-    if year is not None:
-        query = query.filter(Worklet.year == year)
+    query = db.query(Worklet)
+    # Year filter not supported on Prism_Worklet (no explicit year column)
     worklets = query.all()
     response = []
     for w in worklets:
@@ -58,37 +101,72 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
                 progress = 0
 
         # Gather students (names just for counting) via association
-        assoc_students = db.query(User).join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id) \
-            .filter(UserWorkletAssociation.worklet_id == w.id, UserWorkletAssociation.role_in_worklet == "Student").all()
+        assoc_students = (
+            db.query(User)
+            .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+            .filter(
+                UserWorkletAssociation.worklet_id == w.id,
+                UserWorkletAssociation.role_in_worklet == "Student",
+            )
+            .all()
+        )
         student_count = len(assoc_students)
-        # Prefer direct college relation on Worklet; fallback to first student or mentor
-        college_id = w.college.college_id if getattr(w, "college", None) else None
-        college_name = w.college.college_name if getattr(w, "college", None) else None
+        # Determine college from first student or mentor (Prism_Worklet has no FK to colleges)
+        college_id = None
+        college_name = None
+        # Determine college from first student if available
+        for stu in assoc_students:
+            if getattr(stu, "college", None):
+                college_name = stu.college
+                college_id = getattr(stu, "college_id", None)
+                break
+        # Fallback: try mentor college if no student college found
         if college_name is None:
-            # Determine college from first student or None
-            for stu in assoc_students:
-                if getattr(stu, 'college', None):
-                    college_name = stu.college
-                    break
-            # Fallback: try mentor college
-            if college_name is None:
-                mentor_assoc = db.query(User).join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id) \
-                    .filter(UserWorkletAssociation.worklet_id == w.id, UserWorkletAssociation.role_in_worklet == "Mentor").first()
-                if mentor_assoc and getattr(mentor_assoc, 'college', None):
-                    college_name = mentor_assoc.college
+            mentor_assoc = (
+                db.query(User)
+                .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+                .filter(
+                    UserWorkletAssociation.worklet_id == w.id,
+                    UserWorkletAssociation.role_in_worklet == "Mentor",
+                )
+                .first()
+            )
+            if mentor_assoc and getattr(mentor_assoc, "college", None):
+                college_name = mentor_assoc.college
+                college_id = getattr(mentor_assoc, "college_id", None)
+
+        # Map status_id to textual status for API compatibility
+        status_map = {
+            1: "Approved",
+            2: "Ongoing",
+            3: "Completed",
+            4: "Dropped",
+            5: "On Hold",
+        }
+        status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
+
+        # Derive a year from date range (fallback to current year)
+        derived_year = None
+        try:
+            if getattr(w, "start_date", None):
+                derived_year = w.start_date.year
+            elif getattr(w, "end_date", None):
+                derived_year = w.end_date.year
+        except Exception:
+            derived_year = None
 
         response.append({
             'id': w.id,
             'cert_id': w.cert_id,
             'title': w.title,
-            'description': w.description,
+            'description': getattr(w, 'problem_statement', None),
             'start_date': w.start_date,
             'end_date': w.end_date,
             'created_at': w.created_at,
             'updated_at': w.updated_at,
-            'year': w.year,
-            'domain': w.domain,
-            'status': w.status,
+            'year': derived_year if derived_year is not None else datetime.utcnow().year,
+            'domain': getattr(w, 'domain', None),
+            'status': status_text,
             'worklet_progress': progress,
             'college_id': college_id,
             'college': college_name,
@@ -117,7 +195,6 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
         query = (
             db.query(Worklet)
             .join(UserWorkletAssociation, Worklet.id == UserWorkletAssociation.worklet_id)
-            .options(joinedload(Worklet.college))
             .filter(
                 UserWorkletAssociation.user_id == student.id,
                 UserWorkletAssociation.role_in_worklet == "Student",
@@ -142,23 +219,22 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
                 else:
                     progress = 0
 
-            # Determine college: prefer worklet.college, else student's own college, else mentor's
-            college_id = w.college.college_id if getattr(w, "college", None) else None
-            college_name = w.college.college_name if getattr(w, "college", None) else None
+            # Determine college: prefer student's own college, else mentor's
+            college_id = getattr(student, "college_id", None)
+            college_name = getattr(student, "college", None)
             if college_name is None:
-                college_name = getattr(student, 'college', None)
-                if college_name is None:
-                    mentor_assoc = (
-                        db.query(User)
-                        .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
-                        .filter(
-                            UserWorkletAssociation.worklet_id == w.id,
-                            UserWorkletAssociation.role_in_worklet == "Mentor",
-                        )
-                        .first()
+                mentor_assoc = (
+                    db.query(User)
+                    .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+                    .filter(
+                        UserWorkletAssociation.worklet_id == w.id,
+                        UserWorkletAssociation.role_in_worklet == "Mentor",
                     )
-                    if mentor_assoc and getattr(mentor_assoc, 'college', None):
-                        college_name = mentor_assoc.college
+                    .first()
+                )
+                if mentor_assoc and getattr(mentor_assoc, "college", None):
+                    college_name = mentor_assoc.college
+                    college_id = getattr(mentor_assoc, "college_id", None)
 
             # Count students on this worklet for display
             assoc_students = (
@@ -172,18 +248,38 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
             )
             student_count = len(assoc_students)
 
+            # Map status
+            status_map = {
+                1: "Approved",
+                2: "Ongoing",
+                3: "Completed",
+                4: "Dropped",
+                5: "On Hold",
+            }
+            status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
+
+            # Derive a year from date range (fallback to current year)
+            derived_year = None
+            try:
+                if getattr(w, "start_date", None):
+                    derived_year = w.start_date.year
+                elif getattr(w, "end_date", None):
+                    derived_year = w.end_date.year
+            except Exception:
+                derived_year = None
+
             response.append({
                 'id': w.id,
                 'cert_id': w.cert_id,
                 'title': w.title,
-                'description': w.description,
+                'description': getattr(w, 'problem_statement', None),
                 'start_date': w.start_date,
                 'end_date': w.end_date,
                 'created_at': w.created_at,
                 'updated_at': w.updated_at,
-                'year': w.year,
-                'domain': w.domain,
-                'status': w.status,
+                'year': derived_year if derived_year is not None else datetime.utcnow().year,
+                'domain': getattr(w, 'domain', None),
+                'status': status_text,
                 'worklet_progress': progress,
                 'college_id': college_id,
                 'college': college_name,
@@ -232,7 +328,11 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         else:
             percentage_completion = 0
 
-    if worklet.status == "Completed":
+    # Map status
+    status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+    status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
+
+    if status_text == "Completed":
         quality = "Excellence"
     elif percentage_completion >= 70:
         quality = "Excellence"
@@ -257,18 +357,28 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
     )
     professors = [p.name for p in professor_users if getattr(p, "name", None)]
 
+    # Derive a year from date range (fallback to current year)
+    derived_year = None
+    try:
+        if getattr(worklet, "start_date", None):
+            derived_year = worklet.start_date.year
+        elif getattr(worklet, "end_date", None):
+            derived_year = worklet.end_date.year
+    except Exception:
+        derived_year = None
+
     return {
         "id": worklet.id,
         "cert_id": worklet.cert_id,
         "title": worklet.title,
-        "description": worklet.description,
+        "description": getattr(worklet, "problem_statement", None),
         "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
         "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
         "created_at": worklet.created_at.isoformat() if worklet.created_at else None,
         "updated_at": worklet.updated_at.isoformat() if worklet.updated_at else None,
-        "year": worklet.year,
+        "year": derived_year if derived_year is not None else datetime.utcnow().year,
         "domain": worklet.domain,
-        "status": worklet.status,
+        "status": status_text,
         "percentage_completion": percentage_completion,
         "worklet_progress": percentage_completion,
         "quality": quality,
@@ -279,7 +389,7 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         "problem_statement": getattr(worklet, "problem_statement", None),
         "expectation": getattr(worklet, "expectation", None),
         "prerequisites": getattr(worklet, "prerequisites", None),
-        "college": worklet.college.college_name if getattr(worklet, "college", None) else None,
+        "college": None,
     }
 
 @router.put("/{worklet_id}", response_model=WorkletResponse)
@@ -287,9 +397,32 @@ def update_worklet(worklet_id: int, worklet_in: WorkletUpdate, db: Session = Dep
     worklet = db.query(Worklet).filter(Worklet.id == worklet_id).first()
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
-    
-    for field, value in worklet_in.dict(exclude_unset=True).items():
-        setattr(worklet, field, value)
+
+    payload = worklet_in.dict(exclude_unset=True)
+    # Map fields to Prism columns
+    if "title" in payload:
+        worklet.title = payload["title"]
+    if "cert_id" in payload:
+        worklet.cert_id = payload["cert_id"]
+    if "problem_statement" in payload or "description" in payload:
+        worklet.problem_statement = payload.get("problem_statement") or payload.get("description")
+    if "expectation" in payload:
+        worklet.expectation = payload["expectation"]
+    if "prerequisites" in payload:
+        worklet.prerequisites = payload["prerequisites"]
+    if "start_date" in payload:
+        worklet.start_date = payload["start_date"]
+    if "end_date" in payload:
+        worklet.end_date = payload["end_date"]
+    if "status" in payload and payload["status"] is not None:
+        status_to_id = {"Approved": 1, "Ongoing": 2, "Completed": 3, "Dropped": 4, "On Hold": 5}
+        status_text = payload["status"].value if hasattr(payload["status"], 'value') else payload["status"]
+        worklet.status_id = status_to_id.get(status_text, worklet.status_id)
+    if "domain" in payload and payload["domain"] is not None:
+        try:
+            worklet.tech_domain_id = int(str(payload["domain"]))
+        except Exception:
+            pass
     db.commit()
     db.refresh(worklet)
     return worklet
@@ -314,8 +447,9 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
         # Robust join to get all worklets for which this user is a mentor
         query = db.query(Worklet).join(UserWorkletAssociation, Worklet.id == UserWorkletAssociation.worklet_id)
         query = query.filter(UserWorkletAssociation.user_id == mentor.id, UserWorkletAssociation.role_in_worklet == "Mentor")
+        # Filter by status_id for ongoing if requested
         if only_ongoing:
-            query = query.filter(Worklet.status == "Ongoing")
+            query = query.filter(getattr(Worklet, 'status_id') == 2)
         worklets = query.all()
 
         worklets_data = []
@@ -352,7 +486,9 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
                 else:
                     percentage_completion = 0
 
-            if worklet.status == "Completed":
+            status_map = {1: "Approved", 2: "Ongoing", 3: "Completed", 4: "Dropped", 5: "On Hold"}
+            status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
+            if status_text == "Completed":
                 quality = "Excellence"
             elif percentage_completion >= 70:
                 quality = "Excellence"
@@ -365,8 +501,8 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
                 "id": worklet.id,
                 "cert_id": worklet.cert_id,
                 "title": getattr(worklet, "title", None),
-                "description": worklet.description,
-                "status": worklet.status,
+                "description": getattr(worklet, "problem_statement", None),
+                "status": status_text,
                 "team": getattr(worklet, "team", None),
                 "college": worklet_college,
                 "problem_statement": getattr(worklet, "problem_statement", None),
@@ -639,7 +775,8 @@ def get_completed_worklets_for_mentor(mentor_email: str, db: Session = Depends(g
     mentor_email = urllib.parse.unquote(mentor_email)
     
     # For now, return all completed worklets (mentor filter will be added via associations)
-    completed_worklets = db.query(Worklet).filter(Worklet.status == "Completed").all()
+    # Filter via status_id == 3 (Completed)
+    completed_worklets = db.query(Worklet).filter(getattr(Worklet, 'status_id') == 3).all()
     
     # Convert to dict format
     worklets_data = []
@@ -648,8 +785,8 @@ def get_completed_worklets_for_mentor(mentor_email: str, db: Session = Depends(g
             "id": worklet.id,
             "cert_id": worklet.cert_id,
             "title": worklet.title,
-            "description": worklet.description,
-            "status": worklet.status,
+            "description": getattr(worklet, "problem_statement", None),
+            "status": "Completed",
             "domain": worklet.domain,
             "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
             "end_date": worklet.end_date.isoformat() if worklet.end_date else None

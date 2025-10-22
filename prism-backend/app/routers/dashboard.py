@@ -71,12 +71,8 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
             total_professors = len(professors_list)
 
             total_worklets = safe_count(db.query(Worklet))
-            completed_worklets = safe_count(
-                db.query(Worklet).filter(
-                    and_(Worklet.status == "Completed", Worklet.completed_date.isnot(None))
-                )
-            )
-            ongoing_worklets = safe_count(db.query(Worklet).filter(Worklet.status == "Ongoing"))
+            completed_worklets = safe_count(db.query(Worklet).filter(getattr(Worklet, 'status_id') == 3))
+            ongoing_worklets = safe_count(db.query(Worklet).filter(getattr(Worklet, 'status_id') == 2))
 
             # Debug: show distinct role distribution in Users table
             role_distribution = db.query(User.role, func.count(User.id)).group_by(User.role).all()
@@ -116,25 +112,12 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
                     continue
                 if not (e < year_start or s > year_end):
                     year_active_ids.add(w.id)
-                    status = str(getattr(w, "status", "") or "")
-                    completed_d = getattr(w, "completed_date", None)
-                    if (
-                        status == "Completed"
-                        and completed_d is not None
-                        and year_start <= completed_d <= year_end
-                    ):
+                    status_id = getattr(w, 'status_id', None)
+                    end_d = getattr(w, 'end_date', None)
+                    if status_id == 3 and end_d is not None and year_start <= end_d <= year_end:
                         completed_in_year += 1
-                    end_d = getattr(w, "end_date", None)
-                    is_terminated_in_year = (
-                        status == "Terminated"
-                        and end_d is not None
-                        and year_start <= end_d <= year_end
-                    )
-                    is_completed_in_year = (
-                        status == "Completed"
-                        and completed_d is not None
-                        and year_start <= completed_d <= year_end
-                    )
+                    is_terminated_in_year = False
+                    is_completed_in_year = (status_id == 3 and end_d is not None and year_start <= end_d <= year_end)
                     if not is_terminated_in_year and not is_completed_in_year:
                         ongoing_in_year += 1
 
@@ -253,7 +236,7 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
                 "worklet_id": worklet.id,
                 "cert_id": worklet.cert_id,
                 "title": getattr(worklet, "title", None),
-                "description": worklet.description,
+                "description": getattr(worklet, "problem_statement", None),
                 "status": worklet.status,
                 "student_count": students,
                 "domain": getattr(worklet, "domain", None),
@@ -441,8 +424,8 @@ def get_platform_status_trends(
         year_end = date(selected_year, 12, 31)
 
         for w in worklets:
-            status = str(getattr(w, 'status', '') or '')
-            if status == 'Dropped':
+            status_id = getattr(w, 'status_id', None)
+            if status_id == 4:  # Dropped
                 continue
             start_date_val = getattr(w, 'start_date', None)
             end_date_val = getattr(w, 'end_date', None)
@@ -452,8 +435,6 @@ def get_platform_status_trends(
 
             # Effective end
             end_eff = end_date_val if end_date_val is not None else now_d
-            if status == 'Terminated':
-                end_eff = end_date_val if end_date_val is not None else now_d
 
             # Clamp
             if start_eff is not None and start_eff < year_start:
@@ -465,18 +446,18 @@ def get_platform_status_trends(
                 overlaps = (start_eff is not None and end_eff is not None and not (end_eff < m['start'] or start_eff > m['end']))
                 if not overlaps:
                     continue
-                if status == 'Completed':
+                if status_id == 3:  # Completed
                     if end_date_val is not None and (m['start'] <= end_date_val <= m['end']):
                         m['completed'] += 1
                     elif end_date_val is not None and m['end'] < date(end_date_val.year, end_date_val.month, monthrange(end_date_val.year, end_date_val.month)[1]):
                         m['ongoing'] += 1
                     elif end_date_val is None:
                         m['ongoing'] += 1
-                elif status in ('Ongoing', 'Approved'):
+                elif status_id in (1, 2):  # Approved or Ongoing
                     m['ongoing'] += 1
-                elif status == 'On Hold':
+                elif status_id == 5:  # On Hold
                     m['on_hold'] += 1
-                elif status == 'Terminated':
+                elif False:
                     m['terminated'] += 1
                 else:
                     m['ongoing'] += 1
@@ -485,7 +466,7 @@ def get_platform_status_trends(
         for w in worklets:
             sd = getattr(w, 'start_date', None)
             ed = getattr(w, 'end_date', None)
-            cd = getattr(w, 'completed_date', None)
+            cd = None
             if sd is not None:
                 years_set.add(int(sd.year))
             if ed is not None:

@@ -29,8 +29,6 @@ class College(Base):
 
     # Relationships
     users = relationship("User", back_populates="college_rel")
-    # Allow accessing all worklets for a college
-    worklets = relationship("Worklet", back_populates="college")
 
     def __repr__(self):
         return f"<College(college_id={self.college_id}, college_name='{self.college_name}')>"
@@ -109,47 +107,60 @@ class UserProfile(Base):
 
 
 class Worklet(Base):
-    __tablename__ = "worklets"
+    # Map to existing Prism_Worklet table (do not alter this table via migrations)
+    __tablename__ = "Prism_Worklet"
 
-    # Keep attribute 'id' mapped to column 'worklet_id'
-    id = Column("worklet_id", Integer, primary_key=True, autoincrement=True)
-    cert_id = Column(String(20), unique=True, nullable=False)
-    title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    start_date = Column(Date, nullable=True)
-    end_date = Column(Date, nullable=True)
-    completed_date = Column(Date, nullable=True)  # Date when worklet was actually completed
-    status = Column(
-        SAEnum("Approved", "Ongoing", "Completed", "Dropped", "On Hold", name="worklet_status_enum"),
-        server_default="Ongoing",
-        nullable=False,
-    )
-    year = Column(Integer, nullable=False)
-    domain = Column(String(100), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    # Progress now tracked per worklet (moved from users table)
-    worklet_progress = Column(Integer, nullable=False, server_default="0")  # 0-100
-    college_id = Column(Integer, ForeignKey("colleges.college_id"), nullable=True)
-    # New fields for detailed worklet information
-    problem_statement = Column(Text, nullable=True)
-    expectation = Column(Text, nullable=True)
-    prerequisites = Column(Text, nullable=True)
+    # Column mappings from Prism_Worklet
+    id = Column("WorkletID", Integer, primary_key=True, autoincrement=True)
+    cert_id = Column("CertID", String(500), unique=False, nullable=True)
+    title = Column("Title", Text, nullable=False)
+    image_path = Column("ImagePath", Text, nullable=True)
+    problem_statement = Column("ProblemStmt", Text, nullable=True)
+    expectation = Column("Expectations", Text, nullable=True)
+    prerequisites = Column("Prerequest", Text, nullable=True)
+    tech_domain_id = Column("TechDomainID", Integer, nullable=True)
+    github_url = Column("GitHubUrl", String(500), nullable=True)
+    status_id = Column("StatusID", Integer, nullable=False)
+    created_on = Column("CreatedOn", DateTime, nullable=False)
+    created_mentor_id = Column("CreatedMentorID", Integer, nullable=False)
+    worklet_progress = Column("Progress", Integer, nullable=False, server_default="0")
+    start_date = Column("StartDate", Date, nullable=True)
+    end_date = Column("EndDate", Date, nullable=True)
+    is_active = Column("IsActive", Integer, nullable=False)
+
+    # Optional/less-used fields mapped for completeness
+    group_mg_id = Column("GroupMGID", Integer, nullable=True)
+    part_mg_id = Column("PartMGID", Integer, nullable=True)
+    team_mg_id = Column("TeamMGID", Integer, nullable=True)
+    stage_id = Column("StageID", Integer, nullable=True)
 
     # Relationships
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")
-    # Link to College for joinedload and easy access to name/id
-    college = relationship("College", back_populates="worklets")
+
+    # Convenience properties to keep API compatibility
+    @property
+    def created_at(self):
+        return self.created_on
+
+    @property
+    def updated_at(self):
+        # Prism_Worklet doesn't store updated timestamp; expose created_on for compatibility
+        return self.created_on
+
+    @property
+    def domain(self):
+        # Expose tech_domain_id as string domain for backward compatibility if needed
+        return str(self.tech_domain_id) if self.tech_domain_id is not None else None
 
     def __repr__(self):
-        return f"<Worklet(id={self.id}, cert_id='{self.cert_id}', title='{self.title}', status='{self.status}')>"
+        return f"<Worklet(id={self.id}, cert_id='{self.cert_id}', title='{(self.title or '')[:30]}', status_id='{self.status_id}')>"
 
 
 class UserWorkletAssociation(Base):
     __tablename__ = "user_worklet_association"
 
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True)
-    worklet_id = Column(Integer, ForeignKey("worklets.worklet_id", ondelete="CASCADE"), primary_key=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), primary_key=True)
     role_in_worklet = Column(
         SAEnum("Mentor", "Student", "Professor", name="u_w_role_enum"),
         server_default="Student",
@@ -170,7 +181,7 @@ class Evaluation(Base):
     # Keep attribute 'id' mapped to column 'evaluation_id'
     id = Column("evaluation_id", Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    worklet_id = Column(Integer, ForeignKey("worklets.worklet_id", ondelete="CASCADE"), nullable=False)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=False)
     score = Column(Integer, nullable=False)
     feedback = Column(Text, nullable=True)
     evaluated_at = Column(DateTime, server_default=func.now(), nullable=False)
@@ -181,7 +192,8 @@ class Evaluation(Base):
 
 # Create indexes
 Index("ix_user_email", User.email, unique=True)
-Index("ix_worklet_cert_id", Worklet.cert_id, unique=True)
+# DB already has a unique index on Prism_Worklet(CertID); avoid duplicating here
+# Index("ix_prism_cert_id", Worklet.cert_id, unique=True)
 Index("ix_user_worklet_association", UserWorkletAssociation.user_id, UserWorkletAssociation.worklet_id)
 
 """
@@ -194,6 +206,7 @@ class Achievement(Base):
     __tablename__ = "achievements"
     id = Column("achievement_id", Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     year = Column(Integer, nullable=True)
@@ -210,12 +223,7 @@ class Paper(Base):
     journal = Column(String(255), nullable=True)
     doi = Column(String(255), nullable=True)
     link = Column(String(255), nullable=True)
-    # New optional fields to support richer portfolio data
-    abstract = Column(Text, nullable=True)
-    authors_json = Column(Text, nullable=True)  # JSON-encoded list of {name}
-    document_link = Column(String(255), nullable=True)  # URL to uploaded document
-    worklet_id = Column(Integer, ForeignKey("worklets.worklet_id", ondelete="SET NULL"), nullable=True)
-    worklet_cert_id = Column(String(20), nullable=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
 class Patent(Base):
@@ -227,22 +235,17 @@ class Patent(Base):
     filing_year = Column(Integer, nullable=True)
     status = Column(SAEnum("Filed", "Granted", "Published", name="patent_status_enum"), nullable=False, server_default="Filed")
     link = Column(String(255), nullable=True)
-    # New optional fields
-    description = Column(Text, nullable=True)
-    inventors_json = Column(Text, nullable=True)  # JSON-encoded list of {name}
-    document_link = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
 class Commercialization(Base):
     __tablename__ = "commercializations"
     id = Column("commercialization_id", Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
-    worklet_id = Column(Integer, ForeignKey("worklets.worklet_id", ondelete="SET NULL"), nullable=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False)
     year = Column(Integer, nullable=True)
     revenue = Column(DECIMAL(12, 2), nullable=True)
     description = Column(Text, nullable=True)
     link = Column(String(255), nullable=True)
-    document_link = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 

@@ -128,13 +128,13 @@ def get_worklet_with_users(
     worklet_dict = {
         "id": worklet.id,
         "cert_id": worklet.cert_id,
-        "description": worklet.description,
+        "description": getattr(worklet, "problem_statement", None),
         "start_date": worklet.start_date,
         "end_date": worklet.end_date,
         "created_at": getattr(worklet, "created_at", None),
-    "year": worklet.year,
+    "year": None,
     "domain": getattr(worklet, "domain", None),
-    "status": worklet.status,
+    "status": {1: 'Approved', 2: 'Ongoing', 3: 'Completed', 4: 'Dropped', 5: 'On Hold'}.get(getattr(worklet, 'status_id', None), 'Ongoing'),
         "mentors": mentors,
         "students": students,
         "collaborators": collaborators,
@@ -218,7 +218,10 @@ def get_mentor_ongoing_worklets(
     for assoc in associations:
         worklet = assoc.worklet
         # Only include worklets with status 'Ongoing'
-        if getattr(worklet, 'status', None) != 'Ongoing':
+        # Map status via status_id
+        status_map = {1: 'Approved', 2: 'Ongoing', 3: 'Completed', 4: 'Dropped', 5: 'On Hold'}
+        status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
+        if status_text != 'Ongoing':
             continue
         
         # Get students for this worklet
@@ -263,7 +266,7 @@ def get_mentor_ongoing_worklets(
                 percentage_completion = 0
 
         # Quality heuristic mirroring worklets router logic
-        if getattr(worklet, 'status', None) == 'Completed':
+        if status_text == 'Completed':
             quality = 'Excellence'
         elif percentage_completion >= 70:
             quality = 'Excellence'
@@ -275,10 +278,10 @@ def get_mentor_ongoing_worklets(
         worklet_data = {
             "id": worklet.id,
             "cert_id": worklet.cert_id,
-            "description": worklet.description,
+            "description": getattr(worklet, "problem_statement", None),
             "title": worklet.title,
             "domain": getattr(worklet, "domain", None),
-            "status": worklet.status,
+            "status": status_text,
             "start_date": getattr(worklet, 'start_date', None),
             "end_date": getattr(worklet, 'end_date', None),
             "college": worklet_college,
@@ -370,7 +373,9 @@ def get_mentor_all_worklets(
             else:
                 percentage_completion = 0
 
-        if getattr(worklet, 'status', None) == 'Completed':
+        status_map = {1: 'Approved', 2: 'Ongoing', 3: 'Completed', 4: 'Dropped', 5: 'On Hold'}
+        status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
+        if status_text == 'Completed':
             quality = 'Excellence'
         elif percentage_completion >= 70:
             quality = 'Excellence'
@@ -382,10 +387,10 @@ def get_mentor_all_worklets(
         worklet_data = {
             "id": worklet.id,
             "cert_id": worklet.cert_id,
-            "description": worklet.description,
+            "description": getattr(worklet, "problem_statement", None),
             "title": worklet.title,
             "domain": getattr(worklet, "domain", None),
-            "status": worklet.status,
+            "status": status_text,
             "start_date": getattr(worklet, 'start_date', None),
             "end_date": getattr(worklet, 'end_date', None),
             "college": worklet_college,

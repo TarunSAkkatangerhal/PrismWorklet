@@ -214,6 +214,7 @@ class WorkletResponse(BaseModel):
     domain: Optional[str] = None
     status: WorkletStatusEnum
     worklet_progress: Optional[int] = 0
+    college_id: Optional[int] = None
     college: Optional[str] = None
     student_count: Optional[int] = 0
     problem_statement: Optional[str] = None

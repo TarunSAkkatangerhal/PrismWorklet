@@ -16,20 +16,21 @@ export default function Login() {
   
   // Auto-login on page load if tokens exist - Secure version
   useEffect(() => {
-    // Don't validate token expiry here - let ProtectedRoute handle it
-    // Just check if tokens exist
-    const accessToken = localStorage.getItem('access_token');
-    const refreshToken = localStorage.getItem('refresh_token');
+    const currentUser = getCurrentUserFromToken();
     const currentPath = window.location.pathname;
     
-    // If we have ANY tokens and we're on the login page, try to redirect
-    // ProtectedRoute will handle token validation and refresh
-    if ((accessToken || refreshToken) && currentPath === "/") {
-      const role = localStorage.getItem('user_role');
-      console.log('🔑 Tokens found, redirecting to dashboard...');
-      
-      // Route based on stored role
-      if (role?.toLowerCase() === "student") {
+    if (currentPath === "/home" || currentPath === "/student-dashboard") {
+      // If trying to access protected routes directly, validate authentication
+      if (!currentUser) {
+        navigate("/"); // Redirect to login if not authenticated
+        return;
+      }
+    }
+    
+    // Auto-login on page load if valid token exists and not already on dashboard
+    if (currentUser && currentPath !== "/home" && currentPath !== "/student-dashboard") {
+      // Route based on validated user role from token
+      if (currentUser.role && currentUser.role.toLowerCase() === "student") {
         navigate("/student-dashboard");
       } else {
         navigate("/home"); // Default to mentor/admin dashboard
