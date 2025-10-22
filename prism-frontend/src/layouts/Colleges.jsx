@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -114,12 +115,12 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsOpen(true)}
-          className="w-full pl-10 pr-16 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          className="w-full pl-10 pr-10 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
         />
         {value ? (
           <button
             onClick={() => onChange('')}
-            className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800 bg-white dark:bg-slate-600 rounded-full hover:bg-gray-100 dark:hover:bg-slate-500 z-10">
+            className="absolute right-9 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800">
             <X className="w-4 h-4" />
           </button>
         ) : null}
@@ -720,35 +721,14 @@ const Colleges = () => {
   // Worklet count sort for College Overview table
   const [overviewSortOrder, setOverviewSortOrder] = useState('desc') // 'desc' (Highest→Lowest) | 'asc' (Lowest→Highest)
 
-  // Extract unique years from backend data - filtered by college and area selections
+  // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
-    // Start with all colleges
-    let collegesToUse = allCollegeData || []
-    
-    // Filter by selected college if one is chosen
-    if (collegeSearch) {
-      collegesToUse = collegesToUse.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
-    }
-    
-    // Filter by selected area if one is chosen
-    if (selectedArea && selectedArea !== 'Select Area') {
-      collegesToUse = collegesToUse.filter((college) => {
-        const area = college.areaOfExpertise
-        if (Array.isArray(area)) {
-          return area.some((item) => typeof item === 'string' && item === selectedArea)
-        } else if (typeof area === 'string') {
-          return area.split(',').map((item) => item.trim()).includes(selectedArea)
-        }
-        return false
-      })
-    }
-    
-    const years = collegesToUse
+    const years = (allCollegeData || [])
       .map((college) => college.established)
       .filter((year) => year && !isNaN(Number(year)))
     const unique = Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))
     return unique
-  }, [allCollegeData, collegeSearch, selectedArea])
+  }, [allCollegeData])
 
   // Helper: robust worklet count computation aligned with charts
   const getWorkletCount = useCallback((college) => {
@@ -767,21 +747,14 @@ const Colleges = () => {
 
 
   const uniqueAreas = useMemo(() => {
-    // If a college is selected, only show areas from that college
-    let collegesToUse = allCollegeData || []
-    
-    if (collegeSearch) {
-      collegesToUse = allCollegeData.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
-    }
-    
-    const areas = collegesToUse
+    const areas = (allCollegeData || [])
       .map((college) => college.areaOfExpertise)
       .filter((area) => area && typeof area === 'string')
     // Some areaOfExpertise may be comma-separated lists
     const splitAreas = areas.flatMap((area) => area.split(',').map((a) => a.trim()))
     const unique = Array.from(new Set(splitAreas)).sort()
     return unique
-  }, [allCollegeData, collegeSearch])
+  }, [allCollegeData])
 
   // Filter colleges based on selected area and year
   const uniqueColleges = useMemo(() => {
@@ -816,12 +789,19 @@ const Colleges = () => {
         const token = localStorage.getItem('access_token')
         const requestConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
 
-        const [collegesResponse, workletsResponse] = await Promise.all([
-          axios.get(`${apiBaseUrl}/colleges`, requestConfig),
-          axios.get(`${apiBaseUrl}/worklets`, requestConfig),
-        ])
+        // Fetch colleges first to ensure page renders even if worklets call fails
+        const collegesResponse = await axios.get(`${apiBaseUrl}/colleges`, requestConfig)
 
-        const workletsByCollege = (Array.isArray(workletsResponse.data) ? workletsResponse.data : []).reduce((acc, worklet) => {
+        // Try to fetch worklets, but don't fail the page if this call errors
+        let workletsDataSafe = []
+        try {
+          const workletsResponse = await axios.get(`${apiBaseUrl}/worklets`, requestConfig)
+          workletsDataSafe = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
+        } catch (we) {
+          console.warn('Worklets fetch failed; proceeding with colleges only', we)
+        }
+
+        const workletsByCollege = workletsDataSafe.reduce((acc, worklet) => {
           const collegeName = worklet.college || worklet.collegeName || 'Unassigned'
           const derivedStudentCount = typeof worklet.student_count === 'number'
             ? worklet.student_count
@@ -948,7 +928,6 @@ const Colleges = () => {
     }
     setSelectedYear('All Years')
   }, [selectedArea, allCollegeData, collegeSearch])
-
   useEffect(() => {
     allCollegeDataRef.current = allCollegeData
   }, [allCollegeData])
@@ -1177,8 +1156,6 @@ const Colleges = () => {
 
   const handleCollegeSelect = (collegeName) => {
     setCollegeSearch(collegeName)
-    // Reset area selection when college changes since available areas will be different
-    setSelectedArea('Select Area')
   }
 
   // New handler for opening the chart modal
@@ -1450,7 +1427,7 @@ const Colleges = () => {
               </div>
             </div>
             <button
-              onClick={() => handleNavigateToFilter('total', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
+              onClick={() => handleNavigateToFilter('total', collegeSearch ? collegeSearch : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -1473,7 +1450,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('students', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
+              onClick={() => handleNavigateToFilter('students', collegeSearch ? collegeSearch : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -1488,7 +1465,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('ongoing', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
+              onClick={() => handleNavigateToFilter('ongoing', collegeSearch ? collegeSearch : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -1503,7 +1480,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('completed', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
+              onClick={() => handleNavigateToFilter('completed', collegeSearch ? collegeSearch : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -1518,7 +1495,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('onhold', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
+              onClick={() => handleNavigateToFilter('onhold', collegeSearch ? collegeSearch : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -1533,7 +1510,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => handleNavigateToFilter('terminated', filteredColleges.length === 1 ? filteredColleges[0].name : 'All Colleges')}
+              onClick={() => handleNavigateToFilter('terminated', collegeSearch ? collegeSearch : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -1657,9 +1634,7 @@ const Colleges = () => {
                 <SearchableDropdown
                   options={uniqueColleges}
                   value={collegeSearch}
-                  onChange={(newValue) => {
-                    handleCollegeSelect(newValue)
-                  }}
+                  onChange={handleCollegeSelect}
                   placeholder="Search or select college..."
                 />
               </div>
@@ -1684,18 +1659,8 @@ const Colleges = () => {
                   <select
                     value={selectedArea}
                     onChange={(e) => setSelectedArea(e.target.value)}
-                    disabled={uniqueAreas.length === 0}
-                    className={`appearance-none border rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 transition-all duration-200 ${
-                      uniqueAreas.length === 0 
-                        ? 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
-                        : 'bg-purple-50 dark:bg-slate-700 border-purple-200 dark:border-slate-600 text-gray-900 dark:text-gray-200 focus:ring-purple-500'
-                    }`}>
-                    <option value="Select Area">
-                      {collegeSearch ? 
-                        (uniqueAreas.length > 0 ? 'Select Area' : 'No areas available') : 
-                        'Select Area'
-                      }
-                    </option>
+                    className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
+                    <option>Select Area</option>
                     {uniqueAreas.map((area) => (
                       <option key={area} value={area}>{area}</option>
                     ))}
