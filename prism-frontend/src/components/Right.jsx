@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import RequestUpdate from "../layouts/Requestupdates";
 import SuggestionModal from "../layouts/SuggestionModal";
 import InternReferralForm from "../layouts/Intern";
@@ -15,6 +15,7 @@ import {
 
 const RightSidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
   const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false);
   const [isInternModalOpen, setIsInternModalOpen] = useState(false);
@@ -152,24 +153,27 @@ const RightSidebar = () => {
           </>
         )}
       </div>
-      <div className="text-center">
-        <button
-          onClick={() => handleNavigation("/ray")}
-          className="group relative mx-auto w-[clamp(3rem,4vw,3.5rem)] h-[clamp(3rem,4vw,3.5rem)] rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 
-                             hover:from-purple-500 hover:to-blue-500 flex items-center justify-center 
-                             text-[clamp(0.875rem,1.2vw,1rem)] font-bold text-white shadow transition-all duration-200 
-                             hover:shadow-lg transform hover:scale-105 cursor-pointer overflow-hidden"
-          aria-label="RAY Support Bot"
-        >
-          <span className="absolute transition-opacity duration-200 opacity-100 group-hover:opacity-0">
-            <Bot className="w-[clamp(1.5rem,2vw,2rem)] h-[clamp(1.5rem,2vw,2rem)]" />
-          </span>
-          <span className="absolute transition-opacity duration-500 opacity-0 group-hover:opacity-100">
-            RAY
-          </span>
-        </button>
-        <p className="text-[clamp(0.75rem,1vw,0.875rem)] text-gray-600 mt-[0.25vh] dark:text-slate-400">Support</p>
-      </div>
+      {/* Only show RAY button if not on the ray page */}
+      {location.pathname !== '/ray' && (
+        <div className="text-center">
+          <button
+            onClick={() => handleNavigation("/ray")}
+            className="group relative mx-auto w-[clamp(3rem,4vw,3.5rem)] h-[clamp(3rem,4vw,3.5rem)] rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 
+                               hover:from-purple-500 hover:to-blue-500 flex items-center justify-center 
+                               text-[clamp(0.875rem,1.2vw,1rem)] font-bold text-white shadow transition-all duration-200 
+                               hover:shadow-lg transform hover:scale-105 cursor-pointer overflow-hidden"
+            aria-label="RAY Support Bot"
+          >
+            <span className="absolute transition-opacity duration-200 opacity-100 group-hover:opacity-0">
+              <Bot className="w-[clamp(1.5rem,2vw,2rem)] h-[clamp(1.5rem,2vw,2rem)]" />
+            </span>
+            <span className="absolute transition-opacity duration-500 opacity-0 group-hover:opacity-100">
+              RAY
+            </span>
+          </button>
+          <p className="text-[clamp(0.75rem,1vw,0.875rem)] text-gray-600 mt-[0.25vh] dark:text-slate-400">Support</p>
+        </div>
+      )}
 
       {/* Modals */}
       <RequestUpdate

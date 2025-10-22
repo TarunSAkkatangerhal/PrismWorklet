@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award, Share } from 'lucide-react';
+import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { ThemeContext } from '../context/ThemeContext';
@@ -135,7 +135,6 @@ const LeftSidebar = () => {
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/student-dashboard')} />
                         <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
-                        <SidebarItem icon={<Share size={20} />} label="Share Article/Blogs" onClick={() => {/* Empty for now */}} />
                     </>
                 ) : userData && userData.role ? (
                     <>
