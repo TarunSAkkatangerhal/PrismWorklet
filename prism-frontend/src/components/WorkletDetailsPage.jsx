@@ -8,6 +8,10 @@ import SuggestionModal from '../layouts/SuggestionModal'
 import InternReferralForm from '../layouts/Intern'
 import FeedBack from '../layouts/FeedBack'
 import LeftSidebar from '../components/Left'
+import ProvideUpdateModal from '../components/ProvideUpdateModal'
+import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
+import TestimonialModal from '../components/TestimonialModal'
+import { getCurrentUser } from '../services/auth'
 
 // --- Import all required icons from lucide-react ---
 import {
@@ -217,10 +221,6 @@ const TeamMemberCard = ({ member, role = "Team Member", avatar }) => {
         <div className="flex-grow">
           <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{member}</h4>
         </div>
-        <button className="opacity-0 group-hover:opacity-100 p-2 rounded-full bg-gray-100 dark:bg-gray-700 
-                          hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200">
-          <Eye size={14} className="text-gray-600 dark:text-gray-400" />
-        </button>
       </div>
     </div>
   )
@@ -237,11 +237,33 @@ export default function WorkletDetailPage() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false)
+  const [isProvideUpdateOpen, setIsProvideUpdateOpen] = useState(false) // Student version
   const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false)
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
   const [isInternModalOpen, setIsInternModalOpen] = useState(false)
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
+  const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false)
+  
+  // Enhanced Feedback Form State
+  const [feedbackScore, setFeedbackScore] = useState(null)
+  const [feedbackCategory, setFeedbackCategory] = useState('')
+  const [feedbackTestimonial, setFeedbackTestimonial] = useState('')
+  const [feedbackRecommendation, setFeedbackRecommendation] = useState('')
+  const [feedbackImprovements, setFeedbackImprovements] = useState('')
+  const [feedbackBestFeature, setFeedbackBestFeature] = useState('')
+  const [feedbackSkillsGained, setFeedbackSkillsGained] = useState([])
+  const [feedbackWouldRecommend, setFeedbackWouldRecommend] = useState(null)
+  const [feedbackMentorSupport, setFeedbackMentorSupport] = useState(0)
+  const [feedbackLearningValue, setFeedbackLearningValue] = useState(0)
+  const [feedbackTeamCollaboration, setFeedbackTeamCollaboration] = useState(0)
+  const [feedbackProjectRelevance, setFeedbackProjectRelevance] = useState(0)
+  const [feedbackOverallSatisfaction, setFeedbackOverallSatisfaction] = useState(0)
+  
   const [retryCount, setRetryCount] = useState(0)
   const [mentorWorkletIds, setMentorWorkletIds] = useState([])
+  
+  // --- USER ROLE DETECTION ---
+  const [userRole, setUserRole] = useState(null)
   
   // --- CHECK IF CURRENT USER IS A MENTOR FOR THIS WORKLET ---
   const currentUserEmail = localStorage.getItem('user_email')
@@ -268,6 +290,23 @@ export default function WorkletDetailPage() {
     // Check if there's history to go back to
     setCanGoBack(window.history.length > 1)
   }, [])
+
+  // --- DETECT USER ROLE ---
+  useEffect(() => {
+    const detectUserRole = async () => {
+      try {
+        const user = await getCurrentUser()
+        const role = user.role || currentUserRole || 'student'
+        setUserRole(role.toLowerCase())
+      } catch (error) {
+        console.error('Error detecting user role:', error)
+        // Fallback to localStorage or default
+        setUserRole(currentUserRole?.toLowerCase() || 'student')
+      }
+    }
+    
+    detectUserRole()
+  }, [currentUserRole])
 
   // --- FETCH MENTOR'S WORKLETS IF USER IS A MENTOR ---
   useEffect(() => {
@@ -308,33 +347,60 @@ export default function WorkletDetailPage() {
       id: 1,
       title: 'Mid-Review Milestone',
       author: 'Tarun Akkatangerhal',
+      authorEmail: 'tarun@example.com',
+      authorRole: 'student',
       authorInitials: 'TA',
       date: 'Oct 7, 2025, 2:59:07 PM',
       observations: 'Frontend architecture completed with Redux integration. All UI components implemented and tested successfully.',
       challenges: 'State management complexity resolved. Performance optimization completed through component refactoring.',
-      likes: 1,
+      feedbackStatus: 'pending', // 'completed' or 'pending'
+      mentorFeedback: null,
+      mentorFeedbackDate: null,
       status: 'current',
       color: 'from-blue-500 to-purple-600'
-    },
-    {
-      id: 2,
-      title: 'Initial Planning & Setup',
-      author: 'Dr. Sarah Johnson',
-      authorInitials: 'DS',
-      date: 'Sep 15, 2024, 10:30:15 AM',
-      observations: 'Project foundation established. Team roles defined, development environment configured successfully.',
-      challenges: 'Technology stack finalization and resource allocation optimized after initial assessment.',
-      likes: 3,
-      status: 'completed',
-      color: 'from-green-500 to-teal-600'
     }
   ])
   const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false)
+  const [isReviewMilestoneModalOpen, setIsReviewMilestoneModalOpen] = useState(false)
+  const [selectedMilestoneForReview, setSelectedMilestoneForReview] = useState(null)
   const [newMilestone, setNewMilestone] = useState({
     title: '',
     observations: '',
     challenges: ''
   })
+  const [allMilestoneFiles, setAllMilestoneFiles] = useState([])
+  const [suggestions, setSuggestions] = useState([
+    {
+      id: 1,
+      mentorName: 'Prof. John Smith',
+      mentorEmail: 'john.smith@example.com',
+      mentorInitials: 'JS',
+      title: 'Code Review Suggestion',
+      content: 'Consider implementing error boundaries in your React components to improve error handling and user experience. This will prevent the entire app from crashing when a component fails.',
+      category: 'Code Quality',
+      priority: 'high',
+      date: new Date('2025-10-15').toISOString(),
+      isRead: false,
+      isHelpful: false,
+      studentResponse: null,
+      responseDate: null
+    },
+    {
+      id: 2,
+      mentorName: 'Prof. Sarah Johnson',
+      mentorEmail: 'sarah.johnson@example.com',
+      mentorInitials: 'SJ',
+      title: 'Performance Optimization',
+      content: 'Your API calls could benefit from implementing caching strategies. Consider using React Query or SWR for better data fetching and caching management.',
+      category: 'Performance',
+      priority: 'medium',
+      date: new Date('2025-10-12').toISOString(),
+      isRead: true,
+      isHelpful: true,
+      studentResponse: 'Thank you for the suggestion! I have started implementing React Query.',
+      responseDate: new Date('2025-10-13').toISOString()
+    }
+  ])
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -795,11 +861,14 @@ export default function WorkletDetailPage() {
     const [selectedFile, setSelectedFile] = useState(null)
 
     const milestoneTypes = [
-      'Weekly Meeting',
-      'Monthly Meeting', 
-      'Mid-Review',
+      'First Review',
+      'Second Review',
+      'Mid Review',
+      'Fourth Review',
+      'Fifth Review',
       'End Review',
-      'Others'
+      'Extended',
+      'Ad-hoc'
     ]
 
     const handleSubmit = (e) => {
@@ -809,7 +878,10 @@ export default function WorkletDetailPage() {
       // Create field mappings based on milestone type
       let fieldData = {}
       switch (milestoneType) {
-        case 'Weekly Meeting':
+        case 'First Review':
+        case 'Second Review':
+        case 'Fourth Review':
+        case 'Fifth Review':
           fieldData = {
             field1Label: 'Activities Completed',
             field1Value: kpisAchieved,
@@ -819,17 +891,7 @@ export default function WorkletDetailPage() {
             toggleValue: githubAccessible
           }
           break
-        case 'Monthly Meeting':
-          fieldData = {
-            field1Label: 'KPIs Achieved',
-            field1Value: kpisAchieved,
-            field2Label: 'Next Steps',
-            field2Value: nextSteps,
-            toggleLabel: 'File updated on Github',
-            toggleValue: fileUpdatedOnGithub
-          }
-          break
-        case 'Mid-Review':
+        case 'Mid Review':
           fieldData = {
             field1Label: 'Observation and Results',
             field1Value: kpisAchieved,
@@ -844,15 +906,20 @@ export default function WorkletDetailPage() {
             field1Label: 'Final Results & Observations',
             field1Value: kpisAchieved,
             field2Label: 'Challenges',
-            field2Value: nextSteps
+            field2Value: nextSteps,
+            toggleLabel: 'File uploaded on Github',
+            toggleValue: fileUpdatedOnGithub
           }
           break
-        case 'Others':
+        case 'Extended':
+        case 'Ad-hoc':
           fieldData = {
             field1Label: 'Details',
             field1Value: kpisAchieved,
             field2Label: 'Remarks',
-            field2Value: nextSteps
+            field2Value: nextSteps,
+            toggleLabel: 'File uploaded on Github',
+            toggleValue: fileUpdatedOnGithub
           }
           break
         default:
@@ -860,15 +927,29 @@ export default function WorkletDetailPage() {
             field1Label: 'Details',
             field1Value: kpisAchieved,
             field2Label: 'Remarks',
-            field2Value: nextSteps
+            field2Value: nextSteps,
+            toggleLabel: 'File uploaded on Github',
+            toggleValue: fileUpdatedOnGithub
           }
+      }
+
+      const currentUser = {
+        email: localStorage.getItem('user_email') || 'unknown@example.com',
+        role: localStorage.getItem('user_role') || 'student',
+        name: localStorage.getItem('user_name') || 'Current User'
+      }
+
+      const getInitials = (name) => {
+        return name.split(' ').map(n => n[0]).join('').toUpperCase()
       }
 
       const milestone = {
         id: milestones.length + 1,
         title: milestoneType,
-        author: 'Current User', // This would come from auth context
-        authorInitials: 'CU',
+        author: currentUser.name,
+        authorEmail: currentUser.email,
+        authorRole: currentUser.role.toLowerCase(),
+        authorInitials: getInitials(currentUser.name),
         date: new Date().toLocaleString('en-US', {
           month: 'short',
           day: 'numeric',
@@ -892,14 +973,27 @@ export default function WorkletDetailPage() {
         attachment: selectedFile ? {
           name: selectedFile.name,
           size: selectedFile.size,
-          type: selectedFile.type
+          type: selectedFile.type,
+          url: URL.createObjectURL(selectedFile), // Create object URL for preview
+          uploadedBy: currentUser.name,
+          uploadedByRole: currentUser.role.toLowerCase(),
+          uploadedDate: new Date().toISOString(),
+          milestoneTitle: milestoneType
         } : null,
-        likes: 0,
+        feedbackStatus: 'pending', // New milestones default to pending
+        mentorFeedback: null,
+        mentorFeedbackDate: null,
         status: 'current',
         color: 'from-indigo-500 to-blue-600'
       }
 
       setMilestones(prev => [milestone, ...prev])
+      
+      // Add file to global files array if attachment exists
+      if (selectedFile && milestone.attachment) {
+        setAllMilestoneFiles(prev => [...prev, milestone.attachment])
+      }
+      
       resetForm()
       setIsAddMilestoneModalOpen(false)
     }
@@ -936,113 +1030,10 @@ export default function WorkletDetailPage() {
     // Render different form sections based on milestone type
     const renderTypeSpecificFields = () => {
       switch (milestoneType) {
-        case 'Code Deliverable':
-          return (
-            <div className="space-y-4">
-              <div>
-                <input
-                  type="text"
-                  value={deliverableTitle}
-                  onChange={(e) => setDeliverableTitle(e.target.value)}
-                  placeholder="Deliverable Title"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded
-                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <textarea
-                  value={deliverableDescription}
-                  onChange={(e) => setDeliverableDescription(e.target.value)}
-                  placeholder="Code Description & Features"
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
-                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Code pushed to GitHub?</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={githubAccessible}
-                    onChange={(e) => setGithubAccessible(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
-                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
-                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
-                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
-                               after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-            </div>
-          )
-        
-        case 'Testing Milestone':
-          return (
-            <div className="space-y-4">
-              <div>
-                <textarea
-                  value={testResults}
-                  onChange={(e) => setTestResults(e.target.value)}
-                  placeholder="Test Results & Coverage"
-                  rows={4}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
-                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">All tests passing?</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={fileUpdatedOnGithub}
-                    onChange={(e) => setFileUpdatedOnGithub(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
-                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
-                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
-                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
-                               after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-            </div>
-          )
-        
-        case 'Documentation Update':
-          return (
-            <div className="space-y-4">
-              <div>
-                <textarea
-                  value={deliverableDescription}
-                  onChange={(e) => setDeliverableDescription(e.target.value)}
-                  placeholder="Documentation Changes & Updates"
-                  rows={4}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
-                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Documentation updated in repository?</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={documentationUpdated}
-                    onChange={(e) => setDocumentationUpdated(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
-                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
-                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
-                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
-                               after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-            </div>
-          )
-        
-        case 'Weekly Meeting':
+        case 'First Review':
+        case 'Second Review':
+        case 'Fourth Review':
+        case 'Fifth Review':
           return (
             <div className="space-y-4">
               <div>
@@ -1084,49 +1075,7 @@ export default function WorkletDetailPage() {
             </div>
           )
         
-        case 'Monthly Meeting':
-          return (
-            <div className="space-y-4">
-              <div>
-                <textarea
-                  value={kpisAchieved}
-                  onChange={(e) => setKpisAchieved(e.target.value)}
-                  placeholder="KPIs Achieved"
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
-                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <textarea
-                  value={nextSteps}
-                  onChange={(e) => setNextSteps(e.target.value)}
-                  placeholder="Next Steps"
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
-                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">File updated on Github?</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={fileUpdatedOnGithub}
-                    onChange={(e) => setFileUpdatedOnGithub(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
-                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
-                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
-                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
-                               after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-            </div>
-          )
-        
-        case 'Mid-Review':
+        case 'Mid Review':
           return (
             <div className="space-y-4">
               <div>
@@ -1191,6 +1140,65 @@ export default function WorkletDetailPage() {
                            placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">File uploaded on Github?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fileUpdatedOnGithub}
+                    onChange={(e) => setFileUpdatedOnGithub(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          )
+        
+        case 'Extended':
+        case 'Ad-hoc':
+          return (
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={kpisAchieved}
+                  onChange={(e) => setKpisAchieved(e.target.value)}
+                  placeholder="Details"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <textarea
+                  value={nextSteps}
+                  onChange={(e) => setNextSteps(e.target.value)}
+                  placeholder="Remarks"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">File uploaded on Github?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fileUpdatedOnGithub}
+                    onChange={(e) => setFileUpdatedOnGithub(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
             </div>
           )
         
@@ -1216,6 +1224,22 @@ export default function WorkletDetailPage() {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none 
                            placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">File uploaded on Github?</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fileUpdatedOnGithub}
+                    onChange={(e) => setFileUpdatedOnGithub(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                               after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
               </div>
             </div>
           )
@@ -1320,37 +1344,192 @@ export default function WorkletDetailPage() {
     )
   }
 
-  const MilestoneTab = () => {
-    const handleLikeMilestone = (milestoneId) => {
-      setMilestones(prev => prev.map(milestone => 
-        milestone.id === milestoneId 
-          ? { ...milestone, likes: milestone.likes + 1 }
-          : milestone
+  const ReviewMilestoneModal = () => {
+    const [feedbackText, setFeedbackText] = useState('')
+    const [isApproved, setIsApproved] = useState(true)
+
+    const handleSubmitReview = (e) => {
+      e.preventDefault()
+      
+      if (!feedbackText.trim() || !selectedMilestoneForReview) return
+
+      // Update the milestone with mentor feedback
+      setMilestones(prev => prev.map(m => 
+        m.id === selectedMilestoneForReview.id 
+          ? {
+              ...m,
+              feedbackStatus: 'completed',
+              mentorFeedback: feedbackText,
+              mentorFeedbackDate: new Date().toISOString(),
+              mentorApproved: isApproved
+            }
+          : m
       ))
+
+      // Close modal and reset
+      setFeedbackText('')
+      setIsApproved(true)
+      setSelectedMilestoneForReview(null)
+      setIsReviewMilestoneModalOpen(false)
     }
 
+    const handleClose = () => {
+      setFeedbackText('')
+      setIsApproved(true)
+      setSelectedMilestoneForReview(null)
+      setIsReviewMilestoneModalOpen(false)
+    }
+
+    if (!isReviewMilestoneModalOpen || !selectedMilestoneForReview) return null
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+            <h2 className="text-lg font-semibold text-gray-900">REVIEW MILESTONE</h2>
+            <button
+              onClick={handleClose}
+              className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-5">
+            {/* Milestone Info */}
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-10 h-10 bg-gradient-to-br ${selectedMilestoneForReview.color} rounded-full flex items-center justify-center text-white font-semibold`}>
+                  {selectedMilestoneForReview.authorInitials}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{selectedMilestoneForReview.title}</h3>
+                  <p className="text-sm text-gray-600">
+                    By {selectedMilestoneForReview.author} • {selectedMilestoneForReview.date}
+                  </p>
+                </div>
+              </div>
+
+              {/* Milestone Content */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                {selectedMilestoneForReview.field1Value && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 text-sm mb-1">
+                      {selectedMilestoneForReview.field1Label || 'Details'}
+                    </h4>
+                    <p className="text-xs text-gray-700 bg-white p-2 rounded">
+                      {selectedMilestoneForReview.field1Value}
+                    </p>
+                  </div>
+                )}
+                {selectedMilestoneForReview.field2Value && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 text-sm mb-1">
+                      {selectedMilestoneForReview.field2Label || 'Remarks'}
+                    </h4>
+                    <p className="text-xs text-gray-700 bg-white p-2 rounded">
+                      {selectedMilestoneForReview.field2Value}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Attachment */}
+              {selectedMilestoneForReview.attachment && (
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="flex items-center gap-2 text-sm">
+                    <FileText size={16} className="text-blue-600" />
+                    <span className="font-medium text-gray-700">{selectedMilestoneForReview.attachment.name}</span>
+                    <span className="text-gray-500">
+                      ({(selectedMilestoneForReview.attachment.size / 1024).toFixed(2)} KB)
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmitReview} className="space-y-4">
+              {/* Approval Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                <div>
+                  <h4 className="font-medium text-gray-900">Milestone Status</h4>
+                  <p className="text-sm text-gray-600">Mark this milestone as approved or needs revision</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isApproved}
+                    onChange={(e) => setIsApproved(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-300 
+                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
+                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                               after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 
+                               after:transition-all peer-checked:bg-green-600"></div>
+                  <span className="ml-3 text-sm font-medium text-gray-900">
+                    {isApproved ? 'Approved' : 'Needs Revision'}
+                  </span>
+                </label>
+              </div>
+
+              {/* Feedback Text */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mentor Feedback *
+                </label>
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Provide detailed feedback on this milestone..."
+                  rows={6}
+                  required
+                  className="w-full px-4 py-3 text-sm border border-gray-300 rounded-xl resize-none 
+                           placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={!feedbackText.trim()}
+                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed 
+                         text-white text-sm font-medium rounded-xl transition-all duration-200"
+              >
+                Submit Review
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const MilestoneTab = () => {
     return (
       <div className="space-y-4">
-        {/* Header with Add Button */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Project Milestones</h3>
-          <button 
-            onClick={() => setIsAddMilestoneModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium 
-                     transition-all duration-200 flex items-center gap-2"
-          >
-            <Plus size={14} />
-            Add Milestone
-          </button>
+          {userRole === 'student' && (
+            <button
+              onClick={() => setIsAddMilestoneModalOpen(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              <PlusCircle size={16} />
+              Add Milestone
+            </button>
+          )}
         </div>
 
         {/* Dynamic Milestone Cards */}
         <div className="space-y-4">
           {milestones.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-              <Target size={48} className="mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">No milestones yet</p>
-              <p className="text-sm">Click "Add Milestone" to create your first milestone</p>
+            <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+              <Target size={40} className="mx-auto mb-3 opacity-50" />
+              <p className="text-base font-medium mb-1">No milestones yet</p>
+              <p className="text-sm">Milestones will appear here once added</p>
             </div>
           ) : (
             milestones.map((milestone) => (
@@ -1406,26 +1585,88 @@ export default function WorkletDetailPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => handleLikeMilestone(milestone.id)}
-                        className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-xs transition-colors"
-                      >
-                        <ThumbsUp size={12} />
-                        <span>{milestone.likes} {milestone.likes === 1 ? 'Like' : 'Likes'}</span>
-                      </button>
-                      <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-xs">
-                        <MessageCircle size={12} />
-                        <span>Add Comment</span>
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">GitHub Files</span>
-                      <div className="w-8 h-4 bg-blue-500 rounded-full relative">
-                        <div className="w-3 h-3 bg-white rounded-full absolute right-0.5 top-0.5"></div>
+                  {/* Attachment Display */}
+                  {milestone.attachment && (
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 text-xs">
+                        <FileText size={14} className="text-blue-600 dark:text-blue-400" />
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{milestone.attachment.name}</span>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          ({(milestone.attachment.size / 1024).toFixed(2)} KB)
+                        </span>
                       </div>
                     </div>
+                  )}
+
+                  {/* Mentor Feedback Status and Actions */}
+                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      {/* Left side - Mentor Feedback Status */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Mentor Feedback:</span>
+                        {milestone.feedbackStatus === 'completed' ? (
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle size={14} className="text-green-600 dark:text-green-400" />
+                            <span className="text-xs font-semibold text-green-600 dark:text-green-400">Completed</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <Clock size={14} className="text-amber-600 dark:text-amber-400" />
+                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Pending</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Right side - GitHub Upload Toggle and Review Button */}
+                      <div className="flex items-center gap-3">
+                        {/* GitHub Upload Status Toggle */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">GitHub:</span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={milestone.githubAccessible || milestone.fileUpdatedOnGithub || false}
+                              readOnly
+                              disabled
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer 
+                                         peer-checked:after:translate-x-full peer-checked:after:border-white 
+                                         after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                                         after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 
+                                         after:transition-all peer-checked:bg-green-600 dark:peer-checked:bg-green-500"></div>
+                          </label>
+                        </div>
+                        
+                        {/* Mentor Review Button - Only show for mentors on student milestones */}
+                        {userRole === 'mentor' && milestone.authorRole === 'student' && milestone.feedbackStatus === 'pending' && (
+                          <button
+                            onClick={() => {
+                              setSelectedMilestoneForReview(milestone)
+                              setIsReviewMilestoneModalOpen(true)
+                            }}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            <MessageSquare size={12} />
+                            Review
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Display Mentor Feedback if completed */}
+                    {milestone.feedbackStatus === 'completed' && milestone.mentorFeedback && (
+                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle2 size={14} className="text-green-600 dark:text-green-400" />
+                          <span className="text-xs font-semibold text-green-700 dark:text-green-300">Mentor Feedback</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            • {new Date(milestone.mentorFeedbackDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-700 dark:text-gray-300">{milestone.mentorFeedback}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1591,7 +1832,7 @@ export default function WorkletDetailPage() {
           </GlassCard>
 
           {/* Quick Project Insights */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Team Size */}
             <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-600/50">
               <div className="flex items-center gap-3">
@@ -1627,7 +1868,7 @@ export default function WorkletDetailPage() {
               </div>
             </div>
 
-            {/* Current Phase */}
+            {/* Current Stage */}
             <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-600/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
@@ -1635,39 +1876,15 @@ export default function WorkletDetailPage() {
                 </div>
                 <div>
                   <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {worklet.progress >= 80 ? 'Final' : worklet.progress >= 60 ? 'Testing' : worklet.progress >= 40 ? 'Development' : worklet.progress >= 20 ? 'Design' : 'Planning'}
+                    {worklet.progress >= 100 ? 'End Review' : 
+                     worklet.progress >= 83 ? 'Fifth Review' : 
+                     worklet.progress >= 66 ? 'Fourth Review' : 
+                     worklet.progress >= 50 ? 'Mid Review' : 
+                     worklet.progress >= 33 ? 'Second Review' : 
+                     worklet.progress >= 16 ? 'First Review' : 
+                     'Not Started'}
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Current Phase</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Feedback Received */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-600/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                  <MessageCircle size={20} className="text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {worklet.feedback_count || 12}
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Feedback Received</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mentor Suggestions */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-600/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
-                  <Lightbulb size={20} className="text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {worklet.suggestions_count || 8}
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Mentor Suggestions</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Current Stage</div>
                 </div>
               </div>
             </div>
@@ -1686,6 +1903,7 @@ export default function WorkletDetailPage() {
                     { id: 'overview', label: 'Overview', icon: <BookOpen size={16} /> },
                     { id: 'team', label: 'Team', icon: <Users size={16} /> },
                     { id: 'milestone', label: 'Milestones', icon: <Target size={16} /> },
+                    { id: 'suggestions', label: 'Suggestions', icon: <Lightbulb size={16} /> },
                     { id: 'files', label: 'Files', icon: <FolderOpen size={16} /> }
                   ].map((tab) => (
                     <button
@@ -1777,20 +1995,6 @@ export default function WorkletDetailPage() {
                         </div>
                       </div>
 
-                      {/* Search Bar */}
-                      <div className="relative mb-6">
-                        <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search team members..."
-                          value={searchTeam}
-                          onChange={(e) => setSearchTeam(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 bg-white/70 dark:bg-gray-700/70 border border-gray-200/50 
-                                    dark:border-gray-600/50 rounded-xl backdrop-blur-sm focus:outline-none focus:ring-2 
-                                    focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                        />
-                      </div>
-
                       {/* Team Members Grid */}
                       <div className="grid gap-4">
                         {/* Professors Section */}
@@ -1834,20 +2038,306 @@ export default function WorkletDetailPage() {
                 {/* Other tabs can be added here following the same pattern */}
                 {activeTab === 'milestone' && <MilestoneTab />}
 
+                {/* Suggestions Tab */}
+                {activeTab === 'suggestions' && (
+                  <GlassCard className="p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg">
+                          <Lightbulb size={20} className="text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">MENTOR SUGGESTIONS</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Feedback and recommendations from your mentors
+                          </p>
+                        </div>
+                      </div>
+                      {suggestions.length > 0 && (
+                        <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 
+                                       text-sm font-semibold rounded-full">
+                          {suggestions.filter(s => !s.isRead).length} New
+                        </span>
+                      )}
+                    </div>
 
+                    <div className="space-y-4">
+                      {suggestions.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                          <Lightbulb size={48} className="mx-auto mb-4 opacity-50" />
+                          <p className="text-lg font-medium mb-2">No suggestions yet</p>
+                          <p className="text-sm">Mentor suggestions will appear here once shared</p>
+                        </div>
+                      ) : (
+                        suggestions.map((suggestion) => (
+                          <div 
+                            key={suggestion.id}
+                            className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm p-5 transition-all duration-200 hover:shadow-md ${
+                              !suggestion.isRead 
+                                ? 'border-yellow-300 dark:border-yellow-700 bg-yellow-50/30 dark:bg-yellow-900/10' 
+                                : 'border-gray-200 dark:border-gray-700'
+                            }`}
+                          >
+                            <div className="flex items-start gap-4">
+                              {/* Mentor Avatar */}
+                              <div className="flex-shrink-0">
+                                <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full 
+                                             flex items-center justify-center text-white font-bold shadow-lg">
+                                  {suggestion.mentorInitials}
+                                </div>
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex-grow">
+                                {/* Header */}
+                                <div className="flex items-start justify-between mb-3">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base">
+                                        {suggestion.title}
+                                      </h4>
+                                      {!suggestion.isRead && (
+                                        <span className="px-2 py-0.5 bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 
+                                                       dark:text-yellow-300 text-xs font-medium rounded-full">
+                                          New
+                                        </span>
+                                      )}
+                                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                        suggestion.priority === 'high' 
+                                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                                          : suggestion.priority === 'medium'
+                                          ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                      }`}>
+                                        {suggestion.priority}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                                        {suggestion.mentorName}
+                                      </span>
+                                      <span>•</span>
+                                      <span>{new Date(suggestion.date).toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric', 
+                                        year: 'numeric' 
+                                      })}</span>
+                                      <span>•</span>
+                                      <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 
+                                                     dark:text-purple-300 rounded-full">
+                                        {suggestion.category}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Suggestion Content */}
+                                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                                  {suggestion.content}
+                                </p>
+
+                                {/* Student Response */}
+                                {suggestion.studentResponse && (
+                                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 
+                                                border-blue-500 dark:border-blue-400">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <MessageCircle size={14} className="text-blue-600 dark:text-blue-400" />
+                                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+                                        {userRole === 'student' ? 'Your Response' : 'Student Response'}
+                                      </span>
+                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        • {new Date(suggestion.responseDate).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-700 dark:text-gray-300">
+                                      {suggestion.studentResponse}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Action Section */}
+                                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                  {userRole === 'student' ? (
+                                    /* Student Action Buttons */
+                                    <>
+                                      <button 
+                                        onClick={() => {
+                                          setSuggestions(prev => prev.map(s => 
+                                            s.id === suggestion.id ? { ...s, isHelpful: !s.isHelpful } : s
+                                          ))
+                                        }}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                          suggestion.isHelpful
+                                            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                                            : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                                        }`}
+                                      >
+                                        <ThumbsUp size={12} />
+                                        <span>{suggestion.isHelpful ? 'Marked Helpful' : 'Helpful'}</span>
+                                      </button>
+                                      {!suggestion.studentResponse && (
+                                        <button 
+                                          onClick={() => {
+                                            const response = prompt('Enter your response:')
+                                            if (response) {
+                                              setSuggestions(prev => prev.map(s => 
+                                                s.id === suggestion.id 
+                                                  ? { ...s, studentResponse: response, responseDate: new Date().toISOString() } 
+                                                  : s
+                                              ))
+                                            }
+                                          }}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 
+                                                   dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 
+                                                   hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                        >
+                                          <MessageCircle size={12} />
+                                          <span>Respond</span>
+                                        </button>
+                                      )}
+                                      <button 
+                                        onClick={() => {
+                                          setSuggestions(prev => prev.map(s => 
+                                            s.id === suggestion.id ? { ...s, isRead: true } : s
+                                          ))
+                                        }}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                          suggestion.isRead
+                                            ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                                            : 'text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                                        }`}
+                                      >
+                                        <CheckCircle2 size={12} />
+                                        <span>{suggestion.isRead ? 'Read' : 'Mark as Read'}</span>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    /* Mentor View - Show Status Only */
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                      <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg ${
+                                        suggestion.isRead
+                                          ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                                          : 'bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400'
+                                      }`}>
+                                        <CheckCircle2 size={12} />
+                                        <span>{suggestion.isRead ? 'Read by student' : 'Not yet read'}</span>
+                                      </div>
+                                      <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg ${
+                                        suggestion.isHelpful
+                                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                                          : 'bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400'
+                                      }`}>
+                                        <ThumbsUp size={12} />
+                                        <span>{suggestion.isHelpful ? 'Marked helpful' : 'Not marked helpful'}</span>
+                                      </div>
+                                      {suggestion.studentResponse && (
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg 
+                                                      bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                          <MessageCircle size={12} />
+                                          <span>Student responded</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </GlassCard>
+                )}
 
                 {activeTab === 'files' && (
                   <GlassCard className="p-6">
-                    <div className="text-center py-12">
-                      <FolderOpen size={48} className="mx-auto mb-4 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">File Management</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Upload and manage project files</p>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg">
+                        <FolderOpen size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">PROJECT FILES</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Milestone attachments and project documents
+                        </p>
+                      </div>
                     </div>
+
+                    {allMilestoneFiles.length === 0 ? (
+                      <div className="text-center py-12">
+                        <FolderOpen size={48} className="mx-auto mb-4 text-gray-400 opacity-50" />
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Files Yet</h3>
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Files attached to milestones will appear here
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {allMilestoneFiles.map((file, index) => (
+                          <div 
+                            key={index}
+                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 
+                                     rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md 
+                                     transition-all duration-200"
+                          >
+                            <div className="flex items-center gap-3 flex-grow">
+                              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                <FileText size={20} className="text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div className="flex-grow">
+                                <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                  {file.name}
+                                </h4>
+                                <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  <span>From: {file.milestoneTitle}</span>
+                                  <span>•</span>
+                                  <span>By: {file.uploadedBy}</span>
+                                  <span className={`px-2 py-0.5 rounded-full ${
+                                    file.uploadedByRole === 'student' 
+                                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                      : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                  }`}>
+                                    {file.uploadedByRole === 'student' ? 'Student' : 'Mentor'}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{new Date(file.uploadedDate).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+                                {(file.size / 1024).toFixed(2)} KB
+                              </span>
+                              <button 
+                                className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 
+                                         dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                title="Download file"
+                              >
+                                <Download size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* File Upload Section - Only for students */}
+                    {userRole === 'student' && (
+                      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <button className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 
+                                         rounded-xl text-gray-600 dark:text-gray-400 hover:border-blue-500 
+                                         dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 
+                                         transition-all duration-200 flex items-center justify-center gap-2">
+                          <Upload size={20} />
+                          <span>Upload Additional Files</span>
+                        </button>
+                      </div>
+                    )}
                   </GlassCard>
                 )}
               </div>
 
-              {/* GitHub Repository Enhanced - Always Visible */}
+              {/* GitHub Repository Section - Moved Below Tabs */}
               <GlassCard gradient className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-gradient-to-br from-gray-800 to-black rounded-lg">
@@ -1910,83 +2400,67 @@ export default function WorkletDetailPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <ActivityButton
-                    icon={<PlusCircle size={18} />}
-                    label="Request Update"
-                    status="Submit progress updates"
-                    onClick={() => setIsRequestUpdateOpen(true)}
-                    disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100}
-                  />
-                  <ActivityButton
-                    icon={<Lightbulb size={18} />}
-                    label="Submit Suggestion"
-                    status="Share your ideas"
-                    onClick={() => setIsSuggestionModalOpen(true)}
-                    disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100}
-                  />
-                  <ActivityButton
-                    icon={<MessageSquare size={18} />}
-                    label="Provide Feedback"
-                    status="Give project feedback"
-                    onClick={() => setIsFeedbackOpen(true)}
-                    disabled={!isCurrentUserMentor}
-                  />
-                  <ActivityButton
-                    icon={<Users size={18} />}
-                    label="Intern Referral"
-                    status="Refer talented candidates"
-                    onClick={() => setIsInternModalOpen(true)}
-                    disabled={!isCurrentUserMentor}
-                  />
-                </div>
-              </GlassCard>
-
-             
-
-              {/* Achievement Badges */}
-              <GlassCard gradient className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
-                    <Trophy size={20} className="text-white" />
-                  </div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">ACHIEVEMENTS</h3>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50/80 to-indigo-50/80 
-                                  dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl border border-purple-200/50">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full 
-                                    flex items-center justify-center">
-                      <Star size={16} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900 dark:text-white text-sm">First Milestone</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Completed project setup</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50/80 to-purple-50/80 
-                                  dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200/50">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full 
-                                    flex items-center justify-center">
-                      <Users size={16} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900 dark:text-white text-sm">Team Player</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Great collaboration</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 bg-slate-50/80 dark:bg-slate-700/50 rounded-xl 
-                                  border border-slate-200/50 opacity-50">
-                    <div className="w-10 h-10 bg-slate-300 dark:bg-slate-600 rounded-full flex items-center justify-center">
-                      <Award size={16} className="text-slate-500" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-slate-600 dark:text-slate-400 text-sm">Project Complete</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-500">Finish all milestones</div>
-                    </div>
-                  </div>
+                  {userRole === 'student' ? (
+                    // Student Quick Actions
+                    <>
+                      <ActivityButton
+                        icon={<FileText size={18} />}
+                        label="Provide Update"
+                        status="Share your progress"
+                        onClick={() => setIsProvideUpdateOpen(true)}
+                      />
+                      <ActivityButton
+                        icon={<Calendar size={18} />}
+                        label="Meeting Updates"
+                        status="Log meeting notes"
+                        onClick={() => setIsMeetingModalOpen(true)}
+                      />
+                      <ActivityButton
+                        icon={<MessageSquare size={18} />}
+                        label="Submit Feedback"
+                        status="Share your feedback"
+                        onClick={() => setIsFeedbackOpen(true)}
+                      />
+                      <ActivityButton
+                        icon={<Star size={18} />}
+                        label="Testimonials"
+                        status="Share your experience"
+                        onClick={() => setIsTestimonialModalOpen(true)}
+                      />
+                    </>
+                  ) : (
+                    // Mentor Quick Actions (existing)
+                    <>
+                      <ActivityButton
+                        icon={<PlusCircle size={18} />}
+                        label="Request Update"
+                        status="Submit progress updates"
+                        onClick={() => setIsRequestUpdateOpen(true)}
+                        disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100}
+                      />
+                      <ActivityButton
+                        icon={<Lightbulb size={18} />}
+                        label="Submit Suggestion"
+                        status="Share your ideas"
+                        onClick={() => setIsSuggestionModalOpen(true)}
+                        disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100}
+                      />
+                      <ActivityButton
+                        icon={<MessageSquare size={18} />}
+                        label="Provide Feedback"
+                        status="Give project feedback"
+                        onClick={() => setIsFeedbackOpen(true)}
+                        disabled={!isCurrentUserMentor}
+                      />
+                      <ActivityButton
+                        icon={<Users size={18} />}
+                        label="Intern Referral"
+                        status="Refer talented candidates"
+                        onClick={() => setIsInternModalOpen(true)}
+                        disabled={!isCurrentUserMentor}
+                      />
+                    </>
+                  )}
                 </div>
               </GlassCard>
             </div>
@@ -2027,6 +2501,28 @@ export default function WorkletDetailPage() {
 
       {/* Add Milestone Modal */}
       <AddMilestoneModal />
+
+      {/* Review Milestone Modal */}
+      <ReviewMilestoneModal />
+     
+      {/* Student Modals */}
+      <ProvideUpdateModal
+        isOpen={isProvideUpdateOpen}
+        onClose={() => setIsProvideUpdateOpen(false)}
+        worklet={worklet}
+      />
+
+      <MeetingUpdatesModal
+        isOpen={isMeetingModalOpen}
+        onClose={() => setIsMeetingModalOpen(false)}
+        worklet={worklet}
+      />
+
+      <TestimonialModal
+        isOpen={isTestimonialModalOpen}
+        onClose={() => setIsTestimonialModalOpen(false)}
+        worklet={worklet}
+      />
       
       {isFeedbackOpen && worklet && (
         <FeedBack

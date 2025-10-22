@@ -193,13 +193,29 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
                   value={selectedWorklet}
                   onChange={(e) => setSelectedWorklet(e.target.value)}
                   className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  style={{
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
                 >
                   <option value="">Choose a worklet...</option>
-                  {worklets.map((worklet) => (
-                    <option key={worklet.id} value={worklet.cert_id || worklet.id}>
-                      {(worklet.cert_id || worklet.id)} - {worklet.description || worklet.title}
-                    </option>
-                  ))}
+                  {worklets.map((worklet) => {
+                    const displayText = `${worklet.cert_id || worklet.id} - ${worklet.description || worklet.title || ''}`;
+                    const truncatedText = displayText.length > 60 
+                      ? displayText.substring(0, 60) + '...' 
+                      : displayText;
+                    return (
+                      <option 
+                        key={worklet.id} 
+                        value={worklet.cert_id || worklet.id}
+                        title={displayText}
+                      >
+                        {truncatedText}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}
@@ -239,6 +255,11 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
                 placeholder="Enter your detailed suggestion here..."
                 rows={6}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
+                style={{ 
+                  whiteSpace: 'pre-wrap',
+                  wordWrap: 'break-word',
+                  overflowWrap: 'break-word'
+                }}
               />
               <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {suggestionContent.length} characters

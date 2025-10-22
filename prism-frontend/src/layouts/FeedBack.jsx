@@ -3,13 +3,26 @@ import axios from "axios";
 
 const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => {
   const [workletId, setWorkletId] = useState(propWorkletId || "");
-  const [month, setMonth] = useState("2");
+  const [stage, setStage] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [connectType, setConnectType] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [milestones, setMilestones] = useState([]);
+  const [availableStages, setAvailableStages] = useState([]);
 
   const autoMode = !!preSelectedWorklet;
+
+  // Define all possible stages
+  const allStages = [
+    { value: "first_review", label: "First Review" },
+    { value: "second_review", label: "Second Review" },
+    { value: "mid_review", label: "Mid Review" },
+    { value: "fourth_review", label: "Fourth Review" },
+    { value: "fifth_review", label: "Fifth Review" },
+    { value: "end_review", label: "End Review" },
+    { value: "extended", label: "Extended" },
+    { value: "ad_hoc", label: "Ad-hoc" }
+  ];
 
   // Fetch worklets from backend (only if not in autoMode)
   useEffect(() => {
@@ -63,12 +76,75 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
     if (identifier) setWorkletId(identifier);
   }, [preSelectedWorklet]);
 
+  // Fetch milestones for the selected worklet
+  useEffect(() => {
+    const fetchMilestones = async () => {
+      if (!workletId) {
+        setMilestones([]);
+        setAvailableStages([]);
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) return;
+
+        const response = await axios.get(
+          `http://localhost:8000/worklets/${workletId}/milestones`,
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        const fetchedMilestones = response.data?.milestones || [];
+        setMilestones(fetchedMilestones);
+
+        // Extract milestone types/stages that have been added by students
+        const milestoneTitles = fetchedMilestones.map(m => m.title?.toLowerCase() || '');
+        
+        // Map milestone titles to stage values
+        const stageMapping = {
+          'first review': 'first_review',
+          'weekly meeting': 'first_review', // Weekly meeting can be first review
+          'second review': 'second_review',
+          'monthly meeting': 'second_review', // Monthly can be second
+          'mid review': 'mid_review',
+          'mid-review': 'mid_review',
+          'fourth review': 'fourth_review',
+          'fifth review': 'fifth_review',
+          'end review': 'end_review',
+          'extended': 'extended',
+          'ad-hoc': 'ad_hoc',
+          'ad hoc': 'ad_hoc',
+          'others': 'ad_hoc' // Others can be ad-hoc
+        };
+
+        // Find which stages are available based on milestones
+        const available = allStages.filter(stage => {
+          return milestoneTitles.some(title => {
+            return stageMapping[title] === stage.value || title.includes(stage.label.toLowerCase());
+          });
+        });
+
+        setAvailableStages(available);
+      } catch (error) {
+        console.error("Error fetching milestones:", error);
+        setMilestones([]);
+        setAvailableStages([]);
+      }
+    };
+
+    fetchMilestones();
+  }, [workletId]);
+
   const handleSubmit = () => {
     const data = {
       workletId,
-      month,
+      stage,
       feedback,
-      connectType,
     };
     console.log("Feedback Submitted:", data);
     onClose(); // close popup after submission
@@ -118,18 +194,40 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
           </div>
         )}
 
-        {/* Month */}
+        {/* Stage */}
         <div className="mb-3">
-          <label className="text-sm font-medium dark:text-slate-300">Select Month</label>
+          <label className="text-sm font-medium dark:text-slate-300">Select Stage</label>
           <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
+            value={stage}
+            onChange={(e) => setStage(e.target.value)}
             className="w-full border rounded-lg px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:focus:ring-blue-500"
+            disabled={!workletId || availableStages.length === 0}
           >
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
+            <option value="">
+              {!workletId 
+                ? "Select a worklet first" 
+                : availableStages.length === 0 
+                  ? "No milestones available" 
+                  : "Select a stage"}
+            </option>
+            {allStages.map((stageOption) => {
+              const isAvailable = availableStages.some(s => s.value === stageOption.value);
+              return (
+                <option 
+                  key={stageOption.value} 
+                  value={stageOption.value}
+                  disabled={!isAvailable}
+                >
+                  {stageOption.label} {!isAvailable ? "(No milestone)" : ""}
+                </option>
+              );
+            })}
           </select>
+          {workletId && availableStages.length === 0 && (
+            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+              Student hasn't added any milestones yet
+            </p>
+          )}
         </div>
 
         {/* Feedback */}
@@ -140,30 +238,6 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
             onChange={(e) => setFeedback(e.target.value)}
             className="w-full border rounded-lg px-3 py-2 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:placeholder-slate-400 dark:focus:ring-blue-500"
           />
-        </div>
-
-        {/* Connect Type */}
-        <div className="flex items-center gap-4 mb-4 dark:text-slate-300">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="connect"
-              value="monthly"
-              checked={connectType === "monthly"}
-              onChange={() => setConnectType("monthly")}
-            />
-            <span>Monthly Connect</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="connect"
-              value="biweekly"
-              checked={connectType === "biweekly"}
-              onChange={() => setConnectType("biweekly")}
-            />
-            <span>Bi-weekly Connect</span>
-          </label>
         </div>
 
         <button

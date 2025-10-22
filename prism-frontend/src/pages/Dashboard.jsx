@@ -389,7 +389,10 @@ export default function Dashboard() {
               {/* Level names below the bar */}
               <div className="flex justify-between text-[clamp(0.75rem,0.9vw,0.875rem)] mt-[1vw] text-slate-600 font-medium dark:text-slate-400">
                 {levels.map((level, idx) => (
-                  <span key={level.name} className={`text-xs font-semibold ${level.color}`}>{level.name}</span>
+                  <span key={level.name} className={`text-xs font-semibold ${level.color} flex items-center gap-1`}>
+                    <level.Icon className={`w-4 h-4 ${level.color}`} />
+                    {level.name}
+                  </span>
                 ))}
               </div>
             </div>
