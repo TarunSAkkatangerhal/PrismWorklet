@@ -28,6 +28,8 @@ const NavStat = () => {
   // Get the filter from navigation state, default to 'total'
   const initialFilter = location.state?.filter || 'total'
   const initialYear = location.state?.year || 'All'
+  const targetCollege = location.state?.collegeName || ''
+  const fallbackTotalCount = Number(location.state?.count) || 0
   
   const [activeFilter, setActiveFilter] = useState(initialFilter)
   const [worklets, setWorklets] = useState([])             // full dataset
@@ -75,8 +77,15 @@ const NavStat = () => {
       if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       const params = new URLSearchParams()
       if (yearFilter && yearFilter !== 'All') params.set('year', yearFilter)
-      const res = await axios.get(`${base}/worklets${params.toString() ? `?${params.toString()}` : ''}`)
-      const data = Array.isArray(res.data) ? res.data : []
+      let data = []
+      try {
+        const res = await axios.get(`${base}/worklets${params.toString() ? `?${params.toString()}` : ''}`)
+        data = Array.isArray(res.data) ? res.data : []
+      } catch (e) {
+        // Fallback to alias used by backend
+        const res2 = await axios.get(`${base}/api/worklets${params.toString() ? `?${params.toString()}` : ''}`)
+        data = Array.isArray(res2.data) ? res2.data : []
+      }
 
       // Normalize minimal fields (some endpoints may not return cert_id/title consistently)
       const normalized = data.map(w => ({
@@ -94,7 +103,12 @@ const NavStat = () => {
         year: w.year
       }))
 
-      setWorklets(normalized)
+      // If a target college is specified, filter dataset here (additional filtering will still apply)
+      const scoped = targetCollege && targetCollege !== 'All Colleges'
+        ? normalized.filter(w => (w.college || '').toLowerCase() === targetCollege.toLowerCase())
+        : normalized
+
+      setWorklets(scoped)
       setLastUpdated(new Date())
 
     } catch (err) {
@@ -104,7 +118,7 @@ const NavStat = () => {
     } finally {
       setLoading(false)
     }
-  }, [yearFilter])
+  }, [yearFilter, targetCollege])
 
   // Apply filter whenever full dataset or activeFilter changes
   useEffect(() => {
@@ -112,10 +126,14 @@ const NavStat = () => {
     if (yearFilter && yearFilter !== 'All') {
       subset = subset.filter(w => String(w.year) === String(yearFilter))
     }
-    if (activeFilter === 'ongoing') subset = worklets.filter(w => w.status === 'Ongoing')
-    else if (activeFilter === 'completed') subset = worklets.filter(w => w.status === 'Completed')
+    // Optional college scoping (in case dataset source isn't already scoped)
+    if (targetCollege && targetCollege !== 'All Colleges') {
+      subset = subset.filter(w => (w.college || '').toLowerCase() === targetCollege.toLowerCase())
+    }
+    if (activeFilter === 'ongoing') subset = subset.filter(w => w.status === 'Ongoing')
+    else if (activeFilter === 'completed') subset = subset.filter(w => w.status === 'Completed')
     setFiltered(subset)
-  }, [worklets, activeFilter])
+  }, [worklets, activeFilter, yearFilter, targetCollege])
 
   // Initial fetch & refetch on filter change (filter done client-side so just reuse dataset unless first load or error)
   useEffect(() => {
@@ -155,9 +173,13 @@ const NavStat = () => {
   }
 
   const getFilterStats = () => {
-    const total = worklets.length
+    let total = worklets.length
     const completed = worklets.filter(w => w.status === 'Completed').length
     const ongoing = worklets.filter(w => w.status === 'Ongoing').length
+    // If no data could be loaded but a count was provided via navigation state (e.g., from dashboard), use it for total
+    if (total === 0 && fallbackTotalCount > 0) {
+      total = fallbackTotalCount
+    }
     return { total, completed, ongoing }
   }
 

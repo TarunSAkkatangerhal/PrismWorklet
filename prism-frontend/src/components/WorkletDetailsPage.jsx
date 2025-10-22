@@ -459,6 +459,9 @@ export default function WorkletDetailPage() {
             problem_statement: response.data.problem_statement || 'No problem statement provided',
             expectation: response.data.expectation || 'No expectations specified',
             prerequisites: response.data.prerequisites || 'No prerequisites specified',
+            // GitHub repository info (now provided by backend)
+            github_repo: response.data.github_repo || null,
+            github_repo_url: response.data.github_repo_url || null,
           }
 
           setWorklet(transformedWorklet)

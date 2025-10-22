@@ -720,6 +720,8 @@ const Colleges = () => {
   const allCollegeDataRef = useRef(allCollegeData)
   // Worklet count sort for College Overview table
   const [overviewSortOrder, setOverviewSortOrder] = useState('desc') // 'desc' (Highest→Lowest) | 'asc' (Lowest→Highest)
+  // Total worklets available from global worklets list (fallback for statistics)
+  const [workletsTotalCount, setWorkletsTotalCount] = useState(0)
 
   // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
@@ -747,14 +749,29 @@ const Colleges = () => {
 
 
   const uniqueAreas = useMemo(() => {
+    // If a college is selected, only show areas for that college
+    if (collegeSearch) {
+      const selected = (allCollegeData || []).find(
+        (c) => typeof c?.name === 'string' && c.name.toLowerCase() === collegeSearch.toLowerCase()
+      )
+      const area = selected?.areaOfExpertise
+      let areas = []
+      if (Array.isArray(area)) {
+        areas = area.filter((a) => typeof a === 'string')
+      } else if (typeof area === 'string') {
+        areas = area.split(',').map((a) => a.trim())
+      }
+      return Array.from(new Set(areas)).sort()
+    }
+
+    // Otherwise, show areas across all colleges
     const areas = (allCollegeData || [])
       .map((college) => college.areaOfExpertise)
-      .filter((area) => area && typeof area === 'string')
-    // Some areaOfExpertise may be comma-separated lists
-    const splitAreas = areas.flatMap((area) => area.split(',').map((a) => a.trim()))
-    const unique = Array.from(new Set(splitAreas)).sort()
-    return unique
-  }, [allCollegeData])
+      .filter((area) => area && (typeof area === 'string' || Array.isArray(area)))
+      .flatMap((area) => (Array.isArray(area) ? area : area.split(',').map((a) => a.trim())))
+
+    return Array.from(new Set(areas.filter((a) => typeof a === 'string' && a))).sort()
+  }, [allCollegeData, collegeSearch])
 
   // Filter colleges based on selected area and year
   const uniqueColleges = useMemo(() => {
@@ -835,6 +852,9 @@ const Colleges = () => {
           acc[collegeName].push(normalizedWorklet)
           return acc
         }, {})
+
+  // Keep a global count for robust statistics fallback
+  setWorkletsTotalCount(Array.isArray(workletsDataSafe) ? workletsDataSafe.length : 0)
 
         const processedData = (collegesResponse.data || []).map((college) => {
           const name = college.college_name || college.name
@@ -1174,7 +1194,7 @@ const Colleges = () => {
         // Handle multi-college aggregated counts
         switch (filter) {
           case 'total':
-            count = allCollegeData.reduce((acc, curr) => acc + curr.workletCount, 0)
+            count = allCollegeData.reduce((acc, curr) => acc + getWorkletCount(curr), 0) || workletsTotalCount
             break
           case 'ongoing':
             count = allCollegeData.reduce((acc, curr) => acc + curr.ongoingCount, 0)
@@ -1200,7 +1220,7 @@ const Colleges = () => {
         if (selectedCollege) {
           switch (filter) {
             case 'total':
-              count = selectedCollege.workletCount
+              count = getWorkletCount(selectedCollege)
               break
             case 'ongoing':
               count = selectedCollege.ongoingCount || 25
@@ -1241,12 +1261,8 @@ const Colleges = () => {
     // Single College View Layout
     if (filteredColleges.length === 1 && collegeSearch) {
       const college = filteredColleges[0]
-      // Calculate total worklets as the sum of all status counts
-      const totalWorklets =
-        (college.completedCount || 0) +
-        (college.ongoingCount || 0) +
-        (college.onHoldCount || 0) +
-        (college.terminatedCount || 0)
+      // Robust total worklets using helper (aligns with charts and overview table)
+      const totalWorklets = getWorkletCount(college)
       return (
         <div className="space-y-8">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
@@ -1433,15 +1449,11 @@ const Colleges = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Worklets</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {filteredColleges.reduce(
-                      (acc, curr) =>
-                        acc +
-                        (curr.completedCount || 0) +
-                        (curr.ongoingCount || 0) +
-                        (curr.onHoldCount || 0) +
-                        (curr.terminatedCount || 0),
-                      0
-                    )}
+                    {(() => {
+                      const sum = filteredColleges.reduce((acc, c) => acc + getWorkletCount(c), 0)
+                      // Fallback to global worklets count if sum is 0 but global count > 0
+                      return sum > 0 ? sum : (workletsTotalCount || 0)
+                    })()}
                   </p>
                 </div>
                 <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">

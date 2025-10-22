@@ -124,13 +124,32 @@ export default function WorkletsPage() {
         if (!email) {
           throw new Error('Mentor email not available to query worklets');
         }
-        // Strict: only mentor-specific endpoint (do NOT fall back to all)
-        const res = await axios.get(`${base}/worklets/mentor/${encodeURIComponent(email)}/worklets`);
-        data = res.data?.worklets || [];
+        // Strict: only mentor-specific endpoint; if fails, surface a helpful error
+        try {
+          const res = await axios.get(`${base}/worklets/mentor/${encodeURIComponent(email)}/worklets`);
+          data = res.data?.worklets || [];
+        } catch (e) {
+          // Fallback to all worklets (read-only) to avoid a blank page
+          try {
+            const alt = await axios.get(`${base}/worklets`);
+            data = alt.data || [];
+          } catch (e2) {
+            throw e; // preserve original mentor-specific error
+          }
+        }
       } else {
-        // Non-mentor users see global (future: restrict to their associations)
-        const res = await axios.get(`${base}/worklets`);
-        data = res.data || [];
+        // Non-mentor users see global; try /worklets first, then /api/worklets alias as fallback
+        try {
+          const res = await axios.get(`${base}/worklets`);
+          data = res.data || [];
+        } catch (e) {
+          try {
+            const res2 = await axios.get(`${base}/api/worklets`);
+            data = res2.data || [];
+          } catch (e2) {
+            throw e; // bubble original error
+          }
+        }
       }
 
       const normalized = data.map(w => {

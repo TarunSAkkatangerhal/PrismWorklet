@@ -150,6 +150,19 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
         except Exception:
             derived_year = None
 
+        # Derive GitHub repo info if available
+        github_url = getattr(w, 'github_url', None)
+        repo_name = None
+        try:
+            if isinstance(github_url, str) and 'github.com' in github_url:
+                # extract owner/repo
+                import re
+                m = re.search(r"github\.com/([^/]+/[^/]+)", github_url)
+                if m:
+                    repo_name = m.group(1)
+        except Exception:
+            repo_name = None
+
         response.append({
             'id': w.id,
             'cert_id': w.cert_id,
@@ -165,7 +178,9 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             'worklet_progress': progress,
             'college_id': college_id,
             'college': college_name,
-            'student_count': student_count
+            'student_count': student_count,
+            'github_repo_url': github_url,
+            'github_repo': repo_name,
         })
     return response
 
@@ -356,6 +371,18 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
     except Exception:
         derived_year = None
 
+    # Derive GitHub repo info if available
+    github_url = getattr(worklet, 'github_url', None)
+    repo_name = None
+    try:
+        if isinstance(github_url, str) and 'github.com' in github_url:
+            import re
+            m = re.search(r"github\.com/([^/]+/[^/]+)", github_url)
+            if m:
+                repo_name = m.group(1)
+    except Exception:
+        repo_name = None
+
     return {
         "id": worklet.id,
         "cert_id": worklet.cert_id,
@@ -379,6 +406,8 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         "expectation": getattr(worklet, "expectation", None),
         "prerequisites": getattr(worklet, "prerequisites", None),
         "college": None,
+        "github_repo_url": github_url,
+        "github_repo": repo_name,
     }
 
 @router.put("/{worklet_id}", response_model=WorkletResponse)
@@ -486,6 +515,18 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
             else:
                 quality = "Needs Attention"
 
+            # Derive GitHub repo info if available
+            github_url = getattr(worklet, 'github_url', None)
+            repo_name = None
+            try:
+                if isinstance(github_url, str) and 'github.com' in github_url:
+                    import re
+                    m = re.search(r"github\.com/([^/]+/[^/]+)", github_url)
+                    if m:
+                        repo_name = m.group(1)
+            except Exception:
+                repo_name = None
+
             worklets_data.append({
                 "id": worklet.id,
                 "cert_id": worklet.cert_id,
@@ -502,7 +543,9 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
                 "quality": quality,
                 "students": students,
                 "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
-                "end_date": worklet.end_date.isoformat() if worklet.end_date else None
+                "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
+                "github_repo_url": github_url,
+                "github_repo": repo_name,
             })
 
         return {
