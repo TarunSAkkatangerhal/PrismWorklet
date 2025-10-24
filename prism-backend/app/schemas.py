@@ -42,7 +42,9 @@ class StudentOut(BaseModel):
 # Enums
 class WorkletStatusEnum(str, Enum):
     to_start = "To Start"
+    # Accept both legacy and normalized spellings
     on_going = "On Going"
+    ongoing = "Ongoing"
     completed = "Completed"
     on_hold = "On Hold"
     dropped = "Dropped"
@@ -184,6 +186,7 @@ class WorkletBase(BaseModel):
     problem_statement: Optional[str] = None
     expectation: Optional[str] = None
     prerequisites: Optional[str] = None
+    college_id: Optional[int] = None
 
 class WorkletCreate(WorkletBase):
     pass
@@ -200,6 +203,7 @@ class WorkletUpdate(BaseModel):
     problem_statement: Optional[str] = None
     expectation: Optional[str] = None
     prerequisites: Optional[str] = None
+    college_id: Optional[int] = None
 
 class WorkletResponse(BaseModel):
     id: int

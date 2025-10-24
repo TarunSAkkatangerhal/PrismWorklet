@@ -41,7 +41,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
-router = APIRouter(prefix="/associations", tags=["User Worklet Associations"])
+router = APIRouter(prefix="/associations")
 
 @router.post("/", response_model=UserWorkletAssociationResponse)
 def create_association(
@@ -107,13 +107,13 @@ def get_worklet_with_users(
     )
     
     # Minimal schema: no is_active flag
-    
+
     associations = query.all()
     
     # Categorize users by role
     mentors = []
     students = []
-    collaborators = []
+    professors = []
     
     for assoc in associations:
         user = assoc.user
@@ -122,22 +122,77 @@ def get_worklet_with_users(
             mentors.append(user)
         elif assoc.role_in_worklet == WorkletRoleEnum.student.value:
             students.append(user)
-        # Collaborator role removed in minimal schema
+        elif assoc.role_in_worklet == WorkletRoleEnum.professor.value:
+            professors.append(user)
     
+    # Derive status, year and progress
+    status_map = {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}
+    status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
+
+    derived_year = None
+    try:
+        if getattr(worklet, 'start_date', None):
+            derived_year = worklet.start_date.year
+        elif getattr(worklet, 'end_date', None):
+            derived_year = worklet.end_date.year
+    except Exception:
+        derived_year = None
+
+    # Compute progress if absent
+    progress = getattr(worklet, 'worklet_progress', None)
+    if progress is None:
+        if getattr(worklet, 'start_date', None) and getattr(worklet, 'end_date', None):
+            try:
+                total_days = (worklet.end_date - worklet.start_date).days or 1
+                elapsed_days = (datetime.utcnow().date() - worklet.start_date).days
+                if elapsed_days < 0:
+                    elapsed_days = 0
+                progress = max(0, min(100, int((elapsed_days / total_days) * 100)))
+            except Exception:
+                progress = 0
+        else:
+            progress = 0
+
+    # Determine student_count
+    student_count = len(students)
+
+    # Prefer worklet's assigned college; fallback to associations
+    college_id = getattr(worklet, 'college_id', None)
+    college_name = worklet.college_rel.college_name if getattr(worklet, 'college_rel', None) else None
+    if college_name is None:
+        for s in students:
+            if getattr(s, 'college', None):
+                college_name = s.college
+                college_id = getattr(s, 'college_id', None)
+                break
+    if college_name is None and mentors:
+        m = mentors[0]
+        college_name = getattr(m, 'college', None)
+        college_id = getattr(m, 'college_id', None)
+
     # Convert worklet to dict and add associations
     worklet_dict = {
         "id": worklet.id,
         "cert_id": worklet.cert_id,
+        "title": getattr(worklet, 'title', None),
         "description": getattr(worklet, "problem_statement", None),
         "start_date": worklet.start_date,
         "end_date": worklet.end_date,
         "created_at": getattr(worklet, "created_at", None),
-    "year": None,
-    "domain": getattr(worklet, "domain", None),
-    "status": {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}.get(getattr(worklet, 'status_id', None), 'Ongoing'),
+        "updated_at": getattr(worklet, "updated_at", None),
+        "year": derived_year if derived_year is not None else datetime.utcnow().year,
+        "domain": getattr(worklet, "domain", None),
+        "status": status_text,
+        "worklet_progress": progress,
+        "college_id": college_id,
+        "college": college_name,
+        "student_count": student_count,
+        "problem_statement": getattr(worklet, "problem_statement", None),
+        "expectation": getattr(worklet, "expectation", None),
+        "prerequisites": getattr(worklet, "prerequisites", None),
         "mentors": mentors,
         "students": students,
-        "collaborators": collaborators,
+        "professors": professors,
         "total_users": len(associations)
     }
     
@@ -243,14 +298,22 @@ def get_mentor_ongoing_worklets(
             if s.id is not None:
                 all_student_ids.add(s.id)
         
-        # Determine college from first student (all students share same college per requirement) or fallback to mentor
+        # Determine college with priority: worklet.college_rel -> student college -> mentor college
         worklet_college = None
-        for s in students:
-            if getattr(s, 'college', None):
-                worklet_college = s.college
-                break
+        worklet_college_id = getattr(worklet, 'college_id', None)
+        if getattr(worklet, 'college_rel', None) and getattr(worklet.college_rel, 'college_name', None):
+            worklet_college = worklet.college_rel.college_name
+        if worklet_college is None:
+            for s in students:
+                if getattr(s, 'college', None):
+                    worklet_college = s.college
+                    if worklet_college_id is None:
+                        worklet_college_id = getattr(s, 'college_id', None)
+                    break
         if worklet_college is None:
             worklet_college = mentor.college
+            if worklet_college_id is None:
+                worklet_college_id = getattr(mentor, 'college_id', None)
 
         # Use per-worklet stored progress; fallback derive if null
         percentage_completion = getattr(worklet, 'worklet_progress', None)
@@ -286,6 +349,7 @@ def get_mentor_ongoing_worklets(
             "status": status_text,
             "start_date": getattr(worklet, 'start_date', None),
             "end_date": getattr(worklet, 'end_date', None),
+            "college_id": worklet_college_id,
             "college": worklet_college,
             "percentage_completion": percentage_completion,
             "quality": quality,
@@ -355,14 +419,22 @@ def get_mentor_all_worklets(
         for s in students:
             if s.id is not None:
                 all_student_ids.add(s.id)
-        # Determine college from first student or fallback to mentor
+        # Determine college with priority: worklet.college_rel -> student college -> mentor college
         worklet_college = None
-        for s in students:
-            if getattr(s, 'college', None):
-                worklet_college = s.college
-                break
+        worklet_college_id = getattr(worklet, 'college_id', None)
+        if getattr(worklet, 'college_rel', None) and getattr(worklet.college_rel, 'college_name', None):
+            worklet_college = worklet.college_rel.college_name
+        if worklet_college is None:
+            for s in students:
+                if getattr(s, 'college', None):
+                    worklet_college = s.college
+                    if worklet_college_id is None:
+                        worklet_college_id = getattr(s, 'college_id', None)
+                    break
         if worklet_college is None:
             worklet_college = mentor.college
+            if worklet_college_id is None:
+                worklet_college_id = getattr(mentor, 'college_id', None)
         # Use per-worklet stored progress; fallback derive if null
         percentage_completion = getattr(worklet, 'worklet_progress', None)
         if percentage_completion is None:
@@ -399,6 +471,7 @@ def get_mentor_all_worklets(
             "status": status_text,
             "start_date": getattr(worklet, 'start_date', None),
             "end_date": getattr(worklet, 'end_date', None),
+            "college_id": worklet_college_id,
             "college": worklet_college,
             "percentage_completion": percentage_completion,
             "quality": quality,

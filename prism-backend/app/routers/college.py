@@ -14,8 +14,19 @@ router = APIRouter(
 
 # Get all colleges with summary stats
 def get_college_stats(college: College, db: Session):
-    # Derive worklets for a college via student associations (or mentor fallback)
-    assoc_worklet_ids = [
+    """Compute per-college stats with priority to Worklet.CollegeID.
+    Falls back to user associations if Worklet.CollegeID is not set.
+    """
+    # 1) Direct mapping via Worklet.college_id
+    direct_ids = [
+        r[0]
+        for r in db.query(Worklet.id)
+        .filter(Worklet.college_id == college.college_id)
+        .all()
+    ]
+
+    # 2) Additional worklets inferred via student associations (union)
+    assoc_ids = [
         r[0]
         for r in db.query(UserWorkletAssociation.worklet_id)
         .join(User, User.id == UserWorkletAssociation.user_id)
@@ -23,7 +34,15 @@ def get_college_stats(college: College, db: Session):
         .distinct()
         .all()
     ]
-    worklets = db.query(Worklet).filter(Worklet.id.in_(assoc_worklet_ids) if assoc_worklet_ids else False).all()
+
+    worklet_id_set = set(direct_ids) | set(assoc_ids)
+    worklets = (
+        db.query(Worklet)
+        .filter(Worklet.id.in_(worklet_id_set))
+        .all()
+        if worklet_id_set
+        else []
+    )
     stats = {
         "workletCount": len(worklets),
         "excellentCount": 0,
@@ -93,8 +112,12 @@ def get_college(college_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{college_id}/worklets", response_model=List[WorkletOut])
 def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
-    # Worklets for a college: any worklet that has at least one associated user in that college
-    assoc_worklet_ids = [
+    """Return worklets for a college.
+    Priority: Worklet.college_id == college_id, plus any worklets inferred via
+    associated users from that college. De-duplicate by id.
+    """
+    direct_ids = [r[0] for r in db.query(Worklet.id).filter(Worklet.college_id == college_id).all()]
+    assoc_ids = [
         r[0]
         for r in db.query(UserWorkletAssociation.worklet_id)
         .join(User, User.id == UserWorkletAssociation.user_id)
@@ -102,7 +125,10 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
         .distinct()
         .all()
     ]
-    worklets = db.query(Worklet).filter(Worklet.id.in_(assoc_worklet_ids) if assoc_worklet_ids else False).all()
+    worklet_id_set = set(direct_ids) | set(assoc_ids)
+    worklets = (
+        db.query(Worklet).filter(Worklet.id.in_(worklet_id_set)).all() if worklet_id_set else []
+    )
 
     response = []
     for worklet in worklets:
@@ -130,7 +156,11 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
             "assignedStudents": assigned_students,
             "performanceStatus": None,
             "progressStatus": status_text,
-            "collegeName": db.query(College.college_name).filter(College.college_id == college_id).scalar(),
+            "collegeName": (
+                worklet.college_rel.college_name
+                if getattr(worklet, 'college_rel', None) and getattr(worklet.college_rel, 'college_name', None)
+                else db.query(College.college_name).filter(College.college_id == college_id).scalar()
+            ),
         })
 
     return response
