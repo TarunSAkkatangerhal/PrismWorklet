@@ -127,6 +127,8 @@ class Worklet(Base):
     start_date = Column("StartDate", Date, nullable=True)
     end_date = Column("EndDate", Date, nullable=True)
     is_active = Column("IsActive", Integer, nullable=False)
+    # New FK to colleges
+    college_id = Column("CollegeID", Integer, ForeignKey("colleges.college_id", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
 
     # Optional/less-used fields mapped for completeness
     group_mg_id = Column("GroupMGID", Integer, nullable=True)
@@ -136,6 +138,7 @@ class Worklet(Base):
 
     # Relationships
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")
+    college_rel = relationship("College", primaryjoin="Worklet.college_id==College.college_id", uselist=False)
 
     # Convenience properties to keep API compatibility
     @property

@@ -92,17 +92,20 @@ CREATE TABLE Prism_Worklet (
   IsGenAIFF INT DEFAULT 0,
   Modality INT DEFAULT NULL,
   Category INT DEFAULT NULL,
+  CollegeID INT DEFAULT NULL,
   PRIMARY KEY (WorkletID),
   CONSTRAINT fk_worklet_status FOREIGN KEY (StatusID)
       REFERENCES status(StatusID)
       ON DELETE RESTRICT
+      ON UPDATE CASCADE,
+  CONSTRAINT fk_worklet_college FOREIGN KEY (CollegeID)
+      REFERENCES colleges(college_id)
+      ON DELETE SET NULL
       ON UPDATE CASCADE
 ) ENGINE=InnoDB 
   AUTO_INCREMENT=2430 
   DEFAULT CHARSET=utf8mb4 
   COLLATE=utf8mb4_0900_ai_ci;
-
-
 
 -- ========================
 -- 4. User ↔ Worklet Association

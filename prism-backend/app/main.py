@@ -47,28 +47,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 def read_root():
     return {"message": "Welcome to Samsung Prism Backend!"}
 
-# Completed worklets endpoint (needs to be at root level for frontend compatibility)
-@app.get("/completed-worklets")
-def get_completed_worklets_root(db: Session = Depends(get_db)):
-    from app.models import Worklet
-    # Get all completed worklets (status_id == 2 in new mapping)
-    completed_worklets = db.query(Worklet).filter(getattr(Worklet, 'status_id') == 2).all()
-    
-    # Convert to dict format
-    worklets_data = []
-    for worklet in completed_worklets:
-        worklets_data.append({
-            "id": worklet.id,
-            "cert_id": worklet.cert_id,
-            "title": worklet.title,
-            "description": getattr(worklet, "problem_statement", None),
-            "status": "Completed",
-            "domain": worklet.domain,
-            "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
-            "end_date": worklet.end_date.isoformat() if worklet.end_date else None
-        })
-    
-    return worklets_data
+# Removed unused root-level completed worklets endpoint
 
 # Custom middleware for request timing and logging
 @app.middleware("http")
