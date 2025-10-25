@@ -154,7 +154,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
 
       const response = await apiClient.post('/worklets/submit-feedback', feedbackData);
 
-      console.log("Feedback submitted successfully:", response.data);
+      ;
       
       // Reset form
       setSelectedWorklet("");

@@ -216,29 +216,54 @@ class Achievement(Base):
     type = Column(SAEnum("Award", "Recognition", "Other", name="achievement_type_enum"), nullable=False, server_default="Other")
     link = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    
+    # Relationship to worklet
+    worklet = relationship("Worklet", foreign_keys=[worklet_id], primaryjoin="Achievement.worklet_id==Worklet.id")
+    
+    # Computed property for cert_id
+    @property
+    def cert_id(self):
+        return self.worklet.cert_id if self.worklet else None
 
 class Paper(Base):
     __tablename__ = "papers"
     id = Column("paper_id", Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False)
     publication_year = Column(Integer, nullable=True)
     journal = Column(String(255), nullable=True)
     doi = Column(String(255), nullable=True)
     link = Column(String(255), nullable=True)
-    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    
+    # Relationship to worklet
+    worklet = relationship("Worklet", foreign_keys=[worklet_id], primaryjoin="Paper.worklet_id==Worklet.id")
+    
+    # Computed property for cert_id
+    @property
+    def cert_id(self):
+        return self.worklet.cert_id if self.worklet else None
 
 class Patent(Base):
     __tablename__ = "patents"
     id = Column("patent_id", Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False)
     application_number = Column(String(100), nullable=True)
     filing_year = Column(Integer, nullable=True)
     status = Column(SAEnum("Filed", "Granted", "Published", name="patent_status_enum"), nullable=False, server_default="Filed")
     link = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    
+    # Relationship to worklet
+    worklet = relationship("Worklet", foreign_keys=[worklet_id], primaryjoin="Patent.worklet_id==Worklet.id")
+    
+    # Computed property for cert_id
+    @property
+    def cert_id(self):
+        return self.worklet.cert_id if self.worklet else None
 
 class Commercialization(Base):
     __tablename__ = "commercializations"
@@ -251,4 +276,12 @@ class Commercialization(Base):
     description = Column(Text, nullable=True)
     link = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    
+    # Relationship to worklet
+    worklet = relationship("Worklet", foreign_keys=[worklet_id], primaryjoin="Commercialization.worklet_id==Worklet.id")
+    
+    # Computed property for cert_id
+    @property
+    def cert_id(self):
+        return self.worklet.cert_id if self.worklet else None
 

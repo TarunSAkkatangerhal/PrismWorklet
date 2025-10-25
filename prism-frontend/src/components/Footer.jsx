@@ -44,7 +44,7 @@ const Footer = () => {
                     onClick={() => {
                       if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
                         // Add delete account logic here
-                        console.log('Delete account requested');
+                        ;
                       }
                     }}
                     className="text-blue-100 hover:text-white transition-colors duration-200"

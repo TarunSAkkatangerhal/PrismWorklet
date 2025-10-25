@@ -353,16 +353,11 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
       if (selectedWorklet) {
         formData.append('worklet_cert_id', selectedWorklet.cert_id)
         formData.append('worklet_id', selectedWorklet.id) // Also send the worklet ID
-        console.log('Sending worklet data (paper):', { 
-          worklet_id: selectedWorklet.id, 
-          worklet_cert_id: selectedWorklet.cert_id 
-        })
       }
     }
     
     try {
       const newPaper = await submitPortfolioItem('papers', formData)
-      console.log('Backend response (paper):', newPaper)
       
       // Add worklet information to the new paper object
       if (data.worklet_id) {
@@ -595,16 +590,11 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
       if (selectedWorklet) {
         formData.append('worklet_cert_id', selectedWorklet.cert_id)
         formData.append('worklet_id', selectedWorklet.id) // Also send the worklet ID
-        console.log('Sending worklet data (patent):', { 
-          worklet_id: selectedWorklet.id, 
-          worklet_cert_id: selectedWorklet.cert_id 
-        })
       }
     }
 
     try {
       const newPatent = await submitPortfolioItem('patents', formData)
-      console.log('Backend response (patent):', newPatent)
       
       // Add worklet information to the new patent object
       if (data.worklet_id) {
@@ -780,7 +770,7 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
     }
     try {
       const newRecord = await submitPortfolioItem('commercializations', formData)
-      console.log('Backend response:', newRecord)
+      
       
       // Add worklet information to the new commercialization object
       if (data.worklet_id) {

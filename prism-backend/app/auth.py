@@ -105,6 +105,8 @@ def require_access_token(token: str) -> dict:
 
 # --- OTP Temp Store (Redis-backed, fallback to in-memory) ---
 import json
+import logging
+logger = logging.getLogger(__name__)
 temp_otps = {}
 
 def _norm_email_key(email: str) -> str:
@@ -401,7 +403,7 @@ async def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_
             "created_at": user.created_at
         }
     except Exception as e:
-        print(f"Error in /me endpoint: {str(e)}")  # Debug log
+        logger.info(f"Error in /me endpoint: {str(e)}")  # Debug log
         raise
 
 # 8. Get User Profile (dedicated endpoint)
@@ -447,7 +449,7 @@ async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = De
         return response
         
     except Exception as e:
-        print(f"Error in /profile endpoint: {str(e)}")
+        logger.info(f"Error in /profile endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # 9. Update Current User Profile
@@ -522,6 +524,6 @@ async def update_my_profile(
             }
         }
     except Exception as e:
-        print(f"Error in profile update endpoint: {str(e)}")  # Debug log
+        logger.info(f"Error in profile update endpoint: {str(e)}")  # Debug log
         raise HTTPException(status_code=500, detail="Internal server error")
 #push
