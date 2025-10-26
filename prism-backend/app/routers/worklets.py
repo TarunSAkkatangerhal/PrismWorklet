@@ -25,6 +25,8 @@ def _get_students_for_worklet(db: Session, worklet_id: int):
 
 router = APIRouter()
 
+# Support both trailing-slash and no-slash for root collection routes
+@router.post("", response_model=WorkletResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=WorkletResponse, status_code=status.HTTP_201_CREATED)
 def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     # Map input to Prism_Worklet columns
@@ -80,6 +82,7 @@ def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme
     db.refresh(worklet)
     return worklet
 
+@router.get("", response_model=List[WorkletResponse], include_in_schema=False)
 @router.get("/", response_model=List[WorkletResponse])
 def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
     """List worklets from the new DB shape with optional year filtering.
@@ -187,6 +190,7 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             'student_count': student_count,
             'github_repo_url': github_url,
             'github_repo': repo_name,
+            'quality': getattr(w, 'Performance', None)
         })
     return response
 
@@ -346,14 +350,8 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
     status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
     status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
 
-    if status_text == "Completed":
-        quality = "Excellence"
-    elif percentage_completion >= 70:
-        quality = "Excellence"
-    elif percentage_completion >= 30:
-        quality = "Good"
-    else:
-        quality = "Needs Attention"
+    # Use Performance column for quality badge, omit if None
+    quality = worklet.Performance if getattr(worklet, 'Performance', None) else None
 
     # Collect students (names + emails) if associations exist
     student_records = _get_students_for_worklet(db, worklet.id)
@@ -395,7 +393,7 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
 
     return {
         "id": worklet.id,
-    "cert_id": str(worklet.cert_id) if getattr(worklet, 'cert_id', None) is not None else str(worklet.id),
+        "cert_id": str(worklet.cert_id) if getattr(worklet, 'cert_id', None) is not None else str(worklet.id),
         "title": worklet.title,
         "description": getattr(worklet, "problem_statement", None),
         "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
@@ -521,14 +519,9 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
 
             status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
             status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
-            if status_text == "Completed":
-                quality = "Excellence"
-            elif percentage_completion >= 70:
-                quality = "Excellence"
-            elif percentage_completion >= 30:
-                quality = "Good"
-            else:
-                quality = "Needs Attention"
+            
+            # Use Performance column for quality badge
+            quality = worklet.Performance if getattr(worklet, 'Performance', None) else None
 
             # Derive GitHub repo info if available
             github_url = getattr(worklet, 'github_url', None)
@@ -588,32 +581,6 @@ def get_students_for_worklet_flexible(worklet_identifier: str, db: Session = Dep
         raise HTTPException(status_code=404, detail="Worklet not found")
 
     # Gather students via association
-    students = (
-        db.query(User)
-        .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
-        .filter(
-            UserWorkletAssociation.worklet_id == worklet.id,
-            UserWorkletAssociation.role_in_worklet == "Student",
-        )
-        .all()
-    )
-    return [
-        {
-            "id": s.id,
-            "name": s.name,
-            "email": s.email,
-            "college": s.college,
-        }
-        for s in students
-        if s.email
-    ]
-
-@router.get("/cert/{cert_id}/students")
-def get_students_for_worklet_by_cert_id(cert_id: str, db: Session = Depends(get_db)):
-    """Return student associations given a cert_id."""
-    worklet = db.query(Worklet).filter(Worklet.cert_id == cert_id).first()
-    if not worklet:
-        raise HTTPException(status_code=404, detail="Worklet not found")
     students = (
         db.query(User)
         .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
@@ -722,48 +689,13 @@ def submit_feedback(feedback_data: FeedbackSchema, db: Session = Depends(get_db)
         "timestamp": datetime.now().isoformat(),
     }
 
-# ----------------- Submit Suggestion -----------------
-class SuggestionSchema(BaseModel):
-    worklet_id: int
-    suggestion_title: str
-    suggestion_content: str
-
-@router.post("/submit-suggestion")
-def submit_suggestion(suggestion_data: SuggestionSchema, db: Session = Depends(get_db)):
-    # Check if worklet exists
-    worklet = db.query(Worklet).filter(Worklet.id == suggestion_data.worklet_id).first()
-    if not worklet:
-        raise HTTPException(status_code=404, detail="Worklet not found")
-    
-    # Fetch dynamic students
-    student_records = _get_students_for_worklet(db, worklet.id)
-    student_emails = [s["email"] for s in student_records]
-
-    email_sent = False
-    if student_emails:
-        email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
-        email_message = (
-            f"A mentor has shared a suggestion for your worklet.\n\n"
-            f"Title: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
-        )
-        email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
-
-    return {
-        "message": "Suggestion submitted successfully",
-        "suggestion_data": suggestion_data.dict(),
-        "email_sent": email_sent,
-        "students_notified": len(student_emails),
-        "student_emails": student_emails,
-        "timestamp": datetime.now().isoformat(),
-    }
-
-# Flexible suggestion endpoint that accepts cert_id
+# Flexible suggestion endpoint that accepts cert_id or numeric ID
 class SuggestionSchemaFlexible(BaseModel):
     worklet_identifier: str  # Can be either integer ID or cert_id string
     suggestion_title: str
     suggestion_content: str
 
-@router.post("/submit-suggestion-flexible")
+@router.post("/submit-suggestion")
 def submit_suggestion_flexible(suggestion_data: SuggestionSchemaFlexible, db: Session = Depends(get_db)):
     """
     Submit suggestion for worklet by either integer ID or cert_id string

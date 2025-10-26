@@ -94,26 +94,3 @@ app.include_router(college.router)
 from fastapi import Depends
 from app.auth import oauth2_scheme
 from sqlalchemy.orm import Session
-
-@app.get("/api/worklets", tags=["worklets"])
-def list_worklets_alias(db: Session = Depends(get_db)):
-    # Delegate to the existing list_worklets handler for consistency
-    return worklets.list_worklets(db=db)
-
-@app.get("/api/worklets/student/me", tags=["worklets"])
-def student_worklets_me_alias(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    return worklets.get_student_worklets_me(token=token, db=db)
-
-# Startup and shutdown events
-@app.on_event("startup")
-async def startup_event():
-    # Auto-create tables if not present
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        print(f"DB init error: {e}")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    # You could cleanup connections here
-    pass
