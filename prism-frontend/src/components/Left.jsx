@@ -150,8 +150,8 @@ const LeftSidebar = () => {
                                                                             />
                                                                         </div>
                                                                         <div className="flex flex-col gap-[1vh] items-center bg-white/60 dark:bg-slate-800/60 rounded-xl py-[0.7vh] shadow-sm border border-slate-200 dark:border-slate-700 w-[90%] mx-auto">
-                                                                            <SidebarItem icon={<BarChart size={20} />} label="Dashboard" onClick={() => navigate('/statistics')} />
-                                                                            <SidebarItem icon={<GraduationCap size={20} />} label="Academia" onClick={() => navigate('/colleges')} />
+                                                                            <SidebarItem icon={<BarChart size={20} />} label="Dashboard" onClick={() => navigate('/Dashboard')} />
+                                                                            <SidebarItem icon={<GraduationCap size={20} />} label="Academia" onClick={() => navigate('/academia')} />
                                                                         </div>
                                                                         {/* Bottom separator for Dashboard/Academia group */}
                                                                         <div className="w-[75%] mx-auto my-[1.2vh]">

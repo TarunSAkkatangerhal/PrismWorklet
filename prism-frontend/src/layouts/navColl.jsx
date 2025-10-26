@@ -302,7 +302,7 @@ const NavColl = () => {
   const handleGoBack = () => {
     // Preserve selected college when navigating back
     const collegeNameToKeep = selectedCollege || searchTerm || ''
-    navigate('/colleges', { state: { collegeName: collegeNameToKeep } })
+    navigate('/academia', { state: { collegeName: collegeNameToKeep } })
   }
 
   const getFilterStats = () => {
