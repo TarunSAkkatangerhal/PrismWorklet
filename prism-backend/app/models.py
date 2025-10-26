@@ -139,6 +139,7 @@ class Worklet(Base):
     # Relationships
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")
     college_rel = relationship("College", primaryjoin="Worklet.college_id==College.college_id", uselist=False)
+    suggestions = relationship("Suggestion", back_populates="worklet", cascade="all, delete-orphan")
 
     # Convenience properties to keep API compatibility
     @property
@@ -285,3 +286,35 @@ class Commercialization(Base):
     def cert_id(self):
         return self.worklet.cert_id if self.worklet else None
 
+
+# Suggestions table
+class Suggestion(Base):
+    __tablename__ = "Prism_Suggestion"
+
+    suggestion_id = Column(Integer, primary_key=True, autoincrement=True)
+    worklet_id = Column(Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=False)
+    mentor_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    suggestion_title = Column(String(100), nullable=False)
+    suggestion_content = Column(Text, nullable=False)
+    category = Column(String(50), default="General")
+    priority = Column(SAEnum("low", "medium", "high", name="priority_enum"), default="medium")
+    is_read = Column(Boolean, default=False, nullable=False)
+    is_helpful = Column(Boolean, nullable=True)
+    student_response = Column(Text, nullable=True)
+    response_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    worklet = relationship("Worklet", back_populates="suggestions")
+    mentor = relationship("User", foreign_keys=[mentor_id])
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_worklet_id', 'worklet_id'),
+        Index('idx_mentor_id', 'mentor_id'),
+        Index('idx_created_at', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<Suggestion(suggestion_id={self.suggestion_id}, worklet_id={self.worklet_id}, title='{self.suggestion_title}')>"

@@ -21,10 +21,18 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
-    if (!preSelectedWorklet) return;
-    const identifier = preSelectedWorklet.cert_id || preSelectedWorklet.id;
-    setSelectedWorklet(identifier);
-  }, [preSelectedWorklet]);
+    console.log('useEffect triggered - workletId:', workletId, 'preSelectedWorklet:', preSelectedWorklet);
+    if (workletId) {
+      // If workletId prop is provided, use it directly (it's the numeric ID)
+      console.log('Setting selectedWorklet from workletId:', workletId);
+      setSelectedWorklet(workletId);
+    } else if (preSelectedWorklet) {
+      // Fallback to preSelectedWorklet
+      const identifier = preSelectedWorklet.id || preSelectedWorklet.cert_id;
+      console.log('Setting selectedWorklet from preSelectedWorklet:', identifier);
+      setSelectedWorklet(identifier);
+    }
+  }, [workletId, preSelectedWorklet]);
 
   const fetchWorklets = async () => {
     try {
@@ -75,13 +83,21 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
   };
 
   const handleSubmit = async () => {
+    console.log('=== SUBMIT DEBUG ===');
+    console.log('selectedWorklet:', selectedWorklet);
+    console.log('suggestionTitle:', suggestionTitle);
+    console.log('autoMode:', autoMode);
+    console.log('worklets length:', worklets.length);
+    
     if (!selectedWorklet) {
+      console.log('ERROR: No worklet selected');
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
     }
 
     if (!suggestionTitle.trim() || !suggestionContent.trim()) {
+      console.log('ERROR: Missing title or content');
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
@@ -91,14 +107,52 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
       setLoading(true);
       const token = localStorage.getItem("access_token");
 
+      console.log('selectedWorklet value:', selectedWorklet, 'type:', typeof selectedWorklet);
+
+      // Determine the worklet_id
+      let worklet_id = null;
+      
+      // If selectedWorklet is already a number, use it directly
+      if (typeof selectedWorklet === 'number') {
+        worklet_id = selectedWorklet;
+      }
+      // If it's a string and can be parsed as a number, use it
+      else if (typeof selectedWorklet === 'string' && !isNaN(parseInt(selectedWorklet)) && parseInt(selectedWorklet).toString() === selectedWorklet) {
+        worklet_id = parseInt(selectedWorklet);
+      }
+      // If it's a string (cert_id like "CERT-2025-XXX" or "W001"), fetch worklet by cert_id
+      else if (typeof selectedWorklet === 'string' && selectedWorklet.trim()) {
+        try {
+          const workletResp = await axios.get(`http://localhost:8000/worklets/${selectedWorklet}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          worklet_id = workletResp.data.id;
+          console.log('Fetched worklet_id from cert_id:', worklet_id);
+        } catch (err) {
+          console.error('Failed to fetch worklet by cert_id:', err);
+          throw new Error('Invalid worklet identifier');
+        }
+      }
+
+      if (!worklet_id || isNaN(worklet_id)) {
+        throw new Error('Invalid worklet identifier');
+      }
+
+      console.log('Final worklet_id:', worklet_id);
+
+      // Create suggestion in database
       const suggestionData = {
-        worklet_identifier: selectedWorklet,  // Now using cert_id string instead of integer
+        worklet_id: worklet_id,
         suggestion_title: suggestionTitle.trim(),
-        suggestion_content: suggestionContent.trim()
+        suggestion_content: suggestionContent.trim(),
+        category: "General",  // You can add a category field if needed
+        priority: "medium"    // You can add a priority field if needed
       };
 
+      console.log('Submitting suggestion data:', suggestionData);
+
       const response = await axios.post(
-        "http://localhost:8000/worklets/submit-suggestion-flexible",
+        "http://localhost:8000/suggestions/",
         suggestionData,
         {
           headers: { 
@@ -108,7 +162,7 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         }
       );
 
-      ;
+      console.log('Suggestion saved successfully:', response.data);
       
       // Reset form
       setSelectedWorklet("");
@@ -124,6 +178,8 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
 
     } catch (error) {
       console.error("Error submitting suggestion:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
       setShowErrorPopup(true);
       setTimeout(() => setShowErrorPopup(false), 3000);
     } finally {
