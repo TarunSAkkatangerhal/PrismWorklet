@@ -8,6 +8,8 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from app.core.email_utils import send_activity_email
 from app.auth import oauth2_scheme, require_access_token
+import logging
+logger = logging.getLogger(__name__)
 
 # Helper utility to collect student recipients for a worklet
 def _get_students_for_worklet(db: Session, worklet_id: int):
@@ -304,7 +306,7 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching student worklets: {e}")
+        logger.info(f"Error fetching student worklets: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{worklet_identifier}")
@@ -570,7 +572,7 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
             "total_mentees": len(mentee_set)
         }
     except Exception as e:
-        print(f"Error fetching mentor worklets: {e}")
+        logger.info(f"Error fetching mentor worklets: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # ----------------- Students for Worklet -----------------

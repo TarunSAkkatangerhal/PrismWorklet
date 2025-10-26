@@ -94,6 +94,8 @@ app.include_router(college.router)
 from fastapi import Depends
 from app.auth import oauth2_scheme
 from sqlalchemy.orm import Session
+import logging
+logger = logging.getLogger(__name__)
 
 @app.get("/api/worklets", tags=["worklets"])
 def list_worklets_alias(db: Session = Depends(get_db)):
@@ -111,7 +113,7 @@ async def startup_event():
     try:
         Base.metadata.create_all(bind=engine)
     except Exception as e:
-        print(f"DB init error: {e}")
+        logger.info(f"DB init error: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():

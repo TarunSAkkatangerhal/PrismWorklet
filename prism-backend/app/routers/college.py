@@ -14,34 +14,15 @@ router = APIRouter(
 
 # Get all colleges with summary stats
 def get_college_stats(college: College, db: Session):
-    """Compute per-college stats with priority to Worklet.CollegeID.
-    Falls back to user associations if Worklet.CollegeID is not set.
+    """Compute per-college stats based ONLY on Worklet.college_id.
+    This ensures each worklet is counted in exactly one college.
     """
-    # 1) Direct mapping via Worklet.college_id
-    direct_ids = [
-        r[0]
-        for r in db.query(Worklet.id)
-        .filter(Worklet.college_id == college.college_id)
-        .all()
-    ]
-
-    # 2) Additional worklets inferred via student associations (union)
-    assoc_ids = [
-        r[0]
-        for r in db.query(UserWorkletAssociation.worklet_id)
-        .join(User, User.id == UserWorkletAssociation.user_id)
-        .filter(User.college_id == college.college_id)
-        .distinct()
-        .all()
-    ]
-
-    worklet_id_set = set(direct_ids) | set(assoc_ids)
+    # Count worklets only by direct college_id assignment
+    # Do NOT use student associations to avoid double-counting
     worklets = (
         db.query(Worklet)
-        .filter(Worklet.id.in_(worklet_id_set))
+        .filter(Worklet.college_id == college.college_id)
         .all()
-        if worklet_id_set
-        else []
     )
     stats = {
         "workletCount": len(worklets),
@@ -62,6 +43,7 @@ def get_college_stats(college: College, db: Session):
         ).scalar()
         
         if avg_score is not None:
+            # Use evaluation score to determine performance
             if avg_score >= 85:
                 stats["excellentCount"] += 1
             elif avg_score >= 70:
@@ -69,8 +51,25 @@ def get_college_stats(college: College, db: Session):
             else:
                 stats["needsAttentionCount"] += 1
         else:
-            # If no evaluations exist, consider it needs attention
-            stats["needsAttentionCount"] += 1
+            # No evaluations - use progress and status instead
+            progress = getattr(w, 'worklet_progress', 0) or 0
+            status_id = getattr(w, 'status_id', None)
+            
+            # If completed, consider it good by default
+            if status_id == 2:  # Completed
+                stats["goodCount"] += 1
+            # If ongoing with good progress (>= 70%), consider excellent
+            elif status_id == 1 and progress >= 70:
+                stats["excellentCount"] += 1
+            # If ongoing with moderate progress (>= 40%), consider good
+            elif status_id == 1 and progress >= 40:
+                stats["goodCount"] += 1
+            # If on hold, dropped, or low progress, needs attention
+            elif status_id in [3, 4] or progress < 40:
+                stats["needsAttentionCount"] += 1
+            # Default case (To Start, etc.)
+            else:
+                stats["goodCount"] += 1
             
         # Count worklets by status (new mapping)
         status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}

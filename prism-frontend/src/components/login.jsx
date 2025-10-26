@@ -121,7 +121,7 @@ export default function Login() {
     }
     
     // Temporary debug log
-    console.log("Password validation:", { password, isValid, feedback, missingReqs });
+    ;
     
     return {
       isValid,

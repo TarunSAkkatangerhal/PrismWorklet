@@ -49,6 +49,18 @@ CREATE TABLE user_profiles (
   CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id)
     REFERENCES users(user_id) ON DELETE CASCADE
 );
+
+-- ========================
+-- 3a. Status Table
+-- ========================
+CREATE TABLE status (
+  StatusID INT PRIMARY KEY,
+  StatusName VARCHAR(50) NOT NULL
+);
+
+-- ========================
+-- 4. Worklets
+-- ========================
 CREATE TABLE Prism_Worklet (
   WorkletID INT NOT NULL AUTO_INCREMENT,
   Title LONGTEXT NOT NULL,
@@ -122,7 +134,7 @@ CREATE TABLE user_worklet_association (
 );
 
 -- ========================
--- 5. Evaluations
+-- 6. Evaluations
 -- ========================
 CREATE TABLE evaluations (
   evaluation_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -138,7 +150,7 @@ CREATE TABLE evaluations (
 );
 
 -- ========================
--- 6. Achievements
+-- 7. Achievements
 -- ========================
 CREATE TABLE achievements (
   achievement_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -157,7 +169,7 @@ CREATE TABLE achievements (
 );
 
 -- ========================
--- 7. Papers
+-- 8. Papers
 -- ========================
 CREATE TABLE papers (
   paper_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -176,7 +188,7 @@ CREATE TABLE papers (
 );
 
 -- ========================
--- 8. Patents
+-- 9. Patents
 -- ========================
 CREATE TABLE patents (
   patent_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -195,7 +207,7 @@ CREATE TABLE patents (
 );
 
 -- ========================
--- 9. Commercializations
+-- 10. Commercializations
 -- ========================
 CREATE TABLE commercializations (
   commercialization_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -213,12 +225,8 @@ CREATE TABLE commercializations (
     REFERENCES Prism_Worklet(WorkletID) ON DELETE SET NULL
 );
 
-CREATE TABLE status (
-  StatusID INT PRIMARY KEY,
-  StatusName VARCHAR(50) NOT NULL
-);
 -- ========================
--- 10. Helpful Indexes
+-- 11. Helpful Indexes
 -- ========================
 CREATE UNIQUE INDEX ix_user_email ON users(email);
 CREATE UNIQUE INDEX ix_prism_cert_id ON Prism_Worklet(CertID);

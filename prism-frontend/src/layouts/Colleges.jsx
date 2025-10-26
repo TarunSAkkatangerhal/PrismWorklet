@@ -158,23 +158,13 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
 const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
   const performanceData = useMemo(() => {
     if (!data || data.length === 0) return []
-    // If a single college is selected and detailed worklets are loaded, derive performance from worklet progress/status
-    if (data.length === 1 && Array.isArray(data[0].worklets) && data[0].worklets.length > 0) {
-      const worklets = data[0].worklets
-      const statusOf = (w) => (w.progressStatus || w.status || '').trim()
-      const totalExcellent = worklets.filter((w) => statusOf(w) === 'Completed').length
-      const totalGood = worklets.filter((w) => statusOf(w) === 'Ongoing').length
-      const totalNeedsAttention = worklets.filter((w) => ['On Hold', 'Terminated'].includes(statusOf(w))).length
-      return [
-        { name: 'Excellent', value: totalExcellent },
-        { name: 'Good', value: totalGood },
-        { name: 'Needs Attention', value: totalNeedsAttention },
-      ].filter((item) => item.value > 0)
-    }
-    // Multi-college (or no detailed worklets) – derive from per-college status counts
-    const totalExcellent = data.reduce((sum, college) => sum + (college.completedCount || 0), 0)
-    const totalGood = data.reduce((sum, college) => sum + (college.ongoingCount || 0), 0)
-    const totalNeedsAttention = data.reduce((sum, college) => sum + ((college.onHoldCount || 0) + (college.terminatedCount || 0)), 0)
+    
+    // Use backend-provided performance counts (excellentCount, goodCount, needsAttentionCount)
+    // These are calculated based on evaluation scores and progress metrics
+    const totalExcellent = data.reduce((sum, college) => sum + (college.excellentCount || 0), 0)
+    const totalGood = data.reduce((sum, college) => sum + (college.goodCount || 0), 0)
+    const totalNeedsAttention = data.reduce((sum, college) => sum + (college.needsAttentionCount || 0), 0)
+    
     return [
       { name: 'Excellent', value: totalExcellent },
       { name: 'Good', value: totalGood },
