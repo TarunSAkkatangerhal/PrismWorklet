@@ -108,7 +108,7 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         }
       );
 
-      console.log("Suggestion submitted successfully:", response.data);
+      ;
       
       // Reset form
       setSelectedWorklet("");

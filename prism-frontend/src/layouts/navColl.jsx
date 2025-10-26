@@ -143,14 +143,16 @@ const NavColl = () => {
 
         const collegeWorklets = workletsData
           .filter((worklet) => {
-            // Match by college_id when available, else by name
-            const byId = worklet.college_id !== undefined && worklet.college_id !== null
-              ? Number(worklet.college_id) === Number(cid)
-              : false
-            const byName = worklet.college && cname
-              ? String(worklet.college).trim() === String(cname).trim()
-              : false
-            return byId || byName
+            // Match ONLY by college_id to align with backend logic
+            // Backend counts worklets only where Worklet.college_id matches
+            if (worklet.college_id !== undefined && worklet.college_id !== null) {
+              return Number(worklet.college_id) === Number(cid)
+            }
+            // Fallback: if college_id is not set, try matching by name
+            if (worklet.college && cname) {
+              return String(worklet.college).trim().toLowerCase() === String(cname).trim().toLowerCase()
+            }
+            return false
           })
           .map((worklet) => ({
             ...worklet,
@@ -223,12 +225,12 @@ const NavColl = () => {
 
     // Worklets list based on filter
     const allowedStatuses = {
-      total: ['Ongoing', 'Completed', 'On Hold', 'Terminated', 'Dropped'],
-      ongoing: ['Ongoing'],
+      total: ['To Start', 'Ongoing', 'Completed', 'On Hold', 'Terminated', 'Dropped'],
+      ongoing: ['To Start', 'Ongoing'], // Include "To Start" as it's considered ongoing
       completed: ['Completed'],
       onhold: ['On Hold'],
       terminated: ['Terminated', 'Dropped']
-    }[activeFilter] || ['Ongoing', 'Completed', 'On Hold', 'Terminated', 'Dropped']
+    }[activeFilter] || ['To Start', 'Ongoing', 'Completed', 'On Hold', 'Terminated', 'Dropped']
 
     colleges.forEach((college) => {
       if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
@@ -300,7 +302,7 @@ const NavColl = () => {
   const handleGoBack = () => {
     // Preserve selected college when navigating back
     const collegeNameToKeep = selectedCollege || searchTerm || ''
-    navigate('/colleges', { state: { collegeName: collegeNameToKeep } })
+    navigate('/academia', { state: { collegeName: collegeNameToKeep } })
   }
 
   const getFilterStats = () => {

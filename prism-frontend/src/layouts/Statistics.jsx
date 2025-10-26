@@ -372,7 +372,7 @@ const ModernStatisticsDashboard = () => {
         const domainsRes = await secureAPI.get(`/api/dashboard/domains${domainsParams.toString() ? `?${domainsParams.toString()}` : ''}`)
         domains = domainsRes?.data?.domains || []
       } catch (domainError) {
-        console.log('Domains endpoint not available, using default domains')
+        if (process.env.NODE_ENV === 'development') console.log('Domains endpoint not available, using default domains')
         domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
       }
 
@@ -385,7 +385,7 @@ const ModernStatisticsDashboard = () => {
         const teamsRes = await secureAPI.get(`/api/dashboard/teams${teamsParams.toString() ? `?${teamsParams.toString()}` : ''}`)
         teams = teamsRes?.data?.teams || []
       } catch (teamError) {
-        console.log('Teams endpoint not available, using default teams')
+        if (process.env.NODE_ENV === 'development') console.log('Teams endpoint not available, using default teams')
         teams = ['Vision', 'Innovation', 'Research', 'Development', 'Analytics', 'Design']
       }        const totals = totalsRes?.data || {}
         const monthly = monthlyRes?.data?.monthly || []
@@ -456,7 +456,7 @@ const ModernStatisticsDashboard = () => {
           setFilters((prev) => ({ ...prev, domain: 'All' }))
         }
       } catch (error) {
-        console.log('Failed to fetch domains, using default domains')
+        if (process.env.NODE_ENV === 'development') console.log('Failed to fetch domains, using default domains')
         const defaultDomains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
         setOptions((prev) => ({ ...prev, domains: defaultDomains }))
       }
@@ -477,7 +477,7 @@ const ModernStatisticsDashboard = () => {
           setFilters((prev) => ({ ...prev, team: 'All' }))
         }
       } catch (error) {
-        console.log('Failed to fetch teams, using default teams')
+        if (process.env.NODE_ENV === 'development') console.log('Failed to fetch teams, using default teams')
         const defaultTeams = ['Vision', 'Innovation', 'Research', 'Development', 'Analytics', 'Design']
         setOptions((prev) => ({ ...prev, teams: defaultTeams }))
       }
@@ -578,7 +578,7 @@ const ModernStatisticsDashboard = () => {
         const domainsRes = await secureAPI.get('/api/dashboard/domains')
         domains = domainsRes?.data?.domains || []
       } catch (domainError) {
-        console.log('Domains endpoint not available, using default domains')
+        if (process.env.NODE_ENV === 'development') console.log('Domains endpoint not available, using default domains')
         domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
       }
 
@@ -590,7 +590,7 @@ const ModernStatisticsDashboard = () => {
         const domainsRes = await secureAPI.get(`/api/dashboard/domains${domainsParams.toString() ? `?${domainsParams.toString()}` : ''}`)
         domains = domainsRes?.data?.domains || []
       } catch (domainError) {
-        console.log('Domains endpoint not available, using default domains')
+        if (process.env.NODE_ENV === 'development') console.log('Domains endpoint not available, using default domains')
         domains = ['Computer Science', 'Engineering', 'Data Science', 'AI/ML', 'Cybersecurity']
       }
 
@@ -603,7 +603,7 @@ const ModernStatisticsDashboard = () => {
         const teamsRes = await secureAPI.get(`/api/dashboard/teams${teamsParams.toString() ? `?${teamsParams.toString()}` : ''}`)
         teams = teamsRes?.data?.teams || []
       } catch (teamError) {
-        console.log('Teams endpoint not available, using default teams')
+        if (process.env.NODE_ENV === 'development') console.log('Teams endpoint not available, using default teams')
         teams = ['Vision', 'Innovation', 'Research', 'Development', 'Analytics', 'Design']
       }
 

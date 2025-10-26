@@ -48,7 +48,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [role, setRole] = useState("student"); // default role
-  const simulatedOtp = "123456"; // placeholder (not used)
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [showForgotLink, setShowForgotLink] = useState(false); // show only after failed login
   
   // OTP Timer states
@@ -121,7 +121,7 @@ export default function Login() {
     }
     
     // Temporary debug log
-    console.log("Password validation:", { password, isValid, feedback, missingReqs });
+    ;
     
     return {
       isValid,
@@ -257,6 +257,7 @@ export default function Login() {
     
     // Clear old OTP and enable verify button for resend
     setOtpInput("");
+    setOtp(['', '', '', '', '', '']);
     setIsVerifyOtpDisabled(false);
     
     try {
@@ -273,20 +274,72 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+  const handleOtpChange = (index, value) => {
+    if (value.length <= 1 && /^\d*$/.test(value)) {
+      const newOtp = [...otp];
+      newOtp[index] = value;
+      setOtp(newOtp);
+      
+      // Auto-focus next input
+      if (value && index < 5) {
+        document.getElementById(`otp-${index + 1}`)?.focus();
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      document.getElementById(`otp-${index - 1}`)?.focus();
+    }
+    
+    // Allow arrow key navigation
+    if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      document.getElementById(`otp-${index - 1}`)?.focus();
+    }
+    if (e.key === 'ArrowRight' && index < 5) {
+      e.preventDefault();
+      document.getElementById(`otp-${index + 1}`)?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const paste = e.clipboardData.getData('text');
+    const digits = paste.replace(/\D/g, '').slice(0, 6).split('');
+    
+    if (digits.length > 0) {
+      const newOtp = [...otp];
+      digits.forEach((digit, index) => {
+        if (index < 6) {
+          newOtp[index] = digit;
+        }
+      });
+      setOtp(newOtp);
+      
+      // Focus the next empty field or the last filled field
+      const nextEmptyIndex = newOtp.findIndex(digit => digit === '');
+      const focusIndex = nextEmptyIndex === -1 ? 5 : Math.min(nextEmptyIndex, 5);
+      document.getElementById(`otp-${focusIndex}`)?.focus();
+    }
+  };
 
   const verifyOtp = async (e) => {
     e.preventDefault();
-    if (!email || !otpInput) {
-      showMessage("Please enter your email and OTP.");
+    
+    const otpString = otp.join('');
+    if (otpString.length !== 6) {
+      setMessage('Please enter all 6 digits');
       return;
     }
     
     // Disable verify OTP button
     setIsVerifyOtpDisabled(true);
     setIsLoading(true);
+
     
     try {
-      const response = await apiVerifyOtp(email, otpInput);
+      const response = await apiVerifyOtp(email, otpString);
       setOtpVerified(true);
       showMessage(response.message || "OTP verified successfully! Please set your password.");
     } catch (error) {
@@ -470,6 +523,11 @@ const handleSignup = async (e) => {
                 </div>
 
                 <div className="text-center mb-8">
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4 shadow-lg">
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                  </div>
                   <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Welcome Back</h2>
                   <p className="text-slate-600 dark:text-slate-400">
                     Sign in to your Samsung PRISM account
@@ -502,34 +560,46 @@ const handleSignup = async (e) => {
                     >
                       Email Address
                     </label>
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => {
-                        const newEmail = e.target.value.trim();
-                        setEmail(newEmail);
-                        setIsUsernameTyping(newEmail.length > 0);
-                        // Clear error when user starts typing
-                        if (emailError) setEmailError("");
-                      }}
-                      onFocus={() => setIsUsernameTyping(true)}
-                      onBlur={() => {
-                        setIsUsernameTyping(email.length > 0);
-                        // Validate on blur
-                        const error = validateEmail(email);
-                        setEmailError(error);
-                      }}
-                      className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        emailError 
-                          ? 'border-red-500 focus:ring-red-500' 
-                          : email && !emailError 
-                            ? 'border-green-500 focus:ring-green-500' 
-                            : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
-                      }`}
-                      placeholder="Enter your email"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        id="email"
+                        type="email"
+                        value={email}
+                        disabled={isLoading}
+                        onChange={(e) => {
+                          const newEmail = e.target.value.trim();
+                          setEmail(newEmail);
+                          setIsUsernameTyping(newEmail.length > 0);
+                          // Clear error when user starts typing
+                          if (emailError) setEmailError("");
+                        }}
+                        onFocus={() => setIsUsernameTyping(true)}
+                        onBlur={() => {
+                          setIsUsernameTyping(email.length > 0);
+                          // Validate on blur
+                          const error = validateEmail(email);
+                          setEmailError(error);
+                        }}
+                        className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                          isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${
+                          emailError 
+                            ? 'border-red-500 focus:ring-red-500' 
+                            : email && !emailError 
+                              ? 'border-green-500 focus:ring-green-500' 
+                              : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                        }`}
+                        placeholder="Enter your email"
+                        required
+                      />
+                      {email && !emailError && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                          <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                     {emailError && (
                       <p className="mt-1 text-sm text-red-500 flex items-center">
                         <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -548,25 +618,30 @@ const handleSignup = async (e) => {
                     >
                       Password
                     </label>
-                    <input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        // Clear error when user starts typing
-                        if (passwordError) setPasswordError("");
-                      }}
-                      onFocus={() => setIsPasswordFocused(true)}
-                      onBlur={() => setIsPasswordFocused(false)}
-                      className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        passwordError 
-                          ? 'border-red-500 focus:ring-red-500' 
-                          : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
-                      }`}
-                      placeholder="Enter your password"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type="password"
+                        value={password}
+                        disabled={isLoading}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          // Clear error when user starts typing
+                          if (passwordError) setPasswordError("");
+                        }}
+                        onFocus={() => setIsPasswordFocused(true)}
+                        onBlur={() => setIsPasswordFocused(false)}
+                        className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                          isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${
+                          passwordError 
+                            ? 'border-red-500 focus:ring-red-500' 
+                            : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                        }`}
+                        placeholder="Enter your password"
+                        required
+                      />
+                    </div>
                     {passwordError && (
                       <p className="mt-1 text-sm text-red-500 flex items-center">
                         <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -588,8 +663,11 @@ const handleSignup = async (e) => {
                     <select
                       id="role"
                       value={role}
+                      disabled={isLoading}
                       onChange={(e) => setRole(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                        isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                     >
                       {/* Values are lowercase for API scope; labels are capitalized */}
                       <option value="admin">Admin</option>
@@ -648,10 +726,35 @@ const handleSignup = async (e) => {
                   </p>
                 </div>
 
-                {/* Message Display */}
+                {/* Message Display with better styling */}
                 {message && (
-                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-blue-800 dark:text-blue-200 text-sm text-center">{message}</p>
+                  <div className={`mt-4 p-4 rounded-xl border-l-4 ${
+                    message.includes('successful') || message.includes('verified') || message.includes('✓')
+                      ? 'bg-green-50 border-green-400 text-green-800'
+                      : message.includes('error') || message.includes('failed') || message.includes('Invalid')
+                        ? 'bg-red-50 border-red-400 text-red-800'
+                        : 'bg-blue-50 border-blue-400 text-blue-800'
+                  }`}>
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        {message.includes('successful') || message.includes('verified') || message.includes('✓') ? (
+                          <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                          </svg>
+                        ) : message.includes('error') || message.includes('failed') || message.includes('Invalid') ? (
+                          <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium whitespace-pre-line">{message}</p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -750,8 +853,45 @@ const handleSignup = async (e) => {
                 </div>
 
                 <div className="text-center mb-8">
-                  <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Create an account</h2>
-                  <p className="text-slate-600 dark:text-slate-400">Sign up to access PRISM features</p>
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl mb-4 shadow-lg">
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                  </div>
+                  <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Create Account</h2>
+                  <p className="text-slate-600 dark:text-slate-400">Join Samsung PRISM to start your journey</p>
+                  
+                  {/* Progress Steps */}
+                  <div className="flex justify-center mt-6 mb-2">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                        !otpSent ? 'bg-blue-600 text-white' : 'bg-green-500 text-white'
+                      }`}>
+                        {!otpSent ? '1' : '✓'}
+                      </div>
+                      <div className={`w-12 h-1 rounded transition-colors ${
+                        otpSent ? 'bg-green-500' : 'bg-gray-200'
+                      }`}></div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                        otpSent && !otpVerified ? 'bg-blue-600 text-white' : otpVerified ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'
+                      }`}>
+                        {!otpSent ? '2' : !otpVerified ? '2' : '✓'}
+                      </div>
+                      <div className={`w-12 h-1 rounded transition-colors ${
+                        otpVerified ? 'bg-green-500' : 'bg-gray-200'
+                      }`}></div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                        otpVerified ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
+                      }`}>
+                        3
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-center text-xs text-gray-500 space-x-8">
+                    <span className={!otpSent ? 'text-blue-600 font-medium' : 'text-green-600'}>Details</span>
+                    <span className={otpSent && !otpVerified ? 'text-blue-600 font-medium' : otpVerified ? 'text-green-600' : ''}>Verify</span>
+                    <span className={otpVerified ? 'text-blue-600 font-medium' : ''}>Password</span>
+                  </div>
                 </div>
 
                 {/* Character Animation (same as login) */}
@@ -862,23 +1002,46 @@ const handleSignup = async (e) => {
                   {/* OTP Verification - only show after OTP is sent */}
                   {otpSent && !otpVerified && (
                     <>
-                      <div className="text-center mb-4">
+                      <div className="text-center mb-6">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">Check Your Email</h3>
                         <p className="text-slate-600 dark:text-slate-400">
-                          OTP sent to <span className="font-medium text-blue-600">{email}</span>
+                          We sent a 6-digit code to<br />
+                          <span className="font-medium text-blue-600">{email}</span>
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                          Enter the code below or paste it from your email
                         </p>
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Enter OTP</label>
-                        <input 
-                          type="text" 
-                          value={otpInput} 
-                          onChange={(e) => setOtpInput(e.target.value)} 
-                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-center text-2xl tracking-widest" 
-                          placeholder="123456"
-                          maxLength="6"
-                          required 
-                        />
+                      <div className="flex justify-center gap-3 mb-6">
+                        {otp.map((digit, index) => (
+                          <input
+                            key={index}
+                            id={`otp-${index}`}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength="1"
+                            value={digit}
+                            disabled={isLoading}
+                            onChange={(e) => handleOtpChange(index, e.target.value)}
+                            onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                            onPaste={handleOtpPaste}
+                            aria-label={`OTP digit ${index + 1}`}
+                            className={`w-14 h-14 text-center text-xl font-bold border-2 rounded-xl transition-all duration-200 focus:outline-none ${
+                              isLoading 
+                                ? 'opacity-50 cursor-not-allowed border-gray-300' 
+                                : digit 
+                                  ? 'border-blue-500 bg-blue-50 text-blue-700 focus:border-blue-600 focus:ring-2 focus:ring-blue-200' 
+                                  : 'border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 hover:border-gray-400'
+                            }`}
+                            placeholder="•"
+                          />
+                        ))}
                       </div>
                       
                       <button 
@@ -983,7 +1146,7 @@ const handleSignup = async (e) => {
 
                 <div className="mt-6 text-center">
                   <p className="text-slate-600 dark:text-slate-400">Already have an account?{' '}
-                    <button onClick={() => { setPage('login'); setOtpSent(false); setOtpInput(''); setOtpVerified(false); setMessage(''); }} className="text-blue-600 hover:text-blue-500 dark:text-blue-400">Login</button>
+                    <button onClick={() => { setPage('login'); setOtpSent(false); setOtpInput(''); setOtp(['', '', '', '', '', '']); setOtpVerified(false); setMessage(''); }} className="text-blue-600 hover:text-blue-500 dark:text-blue-400">Login</button>
                   </p>
                 </div>
               </div>

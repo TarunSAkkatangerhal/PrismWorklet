@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, R
 from fastapi.responses import JSONResponse
 import os
 import json
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from app.database import get_db
 from app.models import (
@@ -29,24 +29,28 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
     # MySQL doesn't support NULLS LAST syntax; emulate via COALESCE (treat NULL year as 0)
     achievements = (
         db.query(Achievement)
+        .options(joinedload(Achievement.worklet))
         .filter(Achievement.user_id == mentor_id)
         .order_by((Achievement.year.is_(None)).asc(), Achievement.year.desc(), Achievement.created_at.desc())
         .all()
     )
     papers = (
         db.query(Paper)
+        .options(joinedload(Paper.worklet))
         .filter(Paper.user_id == mentor_id)
         .order_by((Paper.publication_year.is_(None)).asc(), Paper.publication_year.desc(), Paper.created_at.desc())
         .all()
     )
     patents = (
         db.query(Patent)
+        .options(joinedload(Patent.worklet))
         .filter(Patent.user_id == mentor_id)
         .order_by((Patent.filing_year.is_(None)).asc(), Patent.filing_year.desc(), Patent.created_at.desc())
         .all()
     )
     commercializations = (
         db.query(Commercialization)
+        .options(joinedload(Commercialization.worklet))
         .filter(Commercialization.user_id == mentor_id)
         .order_by((Commercialization.year.is_(None)).asc(), Commercialization.year.desc(), Commercialization.created_at.desc())
         .all()
@@ -82,6 +86,9 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
         for attr in obj.__mapper__.column_attrs:
             key = attr.key  # mapped attribute name
             data[key] = getattr(obj, key)
+        # Add computed properties
+        if hasattr(obj, 'cert_id'):
+            data['worklet_cert_id'] = obj.cert_id
         return data
 
     base_url = str(request.base_url).rstrip('/') if request else ''
@@ -155,24 +162,28 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
     # Entities are keyed by user_id
     achievements = (
         db.query(Achievement)
+        .options(joinedload(Achievement.worklet))
         .filter(Achievement.user_id == student_id)
         .order_by((Achievement.year.is_(None)).asc(), Achievement.year.desc(), Achievement.created_at.desc())
         .all()
     )
     papers = (
         db.query(Paper)
+        .options(joinedload(Paper.worklet))
         .filter(Paper.user_id == student_id)
         .order_by((Paper.publication_year.is_(None)).asc(), Paper.publication_year.desc(), Paper.created_at.desc())
         .all()
     )
     patents = (
         db.query(Patent)
+        .options(joinedload(Patent.worklet))
         .filter(Patent.user_id == student_id)
         .order_by((Patent.filing_year.is_(None)).asc(), Patent.filing_year.desc(), Patent.created_at.desc())
         .all()
     )
     commercializations = (
         db.query(Commercialization)
+        .options(joinedload(Commercialization.worklet))
         .filter(Commercialization.user_id == student_id)
         .order_by((Commercialization.year.is_(None)).asc(), Commercialization.year.desc(), Commercialization.created_at.desc())
         .all()
@@ -206,6 +217,9 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
         for attr in obj.__mapper__.column_attrs:
             key = attr.key
             data[key] = getattr(obj, key)
+        # Add computed properties
+        if hasattr(obj, 'cert_id'):
+            data['worklet_cert_id'] = obj.cert_id
         return data
 
     base_url = str(request.base_url).rstrip('/') if request else ''

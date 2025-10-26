@@ -158,23 +158,13 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
 const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
   const performanceData = useMemo(() => {
     if (!data || data.length === 0) return []
-    // If a single college is selected and detailed worklets are loaded, derive performance from worklet progress/status
-    if (data.length === 1 && Array.isArray(data[0].worklets) && data[0].worklets.length > 0) {
-      const worklets = data[0].worklets
-      const statusOf = (w) => (w.progressStatus || w.status || '').trim()
-      const totalExcellent = worklets.filter((w) => statusOf(w) === 'Completed').length
-      const totalGood = worklets.filter((w) => statusOf(w) === 'Ongoing').length
-      const totalNeedsAttention = worklets.filter((w) => ['On Hold', 'Terminated'].includes(statusOf(w))).length
-      return [
-        { name: 'Excellent', value: totalExcellent },
-        { name: 'Good', value: totalGood },
-        { name: 'Needs Attention', value: totalNeedsAttention },
-      ].filter((item) => item.value > 0)
-    }
-    // Multi-college (or no detailed worklets) – derive from per-college status counts
-    const totalExcellent = data.reduce((sum, college) => sum + (college.completedCount || 0), 0)
-    const totalGood = data.reduce((sum, college) => sum + (college.ongoingCount || 0), 0)
-    const totalNeedsAttention = data.reduce((sum, college) => sum + ((college.onHoldCount || 0) + (college.terminatedCount || 0)), 0)
+    
+    // Use backend-provided performance counts (excellentCount, goodCount, needsAttentionCount)
+    // These are calculated based on evaluation scores and progress metrics
+    const totalExcellent = data.reduce((sum, college) => sum + (college.excellentCount || 0), 0)
+    const totalGood = data.reduce((sum, college) => sum + (college.goodCount || 0), 0)
+    const totalNeedsAttention = data.reduce((sum, college) => sum + (college.needsAttentionCount || 0), 0)
+    
     return [
       { name: 'Excellent', value: totalExcellent },
       { name: 'Good', value: totalGood },
@@ -1630,15 +1620,30 @@ const Colleges = () => {
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
-              College Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">
-              {collegeSearch
-                ? `Displaying data for ${collegeSearch}`
-                : 'Monitor and manage college partnerships and worklet performance'}
-            </p>
+          <div className="flex items-center gap-4">
+            {/* Back button - shows only when a specific college is selected */}
+            {collegeSearch && filteredColleges.length === 1 && (
+              <button
+                onClick={() => {
+                  setCollegeSearch('')
+                  handleResetFilters()
+                }}
+                className="flex items-center justify-center w-12 h-12 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-2xl hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                title="Back to All Colleges"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
+                College Management
+              </h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
+                {collegeSearch
+                  ? `Displaying data for ${collegeSearch}`
+                  : 'Monitor and manage college partnerships and worklet performance'}
+              </p>
+            </div>
           </div>
             </div>
             <div className="flex flex-col md:flex-row flex-wrap items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-md shadow-slate-200/50 dark:shadow-black/20 mb-8">

@@ -981,7 +981,7 @@ const Meetings = () => {
   };
 
   const confirmJoinMeeting = () => {
-    console.log('Joining meeting:', selectedMeeting?.id);
+    ;
     setShowJoinModal(false);
     setSelectedMeeting(null);
     // Add actual join logic here (redirect to meeting room)

@@ -9,6 +9,8 @@ from app.core.config import settings
 from datetime import date, datetime, time
 from calendar import monthrange
 from typing import Optional
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -56,7 +58,7 @@ def debug_summary(db: Session = Depends(get_db)):
             ],
         }
     except Exception as e:
-        print(f"[DEBUG] debug_summary error: {e}")
+        logger.debug(f"debug_summary error: {e}")
         raise HTTPException(status_code=500, detail="Debug query failed")
 
 @router.get("/statistics")
@@ -77,7 +79,7 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
         try:
             return int(q.count())
         except Exception as e:
-            print(f"[WARN] count failed: {e}")
+            logger.warning(f"count failed: {e}")
             return 0
 
     # Role matching: compare Enum directly to expected values
@@ -103,11 +105,11 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
 
             # Debug: show distinct role distribution in Users table
             role_distribution = db.query(User.role, func.count(User.id)).group_by(User.role).all()
-            print(f"[DEBUG] Users role distribution: {role_distribution}")
-            print(f"[DEBUG] Users table mentors: {len(mentors_list)} -> {[m.id for m in mentors_list]}")
-            print(f"[DEBUG] Users table students: {len(students_list)} -> {[s.id for s in students_list]}")
+            logger.debug(f"Users role distribution: {role_distribution}")
+            logger.debug(f"Users table mentors: {len(mentors_list)} -> {[m.id for m in mentors_list]}")
+            logger.debug(f"Users table students: {len(students_list)} -> {[s.id for s in students_list]}")
 
-            print("[DEBUG] All Years counts (Users table only):")
+            logger.debug(f"All Years counts (Users table only):")
             print(
                 f"  users_table: mentors={total_mentors}, students={total_students}, professors={total_professors}"
             )
@@ -178,7 +180,7 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
                 User.created_at <= end_dt.date(),
                 or_(User.active_till == None, User.active_till >= year_start),
             ).group_by(User.role).all()
-            print(f"[DEBUG] Active-year Users role distribution ({selected_year}): {active_roles_dist}")
+            logger.debug(f"Active-year Users role distribution ({selected_year}): {active_roles_dist}")
             if debug:
                 debug_info["active_year_role_distribution"] = [(str(r), int(c)) for r, c in active_roles_dist]
                 debug_info["mentors_ids_year"] = [int(m.id) for m in mentors_year]
@@ -187,7 +189,7 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
                 ]
 
             # Users table only for year-specific totals
-            print("[DEBUG] Year-specific counts (Users table only):")
+            logger.debug(f"Year-specific counts (Users table only):")
             print(
                 f"  active_window: mentors={total_mentors}, students={total_students}, professors={total_professors}"
             )
@@ -195,15 +197,15 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
             papers_count = db.query(Paper).filter(Paper.publication_year == selected_year).count()
             patents_count = db.query(Patent).filter(Patent.filing_year == selected_year).count()
 
-        print("[DEBUG] Dashboard statistics computed:")
-        print(f"  total_mentors: {total_mentors}")
-        print(f"  total_worklets: {total_worklets}")
-        print(f"  total_students: {total_students}")
-        print(f"  ongoing_worklets: {ongoing_worklets}")
-        print(f"  completed_worklets: {completed_worklets}")
-        print(f"  total_professors: {total_professors}")
-        print(f"  papers_count: {papers_count}")
-        print(f"  patents_count: {patents_count}")
+        logger.debug(f"Dashboard statistics computed:")
+        logger.info(f"  total_mentors: {total_mentors}")
+        logger.info(f"  total_worklets: {total_worklets}")
+        logger.info(f"  total_students: {total_students}")
+        logger.info(f"  ongoing_worklets: {ongoing_worklets}")
+        logger.info(f"  completed_worklets: {completed_worklets}")
+        logger.info(f"  total_professors: {total_professors}")
+        logger.info(f"  papers_count: {papers_count}")
+        logger.info(f"  patents_count: {patents_count}")
         print(
             f"  completion_rate: {round((completed_worklets / total_worklets * 100) if total_worklets > 0 else 0, 1)}"
         )
@@ -222,7 +224,7 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
         return result
     except Exception as e:
         import traceback
-        print("[ERROR] Exception in get_dashboard_statistics:")
+        logger.error(f"Exception in get_dashboard_statistics:")
         print(e)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -296,7 +298,7 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting detailed mentor stats: {e}")
+        logger.info(f"Error getting detailed mentor stats: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 @router.get("/platform-monthly-trends")
 def get_platform_monthly_trends(
@@ -411,7 +413,7 @@ def get_platform_monthly_trends(
             "years": present_years
         }
     except Exception as e:
-        print(f"Error computing platform monthly trends: {e}")
+        logger.info(f"Error computing platform monthly trends: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/platform-status-trends")
@@ -509,5 +511,5 @@ def get_platform_status_trends(
             "years": present_years
         }
     except Exception as e:
-        print(f"Error computing platform status trends: {e}")
+        logger.info(f"Error computing platform status trends: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
