@@ -28,7 +28,7 @@ export default function App() {
         {/* Protected Routes */}
         <Route path="/home" element={<ProtectedRoute><MentorRoute><Dashboard /></MentorRoute></ProtectedRoute>} />
         <Route path="/student-dashboard" element={<ProtectedRoute><StudentRoute><StudentDashboard /></StudentRoute></ProtectedRoute>} />
-        <Route path="/statistics" element={<ProtectedRoute><StatisticsDashboard /></ProtectedRoute>} />
+        <Route path="/Dashboard" element={<ProtectedRoute><StatisticsDashboard /></ProtectedRoute>} />
         <Route path="/navStat" element={<ProtectedRoute><NavStat /></ProtectedRoute>} />
         <Route path="/navColl" element={<ProtectedRoute><NavColl /></ProtectedRoute>} />
         <Route path="/request-update" element={<ProtectedRoute><RequestUpdate /></ProtectedRoute>} />
@@ -41,7 +41,7 @@ export default function App() {
         <Route path="/Left" element={<ProtectedRoute><LeftSidebar/></ProtectedRoute>}/>
         <Route path="/meeting" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
         <Route path="/portfolio" element={<ProtectedRoute><Portfolio/></ProtectedRoute>}/>
-        <Route path="/colleges" element={<ProtectedRoute><Colleges /></ProtectedRoute>} />
+        <Route path="/academia" element={<ProtectedRoute><Colleges /></ProtectedRoute>} />
         
         {/* Default redirect based on role */}
         <Route path="*" element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />

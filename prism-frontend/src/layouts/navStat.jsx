@@ -169,7 +169,7 @@ const NavStat = () => {
   }
 
   const handleGoBack = () => {
-    navigate('/statistics')
+    navigate('/Dashboard')
   }
 
   const getFilterStats = () => {
