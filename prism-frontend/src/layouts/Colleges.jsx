@@ -1630,15 +1630,30 @@ const Colleges = () => {
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
-              College Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">
-              {collegeSearch
-                ? `Displaying data for ${collegeSearch}`
-                : 'Monitor and manage college partnerships and worklet performance'}
-            </p>
+          <div className="flex items-center gap-4">
+            {/* Back button - shows only when a specific college is selected */}
+            {collegeSearch && filteredColleges.length === 1 && (
+              <button
+                onClick={() => {
+                  setCollegeSearch('')
+                  handleResetFilters()
+                }}
+                className="flex items-center justify-center w-12 h-12 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-2xl hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                title="Back to All Colleges"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
+                College Management
+              </h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
+                {collegeSearch
+                  ? `Displaying data for ${collegeSearch}`
+                  : 'Monitor and manage college partnerships and worklet performance'}
+              </p>
+            </div>
           </div>
             </div>
             <div className="flex flex-col md:flex-row flex-wrap items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-md shadow-slate-200/50 dark:shadow-black/20 mb-8">
