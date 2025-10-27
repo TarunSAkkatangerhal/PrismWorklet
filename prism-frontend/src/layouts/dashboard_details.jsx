@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
 import { ThemeContext } from '../context/ThemeContext'
-// Animations removed to improve performance during loading
+import { motion, AnimatePresence } from 'framer-motion'
 
 const NavStat = () => {
   const location = useLocation()
@@ -217,16 +217,18 @@ const NavStat = () => {
             <div className="flex items-center justify-between">
               {/* Left Side - Back Arrow + Title */}
               <div className="flex items-center gap-3">
-                <button
+                <motion.button
                   onClick={handleGoBack}
-                  className={`p-2 rounded-xl transition-colors duration-200 ${
+                  className={`p-2 rounded-xl transition-all duration-200 ${
                     isDarkMode 
                       ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-500/40 hover:to-indigo-500/40 text-purple-200 hover:text-white border border-purple-500/20' 
                       : 'bg-gradient-to-r from-purple-50/80 to-indigo-50/80 hover:from-purple-100 hover:to-indigo-100 text-purple-600 hover:text-purple-700 border border-purple-200/40'
                   }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   <ArrowLeft size={20} />
-                </button>
+                </motion.button>
                 
                 <div>
                   <h1 className={`text-4xl font-bold font-sans ${
@@ -245,10 +247,10 @@ const NavStat = () => {
                   const isActive = activeFilter === option.key
                   
                   return (
-                    <button
+                    <motion.button
                       key={option.key}
                       onClick={() => handleFilterChange(option.key)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 ${
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
                         isActive
                           ? isDarkMode
                             ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-300/50'
@@ -257,6 +259,8 @@ const NavStat = () => {
                           ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-gradient-to-r hover:from-gray-800/40 hover:to-gray-700/40 hover:text-white'
                           : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 hover:text-gray-800'
                       }`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
                       <Icon size={16} />
                       <span>{option.label}</span>
@@ -271,7 +275,7 @@ const NavStat = () => {
                         {option.key === 'ongoing' && stats.ongoing}
                         {option.key === 'completed' && stats.completed}
                       </span>
-                    </button>
+                    </motion.button>
                   )
                 })}
               </div>
@@ -329,9 +333,11 @@ const NavStat = () => {
                     ? 'border-purple-700/30 bg-slate-800/40' 
                     : 'border-purple-300/40 bg-white/60'
                 }`}>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-l-lg transition-colors duration-200 ${
+                    className={`p-2 rounded-l-lg transition-all duration-200 ${
                       viewMode === 'grid'
                         ? isDarkMode
                           ? 'bg-purple-400 text-white shadow-md'
@@ -343,10 +349,12 @@ const NavStat = () => {
                     title="Grid View"
                   >
                     <Grid3X3 size={16} />
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-r-lg transition-colors duration-200 ${
+                    className={`p-2 rounded-r-lg transition-all duration-200 ${
                       viewMode === 'list'
                         ? isDarkMode
                           ? 'bg-purple-400 text-white shadow-md'
@@ -358,13 +366,21 @@ const NavStat = () => {
                     title="List View"
                   >
                     <List size={16} />
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             </div>
 
             {/* Worklets Grid */}
             <div className="p-6">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${activeFilter}-${viewMode}-${searchTerm}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader className={`animate-spin ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} size={32} />
@@ -399,9 +415,15 @@ const NavStat = () => {
                   ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" 
                   : "space-y-4"
                 }>
-                    {filteredWorklets.map((worklet) => (
-                      <div
+                  <AnimatePresence>
+                    {filteredWorklets.map((worklet, index) => (
+                      <motion.div
+                        layout
                         key={worklet.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ delay: index * 0.1 }}
                         onClick={() => handleWorkletClick(worklet.id)}
                         className={`border cursor-pointer transition-colors duration-200 group ${
                           viewMode === 'grid' 
@@ -513,10 +535,13 @@ const NavStat = () => {
                             </div>
                           </div>
                         )}
-                      </div>
+                      </motion.div>
                     ))}
+                  </AnimatePresence>
                 </div>
               )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>
