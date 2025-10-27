@@ -283,6 +283,12 @@ export default function WorkletDetailPage() {
   const [activityFilter, setActivityFilter] = useState('all')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
+  // --- HELPER FUNCTIONS ---
+  const getInitials = (name) => {
+    if (!name) return 'UN'
+    return name.split(' ').map(n => n[0]).join('').toUpperCase()
+  }
+  
   // --- BACK NAVIGATION STATE ---
   const [canGoBack, setCanGoBack] = useState(false)
 
@@ -370,38 +376,7 @@ export default function WorkletDetailPage() {
     challenges: ''
   })
   const [allMilestoneFiles, setAllMilestoneFiles] = useState([])
-  const [suggestions, setSuggestions] = useState([
-    {
-      id: 1,
-      mentorName: 'Prof. John Smith',
-      mentorEmail: 'john.smith@example.com',
-      mentorInitials: 'JS',
-      title: 'Code Review Suggestion',
-      content: 'Consider implementing error boundaries in your React components to improve error handling and user experience. This will prevent the entire app from crashing when a component fails.',
-      category: 'Code Quality',
-      priority: 'high',
-      date: new Date('2025-10-15').toISOString(),
-      isRead: false,
-      isHelpful: false,
-      studentResponse: null,
-      responseDate: null
-    },
-    {
-      id: 2,
-      mentorName: 'Prof. Sarah Johnson',
-      mentorEmail: 'sarah.johnson@example.com',
-      mentorInitials: 'SJ',
-      title: 'Performance Optimization',
-      content: 'Your API calls could benefit from implementing caching strategies. Consider using React Query or SWR for better data fetching and caching management.',
-      category: 'Performance',
-      priority: 'medium',
-      date: new Date('2025-10-12').toISOString(),
-      isRead: true,
-      isHelpful: true,
-      studentResponse: 'Thank you for the suggestion! I have started implementing React Query.',
-      responseDate: new Date('2025-10-13').toISOString()
-    }
-  ])
+  const [suggestions, setSuggestions] = useState([])
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -465,6 +440,44 @@ export default function WorkletDetailPage() {
           }
 
           setWorklet(transformedWorklet)
+          
+          // Fetch suggestions for this worklet
+          try {
+            const suggestionsResponse = await axios.get(
+              `http://localhost:8000/suggestions/worklet/${id}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: 'application/json',
+                },
+              }
+            )
+            
+            if (suggestionsResponse.data) {
+              // Transform suggestions to match expected format
+              const transformedSuggestions = suggestionsResponse.data.map(sug => ({
+                id: sug.suggestion_id,
+                mentorName: sug.mentor_name || 'Unknown Mentor',
+                mentorEmail: sug.mentor_email || '',
+                mentorInitials: getInitials(sug.mentor_name || 'UN'),
+                title: sug.suggestion_title,
+                content: sug.suggestion_content,
+                category: sug.category || 'General',
+                priority: sug.priority || 'medium',
+                date: sug.created_at,
+                isRead: sug.is_read || false,
+                isHelpful: sug.is_helpful || null,
+                studentResponse: sug.student_response || null,
+                responseDate: sug.response_date || null
+              }))
+              
+              setSuggestions(transformedSuggestions)
+            }
+          } catch (suggError) {
+            console.error('Error fetching suggestions:', suggError)
+            // Don't fail the whole page if suggestions fetch fails
+            setSuggestions([])
+          }
         }
       } catch (error) {
         console.error('Error fetching worklet:', error)
@@ -2136,10 +2149,26 @@ export default function WorkletDetailPage() {
                                     /* Student Action Buttons */
                                     <>
                                       <button 
-                                        onClick={() => {
-                                          setSuggestions(prev => prev.map(s => 
-                                            s.id === suggestion.id ? { ...s, isHelpful: !s.isHelpful } : s
-                                          ))
+                                        onClick={async () => {
+                                          try {
+                                            const token = localStorage.getItem('access_token')
+                                            await axios.patch(
+                                              `http://localhost:8000/suggestions/${suggestion.id}`,
+                                              { is_helpful: !suggestion.isHelpful },
+                                              {
+                                                headers: {
+                                                  Authorization: `Bearer ${token}`,
+                                                  'Content-Type': 'application/json'
+                                                }
+                                              }
+                                            )
+                                            setSuggestions(prev => prev.map(s => 
+                                              s.id === suggestion.id ? { ...s, isHelpful: !s.isHelpful } : s
+                                            ))
+                                          } catch (error) {
+                                            console.error('Error updating suggestion:', error)
+                                            alert('Failed to update suggestion')
+                                          }
                                         }}
                                         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                                           suggestion.isHelpful
@@ -2152,14 +2181,30 @@ export default function WorkletDetailPage() {
                                       </button>
                                       {!suggestion.studentResponse && (
                                         <button 
-                                          onClick={() => {
+                                          onClick={async () => {
                                             const response = prompt('Enter your response:')
                                             if (response) {
-                                              setSuggestions(prev => prev.map(s => 
-                                                s.id === suggestion.id 
-                                                  ? { ...s, studentResponse: response, responseDate: new Date().toISOString() } 
-                                                  : s
-                                              ))
+                                              try {
+                                                const token = localStorage.getItem('access_token')
+                                                await axios.patch(
+                                                  `http://localhost:8000/suggestions/${suggestion.id}`,
+                                                  { student_response: response },
+                                                  {
+                                                    headers: {
+                                                      Authorization: `Bearer ${token}`,
+                                                      'Content-Type': 'application/json'
+                                                    }
+                                                  }
+                                                )
+                                                setSuggestions(prev => prev.map(s => 
+                                                  s.id === suggestion.id 
+                                                    ? { ...s, studentResponse: response, responseDate: new Date().toISOString() } 
+                                                    : s
+                                                ))
+                                              } catch (error) {
+                                                console.error('Error adding response:', error)
+                                                alert('Failed to add response')
+                                              }
                                             }
                                           }}
                                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 
@@ -2171,10 +2216,26 @@ export default function WorkletDetailPage() {
                                         </button>
                                       )}
                                       <button 
-                                        onClick={() => {
-                                          setSuggestions(prev => prev.map(s => 
-                                            s.id === suggestion.id ? { ...s, isRead: true } : s
-                                          ))
+                                        onClick={async () => {
+                                          try {
+                                            const token = localStorage.getItem('access_token')
+                                            await axios.patch(
+                                              `http://localhost:8000/suggestions/${suggestion.id}`,
+                                              { is_read: true },
+                                              {
+                                                headers: {
+                                                  Authorization: `Bearer ${token}`,
+                                                  'Content-Type': 'application/json'
+                                                }
+                                              }
+                                            )
+                                            setSuggestions(prev => prev.map(s => 
+                                              s.id === suggestion.id ? { ...s, isRead: true } : s
+                                            ))
+                                          } catch (error) {
+                                            console.error('Error marking as read:', error)
+                                            alert('Failed to mark as read')
+                                          }
                                         }}
                                         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                                           suggestion.isRead

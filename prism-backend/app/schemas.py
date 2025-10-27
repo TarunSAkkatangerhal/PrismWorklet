@@ -326,3 +326,36 @@ class WorkletWithAssociations(WorkletResponse):
 class UserWithWorklets(UserResponse):
     active_worklets: List[WorkletResponse] = []
     worklet_count: int = 0
+
+# --- Suggestion Schemas ---
+class SuggestionCreate(BaseModel):
+    worklet_id: int
+    suggestion_title: str = Field(..., max_length=100)
+    suggestion_content: str
+    category: Optional[str] = "General"
+    priority: Optional[str] = "medium"
+
+class SuggestionUpdate(BaseModel):
+    is_read: Optional[bool] = None
+    is_helpful: Optional[bool] = None
+    student_response: Optional[str] = None
+
+class SuggestionOut(BaseModel):
+    suggestion_id: int
+    worklet_id: int
+    mentor_id: int
+    mentor_name: Optional[str] = None
+    mentor_email: Optional[str] = None
+    suggestion_title: str
+    suggestion_content: str
+    category: str
+    priority: str
+    is_read: bool
+    is_helpful: Optional[bool] = None
+    student_response: Optional[str] = None
+    response_date: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
