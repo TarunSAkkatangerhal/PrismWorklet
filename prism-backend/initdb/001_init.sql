@@ -226,7 +226,32 @@ CREATE TABLE commercializations (
 );
 
 -- ========================
--- 11. Helpful Indexes
+-- 11. Prism Suggestions
+-- ========================
+
+CREATE TABLE IF NOT EXISTS Prism_Suggestion (
+    suggestion_id INT AUTO_INCREMENT PRIMARY KEY,
+    worklet_id INT NOT NULL,
+    mentor_id INT NOT NULL,
+    suggestion_title VARCHAR(100) NOT NULL,
+    suggestion_content TEXT NOT NULL,
+    category VARCHAR(50) DEFAULT 'General',
+    priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
+    is_read BOOLEAN DEFAULT FALSE,
+    is_helpful BOOLEAN DEFAULT NULL,
+    student_response TEXT DEFAULT NULL,
+    response_date DATETIME DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (worklet_id) REFERENCES Prism_Worklet(WorkletID) ON DELETE CASCADE,
+    FOREIGN KEY (mentor_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_worklet_id (worklet_id),
+    INDEX idx_mentor_id (mentor_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ========================
+-- 12. Helpful Indexes
 -- ========================
 CREATE UNIQUE INDEX ix_user_email ON users(email);
 CREATE UNIQUE INDEX ix_prism_cert_id ON Prism_Worklet(CertID);

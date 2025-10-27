@@ -1025,14 +1025,22 @@ const Portfolio = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="flex h-screen w-full overflow-hidden bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <LeftSidebar />
-      <div className="flex-1 p-4 lg:p-8">
-        <div className="w-full max-w-none mx-auto px-4 lg:px-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl lg:text-4xl font-bold mb-2 text-black dark:text-white">My Portfolio</h1>
-            <p className="text-gray-600 dark:text-gray-300">Research outputs, achievements, and commercialization records.</p>
+      
+      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
+        <header className="flex justify-between items-center mb-[3vh]">
+          <div>
+            <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
+              My Portfolio
+            </h1>
+            <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">
+              Research outputs, achievements, and commercialization records
+            </p>
           </div>
+        </header>
+        
+        <div className="w-full max-w-none mx-auto">{/* Content wrapper */}
 
           {loadingPortfolio && (
             <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading portfolio...</div>
@@ -1513,7 +1521,7 @@ const Portfolio = () => {
             )}
           </div>
         </div>
-      </div>
+      </main>
 
       <Modal
         isOpen={!!modalType}

@@ -349,24 +349,7 @@ export default function WorkletDetailPage() {
   }, [currentUserEmail, currentUserRole])
   
   // --- MILESTONE STATE ---
-  const [milestones, setMilestones] = useState([
-    {
-      id: 1,
-      title: 'Mid-Review Milestone',
-      author: 'Tarun Akkatangerhal',
-      authorEmail: 'tarun@example.com',
-      authorRole: 'student',
-      authorInitials: 'TA',
-      date: 'Oct 7, 2025, 2:59:07 PM',
-      observations: 'Frontend architecture completed with Redux integration. All UI components implemented and tested successfully.',
-      challenges: 'State management complexity resolved. Performance optimization completed through component refactoring.',
-      feedbackStatus: 'pending', // 'completed' or 'pending'
-      mentorFeedback: null,
-      mentorFeedbackDate: null,
-      status: 'current',
-      color: 'from-blue-500 to-purple-600'
-    }
-  ])
+  const [milestones, setMilestones] = useState([])
   const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false)
   const [isReviewMilestoneModalOpen, setIsReviewMilestoneModalOpen] = useState(false)
   const [selectedMilestoneForReview, setSelectedMilestoneForReview] = useState(null)
@@ -428,6 +411,7 @@ export default function WorkletDetailPage() {
                 })
               : 'N/A',
             students: response.data.students || [], // Use actual students data or empty array
+            mentors: response.data.mentors || [],
             professors: response.data.professors || [],
             college: response.data.college || 'Not specified',
             team: response.data.team || 'Not specified',
@@ -479,6 +463,27 @@ export default function WorkletDetailPage() {
             console.error('Error fetching suggestions:', suggError)
             // Don't fail the whole page if suggestions fetch fails
             setSuggestions([])
+          }
+
+          // Fetch milestones for this worklet
+          try {
+            const milestonesResponse = await axios.get(
+              `http://localhost:8000/milestones/worklet/${id}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: 'application/json'
+                }
+              }
+            )
+            
+            if (milestonesResponse.data) {
+              setMilestones(milestonesResponse.data)
+            }
+          } catch (milestoneError) {
+            console.error('Error fetching milestones:', milestoneError)
+            // Don't fail the whole page if milestones fetch fails
+            setMilestones([])
           }
         }
       } catch (error) {
@@ -893,7 +898,7 @@ export default function WorkletDetailPage() {
       'Ad-hoc'
     ]
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
       e.preventDefault()
       if (!milestoneType.trim()) return
 
@@ -955,69 +960,67 @@ export default function WorkletDetailPage() {
           }
       }
 
-      const currentUser = {
-        email: localStorage.getItem('user_email') || 'unknown@example.com',
-        role: localStorage.getItem('user_role') || 'student',
-        name: localStorage.getItem('user_name') || 'Current User'
-      }
+      try {
+        const token = localStorage.getItem('access_token')
+        
+        // Prepare milestone data for backend
+        const milestoneData = {
+          worklet_id: parseInt(id),
+          milestone_type: milestoneType,
+          date_created: new Date().toISOString(),
+          field1_label: fieldData.field1Label,
+          field1_value: fieldData.field1Value,
+          field2_label: fieldData.field2Label,
+          field2_value: fieldData.field2Value,
+          toggle_label: fieldData.toggleLabel,
+          toggle_value: fieldData.toggleValue,
+          attachment_name: selectedFile?.name || null,
+          attachment_size: selectedFile?.size || null,
+          attachment_type: selectedFile?.type || null,
+          attachment_url: selectedFile ? URL.createObjectURL(selectedFile) : null
+        }
 
-      const getInitials = (name) => {
-        return name.split(' ').map(n => n[0]).join('').toUpperCase()
-      }
+        // POST to backend
+        const response = await axios.post(
+          'http://localhost:8000/milestones/',
+          milestoneData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        )
 
-      const milestone = {
-        id: milestones.length + 1,
-        title: milestoneType,
-        author: currentUser.name,
-        authorEmail: currentUser.email,
-        authorRole: currentUser.role.toLowerCase(),
-        authorInitials: getInitials(currentUser.name),
-        date: new Date().toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        }),
-        // Store the dynamic field data
-        ...fieldData,
-        // Keep old fields for backward compatibility
-        observations: fieldData.field1Value,
-        challenges: fieldData.field2Value,
-        deliverableTitle,
-        deliverableDescription,
-        testResults,
-        documentationUpdated,
-        githubAccessible,
-        fileUpdatedOnGithub,
-        attachment: selectedFile ? {
-          name: selectedFile.name,
-          size: selectedFile.size,
-          type: selectedFile.type,
-          url: URL.createObjectURL(selectedFile), // Create object URL for preview
-          uploadedBy: currentUser.name,
-          uploadedByRole: currentUser.role.toLowerCase(),
-          uploadedDate: new Date().toISOString(),
-          milestoneTitle: milestoneType
-        } : null,
-        feedbackStatus: 'pending', // New milestones default to pending
-        mentorFeedback: null,
-        mentorFeedbackDate: null,
-        status: 'current',
-        color: 'from-indigo-500 to-blue-600'
+        // Add to local state with transformed data
+        setMilestones(prev => [response.data, ...prev])
+        
+        // Add file to global files array if attachment exists
+        if (selectedFile && response.data.attachment_url) {
+          const currentUser = {
+            email: localStorage.getItem('user_email') || 'unknown@example.com',
+            role: localStorage.getItem('user_role') || 'student',
+            name: localStorage.getItem('user_name') || 'Current User'
+          }
+          
+          setAllMilestoneFiles(prev => [...prev, {
+            name: selectedFile.name,
+            size: selectedFile.size,
+            type: selectedFile.type,
+            url: response.data.attachment_url,
+            uploadedBy: currentUser.name,
+            uploadedByRole: currentUser.role.toLowerCase(),
+            uploadedDate: response.data.created_at,
+            milestoneTitle: milestoneType
+          }])
+        }
+        
+        resetForm()
+        setIsAddMilestoneModalOpen(false)
+      } catch (error) {
+        console.error('Error creating milestone:', error)
+        alert('Failed to create milestone. Please try again.')
       }
-
-      setMilestones(prev => [milestone, ...prev])
-      
-      // Add file to global files array if attachment exists
-      if (selectedFile && milestone.attachment) {
-        setAllMilestoneFiles(prev => [...prev, milestone.attachment])
-      }
-      
-      resetForm()
-      setIsAddMilestoneModalOpen(false)
     }
 
     const resetForm = () => {
@@ -1369,30 +1372,57 @@ export default function WorkletDetailPage() {
   const ReviewMilestoneModal = () => {
     const [feedbackText, setFeedbackText] = useState('')
     const [isApproved, setIsApproved] = useState(true)
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const handleSubmitReview = (e) => {
+    const handleSubmitReview = async (e) => {
       e.preventDefault()
       
       if (!feedbackText.trim() || !selectedMilestoneForReview) return
 
-      // Update the milestone with mentor feedback
-      setMilestones(prev => prev.map(m => 
-        m.id === selectedMilestoneForReview.id 
-          ? {
-              ...m,
-              feedbackStatus: 'completed',
-              mentorFeedback: feedbackText,
-              mentorFeedbackDate: new Date().toISOString(),
-              mentorApproved: isApproved
+      setIsSubmitting(true)
+      
+      try {
+        const token = localStorage.getItem('access_token')
+        const reviewerRole = selectedMilestoneForReview.reviewerRole // 'mentor' or 'professor'
+        
+        // POST feedback to backend
+        const response = await axios.post(
+          'http://localhost:8000/milestones/feedback',
+          {
+            milestone_id: selectedMilestoneForReview.milestone_id,
+            feedback_text: feedbackText,
+            reviewer_role: reviewerRole
+          },
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
             }
-          : m
-      ))
+          }
+        )
 
-      // Close modal and reset
-      setFeedbackText('')
-      setIsApproved(true)
-      setSelectedMilestoneForReview(null)
-      setIsReviewMilestoneModalOpen(false)
+        // Update local state with new feedback
+        setMilestones(prev => prev.map(m => 
+          m.milestone_id === selectedMilestoneForReview.milestone_id 
+            ? {
+                ...m,
+                feedbacks: [...(m.feedbacks || []), response.data]
+              }
+            : m
+        ))
+
+        // Close modal and reset
+        setFeedbackText('')
+        setIsApproved(true)
+        setSelectedMilestoneForReview(null)
+        setIsReviewMilestoneModalOpen(false)
+        
+      } catch (error) {
+        console.error('Error submitting feedback:', error)
+        alert('Failed to submit feedback. Please try again.')
+      } finally {
+        setIsSubmitting(false)
+      }
     }
 
     const handleClose = () => {
@@ -1406,13 +1436,32 @@ export default function WorkletDetailPage() {
 
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-            <h2 className="text-lg font-semibold text-gray-900">REVIEW MILESTONE</h2>
+          <div className={`px-6 py-4 border-b flex items-center justify-between sticky top-0 z-10 ${
+            selectedMilestoneForReview.reviewerRole === 'mentor'
+              ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'
+              : 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800'
+          }`}>
+            <div>
+              <h2 className={`text-lg font-semibold ${
+                selectedMilestoneForReview.reviewerRole === 'mentor'
+                  ? 'text-blue-900 dark:text-blue-100'
+                  : 'text-purple-900 dark:text-purple-100'
+              }`}>
+                REVIEW MILESTONE
+              </h2>
+              <p className={`text-xs ${
+                selectedMilestoneForReview.reviewerRole === 'mentor'
+                  ? 'text-blue-600 dark:text-blue-300'
+                  : 'text-purple-600 dark:text-purple-300'
+              }`}>
+                Reviewing as {selectedMilestoneForReview.reviewerRole === 'mentor' ? 'Mentor' : 'Professor'}
+              </p>
+            </div>
             <button
               onClick={handleClose}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-white/50 transition-colors"
             >
               <X size={20} />
             </button>
@@ -1420,86 +1469,68 @@ export default function WorkletDetailPage() {
 
           <div className="p-6 space-y-5">
             {/* Milestone Info */}
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 bg-gradient-to-br ${selectedMilestoneForReview.color} rounded-full flex items-center justify-center text-white font-semibold`}>
-                  {selectedMilestoneForReview.authorInitials}
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                  {getInitials(selectedMilestoneForReview.student_name || 'UN')}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{selectedMilestoneForReview.title}</h3>
-                  <p className="text-sm text-gray-600">
-                    By {selectedMilestoneForReview.author} • {selectedMilestoneForReview.date}
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{selectedMilestoneForReview.milestone_type}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    By {selectedMilestoneForReview.student_name} • {new Date(selectedMilestoneForReview.date_created).toLocaleDateString()}
                   </p>
                 </div>
               </div>
 
               {/* Milestone Content */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                {selectedMilestoneForReview.field1Value && (
+                {selectedMilestoneForReview.field1_value && (
                   <div>
-                    <h4 className="font-medium text-gray-900 text-sm mb-1">
-                      {selectedMilestoneForReview.field1Label || 'Details'}
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-1">
+                      {selectedMilestoneForReview.field1_label || 'Details'}
                     </h4>
-                    <p className="text-xs text-gray-700 bg-white p-2 rounded">
-                      {selectedMilestoneForReview.field1Value}
+                    <p className="text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 p-2 rounded">
+                      {selectedMilestoneForReview.field1_value}
                     </p>
                   </div>
                 )}
-                {selectedMilestoneForReview.field2Value && (
+                {selectedMilestoneForReview.field2_value && (
                   <div>
-                    <h4 className="font-medium text-gray-900 text-sm mb-1">
-                      {selectedMilestoneForReview.field2Label || 'Remarks'}
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-1">
+                      {selectedMilestoneForReview.field2_label || 'Remarks'}
                     </h4>
-                    <p className="text-xs text-gray-700 bg-white p-2 rounded">
-                      {selectedMilestoneForReview.field2Value}
+                    <p className="text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 p-2 rounded">
+                      {selectedMilestoneForReview.field2_value}
                     </p>
                   </div>
                 )}
               </div>
 
               {/* Attachment */}
-              {selectedMilestoneForReview.attachment && (
-                <div className="mt-3 pt-3 border-t border-blue-200">
+              {selectedMilestoneForReview.attachment_name && (
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                   <div className="flex items-center gap-2 text-sm">
-                    <FileText size={16} className="text-blue-600" />
-                    <span className="font-medium text-gray-700">{selectedMilestoneForReview.attachment.name}</span>
-                    <span className="text-gray-500">
-                      ({(selectedMilestoneForReview.attachment.size / 1024).toFixed(2)} KB)
-                    </span>
+                    <FileText size={16} className="text-blue-600 dark:text-blue-400" />
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{selectedMilestoneForReview.attachment_name}</span>
+                    {selectedMilestoneForReview.attachment_size && (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        ({(selectedMilestoneForReview.attachment_size / 1024).toFixed(2)} KB)
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
             </div>
 
             <form onSubmit={handleSubmitReview} className="space-y-4">
-              {/* Approval Toggle */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                <div>
-                  <h4 className="font-medium text-gray-900">Milestone Status</h4>
-                  <p className="text-sm text-gray-600">Mark this milestone as approved or needs revision</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isApproved}
-                    onChange={(e) => setIsApproved(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-300 
-                               rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white 
-                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
-                               after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 
-                               after:transition-all peer-checked:bg-green-600"></div>
-                  <span className="ml-3 text-sm font-medium text-gray-900">
-                    {isApproved ? 'Approved' : 'Needs Revision'}
-                  </span>
-                </label>
-              </div>
-
               {/* Feedback Text */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mentor Feedback *
+                <label className={`block text-sm font-medium mb-2 ${
+                  selectedMilestoneForReview.reviewerRole === 'mentor'
+                    ? 'text-blue-700 dark:text-blue-300'
+                    : 'text-purple-700 dark:text-purple-300'
+                }`}>
+                  {selectedMilestoneForReview.reviewerRole === 'mentor' ? 'Mentor' : 'Professor'} Feedback *
                 </label>
                 <textarea
                   value={feedbackText}
@@ -1507,19 +1538,23 @@ export default function WorkletDetailPage() {
                   placeholder="Provide detailed feedback on this milestone..."
                   rows={6}
                   required
-                  className="w-full px-4 py-3 text-sm border border-gray-300 rounded-xl resize-none 
-                           placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-xl resize-none 
+                           placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                           focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-400"
                 />
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={!feedbackText.trim()}
-                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed 
-                         text-white text-sm font-medium rounded-xl transition-all duration-200"
+                disabled={!feedbackText.trim() || isSubmitting}
+                className={`w-full px-4 py-3 font-medium rounded-xl transition-colors text-white disabled:bg-gray-400 disabled:cursor-not-allowed ${
+                  selectedMilestoneForReview.reviewerRole === 'mentor'
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-purple-600 hover:bg-purple-700'
+                }`}
               >
-                Submit Review
+                {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
               </button>
             </form>
           </div>
@@ -1555,26 +1590,28 @@ export default function WorkletDetailPage() {
             </div>
           ) : (
             milestones.map((milestone) => (
-              <div key={milestone.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div key={milestone.milestone_id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-8 h-8 bg-gradient-to-br ${milestone.color} rounded-full flex items-center justify-center text-white font-semibold text-sm`}>
-                      {milestone.authorInitials}
+                    <div className={`w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm`}>
+                      {getInitials(milestone.student_name || 'UN')}
                     </div>
                     <div className="flex-grow">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base">{milestone.title}</h4>
-                        {milestone.status === 'completed' && (
-                          <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium rounded-full">
-                            Completed
-                          </span>
-                        )}
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base">{milestone.milestone_type}</h4>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                        <span className={`${milestone.status === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'} font-medium`}>
-                          {milestone.author}
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">
+                          {milestone.student_name}
                         </span>
-                        <span>{milestone.date}</span>
+                        <span>{new Date(milestone.date_created).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })}</span>
                       </div>
                     </div>
                     <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -1582,25 +1619,25 @@ export default function WorkletDetailPage() {
                     </button>
                   </div>
 
-                  {(milestone.field1Value || milestone.field2Value || milestone.observations || milestone.challenges) && (
+                  {(milestone.field1_value || milestone.field2_value) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                      {(milestone.field1Value || milestone.observations) && (
+                      {milestone.field1_value && (
                         <div>
                           <h5 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-2">
-                            {milestone.field1Label || 'Observations and Results'}
+                            {milestone.field1_label || 'Details'}
                           </h5>
                           <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-3 text-xs text-gray-700 dark:text-gray-300">
-                            {milestone.field1Value || milestone.observations}
+                            {milestone.field1_value}
                           </div>
                         </div>
                       )}
-                      {(milestone.field2Value || milestone.challenges) && (
+                      {milestone.field2_value && (
                         <div>
                           <h5 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-2">
-                            {milestone.field2Label || 'Challenges'}
+                            {milestone.field2_label || 'Remarks'}
                           </h5>
                           <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-3 text-xs text-gray-700 dark:text-gray-300">
-                            {milestone.field2Value || milestone.challenges}
+                            {milestone.field2_value}
                           </div>
                         </div>
                       )}
@@ -1608,85 +1645,127 @@ export default function WorkletDetailPage() {
                   )}
 
                   {/* Attachment Display */}
-                  {milestone.attachment && (
+                  {milestone.attachment_name && (
                     <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
                       <div className="flex items-center gap-2 text-xs">
                         <FileText size={14} className="text-blue-600 dark:text-blue-400" />
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{milestone.attachment.name}</span>
-                        <span className="text-gray-500 dark:text-gray-400">
-                          ({(milestone.attachment.size / 1024).toFixed(2)} KB)
-                        </span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{milestone.attachment_name}</span>
+                        {milestone.attachment_size && (
+                          <span className="text-gray-500 dark:text-gray-400">
+                            ({(milestone.attachment_size / 1024).toFixed(2)} KB)
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Mentor Feedback Status and Actions */}
+                  {/* Feedback Status and Actions */}
                   <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
-                      {/* Left side - Mentor Feedback Status */}
+                    <div className="flex items-center justify-between mb-3">
+                      {/* GitHub Upload Status Toggle */}
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Mentor Feedback:</span>
-                        {milestone.feedbackStatus === 'completed' ? (
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle size={14} className="text-green-600 dark:text-green-400" />
-                            <span className="text-xs font-semibold text-green-600 dark:text-green-400">Completed</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <Clock size={14} className="text-amber-600 dark:text-amber-400" />
-                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Pending</span>
-                          </div>
-                        )}
+                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{milestone.toggle_label || 'GitHub Uploaded'}:</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={milestone.toggle_value || false}
+                            readOnly
+                            disabled
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer 
+                                       peer-checked:after:translate-x-full peer-checked:after:border-white 
+                                       after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                                       after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 
+                                       after:transition-all peer-checked:bg-green-600 dark:peer-checked:bg-green-500"></div>
+                        </label>
                       </div>
                       
-                      {/* Right side - GitHub Upload Toggle and Review Button */}
-                      <div className="flex items-center gap-3">
-                        {/* GitHub Upload Status Toggle */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">GitHub:</span>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={milestone.githubAccessible || milestone.fileUpdatedOnGithub || false}
-                              readOnly
-                              disabled
-                              className="sr-only peer"
-                            />
-                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer 
-                                         peer-checked:after:translate-x-full peer-checked:after:border-white 
-                                         after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
-                                         after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 
-                                         after:transition-all peer-checked:bg-green-600 dark:peer-checked:bg-green-500"></div>
-                          </label>
-                        </div>
-                        
-                        {/* Mentor Review Button - Only show for mentors on student milestones */}
-                        {userRole === 'mentor' && milestone.authorRole === 'student' && milestone.feedbackStatus === 'pending' && (
+                      {/* Review Buttons - Only show for mentors and professors assigned to this worklet */}
+                      <div className="flex items-center gap-2">
+                        {/* Mentor Review Button */}
+                        {(userRole === 'mentor' || currentUserRole?.toLowerCase() === 'mentor') && (
                           <button
                             onClick={() => {
-                              setSelectedMilestoneForReview(milestone)
+                              setSelectedMilestoneForReview({...milestone, reviewerRole: 'mentor'})
                               setIsReviewMilestoneModalOpen(true)
                             }}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
+                            disabled={milestone.feedbacks?.some(f => f.reviewer_role === 'mentor' && f.reviewer_email === currentUserEmail)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 ${
+                              milestone.feedbacks?.some(f => f.reviewer_role === 'mentor' && f.reviewer_email === currentUserEmail)
+                                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
                           >
                             <MessageSquare size={12} />
-                            Review
+                            {milestone.feedbacks?.some(f => f.reviewer_role === 'mentor' && f.reviewer_email === currentUserEmail) 
+                              ? 'Reviewed (Mentor)' 
+                              : 'Review as Mentor'}
+                          </button>
+                        )}
+                        
+                        {/* Professor Review Button */}
+                        {(userRole === 'professor' || currentUserRole?.toLowerCase() === 'professor') && (
+                          <button
+                            onClick={() => {
+                              setSelectedMilestoneForReview({...milestone, reviewerRole: 'professor'})
+                              setIsReviewMilestoneModalOpen(true)
+                            }}
+                            disabled={milestone.feedbacks?.some(f => f.reviewer_role === 'professor' && f.reviewer_email === currentUserEmail)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 ${
+                              milestone.feedbacks?.some(f => f.reviewer_role === 'professor' && f.reviewer_email === currentUserEmail)
+                                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                : 'bg-purple-600 hover:bg-purple-700 text-white'
+                            }`}
+                          >
+                            <MessageSquare size={12} />
+                            {milestone.feedbacks?.some(f => f.reviewer_role === 'professor' && f.reviewer_email === currentUserEmail) 
+                              ? 'Reviewed (Professor)' 
+                              : 'Review as Professor'}
                           </button>
                         )}
                       </div>
                     </div>
                     
-                    {/* Display Mentor Feedback if completed */}
-                    {milestone.feedbackStatus === 'completed' && milestone.mentorFeedback && (
-                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CheckCircle2 size={14} className="text-green-600 dark:text-green-400" />
-                          <span className="text-xs font-semibold text-green-700 dark:text-green-300">Mentor Feedback</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            • {new Date(milestone.mentorFeedbackDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-700 dark:text-gray-300">{milestone.mentorFeedback}</p>
+                    {/* Display All Feedbacks */}
+                    {milestone.feedbacks && milestone.feedbacks.length > 0 && (
+                      <div className="space-y-2">
+                        {milestone.feedbacks.map((feedback) => (
+                          <div 
+                            key={feedback.feedback_id} 
+                            className={`p-3 rounded-lg border ${
+                              feedback.reviewer_role === 'mentor' 
+                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                                : 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <CheckCircle2 size={14} className={
+                                feedback.reviewer_role === 'mentor'
+                                  ? 'text-blue-600 dark:text-blue-400'
+                                  : 'text-purple-600 dark:text-purple-400'
+                              } />
+                              <span className={`text-xs font-semibold ${
+                                feedback.reviewer_role === 'mentor'
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-purple-700 dark:text-purple-300'
+                              }`}>
+                                {feedback.reviewer_role === 'mentor' ? 'Mentor' : 'Professor'} Feedback
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                by {feedback.reviewer_name}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                • {new Date(feedback.created_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-700 dark:text-gray-300">{feedback.feedback_text}</p>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

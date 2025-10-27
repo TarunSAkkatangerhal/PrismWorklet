@@ -716,6 +716,19 @@ const Colleges = () => {
   const [overviewSortOrder, setOverviewSortOrder] = useState('desc') // 'desc' (Highest→Lowest) | 'asc' (Lowest→Highest)
   // Total worklets available from global worklets list (fallback for statistics)
   const [workletsTotalCount, setWorkletsTotalCount] = useState(0)
+  
+  // Ref for college overview section
+  const collegeOverviewRef = useRef(null)
+
+  // Function to scroll to college overview section
+  const scrollToCollegeOverview = () => {
+    if (collegeOverviewRef.current) {
+      collegeOverviewRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      })
+    }
+  }
 
   // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
@@ -1261,7 +1274,7 @@ const Colleges = () => {
         }
       }
 
-      navigate('/navColl', {
+      navigate('/academia_details', {
         state: {
           filter,
           collegeName: targetCollege === 'All Colleges' ? '' : targetCollege,
@@ -1449,7 +1462,9 @@ const Colleges = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+            <button
+              onClick={scrollToCollegeOverview}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
@@ -1459,7 +1474,7 @@ const Colleges = () => {
                   <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
-            </div>
+            </button>
             <button
               onClick={() => handleNavigateToFilter('total', collegeSearch ? collegeSearch : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
@@ -1555,7 +1570,7 @@ const Colleges = () => {
               </div>
             </button>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+          <div ref={collegeOverviewRef} className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
             <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">College Overview</h3>
               <button
@@ -1663,8 +1678,8 @@ const Colleges = () => {
               </button>
             )}
             <div>
-              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
-                College Management
+              <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
+              College Management
               </h1>
               <p className="text-gray-600 dark:text-gray-300 mt-2">
                 {collegeSearch
@@ -1741,10 +1756,11 @@ const Colleges = () => {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="flex h-screen w-full overflow-hidden bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <AnimationStyles />
       <LeftSidebar />
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
+      
+      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
         <div className="max-w-7xl mx-auto">{renderCurrentView()}</div>
       </main>
       <ChartModal chartInfo={enlargedChartInfo} onClose={() => setEnlargedChartInfo(null)} />
