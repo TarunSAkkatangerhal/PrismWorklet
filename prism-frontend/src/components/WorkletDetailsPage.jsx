@@ -1894,8 +1894,18 @@ export default function WorkletDetailPage() {
                 {/* Status Badge Enhanced */}
                 <div className="flex flex-col sm:flex-row lg:flex-col items-start gap-4">
                   <div className="flex flex-col gap-3 w-full">
-                    {/* Status and Performance Row */}
+                    {/* Performance and Status Row - Performance first, then Status */}
                     <div className="flex items-center gap-3 flex-wrap">
+                      {/* Performance Badge - Only show if backend provides quality/performance */}
+                      {getWorkletPerformance(worklet) && (
+                        <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
+                          {getWorkletPerformance(worklet) === 'Excellence' && <Award size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet) === 'Needs Attention' && <AlertCircle size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet)}
+                        </span>
+                      )}
+                      
                       <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${
                         worklet.status === 'Completed' 
                           ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white'
@@ -1907,16 +1917,6 @@ export default function WorkletDetailPage() {
                         {worklet.status === 'Completed' && <CheckCircle2 size={16} className="mr-2" />}
                         {worklet.status}
                       </span>
-                      
-                      {/* Performance Badge - Only show if backend provides quality/performance */}
-                      {getWorkletPerformance(worklet) && (
-                        <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
-                          {getWorkletPerformance(worklet) === 'Excellence' && <Award size={16} className="mr-2" />}
-                          {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
-                          {getWorkletPerformance(worklet) === 'Needs Attention' && <AlertCircle size={16} className="mr-2" />}
-                          {getWorkletPerformance(worklet)}
-                        </span>
-                      )}
                     </div>
                   </div>
                   

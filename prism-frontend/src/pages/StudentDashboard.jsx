@@ -1,8 +1,11 @@
 /* eslint-disable no-unused-vars */
 // Student Dashboard - Shows worklets content with student-focused UI
+// Now with proper security and API integration like mentor dashboard
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import axios from 'axios';
+import secureAPI from '../services/secureAPI';
+import { getCurrentUser } from '../services/auth';
+import { sanitizeInput } from '../utils/security';
 import { 
   Calendar, 
   Users, 
@@ -31,8 +34,6 @@ import {
 import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
 import StatCard from '../components/StatCard';
-import { getCurrentUser } from '../services/auth';
-import { sanitizeInput } from '../utils/security';
 import samsungLogo from '../assets/prism_logo.png';
 
 // Status options (UI unchanged; no 'To Start' tab)
@@ -105,73 +106,16 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Hardcoded data for now
-  const [workletsData] = useState([
-    {
-      id: 1,
-      title: "AI-Powered Chatbot Development",
-      description: "Build an intelligent chatbot using natural language processing and machine learning algorithms",
-      status: "Ongoing",
-      progress: 65,
-      created_at: "2025-09-15",
-      team_name: "Tech Innovators",
-      college: "MIT"
-    },
-    {
-      id: 2,
-      title: "Mobile App for Campus Navigation",
-      description: "Create a mobile application to help students navigate through the campus with real-time updates",
-      status: "Completed",
-      progress: 100,
-      created_at: "2025-08-20",
-      team_name: "Code Masters",
-      college: "Stanford"
-    },
-    {
-      id: 3,
-      title: "Blockchain-based Voting System",
-      description: "Develop a secure and transparent voting system using blockchain technology",
-      status: "Ongoing",
-      progress: 45,
-      created_at: "2025-10-01",
-      team_name: "Crypto Pioneers",
-      college: "Berkeley"
-    },
-    {
-      id: 4,
-      title: "Smart Home Automation",
-      description: "Design and implement an IoT-based smart home system with voice control features",
-      status: "Completed",
-      progress: 100,
-      created_at: "2025-07-10",
-      team_name: "IoT Warriors",
-      college: "MIT"
-    },
-    {
-      id: 5,
-      title: "E-Learning Platform",
-      description: "Build a comprehensive online learning platform with interactive courses and assessments",
-      status: "Ongoing",
-      progress: 80,
-      created_at: "2025-09-25",
-      team_name: "EduTech Squad",
-      college: "Harvard"
-    },
-  ]);
+  // Real state management
+  const [workletsData, setWorkletsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastFetched, setLastFetched] = useState(null);
   
-  const [loading] = useState(false);
-  const [error] = useState(null);
-  const [lastFetched] = useState(new Date());
-  
-  // User profile state with hardcoded data
-  const [userName] = useState('John Doe');
-  const [loadingName] = useState(false);
-  const [userProfileData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@university.edu',
-    college: 'Massachusetts Institute of Technology',
-    avatar_url: null
-  });
+  // User profile state
+  const [userName, setUserName] = useState('');
+  const [loadingName, setLoadingName] = useState(true);
+  const [userProfileData, setUserProfileData] = useState(null);
   
   // View state management
   const [layout, setLayout] = useState(() => localStorage.getItem('student_worklet_layout') || 'list');
@@ -196,12 +140,10 @@ export default function StudentDashboard() {
     localStorage.setItem('student_worklet_layout', layout);
   }, [layout]);
 
-  // Fetch current user (using hardcoded data for now)
+  // Fetch current user profile
   useEffect(() => {
     let cancelled = false;
     const loadUser = async () => {
-      // Using hardcoded data - uncomment below for real API
-      /*
       setLoadingName(true);
       try {
         const me = await getCurrentUser();
@@ -211,46 +153,38 @@ export default function StudentDashboard() {
         localStorage.setItem('user_email', me.email);
         localStorage.setItem('user_name', me.name || '');
       } catch (e) {
+        console.error('Error loading user:', e);
         if (!cancelled) {
           setUserName('Student');
         }
       } finally {
         if (!cancelled) setLoadingName(false);
       }
-      */
     };
     loadUser();
     return () => { cancelled = true };
   }, []);
 
-  // Fetch worklets function (using hardcoded data for now)
+  // Fetch worklets function with proper security
   const fetchWorklets = useCallback(async () => {
-    // Using hardcoded data - uncomment below for real API
-    /*
     setLoading(true);
     setError(null);
     try {
-      const accessToken = localStorage.getItem("access_token");
-      if (!accessToken) {
-        setError("Authentication required. Please log in.");
-        return;
-      }
-
-      // Prefer student-specific endpoint to fetch only the student's worklets
-      const url = "http://localhost:8000/api/worklets/student/me";
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-
+      // Use secure API with authentication
+      const response = await secureAPI.get('/worklets/student/me');
+      
       const payload = response.data;
       const items = Array.isArray(payload) ? payload : (Array.isArray(payload?.worklets) ? payload.worklets : []);
 
       if (items.length > 0) {
         const processedWorklets = items.map(worklet => ({
           ...worklet,
-          id: worklet.worklet_id || worklet.id,
+          id: worklet.id || worklet.worklet_id,
           created_at: worklet.created_at ? new Date(worklet.created_at) : new Date(),
           updated_at: worklet.updated_at ? new Date(worklet.updated_at) : new Date(),
+          // Calculate progress if not provided
+          progress: worklet.worklet_progress !== undefined ? worklet.worklet_progress : 
+                   (worklet.percentage_completion !== undefined ? worklet.percentage_completion : 0),
         }));
         setWorkletsData(processedWorklets);
         setLastFetched(new Date());
@@ -261,6 +195,8 @@ export default function StudentDashboard() {
       console.error("Error fetching worklets:", error);
       if (error.response?.status === 401) {
         setError("Your session has expired. Please log in again.");
+        // Redirect to login after a delay
+        setTimeout(() => navigate('/'), 2000);
       } else if (error.response?.status === 403) {
         setError("You don't have permission to view worklets.");
       } else {
@@ -270,13 +206,12 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false);
     }
-    */
-  }, []);
+  }, [navigate]);
 
-  // Load worklets on component mount and location change
+  // Load worklets on component mount
   useEffect(() => {
     fetchWorklets();
-  }, [fetchWorklets, location.pathname]);
+  }, [fetchWorklets]);
 
   // Status icon helper
   const getStatusIcon = (status) => {
@@ -298,6 +233,30 @@ export default function StudentDashboard() {
   // Calculate stats
   const totalWorklets = workletsData.length;
   const completedWorklets = workletsData.filter(w => w.status === 'Completed').length;
+
+  // Show error message if there's an error
+  if (error) {
+    return (
+      <div className="flex h-screen bg-slate-100 dark:bg-slate-900">
+        <LeftSidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+              {error}
+            </h2>
+            <button
+              onClick={fetchWorklets}
+              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+        <RightSidebar />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
