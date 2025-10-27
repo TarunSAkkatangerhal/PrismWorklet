@@ -18,7 +18,7 @@ const fetchMentorWorklets = async () => {
     const profile = await axios.get('http://localhost:8000/auth/profile', { headers: { 'Authorization': `Bearer ${token}` } });
     const mentorId = profile?.data?.id;
     if (!mentorId) throw new Error('Could not resolve mentor id');
-    const resp = await axios.get(`http://localhost:8000/api/associations/mentor/${mentorId}/all-worklets`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const resp = await axios.get(`http://localhost:8000/api/associations/mentor/${mentorId}/worklets`, { headers: { 'Authorization': `Bearer ${token}` } });
     return Array.isArray(resp?.data?.all_worklets) ? resp.data.all_worklets : [];
   } catch (e) {
     console.error('Association worklets fetch failed', e?.response?.data || e.message);

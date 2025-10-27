@@ -78,7 +78,7 @@ function EvaluateModal({ isOpen, onClose }) {
       const mentorId = profileResp?.data?.id;
       if (!mentorId) throw new Error('Unable to resolve mentor id');
       // Get all worklets including completed
-      const assocResp = await apiClient.get(`/api/associations/mentor/${mentorId}/all-worklets`);
+      const assocResp = await apiClient.get(`/api/associations/mentor/${mentorId}/worklets`);
       const completed = assocResp?.data?.completed_worklets || [];
       setCompletedWorklets(Array.isArray(completed) ? completed : []);
     } catch (error) {

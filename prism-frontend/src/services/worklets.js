@@ -6,6 +6,7 @@ export const getAllWorklets = async () => {
   return response.data;
 };
 
+// DEPRECATED: Use getMentorWorkletsById instead
 // Fetch worklets for a specific mentor by email
 // opts: { onlyOngoing: boolean }
 export const getMentorWorklets = async (mentorEmail, opts = {}) => {
@@ -18,16 +19,37 @@ export const getMentorWorklets = async (mentorEmail, opts = {}) => {
   return response.data;
 };
 
-// Fetch ongoing worklets using associations endpoint by mentor user id
-export const getMentorOngoingWorkletsById = async (mentorUserId) => {
-  const response = await axios.get(`${BASE}/api/associations/mentor/${mentorUserId}/ongoing-worklets`);
-  return response.data; // expected shape: { ongoing_worklets: [...] }
+/**
+ * UNIFIED API - Fetch worklets for a mentor by user ID
+ * @param {number} mentorUserId - The mentor's user ID
+ * @param {Object} options - Optional filters
+ * @param {string} options.statusFilter - Filter by status: "ongoing", "completed", "all", or null
+ * @param {boolean} options.includePerformance - Include performance data (default: true)
+ * @returns {Promise} Response with worklets data
+ */
+export const getMentorWorkletsById = async (mentorUserId, options = {}) => {
+  const { statusFilter = null, includePerformance = true } = options;
+  
+  const params = new URLSearchParams();
+  if (statusFilter) params.append("status_filter", statusFilter);
+  params.append("include_performance", includePerformance.toString());
+  
+  const qs = params.toString();
+  const url = `${BASE}/api/associations/mentor/${mentorUserId}/worklets${qs ? `?${qs}` : ""}`;
+  const response = await axios.get(url);
+  return response.data;
 };
 
-// Fetch all (ongoing + completed) worklets for mentor
+// DEPRECATED: Use getMentorWorkletsById with statusFilter="ongoing"
+// Kept for backward compatibility
+export const getMentorOngoingWorkletsById = async (mentorUserId) => {
+  return getMentorWorkletsById(mentorUserId, { statusFilter: "ongoing" });
+};
+
+// DEPRECATED: Use getMentorWorkletsById with statusFilter="all" or null
+// Kept for backward compatibility
 export const getMentorAllWorkletsById = async (mentorUserId) => {
-  const response = await axios.get(`${BASE}/api/associations/mentor/${mentorUserId}/all-worklets`);
-  return response.data; // shape: { all_worklets, total_worklets, total_mentees, ... }
+  return getMentorWorkletsById(mentorUserId, { statusFilter: "all" });
 };
 
 export const getWorkletById = async (id) => {

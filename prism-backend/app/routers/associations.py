@@ -1,5 +1,6 @@
 ﻿"""
 User Worklet Association Router - Handles many-to-many relationships between users and worklets (minimal schema)
+Now uses centralized WorkletService for consistent data formatting.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,6 +20,12 @@ from app.schemas import (
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from app.core.config import settings
+from app.routers.helpers.worklet_helpers import (
+    get_worklet_students,
+    format_worklet_response,
+    map_status_text
+)
+from app.services.worklet_service import WorkletService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -244,253 +251,60 @@ def get_user_worklets(
     
     return user_dict
 
-@router.get("/mentor/{mentor_id}/ongoing-worklets")
-def get_mentor_ongoing_worklets(
+@router.get("/mentor/{mentor_id}/worklets")
+def get_mentor_worklets_unified(
     mentor_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    status_filter: Optional[str] = None,  # "ongoing", "completed", "all", or None (defaults to all)
+    include_performance: bool = True
 ):
-    """Get ongoing worklets for a specific mentor"""
-    
-    # Get mentor user
-    # Some legacy rows may store role in a different case; accept either
-    mentor = db.query(User).filter(
-        and_(
-            User.id == mentor_id,
-            or_(User.role == "Mentor", User.role == "mentor")
-        )
-    ).first()
-    
-    if not mentor:
-        raise HTTPException(status_code=404, detail="Mentor not found")
-    
-    # Get active worklet associations for this mentor
-    associations = db.query(UserWorkletAssociation).filter(
-        and_(
-            UserWorkletAssociation.user_id == mentor_id,
-            # compare to enum string value; allow legacy lowercase values
-            UserWorkletAssociation.role_in_worklet.in_([WorkletRoleEnum.mentor.value, WorkletRoleEnum.mentor.value.lower()])
-        )
-    ).all()
-    
-    # Get worklets with additional details (only status_id == 1)
-    ongoing_worklets = []
-    all_student_ids: set[int] = set()
-    for assoc in associations:
-        worklet = assoc.worklet
-        # Only include worklets with status_id 1 (Ongoing)
-        if getattr(worklet, 'status_id', None) != 1:
-            continue
-        # Map status via status_id for response
-        status_map = {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}
-        status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
-        
-        # Get students for this worklet
-        student_associations = db.query(UserWorkletAssociation).filter(
-            and_(
-                UserWorkletAssociation.worklet_id == worklet.id,
-                UserWorkletAssociation.role_in_worklet.in_([WorkletRoleEnum.student.value, WorkletRoleEnum.student.value.lower()])
-            )
-        ).all()
-        
-        students = [sa.user for sa in student_associations]
-        # Collect unique student ids across all worklets for total mentee count
-        for s in students:
-            if s.id is not None:
-                all_student_ids.add(s.id)
-        
-        # Determine college with priority: worklet.college_rel -> student college -> mentor college
-        worklet_college = None
-        worklet_college_id = getattr(worklet, 'college_id', None)
-        if getattr(worklet, 'college_rel', None) and getattr(worklet.college_rel, 'college_name', None):
-            worklet_college = worklet.college_rel.college_name
-        if worklet_college is None:
-            for s in students:
-                if getattr(s, 'college', None):
-                    worklet_college = s.college
-                    if worklet_college_id is None:
-                        worklet_college_id = getattr(s, 'college_id', None)
-                    break
-        if worklet_college is None:
-            worklet_college = mentor.college
-            if worklet_college_id is None:
-                worklet_college_id = getattr(mentor, 'college_id', None)
-
-        # Use per-worklet stored progress; fallback derive if null
-        percentage_completion = getattr(worklet, 'worklet_progress', None)
-        if percentage_completion is None:
-            if getattr(worklet, 'start_date', None) and getattr(worklet, 'end_date', None):
-                try:
-                    total_days = (worklet.end_date - worklet.start_date).days or 1
-                    elapsed_days = (datetime.utcnow().date() - worklet.start_date).days
-                    if elapsed_days < 0:
-                        elapsed_days = 0
-                    percentage_completion = max(0, min(100, int((elapsed_days / total_days) * 100)))
-                except Exception:
-                    percentage_completion = 0
-            else:
-                percentage_completion = 0
-
-        # Use Performance column from Prism_Worklet table (single source of truth)
-        performance = getattr(worklet, 'Performance', None)
-        
-        # Debug: Log what we're reading from database
-        print(f"DEBUG - Worklet ID {worklet.id}: Performance column = '{performance}'")
-
-        worklet_data = {
-            "id": worklet.id,
-            "cert_id": worklet.cert_id,
-            "description": getattr(worklet, "problem_statement", None),
-            "title": worklet.title,
-            "domain": getattr(worklet, "domain", None),
-            "status": status_text,
-            "start_date": getattr(worklet, 'start_date', None),
-            "end_date": getattr(worklet, 'end_date', None),
-            "college_id": worklet_college_id,
-            "college": worklet_college,
-            "percentage_completion": percentage_completion,
-            "performance": performance,
-            "students": [{
-                "id": student.id,
-                "name": student.name,
-                "email": student.email,
-                "college": getattr(student, 'college', None),
-                "college_id": getattr(student, 'college_id', None)
-            } for student in students],
-            "student_count": len(students),
-            "assigned_at": None,
-            "notes": None
-        }
-        
-        ongoing_worklets.append(worklet_data)
-    
-    return {
-        "mentor_id": mentor_id,
-        "mentor_name": mentor.name,
-        "ongoing_worklets": ongoing_worklets,
-        "total_ongoing": len(ongoing_worklets),
-        "total_worklets": len(ongoing_worklets),
-        "total_mentees": len(all_student_ids)
-    }
-
-@router.get("/mentor/{mentor_id}/all-worklets")
-def get_mentor_all_worklets(
-    mentor_id: int,
-    db: Session = Depends(get_db)
-):
-    """Get all worklets (any status) for a specific mentor with aggregates.
-    Returns:
-      - ongoing_worklets: subset with status Ongoing
-      - completed_worklets: subset with status Completed
-      - total_worklets: count of all
-      - total_mentees: distinct students across all worklets mentored
     """
-
-    # Accept legacy role casing
-    mentor = db.query(User).filter(
-        and_(User.id == mentor_id, or_(User.role == "Mentor", User.role == "mentor"))
-    ).first()
-    if not mentor:
+    Unified endpoint to get worklets for a specific mentor.
+    
+    Query Parameters:
+    - status_filter: Filter by status ("ongoing", "completed", or "all"/None for all worklets)
+    - include_performance: Include performance/quality data (default: True)
+    
+    Returns worklets with aggregated data including students and statistics.
+    Now uses centralized WorkletService for consistent data formatting.
+    """
+    
+    # Use service layer for all business logic
+    result = WorkletService.get_worklets_for_mentor(
+        db=db,
+        mentor_id=mentor_id,
+        status_filter=status_filter,
+        include_performance=include_performance
+    )
+    
+    if result is None:
         raise HTTPException(status_code=404, detail="Mentor not found")
-
-    associations = db.query(UserWorkletAssociation).filter(
-        and_(
-            UserWorkletAssociation.user_id == mentor_id,
-            UserWorkletAssociation.role_in_worklet.in_([WorkletRoleEnum.mentor.value, WorkletRoleEnum.mentor.value.lower()])
-        )
-    ).all()
-
-    all_worklets = []
-    all_student_ids: set[int] = set()
-
-    for assoc in associations:
-        worklet = assoc.worklet
-        # Students for this worklet
-        student_associations = db.query(UserWorkletAssociation).filter(
-            and_(
-                UserWorkletAssociation.worklet_id == worklet.id,
-                UserWorkletAssociation.role_in_worklet.in_([WorkletRoleEnum.student.value, WorkletRoleEnum.student.value.lower()])
-            )
-        ).all()
-        students = [sa.user for sa in student_associations]
-        for s in students:
-            if s.id is not None:
-                all_student_ids.add(s.id)
-        # Determine college with priority: worklet.college_rel -> student college -> mentor college
-        worklet_college = None
-        worklet_college_id = getattr(worklet, 'college_id', None)
-        if getattr(worklet, 'college_rel', None) and getattr(worklet.college_rel, 'college_name', None):
-            worklet_college = worklet.college_rel.college_name
-        if worklet_college is None:
-            for s in students:
-                if getattr(s, 'college', None):
-                    worklet_college = s.college
-                    if worklet_college_id is None:
-                        worklet_college_id = getattr(s, 'college_id', None)
-                    break
-        if worklet_college is None:
-            worklet_college = mentor.college
-            if worklet_college_id is None:
-                worklet_college_id = getattr(mentor, 'college_id', None)
-        # Use per-worklet stored progress; fallback derive if null
-        percentage_completion = getattr(worklet, 'worklet_progress', None)
-        if percentage_completion is None:
-            if getattr(worklet, 'start_date', None) and getattr(worklet, 'end_date', None):
-                try:
-                    total_days = (worklet.end_date - worklet.start_date).days or 1
-                    elapsed_days = (datetime.utcnow().date() - worklet.start_date).days
-                    if elapsed_days < 0:
-                        elapsed_days = 0
-                    percentage_completion = max(0, min(100, int((elapsed_days / total_days) * 100)))
-                except Exception:
-                    percentage_completion = 0
-            else:
-                percentage_completion = 0
-
-        # Use Performance column from Prism_Worklet table (single source of truth)
-        performance = getattr(worklet, 'Performance', None)
-
-        # Compute status consistently
-        status_map = {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}
-        status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
-
-        worklet_data = {
-            "id": worklet.id,
-            "cert_id": worklet.cert_id,
-            "description": getattr(worklet, "problem_statement", None),
-            "title": worklet.title,
-            "domain": getattr(worklet, "domain", None),
-            "status": status_text,
-            "start_date": getattr(worklet, 'start_date', None),
-            "end_date": getattr(worklet, 'end_date', None),
-            "college_id": worklet_college_id,
-            "college": worklet_college,
-            "percentage_completion": percentage_completion,
-            "performance": performance,
-            "students": [{
-                "id": student.id,
-                "name": student.name,
-                "email": student.email,
-                "college": getattr(student, 'college', None),
-                "college_id": getattr(student, 'college_id', None)
-            } for student in students],
-            "student_count": len(students),
-        }
-        all_worklets.append(worklet_data)
-
-    ongoing = [w for w in all_worklets if (w.get("status") == "Ongoing")]
-    completed = [w for w in all_worklets if (w.get("status") == "Completed")]
-
-    return {
-        "mentor_id": mentor_id,
-        "mentor_name": mentor.name,
-        "all_worklets": all_worklets,
-        "ongoing_worklets": ongoing,
-        "completed_worklets": completed,
-        "total_worklets": len(all_worklets),
-        "total_ongoing": len(ongoing),
-        "total_completed": len(completed),
-        "total_mentees": len(all_student_ids)
+    
+    # Format response based on filter
+    response = {
+        "mentor_id": result["mentor_id"],
+        "mentor_name": result["mentor_name"],
+        "total_worklets": result["total_worklets"],
+        "total_mentees": result["total_mentees"]
     }
+    
+    # Add appropriate worklet lists based on filter
+    if status_filter and status_filter.lower() == "ongoing":
+        response["ongoing_worklets"] = result["ongoing_worklets"]
+        response["total_ongoing"] = result["total_ongoing"]
+    elif status_filter and status_filter.lower() == "completed":
+        response["completed_worklets"] = result["completed_worklets"]
+        response["total_completed"] = result["total_completed"]
+    else:
+        # Return all with breakdowns
+        response["all_worklets"] = result["worklets"]
+        response["ongoing_worklets"] = result["ongoing_worklets"]
+        response["completed_worklets"] = result["completed_worklets"]
+        response["total_ongoing"] = result["total_ongoing"]
+        response["total_completed"] = result["total_completed"]
+    
+    return response
+
 
 @router.put("/{user_id}/{worklet_id}", response_model=UserWorkletAssociationResponse)
 def update_association(
