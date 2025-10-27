@@ -127,6 +127,8 @@ class Worklet(Base):
     start_date = Column("StartDate", Date, nullable=True)
     end_date = Column("EndDate", Date, nullable=True)
     is_active = Column("IsActive", Integer, nullable=False)
+    # Performance column for quality/performance tracking
+    Performance = Column("Performance", String(45), nullable=True)
     # New FK to colleges
     college_id = Column("CollegeID", Integer, ForeignKey("colleges.college_id", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
 

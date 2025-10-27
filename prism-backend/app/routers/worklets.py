@@ -192,7 +192,7 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             'student_count': student_count,
             'github_repo_url': github_url,
             'github_repo': repo_name,
-            'quality': getattr(w, 'Performance', None)
+            'performance': getattr(w, 'Performance', None)
         })
     return response
 
@@ -352,8 +352,8 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
     status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
     status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
 
-    # Use Performance column for quality badge, omit if None
-    quality = worklet.Performance if getattr(worklet, 'Performance', None) else None
+    # Use Performance column for performance badge, omit if None
+    performance = worklet.Performance if getattr(worklet, 'Performance', None) else None
 
     # Collect students (names + emails) if associations exist
     student_records = _get_students_for_worklet(db, worklet.id)
@@ -407,7 +407,7 @@ def get_worklet_flexible(worklet_identifier: str, db: Session = Depends(get_db))
         "status": status_text,
         "percentage_completion": percentage_completion,
         "worklet_progress": percentage_completion,
-        "quality": quality,
+        "performance": performance,
         "students": students,
         "student_count": len(students),
         "professors": professors,
@@ -522,8 +522,8 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
             status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
             status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
             
-            # Use Performance column for quality badge
-            quality = worklet.Performance if getattr(worklet, 'Performance', None) else None
+            # Use Performance column for performance tracking
+            performance = worklet.Performance if getattr(worklet, 'Performance', None) else None
 
             # Derive GitHub repo info if available
             github_url = getattr(worklet, 'github_url', None)
@@ -551,7 +551,7 @@ def get_mentor_worklets(mentor_email: str, db: Session = Depends(get_db), only_o
                 "prerequisites": getattr(worklet, "prerequisites", None),
                 "worklet_progress": getattr(worklet, "worklet_progress", None),
                 "percentage_completion": percentage_completion,
-                "quality": quality,
+                "performance": performance,
                 "students": students,
                 "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
                 "end_date": worklet.end_date.isoformat() if worklet.end_date else None,

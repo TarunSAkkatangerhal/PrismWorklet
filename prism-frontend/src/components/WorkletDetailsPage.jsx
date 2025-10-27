@@ -437,6 +437,8 @@ export default function WorkletDetailPage() {
             // GitHub repository info (now provided by backend)
             github_repo: response.data.github_repo || null,
             github_repo_url: response.data.github_repo_url || null,
+            // Backend-provided performance (single source of truth for badge)
+            performance: response.data.performance || null,
           }
 
           setWorklet(transformedWorklet)
@@ -667,47 +669,79 @@ export default function WorkletDetailPage() {
                   <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                 </svg>
                 <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {worklet.github_repo || 'stanford-bootcamp/fullstack-web-development'}
+                  {worklet.github_repo || 'Repository not specified'}
                 </span>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Main development repository for the {worklet.title} project
+                {worklet.github_repo 
+                  ? `Main development repository for the ${worklet.title} project`
+                  : 'No repository configured for this worklet'}
               </p>
             </div>
             <div className="flex gap-2 ml-4">
-              <a
-                href={worklet.github_repo_url || 'https://github.com/stanford-bootcamp/fullstack-web-development'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-3 py-2 bg-gray-900 dark:bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-800 dark:hover:bg-gray-500 transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-                View Repo
-              </a>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    worklet.github_repo_url || 'https://github.com/stanford-bootcamp/fullstack-web-development'
-                  )
-                }}
-                className="inline-flex items-center gap-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-                title="Copy repository URL">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                Copy
-              </button>
+              {worklet.github_repo_url ? (
+                <>
+                  <a
+                    href={worklet.github_repo_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-gray-900 dark:bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-800 dark:hover:bg-gray-500 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                    View Repo
+                  </a>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(worklet.github_repo_url)}
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                    title="Copy repository URL">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Copy
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 text-sm rounded-lg cursor-not-allowed"
+                    disabled>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                    View Repo
+                  </button>
+                  <button 
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 text-sm rounded-lg cursor-not-allowed"
+                    disabled
+                    title="No repository URL available">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Copy
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -1682,18 +1716,20 @@ export default function WorkletDetailPage() {
 
   // --- PERFORMANCE CALCULATION ---
   const getWorkletPerformance = (worklet) => {
-    if (!worklet) return 'Needs Attention'
+    // Use backend-provided performance/quality field (single source of truth)
+    if (!worklet) return null
     
-    const progress = worklet.progress || 0
+    const perf = worklet.performance
+    if (!perf && perf !== 0) return null
     
-    // Performance logic based on progress percentage
-    if (progress > 80) {
-      return 'Excellence'
-    } else if (progress > 70) {
-      return 'Good'
-    } else {
-      return 'Needs Attention'
-    }
+    // Normalize backend value (case-insensitive)
+    const p = String(perf).toLowerCase().trim()
+    if (p.includes('excel')) return 'Excellence'
+    if (p.includes('good')) return 'Good'
+    if (p.includes('need')) return 'Needs Attention'
+    
+    // Fallback: title-case the provided string
+    return p.charAt(0).toUpperCase() + p.slice(1)
   }
 
   const getPerformanceColor = (performance) => {
@@ -1793,13 +1829,15 @@ export default function WorkletDetailPage() {
                         {worklet.status}
                       </span>
                       
-                      {/* Performance Badge */}
-                      <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
-                        {getWorkletPerformance(worklet) === 'Excellence' && <Award size={16} className="mr-2" />}
-                        {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
-                        {getWorkletPerformance(worklet) === 'Needs Attention' && <AlertCircle size={16} className="mr-2" />}
-                        {getWorkletPerformance(worklet)}
-                      </span>
+                      {/* Performance Badge - Only show if backend provides quality/performance */}
+                      {getWorkletPerformance(worklet) && (
+                        <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
+                          {getWorkletPerformance(worklet) === 'Excellence' && <Award size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet) === 'Needs Attention' && <AlertCircle size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet)}
+                        </span>
+                      )}
                     </div>
                   </div>
                   
@@ -2393,24 +2431,37 @@ export default function WorkletDetailPage() {
                         <div className="flex items-center gap-3 mb-2">
                           <GitBranch size={16} className="text-gray-600 dark:text-gray-400" />
                           <span className="font-semibold text-gray-900 dark:text-white">
-                            {worklet.github_repo || 'stanford-bootcamp/fullstack-web-development'}
+                            {worklet.github_repo || 'Repository not specified'}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Main development repository for {worklet.title}
+                          {worklet.github_repo 
+                            ? `Main development repository for ${worklet.title}`
+                            : 'No repository configured for this worklet'}
                         </p>
                       </div>
                       <div className="flex gap-2 ml-4">
-                        <a
-                          href={worklet.github_repo_url || 'https://github.com/stanford-bootcamp/fullstack-web-development'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 hover:bg-gray-800 text-white 
-                                    text-sm rounded-lg transition-all duration-200 hover:scale-105 shadow-lg"
-                        >
-                          <ExternalLink size={14} />
-                          View Repo
-                        </a>
+                        {worklet.github_repo_url ? (
+                          <a
+                            href={worklet.github_repo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 hover:bg-gray-800 text-white 
+                                      text-sm rounded-lg transition-all duration-200 hover:scale-105 shadow-lg"
+                          >
+                            <ExternalLink size={14} />
+                            View Repo
+                          </a>
+                        ) : (
+                          <button
+                            disabled
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-gray-300 dark:bg-gray-600 
+                                      text-gray-500 dark:text-gray-400 text-sm rounded-lg cursor-not-allowed"
+                          >
+                            <ExternalLink size={14} />
+                            View Repo
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -153,15 +153,29 @@ export default function Dashboard() {
         // Fetch aggregate (all worklets) for totals
         const allData = await getMentorAllWorkletsById(userProfileData.id)       // Full collection (statuses)
         const list = assocData?.ongoing_worklets || []
+        
+        // Debug: Log first worklet to verify performance field from Performance column
+        if (list.length > 0) {
+          console.log('First worklet from backend:', list[0])
+          console.log('Performance field (from Performance column):', list[0].performance)
+        }
+        
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet) => {
           const progressVal = Number(worklet.percentage_completion ?? worklet.mentor_progress ?? worklet.progress ?? 0) || 0
           // Harmonize status labels regardless of backend variant fields
           const status = worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing')
-          // Derive quality from progress
-          let quality = 'Needs Attention'
-          if (progressVal >= 80) quality = 'Excellence'
-          else if (progressVal >= 50) quality = 'Good'
+          
+          // Use backend performance field (from Performance column - single source of truth)
+          let quality = null
+          if (worklet.performance) {
+            const perf = String(worklet.performance).toLowerCase().trim()
+            if (perf.includes('excel')) quality = 'Excellence'
+            else if (perf.includes('good')) quality = 'Good'
+            else if (perf.includes('need')) quality = 'Needs Attention'
+            else quality = worklet.performance.charAt(0).toUpperCase() + worklet.performance.slice(1)
+          }
+          
           // Extract student names (fallback to email if name missing)
           const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : []
           // Keep raw ISO dates for calculations and formatted versions for display
@@ -758,13 +772,15 @@ function WorkletCard({ worklet, layout, navigate }) {
 
         {/* Right side panel with latest update */}
         <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center text-center p-[0.4vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out overflow-hidden">
-          <span
-            className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${
-              qualityStyles[worklet.quality] || qualityStyles.Default
-            }`}>
-            {worklet.quality}
-          </span>
-          <div className="mt-[0.6vw] flex-1 flex flex-col justify-center">
+          {worklet.quality && (
+            <span
+              className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${
+                qualityStyles[worklet.quality] || qualityStyles.Default
+              }`}>
+              {worklet.quality}
+            </span>
+          )}
+          <div className={`${worklet.quality ? 'mt-[0.6vw]' : ''} flex-1 flex flex-col justify-center`}>
             <p className="text-[clamp(1.2rem,2.5vw,2rem)] font-bold">{remaining.days}</p>
             <p className="text-[clamp(0.5rem,0.7vw,0.65rem)] text-gray-300">{remaining.label}</p>
           </div>

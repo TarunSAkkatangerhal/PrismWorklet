@@ -330,15 +330,11 @@ def get_mentor_ongoing_worklets(
             else:
                 percentage_completion = 0
 
-        # Quality heuristic mirroring worklets router logic
-        if status_text == 'Completed':
-            quality = 'Excellence'
-        elif percentage_completion >= 70:
-            quality = 'Excellence'
-        elif percentage_completion >= 30:
-            quality = 'Good'
-        else:
-            quality = 'Needs Attention'
+        # Use Performance column from Prism_Worklet table (single source of truth)
+        performance = getattr(worklet, 'Performance', None)
+        
+        # Debug: Log what we're reading from database
+        print(f"DEBUG - Worklet ID {worklet.id}: Performance column = '{performance}'")
 
         worklet_data = {
             "id": worklet.id,
@@ -352,7 +348,7 @@ def get_mentor_ongoing_worklets(
             "college_id": worklet_college_id,
             "college": worklet_college,
             "percentage_completion": percentage_completion,
-            "quality": quality,
+            "performance": performance,
             "students": [{
                 "id": student.id,
                 "name": student.name,
@@ -450,17 +446,12 @@ def get_mentor_all_worklets(
             else:
                 percentage_completion = 0
 
-        # Compute status and quality consistently regardless of progress source
+        # Use Performance column from Prism_Worklet table (single source of truth)
+        performance = getattr(worklet, 'Performance', None)
+
+        # Compute status consistently
         status_map = {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}
         status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
-        if status_text == 'Completed':
-            quality = 'Excellence'
-        elif percentage_completion >= 70:
-            quality = 'Excellence'
-        elif percentage_completion >= 30:
-            quality = 'Good'
-        else:
-            quality = 'Needs Attention'
 
         worklet_data = {
             "id": worklet.id,
@@ -474,7 +465,7 @@ def get_mentor_all_worklets(
             "college_id": worklet_college_id,
             "college": worklet_college,
             "percentage_completion": percentage_completion,
-            "quality": quality,
+            "performance": performance,
             "students": [{
                 "id": student.id,
                 "name": student.name,
