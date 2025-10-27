@@ -140,6 +140,7 @@ class Worklet(Base):
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")
     college_rel = relationship("College", primaryjoin="Worklet.college_id==College.college_id", uselist=False)
     suggestions = relationship("Suggestion", back_populates="worklet", cascade="all, delete-orphan")
+    milestones = relationship("Milestone", back_populates="worklet", cascade="all, delete-orphan")
 
     # Convenience properties to keep API compatibility
     @property
@@ -318,3 +319,54 @@ class Suggestion(Base):
 
     def __repr__(self):
         return f"<Suggestion(suggestion_id={self.suggestion_id}, worklet_id={self.worklet_id}, title='{self.suggestion_title}')>"
+
+
+# Milestone table
+class Milestone(Base):
+    __tablename__ = "Prism_Milestone"
+
+    milestone_id = Column(Integer, primary_key=True, autoincrement=True)
+    worklet_id = Column(Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=False)
+    student_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    milestone_type = Column(String(50), nullable=False)
+    date_created = Column(DateTime, server_default=func.now(), nullable=False)
+    field1_label = Column(String(100), nullable=True)
+    field1_value = Column(Text, nullable=True)
+    field2_label = Column(String(100), nullable=True)
+    field2_value = Column(Text, nullable=True)
+    toggle_label = Column(String(100), nullable=True)
+    toggle_value = Column(Boolean, default=False)
+    attachment_name = Column(String(255), nullable=True)
+    attachment_size = Column(Integer, nullable=True)
+    attachment_type = Column(String(100), nullable=True)
+    attachment_url = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    worklet = relationship("Worklet", back_populates="milestones")
+    student = relationship("User", foreign_keys=[student_id])
+    feedbacks = relationship("MilestoneFeedback", back_populates="milestone", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Milestone(milestone_id={self.milestone_id}, type='{self.milestone_type}', worklet_id={self.worklet_id})>"
+
+
+# Milestone Feedback table
+class MilestoneFeedback(Base):
+    __tablename__ = "Prism_Milestone_Feedback"
+
+    feedback_id = Column(Integer, primary_key=True, autoincrement=True)
+    milestone_id = Column(Integer, ForeignKey("Prism_Milestone.milestone_id", ondelete="CASCADE"), nullable=False)
+    reviewer_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    reviewer_role = Column(SAEnum("mentor", "professor", name="reviewer_role_enum"), nullable=False)
+    feedback_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    milestone = relationship("Milestone", back_populates="feedbacks")
+    reviewer = relationship("User", foreign_keys=[reviewer_id])
+
+    def __repr__(self):
+        return f"<MilestoneFeedback(feedback_id={self.feedback_id}, milestone_id={self.milestone_id}, role='{self.reviewer_role}')>"
