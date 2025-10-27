@@ -13,8 +13,8 @@ import LeftSidebar from "./components/Left";
 import Portfolio from "./layouts/portfolio";
 import Colleges from "./layouts/academia";
 import Meetings from "./layouts/Meetings";
-import NavStat from "./layouts/academia_details";
-import NavColl from "./layouts/dashboard_details";
+import NavColl from "./layouts/academia_details";
+import NavStat from "./layouts/dashboard_details";
 import { MentorRoute, StudentRoute, ProtectedRoute } from "./components/RoleBasedRoute";
 import RoleRedirect from "./components/RoleRedirect";
 

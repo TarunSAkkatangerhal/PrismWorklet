@@ -1653,8 +1653,8 @@ const Colleges = () => {
               </button>
             )}
             <div>
-              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400">
-                College Management
+              <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
+              College Management
               </h1>
               <p className="text-gray-600 dark:text-gray-300 mt-2">
                 {collegeSearch
@@ -1731,10 +1731,11 @@ const Colleges = () => {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="flex h-screen w-full overflow-hidden bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <AnimationStyles />
       <LeftSidebar />
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
+      
+      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
         <div className="max-w-7xl mx-auto">{renderCurrentView()}</div>
       </main>
       <ChartModal chartInfo={enlargedChartInfo} onClose={() => setEnlargedChartInfo(null)} />
