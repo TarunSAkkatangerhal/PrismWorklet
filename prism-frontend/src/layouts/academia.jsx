@@ -1448,10 +1448,7 @@ const Colleges = () => {
               </div>
             </button>
             <button
-              onClick={() => {
-                scrollToCollegeOverview()
-                setTimeout(() => handleNavigateToFilter('total', collegeSearch ? collegeSearch : 'All Colleges'), 300)
-              }}
+              onClick={() => handleNavigateToFilter('total', collegeSearch ? collegeSearch : 'All Colleges')}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
