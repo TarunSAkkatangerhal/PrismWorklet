@@ -77,10 +77,25 @@ The **Worklet Management System (WMS)** is a sophisticated platform developed un
 - **Secure Password Hashing** using Argon2 and bcrypt
 
 ### 📊 Worklet Management
-- **Worklet Lifecycle Tracking** (Approved, Ongoing, Completed, Dropped, On Hold)
+- **Worklet Lifecycle Tracking** (To Start, Ongoing, Completed, On Hold, Dropped/Terminated)
 - **Progress Monitoring** with percentage-based tracking
 - **Mentor-Student Assignment** and collaboration tools
 - **Certificate ID Generation** for completed worklets
+- **Real-time Status Updates** and notifications
+
+### 💡 Mentor-Student Collaboration
+- **Suggestion System** - Mentors can share actionable suggestions with students
+- **Persistent Feedback** - All suggestions stored in database with tracking
+- **Interactive Response** - Students can mark suggestions as helpful, respond, and mark as read
+- **Categorized Suggestions** - Organized by category and priority (low/medium/high)
+
+### 🎯 Milestone Review System
+- **Student Milestone Creation** - Students can add milestones with custom fields, attachments, and GitHub status
+- **Dual-Role Feedback** - Both mentors and professors can provide independent feedback on milestones
+- **Role-Based Reviews** - Separate "Review as Mentor" and "Review as Professor" buttons
+- **Persistent Feedback Storage** - All milestone feedbacks stored with reviewer role and timestamp
+- **Visibility Control** - Only assigned mentors/professors can review worklet milestones
+- **Feedback Display** - Students see both mentor and professor feedback displayed separately
 
 ### 🎯 Evaluation & Feedback
 - **Comprehensive Evaluation System** with scoring and feedback
@@ -95,8 +110,10 @@ The **Worklet Management System (WMS)** is a sophisticated platform developed un
 
 ### 📈 Analytics & Reporting
 - **Interactive Dashboards** for different user roles
+- **College-wise Statistics** with worklet distribution and performance metrics
 - **Export Capabilities** for reports and data
 - **Visual Analytics** for progress and outcome tracking
+- **Performance Distribution** (Excellent/Good/Needs Attention)
 
 ---
 
@@ -198,7 +215,7 @@ The **Worklet Management System (WMS)** is a sophisticated platform developed un
 
 ## 🧩 Database Schema
 
-The WMS database consists of 9 main tables that handle user management, worklet tracking, evaluations, and portfolio management. Below is an overview of the core tables and their relationships:
+The WMS database consists of 11 main tables that handle user management, worklet tracking, evaluations, portfolio management, and milestone reviews. Below is an overview of the core tables and their relationships:
 
 ### 📊 Core Tables Overview
 
@@ -207,9 +224,12 @@ The WMS database consists of 9 main tables that handle user management, worklet 
 | **colleges** | Educational institutions | `college_id`, `college_name`, `location`, `established` |
 | **users** | System users with roles | `user_id`, `name`, `email`, `role`, `college_id` |
 | **user_profiles** | Extended user information | `user_id`, `bio`, `expertise`, `contact_number`, `linkedin` |
-| **worklets** | Academic projects/research | `worklet_id`, `cert_id`, `title`, `status`, `progress` |
-| **user_worklet_association** | User-worklet relationships | `user_id`, `worklet_id`, `role_in_worklet` |
-| **evaluations** | Performance assessments | `evaluation_id`, `user_id`, `worklet_id`, `score`, `feedback` |
+| **Prism_Worklet** | Academic projects/research | `WorkletID`, `CertID`, `Title`, `StatusID`, `Progress` |
+| **user_worklet_association** | User-worklet relationships | `user_id`, `WorkletID`, `role_in_worklet` |
+| **evaluations** | Performance assessments | `evaluation_id`, `user_id`, `WorkletID`, `score`, `feedback` |
+| **Prism_Suggestion** | Mentor suggestions to students | `suggestion_id`, `worklet_id`, `mentor_id`, `suggestion_title`, `is_read` |
+| **Prism_Milestone** | Student worklet milestones | `milestone_id`, `worklet_id`, `student_id`, `milestone_type`, `field1_value`, `field2_value` |
+| **Prism_Milestone_Feedback** | Mentor/Professor feedback on milestones | `feedback_id`, `milestone_id`, `reviewer_id`, `reviewer_role`, `feedback_text` |
 | **achievements** | User accomplishments | `achievement_id`, `user_id`, `title`, `type`, `year` |
 | **papers** | Research publications | `paper_id`, `user_id`, `title`, `journal`, `publication_year` |
 | **patents** | Patent applications | `patent_id`, `user_id`, `title`, `status`, `filing_year` |
@@ -220,15 +240,21 @@ The WMS database consists of 9 main tables that handle user management, worklet 
 ```
 colleges (1) ←→ (many) users
 users (1) ←→ (1) user_profiles
-users (many) ←→ (many) worklets [via user_worklet_association]
+users (many) ←→ (many) Prism_Worklet [via user_worklet_association]
 users (1) ←→ (many) evaluations
 users (1) ←→ (many) achievements
 users (1) ←→ (many) papers
 users (1) ←→ (many) patents
 users (1) ←→ (many) commercializations
-worklets (1) ←→ (many) evaluations
-worklets (1) ←→ (many) papers (optional)
-worklets (1) ←→ (many) commercializations (optional)
+users (mentor) (1) ←→ (many) Prism_Suggestion
+users (student) (1) ←→ (many) Prism_Milestone
+users (mentor/professor) (1) ←→ (many) Prism_Milestone_Feedback
+Prism_Worklet (1) ←→ (many) evaluations
+Prism_Worklet (1) ←→ (many) Prism_Suggestion
+Prism_Worklet (1) ←→ (many) Prism_Milestone
+Prism_Milestone (1) ←→ (many) Prism_Milestone_Feedback
+Prism_Worklet (1) ←→ (many) papers (optional)
+Prism_Worklet (1) ←→ (many) commercializations (optional)
 ```
 
 ### 🗃️ Complete Database Schema
@@ -491,7 +517,9 @@ WorkletManagementSystem/
 │   │       ├── 📄 evaluations.py    # Evaluation system
 │   │       ├── 📄 health.py         # Health check endpoints
 │   │       ├── 📄 mentors.py        # Mentor-specific operations
+│   │       ├── 📄 milestones.py     # Milestone review system (student→mentor/professor)
 │   │       ├── 📄 portfolio.py      # Portfolio management
+│   │       ├── 📄 suggestions.py    # Suggestion system (mentor→student)
 │   │       └── 📄 worklets.py       # Worklet CRUD operations
 │   ├── 📄 requirements.txt          # Python dependencies
 │   └── 📁 uploads/                  # File upload storage
@@ -515,7 +543,9 @@ WorkletManagementSystem/
 │   │   │   ├── 📄 portfolio.jsx    # Portfolio management UI
 │   │   │   ├── 📄 Colleges.jsx     # College management
 │   │   │   ├── 📄 Dashboard.jsx    # Main dashboard
-│   │   │   └── 📄 Statistics.jsx   # Analytics views
+│   │   │   ├── 📄 Statistics.jsx   # Analytics views
+│   │   │   ├── 📄 SuggestionModal.jsx  # Mentor suggestion modal
+│   │   │   └── 📄 navColl.jsx      # College navigation
 │   │   ├── 📁 pages/               # Main page components
 │   │   ├── 📁 services/            # API service modules
 │   │   ├── 📁 context/             # React context providers
@@ -579,15 +609,19 @@ WorkletManagementSystem/
 
 #### Student Dashboard
 - View assigned worklets and their progress
+- **Receive and respond to mentor suggestions**
+- Mark suggestions as helpful or read
 - Submit portfolio items (papers, patents, achievements)
 - Track evaluation scores and feedback
 - Upload documents and manage profile
 
 #### Mentor Dashboard
 - Assign worklets to students
+- **Share suggestions** with students on specific worklets
 - Evaluate student performance
 - Provide feedback and scores
 - Monitor overall progress
+- Track suggestion responses and engagement
 
 #### Admin Dashboard
 - Manage users and colleges

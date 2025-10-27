@@ -359,3 +359,66 @@ class SuggestionOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Milestone Schemas ---
+class MilestoneCreate(BaseModel):
+    worklet_id: int
+    milestone_type: str = Field(..., max_length=50)
+    date_created: Optional[datetime] = None
+    field1_label: Optional[str] = None
+    field1_value: Optional[str] = None
+    field2_label: Optional[str] = None
+    field2_value: Optional[str] = None
+    toggle_label: Optional[str] = None
+    toggle_value: Optional[bool] = False
+    attachment_name: Optional[str] = None
+    attachment_size: Optional[int] = None
+    attachment_type: Optional[str] = None
+    attachment_url: Optional[str] = None
+
+class MilestoneOut(BaseModel):
+    milestone_id: int
+    worklet_id: int
+    student_id: int
+    student_name: Optional[str] = None
+    student_email: Optional[str] = None
+    milestone_type: str
+    date_created: datetime
+    field1_label: Optional[str] = None
+    field1_value: Optional[str] = None
+    field2_label: Optional[str] = None
+    field2_value: Optional[str] = None
+    toggle_label: Optional[str] = None
+    toggle_value: Optional[bool] = False
+    attachment_name: Optional[str] = None
+    attachment_size: Optional[int] = None
+    attachment_type: Optional[str] = None
+    attachment_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    feedbacks: List['MilestoneFeedbackOut'] = []
+
+    class Config:
+        from_attributes = True
+
+class MilestoneFeedbackCreate(BaseModel):
+    milestone_id: int
+    reviewer_role: str = Field(..., pattern="^(mentor|professor)$")
+    feedback_text: str
+
+class MilestoneFeedbackOut(BaseModel):
+    feedback_id: int
+    milestone_id: int
+    reviewer_id: int
+    reviewer_name: Optional[str] = None
+    reviewer_email: Optional[str] = None
+    reviewer_role: str
+    feedback_text: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Update forward references for nested models
+MilestoneOut.model_rebuild()
