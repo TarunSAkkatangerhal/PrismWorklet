@@ -712,6 +712,19 @@ const Colleges = () => {
   const [overviewSortOrder, setOverviewSortOrder] = useState('desc') // 'desc' (Highest→Lowest) | 'asc' (Lowest→Highest)
   // Total worklets available from global worklets list (fallback for statistics)
   const [workletsTotalCount, setWorkletsTotalCount] = useState(0)
+  
+  // Ref for college overview section
+  const collegeOverviewRef = useRef(null)
+
+  // Function to scroll to college overview section
+  const scrollToCollegeOverview = () => {
+    if (collegeOverviewRef.current) {
+      collegeOverviewRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      })
+    }
+  }
 
   // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
@@ -1233,7 +1246,7 @@ const Colleges = () => {
         }
       }
 
-      navigate('/navColl', {
+      navigate('/academia_details', {
         state: {
           filter,
           collegeName: targetCollege === 'All Colleges' ? '' : targetCollege,
@@ -1421,7 +1434,9 @@ const Colleges = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+            <button
+              onClick={scrollToCollegeOverview}
+              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
@@ -1431,9 +1446,12 @@ const Colleges = () => {
                   <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
-            </div>
+            </button>
             <button
-              onClick={() => handleNavigateToFilter('total', collegeSearch ? collegeSearch : 'All Colleges')}
+              onClick={() => {
+                scrollToCollegeOverview()
+                setTimeout(() => handleNavigateToFilter('total', collegeSearch ? collegeSearch : 'All Colleges'), 300)
+              }}
               className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -1527,7 +1545,7 @@ const Colleges = () => {
               </div>
             </button>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
+          <div ref={collegeOverviewRef} className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
             <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">College Overview</h3>
               <button
