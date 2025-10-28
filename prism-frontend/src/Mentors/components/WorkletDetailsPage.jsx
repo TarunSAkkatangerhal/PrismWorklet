@@ -13,19 +13,16 @@ import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
 import TestimonialModal from '../../Students/TestimonialModal'
 import { getCurrentUser } from '../../services/auth'
 
-// --- Import all required icons from lucide-react ---
+// --- Import required icons from lucide-react ---
 import {
   Calendar,
   Users,
   ArrowLeft,
   PlusCircle,
   Lightbulb,
-  Briefcase,
   MessageSquare,
   MessageCircle,
-  Bot,
   X,
-  ClipboardCheck,
   ChevronRight,
   Clock,
   Target,
@@ -38,50 +35,19 @@ import {
   Download,
   FileText,
   Building2,
-  GraduationCap,
-  MapPin,
-  Mail,
-  Phone,
-  Globe,
   GitBranch,
   ExternalLink,
-  BarChart3,
-  TrendingUp,
-  Settings,
-  Filter,
   RefreshCcw,
   Home,
-  Search,
   ChevronDown,
   ChevronUp,
-  Zap,
-  Star,
-  Trophy,
-  Eye,
-  Edit,
   Upload,
   FolderOpen,
-  Code,
-  Database,
-  Server,
-  Palette,
-  Monitor,
-  Smartphone,
-  Layout,
-  Image,
-  Video,
-  Mic,
-  Camera,
-  Hash,
-  Percent,
   Activity,
-  Layers,
-  Grid,
-  Moon,
-  Sun,
-  Plus,
   MoreHorizontal,
-  ThumbsUp
+  ThumbsUp,
+  Zap,
+  Star
 } from 'lucide-react'
 
 // --- Enhanced Activity Button Component ---
@@ -244,16 +210,7 @@ export default function WorkletDetailPage() {
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false)
   
-  // Enhanced Feedback Form State
-  const [feedbackScore, setFeedbackScore] = useState(null)
-  const [feedbackCategory, setFeedbackCategory] = useState('')
-  const [feedbackTestimonial, setFeedbackTestimonial] = useState('')
-  const [feedbackRecommendation, setFeedbackRecommendation] = useState('')
-  const [feedbackImprovements, setFeedbackImprovements] = useState('')
-  const [feedbackBestFeature, setFeedbackBestFeature] = useState('')
-  const [feedbackSkillsGained, setFeedbackSkillsGained] = useState([])
-  const [feedbackWouldRecommend, setFeedbackWouldRecommend] = useState(null)
-  const [feedbackMentorSupport, setFeedbackMentorSupport] = useState(0)
+
   
   const [retryCount, setRetryCount] = useState(0)
   const [mentorWorkletIds, setMentorWorkletIds] = useState([])

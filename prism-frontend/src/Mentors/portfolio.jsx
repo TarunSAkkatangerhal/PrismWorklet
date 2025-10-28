@@ -7,7 +7,7 @@ import {
   ExternalLink,
   Upload,
   FileText,
-  Sparkles,
+
   ChevronDown,
   ChevronUp,
   Eye,

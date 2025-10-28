@@ -3,21 +3,15 @@ import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import secureAPI from '../services/secureAPI'
 import {
-  ChevronDown,
-  Users,
-  CheckCircle,
   Download,
-  TrendingUp,
-  BarChart3,
   Activity,
+  RotateCcw,
   Target,
-  Award,
-  Clock,
-  Zap,
+  CheckCircle,
+  GraduationCap,
+  Users,
   FileText,
   Shield,
-  GraduationCap,
-  RotateCcw,
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -40,21 +34,12 @@ import {
   Title,
   Text,
   Metric,
-  DonutChart,
-  ProgressBar,
-  CategoryBar,
-  AreaChart as TremorAreaChart,
-  BarList,
-  Flex,
-  Badge,
-  Grid,
 } from '@tremor/react'
 
 // Modern color palettes and chart configurations
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316']
 const DARK_COLORS = ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#22D3EE', '#A3E635', '#FB923C']
-// Backend base URL
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000'
+
 
 // Helper function to get appropriate colors based on theme
 const getColors = (isDark) => (isDark ? DARK_COLORS : COLORS)

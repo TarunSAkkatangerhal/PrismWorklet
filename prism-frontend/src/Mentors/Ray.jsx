@@ -3,18 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import RightSidebar from '../components/Right';
 import LeftSidebar from '../components/Left';
 import {
-  RefreshCcw,
-  Lightbulb,
-  Calendar,
-  Briefcase,
-  MessageSquare,
-  Home,
-  BarChart,
-  GraduationCap,
-  MessageCircle,
-  Bell,
-  Folder,
-  PlusCircle,
   ArrowUp
 } from 'lucide-react';
 

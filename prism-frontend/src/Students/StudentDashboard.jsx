@@ -1,21 +1,14 @@
 // Student Dashboard - Shows worklets content with student-focused UI
 // Now with proper security and API integration like mentor dashboard
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import secureAPI from '../services/secureAPI';
 import { getCurrentUser } from '../services/auth';
 import { sanitizeInput } from '../utils/security';
 import { 
   Calendar, 
-  Users, 
-  LayoutGrid,
-  Columns,
-  Search,
-  Filter,
-  Clock,
+  Users,
   ChevronRight,
-  Building2,
-  User,
   AlertCircle,
   CheckCircle,
   Circle,
@@ -26,7 +19,6 @@ import {
   Key,
   Crown,
   MapPin,
-  TrendingUp,
   List,
   ArrowRightLeft,
 } from "lucide-react";
@@ -34,29 +26,6 @@ import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
 import StatCard from '../components/StatCard';
 import samsungLogo from '../assets/prism_logo.png';
-
-// Status options (UI unchanged; no 'To Start' tab)
-const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "On Hold", "Dropped"]; 
-
-const STORAGE_KEY = 'student_worklets_view_state';
-
-const saveViewState = (state) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('Failed to save view state to localStorage:', error);
-  }
-};
-
-const loadViewState = () => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : null;
-  } catch (error) {
-    console.warn('Failed to load view state from localStorage:', error);
-    return null;
-  }
-};
 
 // Level thresholds based on worklet count
 const LEVEL_THRESHOLDS = [
@@ -103,7 +72,6 @@ const getCurrentLevelFromWorklets = (workletCount) => {
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
   
   // Real state management
   const [workletsData, setWorkletsData] = useState([]);
