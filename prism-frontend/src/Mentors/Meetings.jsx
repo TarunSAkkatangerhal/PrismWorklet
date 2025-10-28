@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar, 
   Users, 
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
+import * as meetingsAPI from '../services/meetings';
 
 // Enhanced Clock Time Picker Component with Beautiful Design
 const ClockTimePicker = ({ hour, minute, onTimeChange, size = 240 }) => {
@@ -612,8 +613,10 @@ const Meetings = () => {
   const [selectedTab, setSelectedTab] = useState('department-meetings');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [showCompletedMeetings, setShowCompletedMeetings] = useState(false);
+  const [showCompletedMeetings, setShowCompletedMeetings] = useState(true); // Changed to true to show completed meetings by default
   const [loading, setLoading] = useState(true);
+  const [creatingMeeting, setCreatingMeeting] = useState(false); // Separate loading state for meeting creation
+  const [cancellingMeeting, setCancellingMeeting] = useState(false); // Separate loading state for cancelling
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -637,6 +640,7 @@ const Meetings = () => {
   const [formRepeatUntil, setFormRepeatUntil] = useState('');
   const [formMeetingLink, setFormMeetingLink] = useState('');
   const [formTouched, setFormTouched] = useState(false);
+  const [showRepeatDaysDropdown, setShowRepeatDaysDropdown] = useState(false);
 
   // Enhanced date/time selection state for new meetings
   const [formDate, setFormDate] = useState(() => {
@@ -671,14 +675,11 @@ const Meetings = () => {
   const durationOptions = [15, 30, 45, 60, 90, 120];
   const weekdayOptions = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   
-  // Available worklets for meeting assignment
-  const availableWorklets = [
-    { id: '2STS04VIT', name: '2STS04VIT - IoT Devices Project', college: 'VIT Vellore' },
-    { id: '2STS05SRM', name: '2STS05SRM - Web Development', college: 'SRM Chennai' },
-    { id: 'AI2024B1', name: 'AI2024B1 - Machine Learning Workshop', college: 'SRM Chennai' },
-    { id: 'DATA2024', name: 'DATA2024 - Data Science Bootcamp', college: 'VIT Vellore' },
-    { id: 'MOBILE2024', name: 'MOBILE2024 - Mobile App Development', college: 'AMRITA Coimbatore' }
-  ];
+  // Dynamic data from API
+  const [colleges, setColleges] = useState([]);
+  const [availableWorklets, setAvailableWorklets] = useState([]);
+  const [meetings, setMeetings] = useState([]);
+  const [error, setError] = useState(null);
 
   // Department meetings data - scheduled by higher department mentors
   // Department meetings that are relevant to the current user
@@ -719,9 +720,9 @@ const Meetings = () => {
   };
 
   // Helper function to get unique colleges
+  // Helper function to get unique colleges
   const getUniqueColleges = () => {
-    const colleges = [...new Set(availableWorklets.map(w => w.college))];
-    return colleges.sort();
+    return colleges.map(c => c.college_name).sort();
   };
 
   // Helper function to get worklets by college
@@ -845,17 +846,125 @@ const Meetings = () => {
     return `${day}-${month}-${year}, ${formatTime(start)} - ${formatTime(end)}`;
   };
 
-  // Meetings state - start empty; load from backend when available
-  const [meetings, setMeetings] = useState([]);
+  // Meetings state - removed duplicate declaration
   // Reschedule form state
   const [rescheduleDateTime, setRescheduleDateTime] = useState('');
   const [rescheduleDuration, setRescheduleDuration] = useState(60);
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [rescheduleTouched, setRescheduleTouched] = useState(false);
 
+  // Ref for repeat days dropdown click-outside handling
+  const repeatDaysRef = useRef(null);
+
+  // Close repeat days dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (repeatDaysRef.current && !repeatDaysRef.current.contains(event.target)) {
+        setShowRepeatDaysDropdown(false);
+      }
+    };
+
+    if (showRepeatDaysDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showRepeatDaysDropdown]);
+
+  // Data fetching functions
+  const fetchColleges = async () => {
+    try {
+      const data = await meetingsAPI.getColleges();
+      setColleges(data);
+    } catch (error) {
+      console.error('Failed to fetch colleges:', error);
+      setError('Failed to load colleges');
+    }
+  };
+
+  const fetchMentorWorklets = async (collegeId = null) => {
+    try {
+      const data = await meetingsAPI.getMentorWorklets(collegeId);
+      setAvailableWorklets(data);
+    } catch (error) {
+      console.error('Failed to fetch worklets:', error);
+      setError('Failed to load worklets');
+    }
+  };
+
+  const fetchMeetings = async () => {
+    try {
+      setLoading(true);
+      const data = await meetingsAPI.getMeetings();
+      
+      if (!Array.isArray(data)) {
+        console.error('API did not return an array:', data);
+        setError('Invalid data format received from server');
+        setMeetings([]);
+        return;
+      }
+      
+      // Transform backend data to frontend format
+      const transformedMeetings = data.map(meeting => {
+        return {
+          id: meeting.meeting_id,
+          title: meeting.title,
+          date: formatMeetingDateForDisplay(meeting.start_datetime, meeting.duration_minutes),
+          datetime: meeting.start_datetime,
+          duration: meeting.duration_minutes,
+          workletCode: meeting.worklets?.map(w => w.worklet_cert_id || w.worklet_id).join(', ') || '',
+          worklets: meeting.worklets || [],
+          college: meeting.college_name,
+          participants: (meeting.worklets?.length || 0) * 5, // Estimate
+          meetingLink: meeting.meeting_link,
+          organizer: meeting.organizer_name,
+          status: meeting.status,
+          repeat_days: meeting.repeat_days,
+          repeat_until: meeting.repeat_until,
+          description: meeting.description
+        };
+      });
+      
+      setMeetings(transformedMeetings);
+      setError(null);
+    } catch (error) {
+      console.error('Failed to fetch meetings:', error);
+      setError('Failed to load meetings');
+      setMeetings([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper to format datetime for display
+  const formatMeetingDateForDisplay = (datetime, durationMinutes) => {
+    const start = new Date(datetime);
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+    
+    const formatDate = (d) => {
+      const day = d.getDate();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = monthNames[d.getMonth()];
+      const year = d.getFullYear().toString().slice(-2);
+      return `${day}-${month}-${year}`;
+    };
+    
+    const formatTime = (d) => {
+      let hours = d.getHours();
+      const minutes = d.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes} ${ampm}`;
+    };
+    
+    return `${formatDate(start)}, ${formatTime(start)} - ${formatTime(end)}`;
+  };
+
   // Filter meetings based on selected filter and completed meetings visibility
   const filteredMeetings = meetings.filter(meeting => {
-    const meetingStatus = calculateMeetingStatus(meeting.date);
+    // Use backend status if cancelled, otherwise calculate based on time
+    const meetingStatus = meeting.status === 'cancelled' ? 'cancelled' : (meeting.status || calculateMeetingStatus(meeting.date));
     
     // If not showing completed meetings, exclude them unless specifically filtered
     if (!showCompletedMeetings && meetingStatus === 'completed' && selectedFilter !== 'completed') {
@@ -868,37 +977,47 @@ const Meetings = () => {
     const filterMap = {
       'present': 'live',
       'upcoming': 'upcoming', 
-      'completed': 'completed'
+      'completed': 'completed',
+      'cancelled': 'cancelled'
     };
     return meetingStatus === (filterMap[selectedFilter] || selectedFilter);
   });
 
-  // Sort meetings by status priority: live -> upcoming -> completed
+  // Sort meetings by status priority: live -> upcoming -> completed -> cancelled
   const sortedMeetings = filteredMeetings.sort((a, b) => {
-    // Calculate dynamic statuses for sorting
-    const statusA = calculateMeetingStatus(a.date);
-    const statusB = calculateMeetingStatus(b.date);
+    // Use backend status if cancelled, otherwise calculate based on time
+    const statusA = a.status === 'cancelled' ? 'cancelled' : (a.status || calculateMeetingStatus(a.date));
+    const statusB = b.status === 'cancelled' ? 'cancelled' : (b.status || calculateMeetingStatus(b.date));
     
-    // Define priority order: live (1), upcoming (2), completed (3)
+    // Define priority order: live (1), upcoming (2), completed (3), cancelled (4)
     const statusPriority = {
       'live': 1,
       'upcoming': 2,
-      'completed': 3
+      'completed': 3,
+      'cancelled': 4
     };
     
-    const priorityA = statusPriority[statusA] || 4;
-    const priorityB = statusPriority[statusB] || 4;
+    const priorityA = statusPriority[statusA] || 5;
+    const priorityB = statusPriority[statusB] || 5;
     
     return priorityA - priorityB;
   });
 
+  // Fetch data on mount
   useEffect(() => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    fetchColleges();
+    fetchMeetings();
   }, []);
+
+  // Fetch worklets when college is selected
+  useEffect(() => {
+    if (formCollege) {
+      const selectedCollege = colleges.find(c => c.college_name === formCollege);
+      if (selectedCollege) {
+        fetchMentorWorklets(selectedCollege.college_id);
+      }
+    }
+  }, [formCollege]);
 
   // Close filter menu when clicking outside
   useEffect(() => {
@@ -967,56 +1086,63 @@ const Meetings = () => {
     setShowCancelModal(true);
   };
 
-  const confirmCancelMeeting = () => {
+  const confirmCancelMeeting = async () => {
     if (selectedMeeting) {
-      // Option A: Remove meeting completely
-      setMeetings(prev => prev.filter(m => m.id !== selectedMeeting.id));
-      // Option B (alternative): mark as cancelled instead of removing
-      // setMeetings(prev => prev.map(m => m.id === selectedMeeting.id ? { ...m, status: 'cancelled' } : m));
-      showConfirmationMessage(`✅ Meeting "${selectedMeeting.title}" has been cancelled successfully.`);
+      try {
+        setCancellingMeeting(true);
+        await meetingsAPI.cancelMeeting(selectedMeeting.id);
+        showConfirmationMessage(`✅ Meeting "${selectedMeeting.title}" has been cancelled successfully.`);
+        await fetchMeetings(); // Refresh list
+      } catch (error) {
+        console.error('Failed to cancel meeting:', error);
+        const errorMessage = error.response?.data?.detail || 'Failed to cancel meeting';
+        showConfirmationMessage(`❌ ${errorMessage}`);
+      } finally {
+        setCancellingMeeting(false);
+      }
     }
     setShowCancelModal(false);
     setSelectedMeeting(null);
   };
 
   const confirmJoinMeeting = () => {
-    ;
+    if (selectedMeeting && selectedMeeting.meetingLink) {
+      window.open(selectedMeeting.meetingLink, '_blank', 'noopener,noreferrer');
+    }
     setShowJoinModal(false);
     setSelectedMeeting(null);
-    // Add actual join logic here (redirect to meeting room)
   };
 
-  const confirmRescheduleMeeting = () => {
+  const confirmRescheduleMeeting = async () => {
     if (!selectedMeeting) return;
-    // Reason optional now; only require a chosen datetime
     if (!rescheduleDateTime) return;
 
-    // Create the new start time properly from the local datetime string
-    const newStartTime = new Date(rescheduleDateTime);
-    const conflicts = checkMeetingConflicts(newStartTime, rescheduleDuration, selectedMeeting.id);
-    
-    if (conflicts.length > 0) {
-      // Show user-friendly error message instead of alert
-      const conflictDetails = conflicts.map(m => `"${m.title}"`).join(', ');
-      showConfirmationMessage(`❌ Cannot reschedule - time conflicts with existing meeting: ${conflictDetails}. Please choose a different time slot.`);
-      return; // Prevent reschedule - no option to proceed
+    try {
+      setLoading(true);
+      
+      // Create the new start time from the enhanced date/time controls
+      const newStartTime = new Date(rescheduleDate);
+      newStartTime.setHours(rescheduleHour, rescheduleMinute, 0, 0);
+      
+      const rescheduleData = {
+        start_datetime: newStartTime.toISOString(),
+        duration_minutes: rescheduleDuration,
+        reason: rescheduleReason.trim() || null
+      };
+      
+      await meetingsAPI.rescheduleMeeting(selectedMeeting.id, rescheduleData);
+      showConfirmationMessage(`✅ Meeting "${selectedMeeting.title}" has been rescheduled successfully.`);
+      await fetchMeetings(); // Refresh list
+      
+      setShowRescheduleModal(false);
+      setSelectedMeeting(null);
+    } catch (error) {
+      console.error('Failed to reschedule meeting:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to reschedule meeting';
+      showConfirmationMessage(`❌ ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
-
-    // Proceed with the reschedule (either no conflicts or user confirmed)
-    const updatedDate = formatMeetingDate(newStartTime, rescheduleDuration);
-    
-    setMeetings(prev => prev.map(m => m.id === selectedMeeting.id ? {
-      ...m,
-      date: updatedDate,
-      startISO: newStartTime.toISOString(),
-      durationMins: rescheduleDuration,
-      lastRescheduledAt: new Date().toISOString(),
-      lastRescheduleReason: rescheduleReason.trim() || null
-    } : m));
-
-    showConfirmationMessage(`✅ Meeting "${selectedMeeting.title}" has been rescheduled successfully to ${newStartTime.toLocaleDateString()} at ${newStartTime.toLocaleTimeString()}.`);
-    setShowRescheduleModal(false);
-    setSelectedMeeting(null);
   };
 
   // Helper function to show confirmation messages
@@ -1065,12 +1191,6 @@ const Meetings = () => {
 
     const newEndTime = new Date(newMeetingStartTime.getTime() + durationMins * 60000);
     
-    console.log(`🔍 Checking conflicts for new meeting:`, {
-      start: newMeetingStartTime.toLocaleString(),
-      end: newEndTime.toLocaleString(),
-      duration: durationMins + ' minutes'
-    });
-    
     const conflicts = meetings.filter(meeting => {
       // Skip the meeting being rescheduled
       if (excludeId && meeting.id === excludeId) return false;
@@ -1095,38 +1215,13 @@ const Meetings = () => {
       if (!sameLocalDate) return false;
 
       // Strict overlap detection: new start is before existing end AND new end is after existing start
-      // This catches ALL overlaps including partial overlaps like:
-      // Existing: 2:00-3:00 PM, New: 2:10-2:30 PM (partial inside)
-      // Existing: 2:00-3:00 PM, New: 2:30-3:30 PM (partial overlap)
-      // Existing: 2:00-3:00 PM, New: 1:30-2:30 PM (partial overlap)
       const newStartsBeforeExistingEnds = newMeetingStartTime < existingEnd;
       const newEndsAfterExistingStarts = newEndTime > existingStart;
       const hasOverlap = newStartsBeforeExistingEnds && newEndsAfterExistingStarts;
       
-      if (hasOverlap) {
-        console.log(`❌ Conflict detected with "${meeting.title}" (same date):`, {
-          existing: {
-            start: existingStart.toLocaleString(),
-            end: existingEnd.toLocaleString(),
-            duration: (meeting.durationMins || 60) + ' minutes'
-          },
-          new: {
-            start: newMeetingStartTime.toLocaleString(),
-            end: newEndTime.toLocaleString(),
-            duration: durationMins + ' minutes'
-          },
-          overlap: {
-            newStartsBeforeExistingEnds,
-            newEndsAfterExistingStarts,
-            hasOverlap
-          }
-        });
-      }
-      
       return hasOverlap;
     });
     
-    console.log(`🔍 Conflict check result: ${conflicts.length} conflicts found`);
     return conflicts;
   };
 
@@ -1477,7 +1572,8 @@ const Meetings = () => {
             ) : (
               <div className="space-y-4">
                 {sortedMeetings.map((meeting) => {
-                  const status = calculateMeetingStatus(meeting.date);
+                  // Use backend status if cancelled, otherwise calculate based on time
+                  const status = meeting.status === 'cancelled' ? 'cancelled' : calculateMeetingStatus(meeting.date);
                   return (
                     <div
                       key={meeting.id}
@@ -1544,25 +1640,31 @@ const Meetings = () => {
                               Join
                             </button>
                           )}
-                          {/* Reschedule allowed for all meetings; Cancel only when not completed */}
+                          {/* Reschedule allowed for all non-cancelled meetings; Cancel only when not completed or cancelled */}
                           <>
-                            <button
-                              onClick={() => handleRescheduleMeeting(meeting.id)}
-                              className="px-4 py-2 bg-slate-100 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors"
-                            >
-                              Reschedule
-                            </button>
-                            {status !== 'completed' ? (
+                            {status !== 'cancelled' && (
+                              <button
+                                onClick={() => handleRescheduleMeeting(meeting.id)}
+                                className="px-4 py-2 bg-slate-100 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors"
+                              >
+                                Reschedule
+                              </button>
+                            )}
+                            {status === 'cancelled' ? (
+                              <div className="px-4 py-2 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg text-center font-medium">
+                                Meeting Cancelled
+                              </div>
+                            ) : status === 'completed' ? (
+                              <div className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm rounded-lg text-center">
+                                Meeting Completed
+                              </div>
+                            ) : (
                               <button
                                 onClick={() => handleCancelMeeting(meeting.id)}
                                 className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                               >
                                 Cancel
                               </button>
-                            ) : (
-                              <div className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm rounded-lg text-center">
-                                Meeting Completed
-                              </div>
                             )}
                           </>
                         </div>
@@ -1612,11 +1714,12 @@ const Meetings = () => {
       {/* Cancel Meeting Modal */}
       {showCancelModal && selectedMeeting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl relative">
             <div className="flex justify-end mb-4">
               <button 
                 onClick={() => setShowCancelModal(false)}
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl font-bold"
+                disabled={cancellingMeeting}
               >
                 ×
               </button>
@@ -1628,18 +1731,40 @@ const Meetings = () => {
               <div className="flex justify-center gap-4">
                 <button
                   onClick={() => setShowCancelModal(false)}
-                  className="px-6 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-400 dark:hover:bg-slate-500 transition-colors font-semibold"
+                  className="px-6 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-400 dark:hover:bg-slate-500 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={cancellingMeeting}
                 >
                   NO
                 </button>
                 <button
                   onClick={confirmCancelMeeting}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={cancellingMeeting}
                 >
-                  YES
+                  {cancellingMeeting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Cancelling...</span>
+                    </>
+                  ) : (
+                    'YES'
+                  )}
                 </button>
               </div>
             </div>
+
+            {/* Loading Overlay */}
+            {cancellingMeeting && (
+              <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center rounded-xl">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 flex flex-col items-center space-y-3">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-red-200 border-t-red-600"></div>
+                  <div className="text-center">
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Cancelling Meeting...</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Please wait</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1837,7 +1962,7 @@ const Meetings = () => {
             </div>
 
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 setFormTouched(true);
                 
@@ -1846,77 +1971,67 @@ const Meetings = () => {
                   return;
                 }
 
-                // Create individual meetings for each selected worklet with sequential scheduling
-                // Use the individual date/time components to avoid timezone issues
-                const baseMeetingTime = new Date(formDate);
-                baseMeetingTime.setHours(formHour, formMinute, 0, 0);
-                
-                // Check for conflicts before creating any meetings
-                const conflictingMeetings = [];
-                let currentStartTime = new Date(baseMeetingTime);
-                
-                formSelectedWorklets.forEach((worklet, index) => {
-                  const conflicts = checkMeetingConflicts(currentStartTime, formDuration);
+                try {
+                  // Create meeting datetime
+                  const baseMeetingTime = new Date(formDate);
+                  baseMeetingTime.setHours(formHour, formMinute, 0, 0);
                   
-                  if (conflicts.length > 0) {
-                    conflictingMeetings.push({
-                      worklet,
-                      time: currentStartTime,
-                      conflictsWith: conflicts.map(m => m.title).join(', ')
-                    });
+                  // Get college_id from colleges array
+                  const selectedCollege = colleges.find(c => c.college_name === formCollege);
+                  if (!selectedCollege) {
+                    showConfirmationMessage('❌ College not found');
+                    return;
                   }
                   
-                  // Move to next sequential time slot for next worklet
-                  currentStartTime = new Date(currentStartTime.getTime() + formDuration * 60000);
-                });
-
-                // Strictly prevent overlapping meetings - no confirmation allowed
-                if (conflictingMeetings.length > 0) {
-                  const conflictMessage = `❌ Cannot schedule meeting - time conflicts detected! The following worklets conflict with existing meetings: ${conflictingMeetings.map(c => c.worklet).join(', ')}. Please choose a different time slot.`;
-                  showConfirmationMessage(conflictMessage);
-                  return; // Prevent meeting creation - no option to proceed
-                }
-                
-                const createdMeetings = [];
-                currentStartTime = new Date(baseMeetingTime);
-                
-                formSelectedWorklets.forEach((worklet, index) => {
-                  const individualMeeting = {
-                    id: Date.now() + index, // Unique ID for each meeting
-                    title: formTitle || `Meeting - ${worklet}`,
-                    college: formCollege,
-                    startISO: currentStartTime.toISOString(),
-                    durationMins: formDuration,
-                    date: formatMeetingDate(currentStartTime, formDuration),
-                    type: 'Individual Worklet',
-                    participants: 8, // Estimate 8 participants per worklet
-                    workletCode: worklet,
-                    worklets: [worklet], // Single worklet for this meeting
-                    description: formDescription || `Meeting for worklet: ${worklet} at ${formCollege}`,
-                    meetingLink: formMeetingLink,
-                    repeat: formRepeatDays.length ? { days: formRepeatDays, until: formRepeatUntil || null } : null,
-                    sequenceInfo: {
-                      position: index + 1,
-                      total: formSelectedWorklets.length,
-                      originalStartTime: baseMeetingTime.toISOString()
+                  // Get worklet IDs (extract numeric IDs from availableWorklets)
+                  const workletIds = formSelectedWorklets.map(selectedId => {
+                    const worklet = availableWorklets.find(w => w.id === selectedId);
+                    if (!worklet) {
+                      console.error(`Worklet not found: ${selectedId}`);
+                      return null;
                     }
+                    return worklet.id;
+                  }).filter(id => id !== null);
+                  
+                  if (workletIds.length === 0) {
+                    showConfirmationMessage('❌ No valid worklet IDs found. Please try again.');
+                    return;
+                  }
+                  
+                  // Prepare meeting data
+                  const meetingData = {
+                    title: formTitle || `Meeting - ${formCollege}`,
+                    description: formDescription || `Meeting for worklets: ${formSelectedWorklets.join(', ')}`,
+                    college_id: selectedCollege.college_id,
+                    worklet_ids: workletIds,
+                    start_datetime: baseMeetingTime.toISOString(),
+                    duration_minutes: formDuration,
+                    meeting_link: formMeetingLink,
+                    repeat_days: formRepeatDays.length > 0 ? formRepeatDays.join(',') : null,
+                    repeat_until: formRepeatUntil || null
                   };
                   
-                  createdMeetings.push(individualMeeting);
+                  // Call API to create meeting
+                  setCreatingMeeting(true);
+                  const createdMeeting = await meetingsAPI.createMeeting(meetingData);
                   
-                  // Set next meeting start time to be after this meeting ends
-                  currentStartTime = new Date(currentStartTime.getTime() + formDuration * 60000);
-                });
-
-                // Add all created meetings to the state
-                setMeetings(prev => [...createdMeetings, ...prev]); // prepend newest
-                
-                // Show success confirmation message
-                const successMessage = `✅ Successfully created ${createdMeetings.length} meeting${createdMeetings.length > 1 ? 's' : ''} for ${formSelectedWorklets.join(', ')} starting at ${baseMeetingTime.toLocaleDateString()} ${baseMeetingTime.toLocaleTimeString()}.`;
-                showConfirmationMessage(successMessage);
-                
-                setShowAddModal(false);
-                resetAddForm();
+                  // Show success message
+                  showConfirmationMessage(`✅ Successfully created meeting for ${formSelectedWorklets.length} worklet${formSelectedWorklets.length > 1 ? 's' : ''}!`);
+                  
+                  // Refresh meetings list
+                  await fetchMeetings();
+                  
+                  // Close modal and reset form
+                  setShowAddModal(false);
+                  resetAddForm();
+                  
+                } catch (error) {
+                  console.error('Failed to create meeting:', error);
+                  const errorMessage = error.response?.data?.detail || error.message || 'Failed to create meeting. Please try again.';
+                  showConfirmationMessage(`❌ ${errorMessage}`);
+                } finally {
+                  setCreatingMeeting(false);
+                }
               }}
               className="space-y-8"
             >
@@ -1956,13 +2071,21 @@ const Meetings = () => {
                   className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   required
                 >
-                  <option value="" className="bg-white dark:bg-slate-800">Choose a college...</option>
+                  <option value="" className="bg-white dark:bg-slate-800">
+                    {colleges.length === 0 ? 'Loading colleges...' : 'Choose a college...'}
+                  </option>
                   {getUniqueColleges().map(college => (
                     <option key={college} value={college} className="bg-white dark:bg-slate-800">
                       {college}
                     </option>
                   ))}
                 </select>
+                {colleges.length === 0 && !loading && (
+                  <p className="text-xs text-red-500 mt-1">No colleges available. Please contact administrator.</p>
+                )}
+                {error && (
+                  <p className="text-xs text-red-500 mt-1">{error}</p>
+                )}
               </div>
 
               {/* Multiple Worklet Selection */}
@@ -2073,34 +2196,32 @@ const Meetings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="flex flex-col">
                   <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Select Repeat Days</label>
-                  <div className="relative">
+                  <div className="relative" ref={repeatDaysRef}>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        // simple expansion through toggling a local dropdown list inline
-                        const menu = e.currentTarget.nextSibling;
-                        if (menu) menu.classList.toggle('hidden');
-                      }}
-                      className="w-full text-left border-0 border-b border-slate-200 dark:border-slate-600 bg-transparent focus:ring-0 focus:border-blue-500 py-1 text-slate-900 dark:text-white"
+                      onClick={() => setShowRepeatDaysDropdown(!showRepeatDaysDropdown)}
+                      className="w-full text-left border-0 border-b border-slate-200 dark:border-slate-600 bg-transparent focus:ring-0 focus:border-blue-500 py-1 text-slate-900 dark:text-white hover:border-blue-400 transition-colors"
                     >
                       {formRepeatDays.length === 0 ? 'Select Repeat Days' : formRepeatDays.join(', ')}
                     </button>
-                    <div className="hidden absolute z-10 mt-1 w-full bg-white dark:bg-slate-700 shadow-lg rounded-md border border-slate-200 dark:border-slate-600 max-h-48 overflow-auto">
-                      {weekdayOptions.map(day => {
-                        const active = formRepeatDays.includes(day);
-                        return (
-                          <div
-                            key={day}
-                            onClick={() => {
-                              setFormRepeatDays(prev => active ? prev.filter(d => d!==day) : [...prev, day]);
-                            }}
-                            className={`px-3 py-2 text-sm cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-600 ${active ? 'font-semibold text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}
-                          >
-                            {day}
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {showRepeatDaysDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-700 shadow-lg rounded-md border border-slate-200 dark:border-slate-600 max-h-48 overflow-auto">
+                        {weekdayOptions.map(day => {
+                          const active = formRepeatDays.includes(day);
+                          return (
+                            <div
+                              key={day}
+                              onClick={() => {
+                                setFormRepeatDays(prev => active ? prev.filter(d => d!==day) : [...prev, day]);
+                              }}
+                              className={`px-3 py-2 text-sm cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-600 ${active ? 'font-semibold text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}
+                            >
+                              {day}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col opacity-100">
@@ -2150,10 +2271,17 @@ const Meetings = () => {
               <div className="pt-4">
                 <button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-400 disabled:to-slate-500 text-white font-semibold rounded-xl py-4 transition-all duration-200 transform hover:scale-[1.02] disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg disabled:shadow-none"
-                  disabled={!formMeetingLink || !formCollege || formSelectedWorklets.length === 0}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-400 disabled:to-slate-500 text-white font-semibold rounded-xl py-4 transition-all duration-200 transform hover:scale-[1.02] disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg disabled:shadow-none flex items-center justify-center gap-2"
+                  disabled={!formMeetingLink || !formCollege || formSelectedWorklets.length === 0 || creatingMeeting}
                 >
-                  {(!formMeetingLink || !formCollege || formSelectedWorklets.length === 0) ? 'Please fill required fields' : 'Create Meeting'}
+                  {creatingMeeting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>Creating Meeting...</span>
+                    </>
+                  ) : (
+                    (!formMeetingLink || !formCollege || formSelectedWorklets.length === 0) ? 'Please fill required fields' : 'Create Meeting'
+                  )}
                 </button>
                 {(!formMeetingLink || !formCollege || formSelectedWorklets.length === 0) && formTouched && (
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 text-center">
@@ -2164,6 +2292,19 @@ const Meetings = () => {
                 )}
               </div>
             </form>
+
+            {/* Loading Overlay */}
+            {creatingMeeting && (
+              <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center rounded-2xl z-50">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 flex flex-col items-center space-y-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Creating Meeting...</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Please wait while we set everything up</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

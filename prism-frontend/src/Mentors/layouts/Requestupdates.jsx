@@ -385,7 +385,7 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
       )}
 
       {/* CSS Animation for progress bar */}
-      <style jsx>{`
+      <style>{`
         @keyframes progress {
           from { width: 0%; }
           to { width: 100%; }

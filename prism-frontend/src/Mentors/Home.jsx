@@ -146,12 +146,6 @@ export default function Dashboard() {
         const allData = await getMentorAllWorkletsById(userProfileData.id)       // Full collection (statuses)
         const list = assocData?.ongoing_worklets || []
         
-        // Debug: Log first worklet to verify performance field from Performance column
-        if (list.length > 0) {
-          console.log('First worklet from backend:', list[0])
-          console.log('Performance field (from Performance column):', list[0].performance)
-        }
-        
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet) => {
           const progressVal = Number(worklet.percentage_completion ?? worklet.mentor_progress ?? worklet.progress ?? 0) || 0

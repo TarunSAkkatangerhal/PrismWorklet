@@ -225,15 +225,12 @@ export default function WorkletDetailPage() {
     mentorWorkletIds.includes(parseInt(id))
   
   // --- NEW ENHANCED STATE ---
-  const [darkMode, setDarkMode] = useState(false)
-  const [searchTeam, setSearchTeam] = useState('')
+  const [searchTeam] = useState('')
   const [expandedSections, setExpandedSections] = useState({
     problemStatement: true,
     expectations: true,
     prerequisites: true
   })
-  const [activityFilter, setActivityFilter] = useState('all')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
   // --- HELPER FUNCTIONS ---
   const getInitials = (name) => {
@@ -476,11 +473,6 @@ export default function WorkletDetailPage() {
       fetchWorklet()
     }
   }, [id, retryCount])
-
-  // --- EVENT HANDLERS ---
-  const handleNavigation = (path) => {
-    navigate(path)
-  }
 
   // --- BACK NAVIGATION HANDLER ---
   const handleGoBack = () => {
@@ -853,10 +845,6 @@ export default function WorkletDetailPage() {
     const [nextSteps, setNextSteps] = useState('')
     const [githubAccessible, setGithubAccessible] = useState(false)
     const [fileUpdatedOnGithub, setFileUpdatedOnGithub] = useState(false)
-    const [deliverableTitle, setDeliverableTitle] = useState('')
-    const [deliverableDescription, setDeliverableDescription] = useState('')
-    const [testResults, setTestResults] = useState('')
-    const [documentationUpdated, setDocumentationUpdated] = useState(false)
     const [selectedFile, setSelectedFile] = useState(null)
 
     const milestoneTypes = [
@@ -1001,10 +989,6 @@ export default function WorkletDetailPage() {
       setNextSteps('')
       setGithubAccessible(false)
       setFileUpdatedOnGithub(false)
-      setDeliverableTitle('')
-      setDeliverableDescription('')
-      setTestResults('')
-      setDocumentationUpdated(false)
       setSelectedFile(null)
     }
 

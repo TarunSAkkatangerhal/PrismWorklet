@@ -49,7 +49,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
         if (!token) return;
 
         const response = await axios.get(
-          `http://localhost:8000/worklets/${selectedWorklet}/milestones`,
+          `http://localhost:8000/milestones/worklet/${selectedWorklet}`,
           {
             headers: { 
               'Authorization': `Bearer ${token}`,
@@ -58,11 +58,11 @@ export default function FeedbackForm({ isOpen, onClose }) {
           }
         );
 
-        const fetchedMilestones = response.data?.milestones || [];
+        const fetchedMilestones = response.data || [];
         setMilestones(fetchedMilestones);
 
         // Extract milestone types/stages that have been added by students
-        const milestoneTitles = fetchedMilestones.map(m => m.title?.toLowerCase() || '');
+        const milestoneTitles = fetchedMilestones.map(m => (m.milestone_type || m.title || '').toLowerCase());
         
         // Map milestone titles to stage values
         const stageMapping = {
@@ -479,7 +479,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes progress {
           0% { width: 0%; }
           100% { width: 100%; }

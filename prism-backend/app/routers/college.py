@@ -26,9 +26,10 @@ def get_college_stats(college: College, db: Session):
     )
     stats = {
         "workletCount": len(worklets),
-        "excellentCount": 0,
+        "veryGoodCount": 0,
         "goodCount": 0,
-        "needsAttentionCount": 0,
+        "averageCount": 0,
+        "poorCount": 0,
         "completedCount": 0,
         "ongoingCount": 0,
         "onHoldCount": 0,
@@ -41,17 +42,24 @@ def get_college_stats(college: College, db: Session):
         performance = getattr(w, 'Performance', None)
         
         if performance:
-            # Normalize performance value
+            # Normalize performance value to new categories: Very Good, Good, Average, Poor
             perf_lower = str(performance).lower().strip()
-            if 'excel' in perf_lower:
-                stats["excellentCount"] += 1
+            # Check in specific order to avoid mismatches
+            if 'very good' in perf_lower or 'verygood' in perf_lower:
+                stats["veryGoodCount"] += 1
+            elif 'excel' in perf_lower:  # Map old "Excellent" to "Very Good"
+                stats["veryGoodCount"] += 1
             elif 'good' in perf_lower:
                 stats["goodCount"] += 1
-            elif 'need' in perf_lower or 'attention' in perf_lower:
-                stats["needsAttentionCount"] += 1
+            elif 'average' in perf_lower or 'avg' in perf_lower:
+                stats["averageCount"] += 1
+            elif 'poor' in perf_lower or 'bad' in perf_lower:
+                stats["poorCount"] += 1
+            elif 'need' in perf_lower or 'attention' in perf_lower:  # Map old "Needs Attention" to "Poor"
+                stats["poorCount"] += 1
             else:
-                # Unknown performance value - count as needs attention
-                stats["needsAttentionCount"] += 1
+                # Unknown performance value - count as average
+                stats["averageCount"] += 1
         # If Performance is NULL, don't count in any performance category
             
         # Count worklets by status (new mapping)

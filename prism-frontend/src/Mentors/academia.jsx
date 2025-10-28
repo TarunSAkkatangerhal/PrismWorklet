@@ -158,20 +158,22 @@ const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
   const performanceData = useMemo(() => {
     if (!data || data.length === 0) return []
     
-    // Use backend-provided performance counts (excellentCount, goodCount, needsAttentionCount)
+    // Use backend-provided performance counts (veryGoodCount, goodCount, averageCount, poorCount)
     // These are calculated based on evaluation scores and progress metrics
-    const totalExcellent = data.reduce((sum, college) => sum + (college.excellentCount || 0), 0)
+    const totalVeryGood = data.reduce((sum, college) => sum + (college.veryGoodCount || 0), 0)
     const totalGood = data.reduce((sum, college) => sum + (college.goodCount || 0), 0)
-    const totalNeedsAttention = data.reduce((sum, college) => sum + (college.needsAttentionCount || 0), 0)
+    const totalAverage = data.reduce((sum, college) => sum + (college.averageCount || 0), 0)
+    const totalPoor = data.reduce((sum, college) => sum + (college.poorCount || 0), 0)
     
     return [
-      { name: 'Excellent', value: totalExcellent },
+      { name: 'Very Good', value: totalVeryGood },
       { name: 'Good', value: totalGood },
-      { name: 'Needs Attention', value: totalNeedsAttention },
+      { name: 'Average', value: totalAverage },
+      { name: 'Poor', value: totalPoor },
     ].filter((item) => item.value > 0)
   }, [data])
 
-  const PIE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b']
+  const PIE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444']
 
   return (
     <div
@@ -885,9 +887,10 @@ const Colleges = () => {
             established: college.established,
             areaOfExpertise: college.area_of_expertise ?? college.areaOfExpertise,
             workletCount: college.workletCount ?? worklets.length,
-            excellentCount: college.excellentCount ?? 0,
+            veryGoodCount: college.veryGoodCount ?? 0,
             goodCount: college.goodCount ?? 0,
-            needsAttentionCount: college.needsAttentionCount ?? 0,
+            averageCount: college.averageCount ?? 0,
+            poorCount: college.poorCount ?? 0,
             completedCount: college.completedCount ?? 0,
             ongoingCount: college.ongoingCount ?? 0,
             onHoldCount: college.onHoldCount ?? 0,
@@ -1164,7 +1167,7 @@ const Colleges = () => {
       alert('No data to export!')
       return
     }
-    const headers = ['ID', 'Name', 'Location', 'Total Worklets', 'Excellent', 'Good', 'Needs Attention']
+    const headers = ['ID', 'Name', 'Location', 'Total Worklets', 'Very Good', 'Good', 'Average', 'Poor']
     const csvRows = [
       headers.join(','),
       ...filteredColleges.map((college) =>
@@ -1173,9 +1176,10 @@ const Colleges = () => {
           `"${college.college_name || college.name}"`,
           `"${college.location}"`,
           college.workletCount,
-          college.excellentCount,
-          college.goodCount,
-          college.needsAttentionCount,
+          college.veryGoodCount || 0,
+          college.goodCount || 0,
+          college.averageCount || 0,
+          college.poorCount || 0,
         ].join(',')
       ),
     ]
@@ -1319,13 +1323,16 @@ const Colleges = () => {
                       Total Worklets
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Excellent
+                      Very Good
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Good
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Needs Attention
+                      Average
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Poor
                     </th>
                   </tr>
                 </thead>
@@ -1353,13 +1360,16 @@ const Colleges = () => {
                           {totalWorkletsRow}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
-                          {college.excellentCount}
+                          {college.veryGoodCount || 0}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-green-600 dark:text-green-400">
-                          {college.goodCount}
+                          {college.goodCount || 0}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
-                          {college.needsAttentionCount}
+                          {college.averageCount || 0}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-red-600 dark:text-red-400">
+                          {college.poorCount || 0}
                         </td>
                       </tr>
                     )
@@ -1593,20 +1603,23 @@ const Colleges = () => {
                       Total Worklets
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Excellent
+                      Very Good
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Good
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Needs Attention
+                      Average
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Poor
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {loading ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan="6" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                         Loading...
                       </td>
                     </tr>
@@ -1634,13 +1647,16 @@ const Colleges = () => {
                           {getWorkletCount(college)}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
-                          {college.excellentCount}
+                          {college.veryGoodCount || 0}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-green-600 dark:text-green-400">
-                          {college.goodCount}
+                          {college.goodCount || 0}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
-                          {college.needsAttentionCount}
+                          {college.averageCount || 0}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-red-600 dark:text-red-400">
+                          {college.poorCount || 0}
                         </td>
                       </tr>
                     ))

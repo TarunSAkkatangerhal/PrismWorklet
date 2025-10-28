@@ -37,7 +37,7 @@ const NavColl = () => {
   const [searchTerm, setSearchTerm] = useState(initialCollegeName)
   const [selectedCollege, setSelectedCollege] = useState(initialCollegeName)
   const [viewMode, setViewMode] = useState('grid')
-  const [yearFilter, setYearFilter] = useState(initialYear)
+  const yearFilter = initialYear
   const filterOptions = [
     {
       key: 'total',

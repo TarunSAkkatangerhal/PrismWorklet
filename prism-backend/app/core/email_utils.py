@@ -169,3 +169,141 @@ def send_activity_email(emails: list, subject: str, message: str, activity_type:
                 _send_email(email, f"Samsung PRISM - {subject}", body_html, body_plain)
         print(f"Activity emails sent to {len(emails)} recipients")
         return True
+
+
+def send_meeting_notification(
+    recipient_email: str,
+    recipient_name: str,
+    meeting_title: str,
+    meeting_datetime: str,
+    meeting_link: str,
+    organizer_name: str,
+    notification_type: str = "created",
+    reason: str = None
+):
+    """
+    Send meeting notification email.
+    
+    Args:
+        recipient_email: Recipient's email address
+        recipient_name: Recipient's name
+        meeting_title: Title of the meeting
+        meeting_datetime: Meeting date and time (datetime object or string)
+        meeting_link: Microsoft Teams meeting link
+        organizer_name: Name of the meeting organizer
+        notification_type: Type of notification ('created', 'rescheduled', 'cancelled', 'reminder')
+        reason: Optional reason for rescheduling/cancellation
+    """
+    from datetime import datetime
+    
+    # Format datetime
+    if isinstance(meeting_datetime, datetime):
+        formatted_datetime = meeting_datetime.strftime("%B %d, %Y at %I:%M %p")
+    else:
+        formatted_datetime = str(meeting_datetime)
+    
+    # Subject based on notification type
+    subjects = {
+        "created": "New Meeting Scheduled",
+        "rescheduled": "Meeting Rescheduled",
+        "cancelled": "Meeting Cancelled",
+        "reminder": "Meeting Reminder"
+    }
+    subject = subjects.get(notification_type, "Meeting Notification")
+    
+    # Action-specific content
+    if notification_type == "created":
+        action_message = f"<p style='font-size:15px; line-height:1.55; margin:0 0 18px;'><strong>{organizer_name}</strong> has scheduled a new meeting: <strong>{meeting_title}</strong></p>"
+        action_color = "#2563eb"
+        action_icon = "📅"
+    elif notification_type == "rescheduled":
+        action_message = f"<p style='font-size:15px; line-height:1.55; margin:0 0 18px;'><strong>{organizer_name}</strong> has rescheduled the meeting: <strong>{meeting_title}</strong></p>"
+        if reason:
+            action_message += f"<p style='font-size:14px; color:#6b7280; margin:0 0 18px;'><em>Reason: {reason}</em></p>"
+        action_color = "#f59e0b"
+        action_icon = "🔄"
+    elif notification_type == "cancelled":
+        action_message = f"<p style='font-size:15px; line-height:1.55; margin:0 0 18px;'><strong>{organizer_name}</strong> has cancelled the meeting: <strong>{meeting_title}</strong></p>"
+        if reason:
+            action_message += f"<p style='font-size:14px; color:#6b7280; margin:0 0 18px;'><em>Reason: {reason}</em></p>"
+        action_color = "#dc2626"
+        action_icon = "❌"
+    else:  # reminder
+        action_message = f"<p style='font-size:15px; line-height:1.55; margin:0 0 18px;'>Reminder: Your meeting <strong>{meeting_title}</strong> is coming up soon!</p>"
+        action_color = "#10b981"
+        action_icon = "⏰"
+    
+    body_plain = (
+        f"Hello {recipient_name},\n\n"
+        f"{action_icon} {subject}\n\n"
+        f"Meeting: {meeting_title}\n"
+        f"Date & Time: {formatted_datetime}\n"
+        f"Organizer: {organizer_name}\n"
+    )
+    
+    if notification_type != "cancelled":
+        body_plain += f"\nJoin Meeting: {meeting_link}\n"
+    
+    if reason:
+        body_plain += f"\nNote: {reason}\n"
+    
+    body_plain += "\n— Samsung PRISM Team"
+    
+    meeting_link_button = ""
+    if notification_type != "cancelled":
+        meeting_link_button = f"""
+        <div style='text-align:center; margin:30px 0 8px;'>
+            <a href='{meeting_link}' style='display:inline-block; background:{action_color}; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 26px; border-radius:10px; box-shadow:0 2px 6px rgba(37,99,235,0.35);'>Join Meeting</a>
+        </div>
+        """
+    
+    body_html = f"""
+    <html>
+        <body style='margin:0; padding:24px; background:#f5f7fb; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#1a1f29;'>
+            <table role='presentation' cellpadding='0' cellspacing='0' width='100%' style='max-width:640px; margin:0 auto; background:#ffffff; border-radius:16px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;'>
+                <tr>
+                    <td style='background:linear-gradient(135deg,{action_color},#1976d2); padding:28px 24px; text-align:center;'>
+                        <h1 style='margin:0; font-size:22px; color:#ffffff; letter-spacing:.5px; font-weight:600;'>{action_icon} {subject}</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td style='padding:32px 28px 18px;'>
+                        <p style='font-size:15px; line-height:1.55; margin:0 0 16px;'>Hello <strong>{recipient_name}</strong>,</p>
+                        {action_message}
+                        <div style='background:#f9fafb; border-left:4px solid {action_color}; padding:18px; margin:22px 0; border-radius:8px;'>
+                            <table style='width:100%; border-collapse:collapse;'>
+                                <tr>
+                                    <td style='padding:8px 0; font-size:14px; color:#6b7280; width:120px;'>Meeting:</td>
+                                    <td style='padding:8px 0; font-size:14px; color:#1a1f29; font-weight:600;'>{meeting_title}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding:8px 0; font-size:14px; color:#6b7280;'>Date & Time:</td>
+                                    <td style='padding:8px 0; font-size:14px; color:#1a1f29; font-weight:600;'>{formatted_datetime}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding:8px 0; font-size:14px; color:#6b7280;'>Organizer:</td>
+                                    <td style='padding:8px 0; font-size:14px; color:#1a1f29;'>{organizer_name}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        {meeting_link_button}
+                        <p style='margin:26px 0 0; font-size:14px; line-height:1.55;'>Regards,<br><strong>Samsung PRISM Team</strong></p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style='padding:16px 28px 26px;'>
+                        <p style='margin:0; font-size:11px; line-height:1.5; color:#6b7280; text-align:center;'>This is an automated meeting notification. Please check your Samsung PRISM dashboard for more details.</p>
+                    </td>
+                </tr>
+            </table>
+        </body>
+    </html>
+    """
+    
+    try:
+        _send_email(recipient_email, f"Samsung PRISM - {subject}", body_html, body_plain)
+        print(f"Meeting notification sent to {recipient_email}")
+        return True
+    except Exception as e:
+        print(f"Failed to send meeting notification to {recipient_email}: {str(e)}")
+        raise e

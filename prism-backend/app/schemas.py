@@ -11,9 +11,10 @@ class CollegeOut(BaseModel):
     infrastructure: Optional[str] = None
     area_of_expertise: Optional[Any] = None  # can be list or str
     workletCount: int = 0
-    excellentCount: int = 0
+    veryGoodCount: int = 0
     goodCount: int = 0
-    needsAttentionCount: int = 0
+    averageCount: int = 0
+    poorCount: int = 0
     completedCount: int = 0
     ongoingCount: int = 0
     onHoldCount: int = 0
@@ -422,3 +423,66 @@ class MilestoneFeedbackOut(BaseModel):
 
 # Update forward references for nested models
 MilestoneOut.model_rebuild()
+
+
+# ========================
+# Meeting Schemas
+# ========================
+
+class MeetingStatusEnum(str, Enum):
+    upcoming = "upcoming"
+    live = "live"
+    completed = "completed"
+    cancelled = "cancelled"
+
+class MeetingCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    college_id: int
+    worklet_ids: List[int] = Field(..., min_items=1)  # Must select at least one worklet
+    start_datetime: datetime
+    duration_minutes: int = Field(default=30, ge=15, le=240)  # 15 min to 4 hours
+    meeting_link: str = Field(..., min_length=1, max_length=500)
+    repeat_days: Optional[str] = None  # Comma-separated: "Mon,Wed,Fri"
+    repeat_until: Optional[date] = None
+
+class MeetingUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    meeting_link: Optional[str] = Field(None, min_length=1, max_length=500)
+
+class MeetingReschedule(BaseModel):
+    start_datetime: datetime
+    duration_minutes: Optional[int] = Field(None, ge=15, le=240)
+    reason: Optional[str] = None
+
+class WorkletScheduleOut(BaseModel):
+    worklet_id: int
+    worklet_cert_id: Optional[str] = None
+    worklet_title: str
+    scheduled_datetime: datetime
+    
+    class Config:
+        from_attributes = True
+
+class MeetingOut(BaseModel):
+    meeting_id: int
+    title: str
+    description: Optional[str] = None
+    college_id: int
+    college_name: Optional[str] = None
+    organizer_id: int
+    organizer_name: Optional[str] = None
+    organizer_email: Optional[str] = None
+    start_datetime: datetime
+    duration_minutes: int
+    meeting_link: str
+    status: MeetingStatusEnum
+    repeat_days: Optional[str] = None
+    repeat_until: Optional[date] = None
+    created_at: datetime
+    updated_at: datetime
+    worklets: List[WorkletScheduleOut] = []
+    
+    class Config:
+        from_attributes = True
