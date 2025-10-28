@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => {
-  const [workletId, setWorkletId] = useState(propWorkletId || "");
+  const [workletId, setWorkletId] = useState(
+    propWorkletId?.toString() || preSelectedWorklet?.id?.toString() || ""
+  );
   const [stage, setStage] = useState("");
   const [feedback, setFeedback] = useState("");
   const [worklets, setWorklets] = useState([]);
@@ -22,6 +24,14 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
     { value: "extended", label: "Extended" },
     { value: "ad_hoc", label: "Ad-hoc" }
   ];
+
+  // Update workletId when props change
+  useEffect(() => {
+    const newWorkletId = propWorkletId?.toString() || preSelectedWorklet?.id?.toString() || "";
+    if (newWorkletId && newWorkletId !== workletId) {
+      setWorkletId(newWorkletId);
+    }
+  }, [propWorkletId, preSelectedWorklet, workletId]);
 
   // Fetch worklets from backend (only if not in autoMode)
   useEffect(() => {
@@ -99,7 +109,7 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
         const fetchedMilestones = response.data || [];
 
         // Extract milestone types/stages that have been added by students
-        const milestoneTitles = fetchedMilestones.map(m => m.title?.toLowerCase() || '');
+        const milestoneTitles = fetchedMilestones.map(m => (m.milestone_type || m.title || '').toLowerCase());
         
         // Map milestone titles to stage values
         const stageMapping = {
