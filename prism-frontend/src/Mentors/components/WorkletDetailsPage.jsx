@@ -416,6 +416,11 @@ export default function WorkletDetailPage() {
             // GitHub repository info (now provided by backend)
             github_repo: response.data.github_repo || null,
             github_repo_url: response.data.github_repo_url || null,
+            // Backend-provided performance (single source of truth for badge)
+            performance: response.data.performance || null,
+            // Current stage from backend
+            current_stage: response.data.current_stage || null,
+            stage_id: response.data.stage_id || null,
           }
 
           setWorklet(transformedWorklet)
@@ -472,11 +477,28 @@ export default function WorkletDetailPage() {
             
             if (milestonesResponse.data) {
               setMilestones(milestonesResponse.data)
+              
+              // Extract files from milestones and populate allMilestoneFiles
+              const files = milestonesResponse.data
+                .filter(milestone => milestone.attachment_name) // Only milestones with attachments
+                .map(milestone => ({
+                  name: milestone.attachment_name,
+                  size: milestone.attachment_size || 0,
+                  type: milestone.attachment_type || 'application/octet-stream',
+                  url: milestone.attachment_url || null,
+                  uploadedBy: milestone.student_name || 'Unknown',
+                  uploadedByRole: 'student', // Milestones are created by students
+                  uploadedDate: milestone.date_created,
+                  milestoneTitle: milestone.milestone_type
+                }))
+              
+              setAllMilestoneFiles(files)
             }
           } catch (milestoneError) {
             console.error('Error fetching milestones:', milestoneError)
             // Don't fail the whole page if milestones fetch fails
             setMilestones([])
+            setAllMilestoneFiles([])
           }
         }
       } catch (error) {
@@ -667,47 +689,79 @@ export default function WorkletDetailPage() {
                   <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                 </svg>
                 <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {worklet.github_repo || 'stanford-bootcamp/fullstack-web-development'}
+                  {worklet.github_repo || 'Repository not specified'}
                 </span>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Main development repository for the {worklet.title} project
+                {worklet.github_repo 
+                  ? `Main development repository for the ${worklet.title} project`
+                  : 'No repository configured for this worklet'}
               </p>
             </div>
             <div className="flex gap-2 ml-4">
-              <a
-                href={worklet.github_repo_url || 'https://github.com/stanford-bootcamp/fullstack-web-development'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-3 py-2 bg-gray-900 dark:bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-800 dark:hover:bg-gray-500 transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-                View Repo
-              </a>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    worklet.github_repo_url || 'https://github.com/stanford-bootcamp/fullstack-web-development'
-                  )
-                }}
-                className="inline-flex items-center gap-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-                title="Copy repository URL">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                Copy
-              </button>
+              {worklet.github_repo_url ? (
+                <>
+                  <a
+                    href={worklet.github_repo_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-gray-900 dark:bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-800 dark:hover:bg-gray-500 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                    View Repo
+                  </a>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(worklet.github_repo_url)}
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                    title="Copy repository URL">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Copy
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 text-sm rounded-lg cursor-not-allowed"
+                    disabled>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                    View Repo
+                  </button>
+                  <button 
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 text-sm rounded-lg cursor-not-allowed"
+                    disabled
+                    title="No repository URL available">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Copy
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -1756,18 +1810,20 @@ export default function WorkletDetailPage() {
 
   // --- PERFORMANCE CALCULATION ---
   const getWorkletPerformance = (worklet) => {
-    if (!worklet) return 'Needs Attention'
+    // Use backend-provided performance/quality field (single source of truth)
+    if (!worklet) return null
     
-    const progress = worklet.progress || 0
+    const perf = worklet.performance
+    if (!perf && perf !== 0) return null
     
-    // Performance logic based on progress percentage
-    if (progress > 80) {
-      return 'Excellence'
-    } else if (progress > 70) {
-      return 'Good'
-    } else {
-      return 'Needs Attention'
-    }
+    // Normalize backend value (case-insensitive)
+    const p = String(perf).toLowerCase().trim()
+    if (p.includes('excel')) return 'Excellence'
+    if (p.includes('good')) return 'Good'
+    if (p.includes('need')) return 'Needs Attention'
+    
+    // Fallback: title-case the provided string
+    return p.charAt(0).toUpperCase() + p.slice(1)
   }
 
   const getPerformanceColor = (performance) => {
@@ -1853,8 +1909,18 @@ export default function WorkletDetailPage() {
                 {/* Status Badge Enhanced */}
                 <div className="flex flex-col sm:flex-row lg:flex-col items-start gap-4">
                   <div className="flex flex-col gap-3 w-full">
-                    {/* Status and Performance Row */}
+                    {/* Performance and Status Row - Performance first, then Status */}
                     <div className="flex items-center gap-3 flex-wrap">
+                      {/* Performance Badge - Only show if backend provides quality/performance */}
+                      {getWorkletPerformance(worklet) && (
+                        <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
+                          {getWorkletPerformance(worklet) === 'Excellence' && <Award size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet) === 'Needs Attention' && <AlertCircle size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet)}
+                        </span>
+                      )}
+                      
                       <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${
                         worklet.status === 'Completed' 
                           ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white'
@@ -1865,14 +1931,6 @@ export default function WorkletDetailPage() {
                         {worklet.status === 'Ongoing' && <Activity size={16} className="mr-2 animate-pulse" />}
                         {worklet.status === 'Completed' && <CheckCircle2 size={16} className="mr-2" />}
                         {worklet.status}
-                      </span>
-                      
-                      {/* Performance Badge */}
-                      <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
-                        {getWorkletPerformance(worklet) === 'Excellence' && <Award size={16} className="mr-2" />}
-                        {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
-                        {getWorkletPerformance(worklet) === 'Needs Attention' && <AlertCircle size={16} className="mr-2" />}
-                        {getWorkletPerformance(worklet)}
                       </span>
                     </div>
                   </div>
@@ -1938,13 +1996,7 @@ export default function WorkletDetailPage() {
                 </div>
                 <div>
                   <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {worklet.progress >= 100 ? 'End Review' : 
-                     worklet.progress >= 83 ? 'Fifth Review' : 
-                     worklet.progress >= 66 ? 'Fourth Review' : 
-                     worklet.progress >= 50 ? 'Mid Review' : 
-                     worklet.progress >= 33 ? 'Second Review' : 
-                     worklet.progress >= 16 ? 'First Review' : 
-                     'Not Started'}
+                    {worklet.current_stage || 'No review yet'}
                   </div>
                   <div className="text-xs text-gray-600 dark:text-gray-400">Current Stage</div>
                 </div>
@@ -2383,51 +2435,95 @@ export default function WorkletDetailPage() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {allMilestoneFiles.map((file, index) => (
-                          <div 
-                            key={index}
-                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 
-                                     rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md 
-                                     transition-all duration-200"
-                          >
-                            <div className="flex items-center gap-3 flex-grow">
-                              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                <FileText size={20} className="text-blue-600 dark:text-blue-400" />
-                              </div>
-                              <div className="flex-grow">
-                                <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                                  {file.name}
-                                </h4>
-                                <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  <span>From: {file.milestoneTitle}</span>
-                                  <span>•</span>
-                                  <span>By: {file.uploadedBy}</span>
-                                  <span className={`px-2 py-0.5 rounded-full ${
-                                    file.uploadedByRole === 'student' 
-                                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                                      : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                                  }`}>
-                                    {file.uploadedByRole === 'student' ? 'Student' : 'Mentor'}
-                                  </span>
-                                  <span>•</span>
-                                  <span>{new Date(file.uploadedDate).toLocaleDateString()}</span>
+                        {allMilestoneFiles.map((file, index) => {
+                          const handleDownload = async () => {
+                            try {
+                              if (file.url) {
+                                // If it's a blob URL, trigger download directly
+                                if (file.url.startsWith('blob:')) {
+                                  const link = document.createElement('a')
+                                  link.href = file.url
+                                  link.download = file.name
+                                  document.body.appendChild(link)
+                                  link.click()
+                                  document.body.removeChild(link)
+                                } else {
+                                  // If it's a server URL, fetch and download
+                                  const token = localStorage.getItem('access_token')
+                                  const response = await fetch(file.url, {
+                                    headers: {
+                                      'Authorization': `Bearer ${token}`
+                                    }
+                                  })
+                                  
+                                  if (!response.ok) throw new Error('Download failed')
+                                  
+                                  const blob = await response.blob()
+                                  const url = window.URL.createObjectURL(blob)
+                                  const link = document.createElement('a')
+                                  link.href = url
+                                  link.download = file.name
+                                  document.body.appendChild(link)
+                                  link.click()
+                                  document.body.removeChild(link)
+                                  window.URL.revokeObjectURL(url)
+                                }
+                              } else {
+                                alert('File URL not available')
+                              }
+                            } catch (error) {
+                              console.error('Error downloading file:', error)
+                              alert('Failed to download file. Please try again.')
+                            }
+                          }
+
+                          return (
+                            <div 
+                              key={index}
+                              className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 
+                                       rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md 
+                                       transition-all duration-200"
+                            >
+                              <div className="flex items-center gap-3 flex-grow">
+                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                  <FileText size={20} className="text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="flex-grow">
+                                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                    {file.name}
+                                  </h4>
+                                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <span>From: {file.milestoneTitle}</span>
+                                    <span>•</span>
+                                    <span>By: {file.uploadedBy}</span>
+                                    <span className={`px-2 py-0.5 rounded-full ${
+                                      file.uploadedByRole === 'student' 
+                                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                        : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                    }`}>
+                                      {file.uploadedByRole === 'student' ? 'Student' : 'Mentor'}
+                                    </span>
+                                    <span>•</span>
+                                    <span>{new Date(file.uploadedDate).toLocaleDateString()}</span>
+                                  </div>
                                 </div>
                               </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+                                  {(file.size / 1024).toFixed(2)} KB
+                                </span>
+                                <button 
+                                  onClick={handleDownload}
+                                  className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 
+                                           dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                  title="Download file"
+                                >
+                                  <Download size={16} />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
-                                {(file.size / 1024).toFixed(2)} KB
-                              </span>
-                              <button 
-                                className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 
-                                         dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                title="Download file"
-                              >
-                                <Download size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
 
@@ -2467,24 +2563,37 @@ export default function WorkletDetailPage() {
                         <div className="flex items-center gap-3 mb-2">
                           <GitBranch size={16} className="text-gray-600 dark:text-gray-400" />
                           <span className="font-semibold text-gray-900 dark:text-white">
-                            {worklet.github_repo || 'stanford-bootcamp/fullstack-web-development'}
+                            {worklet.github_repo || 'Repository not specified'}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Main development repository for {worklet.title}
+                          {worklet.github_repo 
+                            ? `Main development repository for ${worklet.title}`
+                            : 'No repository configured for this worklet'}
                         </p>
                       </div>
                       <div className="flex gap-2 ml-4">
-                        <a
-                          href={worklet.github_repo_url || 'https://github.com/stanford-bootcamp/fullstack-web-development'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 hover:bg-gray-800 text-white 
-                                    text-sm rounded-lg transition-all duration-200 hover:scale-105 shadow-lg"
-                        >
-                          <ExternalLink size={14} />
-                          View Repo
-                        </a>
+                        {worklet.github_repo_url ? (
+                          <a
+                            href={worklet.github_repo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 hover:bg-gray-800 text-white 
+                                      text-sm rounded-lg transition-all duration-200 hover:scale-105 shadow-lg"
+                          >
+                            <ExternalLink size={14} />
+                            View Repo
+                          </a>
+                        ) : (
+                          <button
+                            disabled
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-gray-300 dark:bg-gray-600 
+                                      text-gray-500 dark:text-gray-400 text-sm rounded-lg cursor-not-allowed"
+                          >
+                            <ExternalLink size={14} />
+                            View Repo
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

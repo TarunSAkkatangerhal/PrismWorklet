@@ -117,7 +117,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
         setLoading(false);
         return;
       }
-      const response = await apiClient.get(`/api/associations/mentor/${userId}/ongoing-worklets`);
+      const response = await apiClient.get(`/api/associations/mentor/${userId}/worklets?status_filter=ongoing`);
       const data = response?.data?.ongoing_worklets || [];
       setWorklets(Array.isArray(data) ? data : []);
       if ((data || []).length === 0) setError("No worklets found for this mentor");

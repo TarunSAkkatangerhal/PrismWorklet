@@ -50,7 +50,7 @@ const fetchCompletedWorkletsForCurrentUser = async () => {
   const profile = await profileResp.json()
   const userId = profile.id
   // We need worklets with status Completed regardless of role; try fetching association endpoint (mentor path used previously)
-  const assocResp = await fetch(`${API_BASE}/api/associations/mentor/${userId}/all-worklets`, { headers: authHeader() })
+  const assocResp = await fetch(`${API_BASE}/api/associations/mentor/${userId}/worklets`, { headers: authHeader() })
   if (!assocResp.ok) return { completed: [] }
   const assocData = await assocResp.json()
   return { completed: assocData.completed_worklets || [] }

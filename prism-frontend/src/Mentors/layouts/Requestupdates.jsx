@@ -43,9 +43,9 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
           return;
         }
 
-        // Use association-based endpoint for mentor's ongoing worklets
+        // Use association-based unified endpoint for mentor's ongoing worklets
         const response = await axios.get(
-          `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
+          `http://localhost:8000/api/associations/mentor/${userId}/worklets?status_filter=ongoing`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -158,7 +158,7 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
                 }).then(userResp => {
                   const userId = userResp?.data?.id;
                   if (!userId) throw new Error("User ID not found");
-                  return axios.get(`http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`, {
+                  return axios.get(`http://localhost:8000/api/associations/mentor/${userId}/worklets?status_filter=ongoing`, {
                     headers: { Authorization: `Bearer ${token}` }
                   });
                 }).then(response => {

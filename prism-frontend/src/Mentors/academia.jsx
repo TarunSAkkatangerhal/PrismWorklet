@@ -571,16 +571,20 @@ const WorkletListView = ({ data, onBack, filterStatus, title }) => {
                       {worklet.collegeName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap align-top">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          worklet.performanceStatus === 'Excellent'
-                            ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400'
-                            : worklet.performanceStatus === 'Good'
-                            ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
-                            : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
-                        }`}>
-                        {worklet.performanceStatus}
-                      </span>
+                      {worklet.performanceStatus ? (
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            worklet.performanceStatus === 'Excellent'
+                              ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400'
+                              : worklet.performanceStatus === 'Good'
+                              ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
+                              : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
+                          }`}>
+                          {worklet.performanceStatus}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -828,12 +832,24 @@ const Colleges = () => {
           const normalizedCollegeSlug = typeof collegeName === 'string'
             ? collegeName.toLowerCase().replace(/\s+/g, '') || 'college'
             : 'college'
+          
+          // Map backend performance field to performanceStatus for display
+          let performanceStatus = null
+          if (worklet.performance) {
+            const perf = String(worklet.performance).toLowerCase().trim()
+            if (perf.includes('excel')) performanceStatus = 'Excellent'
+            else if (perf.includes('good')) performanceStatus = 'Good'
+            else if (perf.includes('need')) performanceStatus = 'Needs Attention'
+            else performanceStatus = worklet.performance.charAt(0).toUpperCase() + worklet.performance.slice(1)
+          }
+          
           const normalizedWorklet = {
             id: worklet.id,
             title: worklet.title,
             description: worklet.description,
             status: worklet.status || worklet.progressStatus,
             progressStatus: worklet.progressStatus || worklet.status,
+            performanceStatus: performanceStatus,
             domain: worklet.domain,
             year: worklet.year,
             startDate: worklet.start_date,
@@ -989,12 +1005,24 @@ const Colleges = () => {
             : []
 
           const studentCount = students.length
+          
+          // Map backend performance field to performanceStatus for display
+          let performanceStatus = null
+          if (rawWorklet.performance) {
+            const perf = String(rawWorklet.performance).toLowerCase().trim()
+            if (perf.includes('excel')) performanceStatus = 'Excellent'
+            else if (perf.includes('good')) performanceStatus = 'Good'
+            else if (perf.includes('need')) performanceStatus = 'Needs Attention'
+            else performanceStatus = rawWorklet.performance.charAt(0).toUpperCase() + rawWorklet.performance.slice(1)
+          }
+          
           return {
             id: rawWorklet.id,
             title: rawWorklet.title,
             description: rawWorklet.description,
             status: rawWorklet.status || rawWorklet.progressStatus,
             progressStatus: rawWorklet.progressStatus || rawWorklet.status,
+            performanceStatus: performanceStatus,
             domain: rawWorklet.domain,
             year: rawWorklet.year,
             startDate: rawWorklet.start_date,

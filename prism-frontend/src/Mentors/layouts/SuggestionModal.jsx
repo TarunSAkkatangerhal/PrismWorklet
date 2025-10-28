@@ -59,9 +59,9 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         return;
       }
 
-      // Fetch mentor's ongoing worklets via associations
+      // Fetch mentor's ongoing worklets via unified associations endpoint
       const response = await axios.get(
-        `http://localhost:8000/api/associations/mentor/${userId}/ongoing-worklets`,
+        `http://localhost:8000/api/associations/mentor/${userId}/worklets?status_filter=ongoing`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

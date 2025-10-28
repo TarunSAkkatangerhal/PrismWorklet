@@ -106,6 +106,17 @@ class UserProfile(Base):
         return f"<UserProfile(user_id={self.user_id})>"
 
 
+class WorkletStage(Base):
+    """WorkletStage lookup table for review stages"""
+    __tablename__ = "WorkletStage"
+    
+    stage_id = Column("StageID", Integer, primary_key=True)
+    stage = Column("Stage", String(45), nullable=False)
+    
+    def __repr__(self):
+        return f"<WorkletStage(stage_id={self.stage_id}, stage='{self.stage}')>"
+
+
 class Worklet(Base):
     # Map to existing Prism_Worklet table (do not alter this table via migrations)
     __tablename__ = "Prism_Worklet"
@@ -127,6 +138,8 @@ class Worklet(Base):
     start_date = Column("StartDate", Date, nullable=True)
     end_date = Column("EndDate", Date, nullable=True)
     is_active = Column("IsActive", Integer, nullable=False)
+    # Performance column for quality/performance tracking
+    Performance = Column("Performance", String(45), nullable=True)
     # New FK to colleges
     college_id = Column("CollegeID", Integer, ForeignKey("colleges.college_id", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
 
@@ -134,11 +147,12 @@ class Worklet(Base):
     group_mg_id = Column("GroupMGID", Integer, nullable=True)
     part_mg_id = Column("PartMGID", Integer, nullable=True)
     team_mg_id = Column("TeamMGID", Integer, nullable=True)
-    stage_id = Column("StageID", Integer, nullable=True)
+    stage_id = Column("StageID", Integer, ForeignKey("WorkletStage.StageID", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
 
     # Relationships
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")
     college_rel = relationship("College", primaryjoin="Worklet.college_id==College.college_id", uselist=False)
+    stage_rel = relationship("WorkletStage", primaryjoin="Worklet.stage_id==WorkletStage.stage_id", uselist=False, foreign_keys=[stage_id])
     suggestions = relationship("Suggestion", back_populates="worklet", cascade="all, delete-orphan")
     milestones = relationship("Milestone", back_populates="worklet", cascade="all, delete-orphan")
 
