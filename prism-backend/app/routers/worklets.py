@@ -5,7 +5,7 @@ from app.schemas import WorkletCreate, WorkletUpdate, WorkletResponse
 from app.database import get_db
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr
-from datetime import datetime
+from datetime import datetime, date
 from app.core.email_utils import send_activity_email
 from app.auth import oauth2_scheme, require_access_token
 from app.routers.helpers.worklet_helpers import (
@@ -158,9 +158,22 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
         except Exception:
             derived_year = None
 
-        # Apply year filter if provided
-        if year is not None and derived_year is not None and int(derived_year) != int(year):
-            continue
+        # Apply year filter if provided (using active window logic to match dashboard)
+        if year is not None:
+            # Check if worklet was active at any point during the specified year
+            start_date = getattr(w, "start_date", None)
+            end_date = getattr(w, "end_date", None) or datetime.utcnow().date()
+            
+            if start_date is not None:
+                year_start = date(year, 1, 1)
+                year_end = date(year, 12, 31)
+                
+                # Skip if worklet ended before year started or started after year ended
+                if end_date < year_start or start_date > year_end:
+                    continue
+            else:
+                # If no start date, skip this worklet when year filter is applied
+                continue
 
         # Derive GitHub repo info if available
         github_url = getattr(w, 'github_url', None)

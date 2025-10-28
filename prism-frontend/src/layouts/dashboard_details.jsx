@@ -10,8 +10,6 @@ import {
   MapPin, 
   ExternalLink,
   Search,
-  Filter,
-  Download,
   Loader,
   Grid3X3,
   List
@@ -38,9 +36,7 @@ const NavStat = () => {
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
-  const [yearFilter, setYearFilter] = useState(initialYear)
-  // Internal tracking for data freshness (not displayed per user request)
-  const [lastUpdated, setLastUpdated] = useState(null)
+  const yearFilter = initialYear
 
   // Filter options configuration
   const filterOptions = [
@@ -77,6 +73,7 @@ const NavStat = () => {
       if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       const params = new URLSearchParams()
       if (yearFilter && yearFilter !== 'All') params.set('year', yearFilter)
+      
       let data = []
       try {
         const res = await axios.get(`${base}/worklets${params.toString() ? `?${params.toString()}` : ''}`)
@@ -109,7 +106,6 @@ const NavStat = () => {
         : normalized
 
       setWorklets(scoped)
-      setLastUpdated(new Date())
 
     } catch (err) {
       console.error('Error fetching worklets:', err)
@@ -123,15 +119,20 @@ const NavStat = () => {
   // Apply filter whenever full dataset or activeFilter changes
   useEffect(() => {
     let subset = worklets
-    if (yearFilter && yearFilter !== 'All') {
-      subset = subset.filter(w => String(w.year) === String(yearFilter))
-    }
+    
+    // DON'T filter by year here - backend already filtered by year when fetching
+    // The worklets array already contains only the correct year's data
+    
     // Optional college scoping (in case dataset source isn't already scoped)
     if (targetCollege && targetCollege !== 'All Colleges') {
       subset = subset.filter(w => (w.college || '').toLowerCase() === targetCollege.toLowerCase())
     }
-    if (activeFilter === 'ongoing') subset = subset.filter(w => w.status === 'Ongoing')
-    else if (activeFilter === 'completed') subset = subset.filter(w => w.status === 'Completed')
+    if (activeFilter === 'ongoing') {
+      subset = subset.filter(w => w.status === 'Ongoing')
+    } else if (activeFilter === 'completed') {
+      subset = subset.filter(w => w.status === 'Completed')
+    }
+    
     setFiltered(subset)
   }, [worklets, activeFilter, yearFilter, targetCollege])
 
@@ -140,6 +141,7 @@ const NavStat = () => {
     if (worklets.length === 0 || error) {
       fetchWorklets()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFilter, yearFilter, fetchWorklets])
 
   // Poll every 60s
