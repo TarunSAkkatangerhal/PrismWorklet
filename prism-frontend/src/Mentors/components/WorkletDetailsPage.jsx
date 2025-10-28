@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
@@ -8,11 +7,11 @@ import RequestUpdate from '../layouts/Requestupdates'
 import SuggestionModal from '../layouts/SuggestionModal'
 import InternReferralForm from '../layouts/Intern'
 import FeedBack from '../layouts/FeedBack'
-import LeftSidebar from '../components/Left'
+import LeftSidebar from '../../components/Left'
 import ProvideUpdateModal from '../components/ProvideUpdateModal'
 import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
-import TestimonialModal from '../components/TestimonialModal'
-import { getCurrentUser } from '../services/auth'
+import TestimonialModal from '../../Students/TestimonialModal'
+import { getCurrentUser } from '../../services/auth'
 
 // --- Import all required icons from lucide-react ---
 import {
@@ -255,10 +254,6 @@ export default function WorkletDetailPage() {
   const [feedbackSkillsGained, setFeedbackSkillsGained] = useState([])
   const [feedbackWouldRecommend, setFeedbackWouldRecommend] = useState(null)
   const [feedbackMentorSupport, setFeedbackMentorSupport] = useState(0)
-  const [feedbackLearningValue, setFeedbackLearningValue] = useState(0)
-  const [feedbackTeamCollaboration, setFeedbackTeamCollaboration] = useState(0)
-  const [feedbackProjectRelevance, setFeedbackProjectRelevance] = useState(0)
-  const [feedbackOverallSatisfaction, setFeedbackOverallSatisfaction] = useState(0)
   
   const [retryCount, setRetryCount] = useState(0)
   const [mentorWorkletIds, setMentorWorkletIds] = useState([])

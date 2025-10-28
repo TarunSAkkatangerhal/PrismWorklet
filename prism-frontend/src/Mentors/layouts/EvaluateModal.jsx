@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Award, Star, Trophy, Gift, CheckCircle2 } from 'lucide-react';
-import apiClient from '../services/secureAPI';
+import apiClient from '../../services/secureAPI';
 
 function EvaluateModal({ isOpen, onClose }) {
   const [completedWorklets, setCompletedWorklets] = useState([]);

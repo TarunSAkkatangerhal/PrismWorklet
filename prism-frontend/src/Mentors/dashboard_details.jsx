@@ -39,8 +39,6 @@ const NavStat = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
   const [yearFilter, setYearFilter] = useState(initialYear)
-  // Internal tracking for data freshness (not displayed per user request)
-  const [lastUpdated, setLastUpdated] = useState(null)
 
   // Filter options configuration
   const filterOptions = [
@@ -109,7 +107,6 @@ const NavStat = () => {
         : normalized
 
       setWorklets(scoped)
-      setLastUpdated(new Date())
 
     } catch (err) {
       console.error('Error fetching worklets:', err)

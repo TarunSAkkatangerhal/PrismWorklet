@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // Student Dashboard - Shows worklets content with student-focused UI
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -159,13 +158,13 @@ export default function StudentDashboard() {
     },
   ]);
   
-  const [loading] = useState(false);
-  const [error] = useState(null);
-  const [lastFetched] = useState(new Date());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastFetched, setLastFetched] = useState(new Date());
   
   // User profile state with hardcoded data
-  const [userName] = useState('John Doe');
-  const [loadingName] = useState(false);
+  const [userName, setUserName] = useState('John Doe');
+  const [loadingName, setLoadingName] = useState(false);
   const [userProfileData] = useState({
     name: 'John Doe',
     email: 'john.doe@university.edu',

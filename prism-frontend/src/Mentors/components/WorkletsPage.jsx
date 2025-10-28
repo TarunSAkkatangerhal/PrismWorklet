@@ -16,7 +16,7 @@ import {
   CheckCircle,
   Circle
 } from "lucide-react";
-import LeftSidebar from "./Left";
+import LeftSidebar from "../../components/Left";
 
 // Status options for tabs (UI remains unchanged; no 'To Start' tab)
 const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "On Hold", "Dropped"]; 
@@ -45,7 +45,6 @@ export default function WorkletsPage() {
   const [workletsData, setWorkletsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastFetched, setLastFetched] = useState(null);
   
   // Initialize state with persisted values or defaults
   const savedState = loadViewState();
@@ -172,7 +171,6 @@ export default function WorkletsPage() {
         };
       });
       setWorkletsData(normalized);
-      setLastFetched(new Date());
     } catch (e) {
       console.error('Failed to fetch worklets', e);
       setError(e.response?.data?.detail || e.message || 'Failed to load worklets');

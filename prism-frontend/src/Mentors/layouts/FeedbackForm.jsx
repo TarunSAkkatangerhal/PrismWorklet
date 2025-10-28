@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from "react";
 import axios from 'axios';
-import apiClient from '../services/secureAPI';
+import apiClient from '../../services/secureAPI';
 
 export default function FeedbackForm({ isOpen, onClose }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");

@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // Dashboard page: Presents mentor snapshot including profile, stats, and ongoing worklets.
 // Focus points:
 // 1. Fetch mentor profile & worklets once and cache lightweight view state (layout) in localStorage
@@ -93,8 +92,6 @@ export default function Dashboard() {
   const [nameError, setNameError] = useState(false)
 
   const navigate = useNavigate()
-  // Level gamification placeholder (currently static; could be derived from KPI metrics in future)
-  const [currentUserLevel, setCurrentUserLevel] = useState(1)
   // Persist layout preference (grid vs horizontal carousel) for continuity across sessions
   const [layout, setLayout] = useState(() => localStorage.getItem('worklet_layout') || 'horizontal')
   
