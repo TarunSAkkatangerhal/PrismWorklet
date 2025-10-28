@@ -178,6 +178,10 @@ export default function Dashboard() {
           const endISO = worklet.end_date || null
           const startDisplay = startISO ? new Date(startISO).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
           const endDisplay = endISO ? new Date(endISO).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+          
+          // Extract latest suggestion data
+          const latestSuggestion = worklet.latest_suggestion || null
+          
           return {
             id: worklet.id,
             title: worklet.cert_id || worklet.title || 'Untitled Worklet',
@@ -192,7 +196,8 @@ export default function Dashboard() {
             notificationCount: 0,
             quality,
             college: worklet.college || 'Unknown College',
-            team: worklet.team || worklet.domain || 'General'
+            team: worklet.team || worklet.domain || 'General',
+            latestSuggestion
           }
         })
         if (!cancelled) {
@@ -471,34 +476,51 @@ export default function Dashboard() {
 
 // --- UPDATED WORKLET CARD COMPONENT ---
 function WorkletCard({ worklet, layout, navigate }) {
-  // Helper function to generate latest update based on worklet data
-  const getLatestUpdate = (worklet) => {
-    const updates = [
-      'Design completed successfully with mentor approval',
-      'Testing phase active, initial results positive', 
-      'Code review scheduled for next week',
-      'Documentation updated with new requirements',
-      'Mentor feedback received, revisions needed',
-      'Student submission pending final review',
-      'Project milestone achieved on schedule',
-      'Requirements clarified with stakeholders'
-    ];
-    
-    // Generate consistent update based on worklet ID
-    const updateIndex = (worklet.id || '').toString().charCodeAt(0) % updates.length;
-    const update = updates[updateIndex] || 'Project in progress';
-    
-    // Limit to 20 words maximum
-    const words = update.split(' ');
-    return words.length > 20 ? words.slice(0, 20).join(' ') + '...' : update;
-  };
+  // Helper function to format suggestion content
+  const formatSuggestionContent = (content, maxWords = 15) => {
+    if (!content) return null
+    const words = content.split(' ')
+    if (words.length <= maxWords) return content
+    return words.slice(0, maxWords).join(' ') + '...'
+  }
 
-  // Helper function to generate realistic update time
-  const getUpdateTime = (worklet) => {
-    const times = ['2h ago', '5h ago', '1d ago', '2d ago', '3d ago'];
-    const timeIndex = (worklet.id || '').toString().charCodeAt(1) % times.length;
-    return times[timeIndex] || '1d ago';
-  };
+  // Helper function to calculate time ago from created_at
+  const getTimeAgo = (createdAt) => {
+    if (!createdAt) return 'recently'
+    
+    try {
+      const created = new Date(createdAt)
+      const now = new Date()
+      const diffMs = now - created
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      const diffDays = Math.floor(diffHours / 24)
+      
+      if (diffHours < 1) return 'Just now'
+      if (diffHours < 24) return `${diffHours}h ago`
+      if (diffDays < 7) return `${diffDays}d ago`
+      return `${Math.floor(diffDays / 7)}w ago`
+    } catch (e) {
+      return 'recently'
+    }
+  }
+
+  // Get latest suggestion display text
+  const getLatestSuggestionDisplay = () => {
+    if (!worklet.latestSuggestion) {
+      return {
+        text: 'No suggestions yet',
+        timeAgo: null
+      }
+    }
+    
+    const content = worklet.latestSuggestion.content || worklet.latestSuggestion.title || 'Suggestion available'
+    return {
+      text: formatSuggestionContent(content),
+      timeAgo: getTimeAgo(worklet.latestSuggestion.created_at)
+    }
+  }
+
+  const suggestionDisplay = getLatestSuggestionDisplay()
 
   // Container width adapts when in horizontal scroller vs grid mode
   const containerClasses = layout === 'grid' ? 'w-full' : 'w-[clamp(18rem,25vw,22rem)] flex-shrink-0'
@@ -756,17 +778,19 @@ function WorkletCard({ worklet, layout, navigate }) {
           {/* Latest Update Section - Compact */}
           <div className="mt-[0.6vw] pt-[0.6vw] border-t border-white/20 w-full">
             <div className="flex items-center justify-center gap-[0.2vw] mb-[0.3vw]">
-              <div className="w-[0.3vw] h-[0.3vw] bg-green-400 rounded-full animate-pulse"></div>
+              <div className={`w-[0.3vw] h-[0.3vw] rounded-full ${worklet.latestSuggestion ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
               <span className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-gray-300 font-medium uppercase tracking-wide">
                 Latest
               </span>
             </div>
             <div className="text-[clamp(0.5rem,0.65vw,0.6rem)] text-gray-200 leading-tight break-words">
-              {getLatestUpdate(worklet)}
+              {suggestionDisplay.text}
             </div>
-            <div className="text-[clamp(0.4rem,0.55vw,0.5rem)] text-gray-400 mt-[0.2vw]">
-              {getUpdateTime(worklet)}
-            </div>
+            {suggestionDisplay.timeAgo && (
+              <div className="text-[clamp(0.4rem,0.55vw,0.5rem)] text-gray-400 mt-[0.2vw]">
+                {suggestionDisplay.timeAgo}
+              </div>
+            )}
           </div>
         </div>
       </div>
