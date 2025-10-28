@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // Student Dashboard - Shows worklets content with student-focused UI
 // Now with proper security and API integration like mentor dashboard
 import React, { useState, useEffect, useCallback } from "react";

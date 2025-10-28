@@ -1,5 +1,4 @@
-/* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useContext } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import secureAPI from '../services/secureAPI'
@@ -21,10 +20,8 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
-// import { ThemeContext } from '../context/ThemeContext'; // <-- Removed ThemeContext dependency
 import { motion, AnimatePresence } from 'framer-motion'
 import { ThemeContext } from '../context/ThemeContext'
-import { useContext } from 'react'
 import {
   ResponsiveContainer,
   LineChart,

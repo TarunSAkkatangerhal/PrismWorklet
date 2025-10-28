@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import RequestUpdate from "../layouts/Requestupdates";
-import SuggestionModal from "../layouts/SuggestionModal";
-import InternReferralForm from "../layouts/Intern";
-import FeedbackForm from "./FeedbackForm";
-import EvaluateModal from "../components/EvaluateModal";
-import ProvideUpdateModal from "../components/ProvideUpdateModal";
-import MeetingUpdatesModal from "../components/MeetingUpdatesModal";
-import TestimonialModal from "../components/TestimonialModal";
+import RequestUpdate from "../Mentors/layouts/Requestupdates";
+import SuggestionModal from "../Mentors/layouts/SuggestionModal";
+import InternReferralForm from "../Mentors/layouts/Intern";
+import FeedbackForm from "../Mentors/layouts/FeedbackForm";
+import EvaluateModal from "../Mentors/layouts/EvaluateModal";
+import ProvideUpdateModal from "../Mentors/components/ProvideUpdateModal";
+import MeetingUpdatesModal from "../Mentors/components/MeetingUpdatesModal";
+import TestimonialModal from "../Students/TestimonialModal";
 
 import {
   RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot, Calendar, Star

@@ -38,7 +38,6 @@ const NavColl = () => {
   const [selectedCollege, setSelectedCollege] = useState(initialCollegeName)
   const [viewMode, setViewMode] = useState('grid')
   const [yearFilter, setYearFilter] = useState(initialYear)
-  const [lastUpdated, setLastUpdated] = useState(null)
   const filterOptions = [
     {
       key: 'total',
@@ -174,7 +173,6 @@ const NavColl = () => {
       })
 
       setColleges(enrichedColleges)
-      setLastUpdated(new Date())
 
     } catch (err) {
       console.error('Failed to fetch colleges:', err)
