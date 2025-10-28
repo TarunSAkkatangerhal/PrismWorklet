@@ -213,6 +213,20 @@ class WorkletService:
         if include_performance:
             response["performance"] = performance
         
+        # Add current stage information
+        stage_name = None
+        if worklet.stage_rel:
+            stage_name = worklet.stage_rel.stage
+        elif hasattr(worklet, 'stage_id') and worklet.stage_id:
+            # Fallback if relationship not loaded
+            from app.models import WorkletStage
+            stage = db.query(WorkletStage).filter(WorkletStage.stage_id == worklet.stage_id).first()
+            if stage:
+                stage_name = stage.stage
+        
+        response["current_stage"] = stage_name
+        response["stage_id"] = getattr(worklet, 'stage_id', None)
+        
         # Add students if requested
         if include_students:
             students = get_worklet_students(db, worklet.id)

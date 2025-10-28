@@ -423,6 +423,9 @@ export default function WorkletDetailPage() {
             github_repo_url: response.data.github_repo_url || null,
             // Backend-provided performance (single source of truth for badge)
             performance: response.data.performance || null,
+            // Current stage from backend
+            current_stage: response.data.current_stage || null,
+            stage_id: response.data.stage_id || null,
           }
 
           setWorklet(transformedWorklet)
@@ -1981,13 +1984,7 @@ export default function WorkletDetailPage() {
                 </div>
                 <div>
                   <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {worklet.progress >= 100 ? 'End Review' : 
-                     worklet.progress >= 83 ? 'Fifth Review' : 
-                     worklet.progress >= 66 ? 'Fourth Review' : 
-                     worklet.progress >= 50 ? 'Mid Review' : 
-                     worklet.progress >= 33 ? 'Second Review' : 
-                     worklet.progress >= 16 ? 'First Review' : 
-                     'Not Started'}
+                    {worklet.current_stage || 'No review yet'}
                   </div>
                   <div className="text-xs text-gray-600 dark:text-gray-400">Current Stage</div>
                 </div>

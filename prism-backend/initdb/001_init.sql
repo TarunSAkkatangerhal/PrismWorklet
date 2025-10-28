@@ -58,6 +58,18 @@ CREATE TABLE status (
   StatusName VARCHAR(50) NOT NULL
 );
 
+create table WorkletStage(StageID int primary key,Stage varchar(45));
+
+-- Insert Stage Data
+INSERT INTO WorkletStage (StageID, Stage) VALUES
+  (1, 'First Review'),
+  (2, 'Second Review'),
+  (3, 'Mid Review'),
+  (4, 'Fourth Review'),
+  (5, 'End Review'),
+  (6, 'Extended Review'),
+  (7, 'Add OC');
+
 -- ========================
 -- 4. Worklets
 -- ========================
@@ -112,6 +124,10 @@ CREATE TABLE Prism_Worklet (
       ON UPDATE CASCADE,
   CONSTRAINT fk_worklet_college FOREIGN KEY (CollegeID)
       REFERENCES colleges(college_id)
+      ON DELETE SET NULL
+      ON UPDATE CASCADE,
+  CONSTRAINT fk_worklet_stage FOREIGN KEY (StageID)
+      REFERENCES WorkletStage(StageID)
       ON DELETE SET NULL
       ON UPDATE CASCADE
 ) ENGINE=InnoDB 
