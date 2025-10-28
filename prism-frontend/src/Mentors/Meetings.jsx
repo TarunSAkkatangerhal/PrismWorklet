@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar, 
@@ -1009,6 +1010,7 @@ const Meetings = () => {
   useEffect(() => {
     fetchColleges();
     fetchMeetings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch worklets when college is selected
@@ -1019,6 +1021,7 @@ const Meetings = () => {
         fetchMentorWorklets(selectedCollege.college_id);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formCollege]);
 
   // Close filter menu when clicking outside

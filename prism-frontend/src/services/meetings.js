@@ -79,7 +79,7 @@ export const getColleges = async () => {
   return response.data;
 };
 
-export default {
+const meetingsService = {
   createMeeting,
   getMeetings,
   getMeetingById,
@@ -88,3 +88,5 @@ export default {
   getMentorWorklets,
   getColleges
 };
+
+export default meetingsService;

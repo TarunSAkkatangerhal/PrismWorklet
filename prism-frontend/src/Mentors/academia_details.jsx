@@ -26,7 +26,7 @@ const NavColl = () => {
   const { isDarkMode } = useContext(ThemeContext)
   
   const initialFilter = location.state?.filter || 'total'
-  const initialYear = location.state?.year || 'All'
+  
   const initialCollegeName = location.state?.collegeName || ''
   
   const [activeFilter, setActiveFilter] = useState(initialFilter)
@@ -37,7 +37,6 @@ const NavColl = () => {
   const [searchTerm, setSearchTerm] = useState(initialCollegeName)
   const [selectedCollege, setSelectedCollege] = useState(initialCollegeName)
   const [viewMode, setViewMode] = useState('grid')
-  const yearFilter = initialYear
   const filterOptions = [
     {
       key: 'total',
@@ -182,7 +181,8 @@ const NavColl = () => {
     } finally {
       setLoading(false)
     }
-  }, [yearFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
 
   const filterColleges = useCallback(() => {
@@ -359,15 +359,6 @@ const NavColl = () => {
 
   const stats = getFilterStats()
 
-  const formatTimeline = (start, end) => {
-    if (!start && !end) return ''
-    const fmt = (d) => {
-      if (!d) return '—'
-      try { return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) } catch { return '—' }
-    }
-    return `${fmt(start)} - ${fmt(end)}`
-  }
-
   const getStatusColor = (status) => {
     const colors = {
       'Ongoing': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
@@ -378,8 +369,6 @@ const NavColl = () => {
     }
     return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
   }
-
-  const currentFilter = filterOptions.find(f => f.key === activeFilter)
 
   return (
     <div className={`flex h-screen font-sans ${

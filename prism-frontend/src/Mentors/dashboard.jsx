@@ -417,7 +417,8 @@ const ModernStatisticsDashboard = () => {
     }
 
     fetchFilteredOptions()
-  }, [filters.year, filters.domain])  // Removed filters.team from dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.year, filters.domain])  // Removed filters.team from dependencies to prevent circular updates
 
   // Reset all filters to default values
   const handleResetFilters = () => {

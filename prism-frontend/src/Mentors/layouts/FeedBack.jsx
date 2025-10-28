@@ -7,7 +7,6 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
   const [feedback, setFeedback] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [milestones, setMilestones] = useState([]);
   const [availableStages, setAvailableStages] = useState([]);
 
   const autoMode = !!preSelectedWorklet;
@@ -79,7 +78,6 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
   useEffect(() => {
     const fetchMilestones = async () => {
       if (!workletId) {
-        setMilestones([]);
         setAvailableStages([]);
         return;
       }
@@ -89,7 +87,7 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
         if (!token) return;
 
         const response = await axios.get(
-          `http://localhost:8000/worklets/${workletId}/milestones`,
+          `http://localhost:8000/milestones/worklet/${workletId}`,
           {
             headers: { 
               'Authorization': `Bearer ${token}`,
@@ -98,8 +96,7 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
           }
         );
 
-        const fetchedMilestones = response.data?.milestones || [];
-        setMilestones(fetchedMilestones);
+        const fetchedMilestones = response.data || [];
 
         // Extract milestone types/stages that have been added by students
         const milestoneTitles = fetchedMilestones.map(m => m.title?.toLowerCase() || '');
@@ -130,13 +127,13 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
 
         setAvailableStages(available);
       } catch (error) {
-        setMilestones([]);
         setAvailableStages([]);
       }
     };
 
     fetchMilestones();
-  }, [workletId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workletId]);  // allStages is static and doesn't need to be in dependencies
 
   const handleSubmit = () => {
     const data = {

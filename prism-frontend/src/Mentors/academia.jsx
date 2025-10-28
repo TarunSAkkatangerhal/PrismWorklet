@@ -5,17 +5,13 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Search,
   Users,
-  TrendingUp,
   ChevronDown,
   Download,
-  Plus,
   Building2,
-  BookOpen,
   Target,
   RefreshCw,
   X,
   ArrowLeft,
-  ClipboardList,
   CheckCircle,
   PauseCircle,
   XCircle,
@@ -496,6 +492,7 @@ const DashboardGraphs = ({ data, onEnlarge }) => {
 }
 
 // --- Reusable Worklet List View ---
+// eslint-disable-next-line no-unused-vars
 const WorkletListView = ({ data, onBack, filterStatus, title }) => {
   const worklets = useMemo(() => {
     const allWorklets = data.flatMap((college) =>
@@ -607,6 +604,7 @@ const WorkletListView = ({ data, onBack, filterStatus, title }) => {
 }
 
 // --- List View for All Students ---
+// eslint-disable-next-line no-unused-vars
 const AllStudentsView = ({ data, onBack }) => {
   const uniqueStudents = useMemo(() => {
     const studentMap = new Map()
@@ -709,9 +707,7 @@ const Colleges = () => {
   const [selectedArea, setSelectedArea] = useState('Select Area')
   const [allCollegeData, setAllCollegeData] = useState([])
   const [loading, setLoading] = useState(true)
-  const [currentView, setCurrentView] = useState('dashboard')
   const [enlargedChartInfo, setEnlargedChartInfo] = useState(null) // State for modal
-  const [error, setError] = useState(null)
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000'
   const [collegeDetailStatus, setCollegeDetailStatus] = useState({}) // tracks detailed fetch status per college
   const allCollegeDataRef = useRef(allCollegeData)
@@ -811,7 +807,6 @@ const Colleges = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
-      setError(null)
       try {
         const token = localStorage.getItem('access_token')
         const requestConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
@@ -913,7 +908,7 @@ const Colleges = () => {
         })
 
         if (err.response?.status === 401) {
-          setError('Authentication required. Please log in again.')
+          console.error('Authentication required. Please log in again.')
           // Clear auth tokens
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
@@ -922,9 +917,9 @@ const Colleges = () => {
           // Redirect to login
           window.location.href = '/'
         } else if (err.response?.status === 404) {
-          setError('Colleges endpoint not found. Please check if the backend is running.')
+          console.error('Colleges endpoint not found. Please check if the backend is running.')
         } else {
-          setError(`Failed to fetch colleges: ${err.message}`)
+          console.error(`Failed to fetch colleges: ${err.message}`)
         }
         setAllCollegeData([])
       } finally {
@@ -1156,13 +1151,7 @@ const Colleges = () => {
     if (filteredColleges.length === 1) {
       fetchCollegeWorklets(filteredColleges[0])
     }
-
-    if (currentView === 'students' || currentView === 'worklets') {
-      filteredColleges.forEach((college) => {
-        fetchCollegeWorklets(college)
-      })
-    }
-  }, [filteredColleges, currentView, fetchCollegeWorklets])
+  }, [filteredColleges, fetchCollegeWorklets])
 
   const handleExport = () => {
     if (filteredColleges.length === 0) {

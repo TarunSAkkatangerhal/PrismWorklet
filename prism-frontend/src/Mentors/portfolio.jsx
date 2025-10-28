@@ -315,7 +315,6 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
   const [step, setStep] = useState(1)
   const [file, setFile] = useState(null)
   const loadingWorklets = false
-  const [selectedWorkletId, setSelectedWorkletId] = useState('')
   const {
     register,
     handleSubmit,
@@ -870,14 +869,13 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
 const Portfolio = () => {
   useDocumentTitle('Portfolio');
   const navigate = useNavigate()
-  const { isStudent, user } = useAuth() // Detect if user is a student and get user info
+  const { isStudent } = useAuth() // Detect if user is a student
   const [activeTab, setActiveTab] = useState('achievements')
   const [expandedRows, setExpandedRows] = useState({})
   const [portfolioData, setPortfolioData] = useState(emptyPortfolio)
   const [loadingPortfolio, setLoadingPortfolio] = useState(true)
   const [portfolioError, setPortfolioError] = useState(null)
   const [completedWorklets, setCompletedWorklets] = useState([])
-  const [loadingCompleted, setLoadingCompleted] = useState(true)
   const [modalType, setModalType] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
@@ -926,13 +924,10 @@ const Portfolio = () => {
 
   const loadCompletedWorklets = useCallback(async () => {
     try {
-      setLoadingCompleted(true)
       const { completed } = await fetchCompletedWorkletsForCurrentUser()
       setCompletedWorklets(completed)
     } catch (e) {
       console.error(e)
-    } finally {
-      setLoadingCompleted(false)
     }
   }, [])
 

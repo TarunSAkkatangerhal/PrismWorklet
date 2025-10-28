@@ -132,7 +132,7 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         priority: "medium"    // You can add a priority field if needed
       };
 
-      const response = await axios.post(
+      await axios.post(
         "http://localhost:8000/suggestions/",
         suggestionData,
         {

@@ -19,10 +19,9 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
         setLoading(true);
         setError(null);
         const token = localStorage.getItem("access_token");
-        const userEmail = localStorage.getItem("user_email");
 
         if (!token) {
-          console.error("Missing user email or token");
+          console.error("Missing token");
           setError("User information not found. Please log in again.");
           setLoading(false);
           return;

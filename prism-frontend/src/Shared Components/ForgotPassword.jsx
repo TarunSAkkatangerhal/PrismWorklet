@@ -19,7 +19,6 @@ export default function ForgotPassword() {
   
   // States for interactive character
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
 
   // OTP Timer states
   const [otpTimer, setOtpTimer] = useState(0);
@@ -334,12 +333,9 @@ export default function ForgotPassword() {
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
-                    setIsTyping(e.target.value.length > 0);
                     setEmailError(validateEmail(e.target.value));
                   }}
-                  onFocus={() => setIsTyping(true)}
                   onBlur={(e) => {
-                    setIsTyping(email.length > 0);
                     setEmailError(validateEmail(e.target.value));
                   }}
                   disabled={otpSent}

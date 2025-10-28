@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import RightSidebar from '../components/Right';
 import LeftSidebar from '../components/Left';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -9,7 +8,6 @@ import {
 
 export default function Ray() {
   useDocumentTitle('AI Assistant - Ray');
-  const navigate = useNavigate();
   const [inputText, setInputText] = useState('');
   const [opening, setOpening] = useState(true);
   const [typedText, setTypedText] = useState('');

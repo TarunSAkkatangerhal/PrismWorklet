@@ -98,7 +98,8 @@ export default function FeedbackForm({ isOpen, onClose }) {
     };
 
     fetchMilestones();
-  }, [selectedWorklet]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWorklet]);  // allStages is static and doesn't need to be in dependencies
 
   const fetchWorklets = async () => {
     try {
