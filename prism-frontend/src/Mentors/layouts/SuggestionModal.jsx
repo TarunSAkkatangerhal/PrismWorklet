@@ -21,7 +21,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
-    console.log('useEffect triggered - workletId:', workletId, 'preSelectedWorklet:', preSelectedWorklet);
     if (workletId) {
       // If workletId prop is provided, use it directly (it's the numeric ID)
       console.log('Setting selectedWorklet from workletId:', workletId);
