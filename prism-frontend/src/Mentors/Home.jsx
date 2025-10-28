@@ -745,8 +745,8 @@ function WorkletCard({ worklet, layout, navigate }) {
                 <h4>Assigned Students</h4>
               </div>
               <ul className="mt-[0.25vw] list-disc list-inside text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-200 space-y-[0.15vw]">
-                {worklet.students.map((student) => (
-                  <li key={student}>{student}</li>
+                {worklet.students.map((student, index) => (
+                  <li key={`${worklet.id}-student-${index}`}>{student}</li>
                 ))}
               </ul>
             </div>
