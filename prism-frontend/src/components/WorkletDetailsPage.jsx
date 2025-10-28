@@ -482,11 +482,28 @@ export default function WorkletDetailPage() {
             
             if (milestonesResponse.data) {
               setMilestones(milestonesResponse.data)
+              
+              // Extract files from milestones and populate allMilestoneFiles
+              const files = milestonesResponse.data
+                .filter(milestone => milestone.attachment_name) // Only milestones with attachments
+                .map(milestone => ({
+                  name: milestone.attachment_name,
+                  size: milestone.attachment_size || 0,
+                  type: milestone.attachment_type || 'application/octet-stream',
+                  url: milestone.attachment_url || null,
+                  uploadedBy: milestone.student_name || 'Unknown',
+                  uploadedByRole: 'student', // Milestones are created by students
+                  uploadedDate: milestone.date_created,
+                  milestoneTitle: milestone.milestone_type
+                }))
+              
+              setAllMilestoneFiles(files)
             }
           } catch (milestoneError) {
             console.error('Error fetching milestones:', milestoneError)
             // Don't fail the whole page if milestones fetch fails
             setMilestones([])
+            setAllMilestoneFiles([])
           }
         }
       } catch (error) {
@@ -2423,51 +2440,95 @@ export default function WorkletDetailPage() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {allMilestoneFiles.map((file, index) => (
-                          <div 
-                            key={index}
-                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 
-                                     rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md 
-                                     transition-all duration-200"
-                          >
-                            <div className="flex items-center gap-3 flex-grow">
-                              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                <FileText size={20} className="text-blue-600 dark:text-blue-400" />
-                              </div>
-                              <div className="flex-grow">
-                                <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                                  {file.name}
-                                </h4>
-                                <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  <span>From: {file.milestoneTitle}</span>
-                                  <span>•</span>
-                                  <span>By: {file.uploadedBy}</span>
-                                  <span className={`px-2 py-0.5 rounded-full ${
-                                    file.uploadedByRole === 'student' 
-                                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                                      : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                                  }`}>
-                                    {file.uploadedByRole === 'student' ? 'Student' : 'Mentor'}
-                                  </span>
-                                  <span>•</span>
-                                  <span>{new Date(file.uploadedDate).toLocaleDateString()}</span>
+                        {allMilestoneFiles.map((file, index) => {
+                          const handleDownload = async () => {
+                            try {
+                              if (file.url) {
+                                // If it's a blob URL, trigger download directly
+                                if (file.url.startsWith('blob:')) {
+                                  const link = document.createElement('a')
+                                  link.href = file.url
+                                  link.download = file.name
+                                  document.body.appendChild(link)
+                                  link.click()
+                                  document.body.removeChild(link)
+                                } else {
+                                  // If it's a server URL, fetch and download
+                                  const token = localStorage.getItem('access_token')
+                                  const response = await fetch(file.url, {
+                                    headers: {
+                                      'Authorization': `Bearer ${token}`
+                                    }
+                                  })
+                                  
+                                  if (!response.ok) throw new Error('Download failed')
+                                  
+                                  const blob = await response.blob()
+                                  const url = window.URL.createObjectURL(blob)
+                                  const link = document.createElement('a')
+                                  link.href = url
+                                  link.download = file.name
+                                  document.body.appendChild(link)
+                                  link.click()
+                                  document.body.removeChild(link)
+                                  window.URL.revokeObjectURL(url)
+                                }
+                              } else {
+                                alert('File URL not available')
+                              }
+                            } catch (error) {
+                              console.error('Error downloading file:', error)
+                              alert('Failed to download file. Please try again.')
+                            }
+                          }
+
+                          return (
+                            <div 
+                              key={index}
+                              className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 
+                                       rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md 
+                                       transition-all duration-200"
+                            >
+                              <div className="flex items-center gap-3 flex-grow">
+                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                  <FileText size={20} className="text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="flex-grow">
+                                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                    {file.name}
+                                  </h4>
+                                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <span>From: {file.milestoneTitle}</span>
+                                    <span>•</span>
+                                    <span>By: {file.uploadedBy}</span>
+                                    <span className={`px-2 py-0.5 rounded-full ${
+                                      file.uploadedByRole === 'student' 
+                                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                        : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                    }`}>
+                                      {file.uploadedByRole === 'student' ? 'Student' : 'Mentor'}
+                                    </span>
+                                    <span>•</span>
+                                    <span>{new Date(file.uploadedDate).toLocaleDateString()}</span>
+                                  </div>
                                 </div>
                               </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+                                  {(file.size / 1024).toFixed(2)} KB
+                                </span>
+                                <button 
+                                  onClick={handleDownload}
+                                  className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 
+                                           dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                  title="Download file"
+                                >
+                                  <Download size={16} />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
-                                {(file.size / 1024).toFixed(2)} KB
-                              </span>
-                              <button 
-                                className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 
-                                         dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                title="Download file"
-                              >
-                                <Download size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
 

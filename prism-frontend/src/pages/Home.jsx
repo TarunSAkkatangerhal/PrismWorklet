@@ -170,9 +170,12 @@ export default function Dashboard() {
           let quality = null
           if (worklet.performance) {
             const perf = String(worklet.performance).toLowerCase().trim()
-            if (perf.includes('excel')) quality = 'Excellence'
-            else if (perf.includes('good')) quality = 'Good'
-            else if (perf.includes('need')) quality = 'Needs Attention'
+            // Map to new quality labels: Very Good, Good, Average, Poor
+            if (perf.includes('very') && perf.includes('good')) quality = 'Very Good'
+            else if (perf.includes('excellent') || perf.includes('excel')) quality = 'Very Good' // Map Excellence -> Very Good
+            else if (perf.includes('good') && !perf.includes('very')) quality = 'Good'
+            else if (perf.includes('average') || perf.includes('avg')) quality = 'Average'
+            else if (perf.includes('poor') || perf.includes('need')) quality = 'Poor' // Map Needs Attention -> Poor
             else quality = worklet.performance.charAt(0).toUpperCase() + worklet.performance.slice(1)
           }
           
@@ -547,9 +550,9 @@ function WorkletCard({ worklet, layout, navigate }) {
     const quality = worklet.quality || 'Default'
     
     switch (quality) {
-      case 'Excellence':
+      case 'Very Good':
         return `linear-gradient(135deg, 
-         #1e3a8a 0%, 
+          #1e3a8a 0%, 
           #1e40af 25%, 
           #1d4ed8 50%, 
           #2563eb 75%, 
@@ -561,7 +564,14 @@ function WorkletCard({ worklet, layout, navigate }) {
           #059669 50%, 
           #10b981 75%, 
           #34d399 100%)`
-      case 'Needs Attention':
+      case 'Average':
+        return `linear-gradient(135deg, 
+          #854d0e 0%, 
+          #a16207 25%, 
+          #ca8a04 50%, 
+          #eab308 75%, 
+          #facc15 100%)`
+      case 'Poor':
         return `linear-gradient(135deg, 
           #7c2d12 0%, 
           #9a3412 25%, 
@@ -598,10 +608,11 @@ function WorkletCard({ worklet, layout, navigate }) {
 
   // Badge background palette per quality band
   const qualityStyles = {
-    Excellence: 'bg-green-500/80',
-    Good: 'bg-blue-500/80',
-    'Needs Attention': 'bg-red-500/80',
-    Default: 'bg-gray-500/80',
+    'Very Good': 'bg-blue-600/90',
+    'Good': 'bg-green-500/90',
+    'Average': 'bg-yellow-500/90',
+    'Poor': 'bg-red-500/90',
+    'Default': 'bg-gray-500/80',
   }
   
   // Primary navigation: open worklet detail view
