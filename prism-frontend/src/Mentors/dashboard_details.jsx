@@ -12,7 +12,7 @@ import {
   Search,
   Loader,
   Grid3X3,
-  List
+  List,
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
 import { ThemeContext } from '../context/ThemeContext'
@@ -25,7 +25,6 @@ const NavStat = () => {
   
   // Get the filter from navigation state, default to 'total'
   const initialFilter = location.state?.filter || 'total'
-  const initialYear = location.state?.year || 'All'
   const targetCollege = location.state?.collegeName || ''
   const fallbackTotalCount = Number(location.state?.count) || 0
   
@@ -36,7 +35,7 @@ const NavStat = () => {
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
-  const yearFilter = initialYear
+  const yearFilter = location.state?.year || 'All'
 
   // Filter options configuration
   const filterOptions = [
@@ -119,10 +118,7 @@ const NavStat = () => {
   // Apply filter whenever full dataset or activeFilter changes
   useEffect(() => {
     let subset = worklets
-    
-    // DON'T filter by year here - backend already filtered by year when fetching
-    // The worklets array already contains only the correct year's data
-    
+       
     // Optional college scoping (in case dataset source isn't already scoped)
     if (targetCollege && targetCollege !== 'All Colleges') {
       subset = subset.filter(w => (w.college || '').toLowerCase() === targetCollege.toLowerCase())
