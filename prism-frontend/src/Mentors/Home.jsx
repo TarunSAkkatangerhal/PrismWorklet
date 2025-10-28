@@ -4,12 +4,10 @@
 // 2. Transform backend worklet shape into a normalized card-friendly structure
 // 3. Provide responsive layout (grid / horizontal scroll) with animated, accessible UI
 // 4. Avoid unnecessary re-renders via localized derived data (e.g., filtered ongoing worklets)
-// NOTE: axios imported historically (may be unused now) – kept if future calls needed
-import axios from 'axios'
-import { getMentorWorklets, getMentorOngoingWorkletsById, getMentorAllWorkletsById } from '../services/worklets' // Service helpers for API calls
-import { getCurrentUser, getCurrentUserFromToken } from '../services/auth' // Secure authentication
-import { sanitizeInput, secureLog } from '../utils/security' // Security utilities
-import React, { useState, useEffect } from 'react'
+import { getMentorOngoingWorkletsById, getMentorAllWorkletsById } from '../services/worklets' // Service helpers for API calls
+import { getCurrentUser } from '../services/auth' // Secure authentication
+import { sanitizeInput } from '../utils/security' // Security utilities
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import LeftSidebar from '../components/Left'   // Persistent navigation rail (left)
 import RightSidebar from '../components/Right' // Ancillary widgets / future extensions (right)
@@ -18,7 +16,7 @@ import StatCard from '../components/StatCard'  // Reusable compact statistic dis
 import samsungLogo from '../assets/prism_logo.png' // Brand / product logo
 
 import {
-  Bell,
+
   Calendar,
   MapPin,
   Zap,
@@ -36,8 +34,7 @@ import {
 // Retained for design / layout reference & potential offline prototyping.
 // Currently NOT used in render path (live data comes from mentor endpoints).
 
-// Mapping of progression tiers to milestone thresholds (could drive dynamic level computation later)
-const LEVEL_COUNTS = { spark: 1, lead: 5, core: 10, master: 15 }
+
 
 // Level thresholds based on worklet count
 const LEVEL_THRESHOLDS = [
@@ -89,7 +86,6 @@ export default function Dashboard() {
   // User identity / profile
   const [userName, setUserName] = useState('')
   const [loadingName, setLoadingName] = useState(true)
-  const [nameError, setNameError] = useState(false)
 
   const navigate = useNavigate()
   // Persist layout preference (grid vs horizontal carousel) for continuity across sessions
@@ -125,7 +121,6 @@ export default function Dashboard() {
         localStorage.setItem('user_name', me.name || '')
       } catch (e) {
         if (!cancelled) {
-          setNameError(true)
           setUserName('User')
         }
       } finally {
@@ -249,39 +244,7 @@ export default function Dashboard() {
     (worklet) => worklet.status?.toLowerCase() === 'ongoing' && worklet.progress < 100
   )
 
-  // Inline component: displays single milestone with hover tooltip describing progression context
-  const LevelMilestone = ({ level, index }) => {
-    const currentLevel = getCurrentLevelFromWorklets(totalWorkletsCount)
-    const levelsToGo = index - currentLevel
-    const nextThreshold = LEVEL_THRESHOLDS[index]?.threshold || 15
-    const workletsNeeded = Math.max(0, nextThreshold - totalWorkletsCount)
-    
-    let tooltipText = ''
-    if (levelsToGo > 1) {
-      tooltipText = `${workletsNeeded} more worklet${workletsNeeded !== 1 ? 's' : ''} to reach ${level.name}`
-    } else if (levelsToGo === 1) {
-      tooltipText = `${workletsNeeded} more worklet${workletsNeeded !== 1 ? 's' : ''} to reach ${level.name}`
-    } else if (levelsToGo === 0) {
-      tooltipText = index === levels.length - 1 ? 'Highest level achieved! ✨' : `You are here (${totalWorkletsCount} worklets)`
-    } else {
-      tooltipText = `Milestone achieved (${totalWorkletsCount} worklets)`
-    }
-    
-    // If this is the first dot (Spark), shift tooltip right to avoid sidebar clipping
-    const tooltipStyle = index === 0
-      ? { left: '2.5rem', transform: 'none', zIndex: 9999, minWidth: '8rem' }
-      : { left: '50%', transform: 'translateX(-50%)', zIndex: 9999 };
-    return (
-      <div className="relative group">
-        <span className="flex items-center gap-1.5 cursor-pointer">
-          <level.Icon className={`w-4 h-4 ${level.color}`} /> {level.name}
-        </span>
-        <span className=" absolute bottom-full mb-2 w-max px-2 py-1 text-xs bg-slate-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap" style={tooltipStyle}>
-          {tooltipText}
-        </span>
-      </div>
-    )
-  }
+
 
   // Calculate progress percentage based on total worklets (15 worklets = 100%)
   const progressPercentage = Math.min((totalWorkletsCount / 15) * 100, 100)
@@ -565,7 +528,6 @@ function WorkletCard({ worklet, layout, navigate }) {
   // Professional corporate background colors based on worklet quality
   // Thematic gradient derived from qualitative status (visual semantic cue)
   const getBackgroundGradient = () => {
-    const progress = worklet.progress || 0
     const quality = worklet.quality || 'Default'
     
     switch (quality) {
@@ -751,8 +713,6 @@ function WorkletCard({ worklet, layout, navigate }) {
           // Find the scrollable content area
           const scrollableElement = e.currentTarget.querySelector('.scrollable-content');
           if (scrollableElement) {
-            const { scrollTop, scrollHeight, clientHeight } = scrollableElement;
-            
             // Always allow scrolling within the content area
             scrollableElement.scrollTop += e.deltaY;
             

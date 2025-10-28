@@ -1,26 +1,19 @@
-import React, { useState, useEffect, useRef, useContext } from 'react'
-import axios from 'axios'
+import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import secureAPI from '../services/secureAPI'
 import {
-  ChevronDown,
-  Users,
-  CheckCircle,
   Download,
-  TrendingUp,
-  BarChart3,
   Activity,
+  RotateCcw,
   Target,
-  Award,
-  Clock,
-  Zap,
+  CheckCircle,
+  GraduationCap,
+  Users,
   FileText,
   Shield,
-  GraduationCap,
-  RotateCcw,
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion,} from 'framer-motion'
 import { ThemeContext } from '../context/ThemeContext'
 import {
   ResponsiveContainer,
@@ -36,25 +29,15 @@ import {
   
 } from 'recharts'
 import {
-  Card,
   Title,
   Text,
   Metric,
-  DonutChart,
-  ProgressBar,
-  CategoryBar,
-  AreaChart as TremorAreaChart,
-  BarList,
-  Flex,
-  Badge,
-  Grid,
 } from '@tremor/react'
 
 // Modern color palettes and chart configurations
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316']
 const DARK_COLORS = ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#22D3EE', '#A3E635', '#FB923C']
-// Backend base URL
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000'
+
 
 // Helper function to get appropriate colors based on theme
 const getColors = (isDark) => (isDark ? DARK_COLORS : COLORS)
@@ -129,43 +112,6 @@ const ChartContainer = ({ title, children, isDark, exportAction }) => (
   </motion.div>
 )
 
-// Sample data generators for demo
-const generateMonthlyData = () => {
-  const currentYear = 2025
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-  return months.map((month, index) => {
-    // Generate progressive data throughout the year
-    const baseWorklets = 15 + Math.floor(index * 2.5) // Growing trend
-    const variation = Math.floor(Math.random() * 8) - 4 // Random variation ±4
-    const worklets = Math.max(baseWorklets + variation, 5) // Minimum 5 worklets
-    const completionRate = 0.7 + Math.random() * 0.25 // 70-95% completion rate
-    const completed = Math.floor(worklets * completionRate)
-    const studentGrowth = 40 + Math.floor(index * 3.2) // Student growth trend
-    const students = studentGrowth + Math.floor(Math.random() * 10) - 5 // ±5 variation
-
-    return {
-      month: `${month} ${currentYear}`,
-      worklets,
-      completed,
-      students: Math.max(students, 20), // Minimum 20 students
-    }
-  })
-}
-// Add this function with your other data generators
-// Replace your old function with this new 12-month version
-const generateWorkletStatusData = () => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return months.map((month, index) => ({
-    month: month,
-    completed: 12 + index * 2 + Math.floor(Math.random() * 5), // Steadily increasing trend
-    ongoing: 25 - index + Math.floor(Math.random() * 6), // Decreasing trend as worklets get completed
-    on_hold: Math.floor(Math.random() * 4), // Random, low numbers
-    dropped: Math.floor(Math.random() * 3), // Random, low numbers
-    terminated: Math.floor(Math.random() * 2), // Random, very low numbers
-  }))
-}
-
 const generatePerformanceData = () => [
   {
     subject: 'Completion Rate',
@@ -199,12 +145,6 @@ const generateStatusData = (isDarkMode = false) => {
   ]
 }
 
-const generateTrendData = () => [
-  { week: 'W1', performance: 75, efficiency: 68, quality: 82 },
-  { week: 'W2', performance: 78, efficiency: 72, quality: 85 },
-  { week: 'W3', performance: 82, efficiency: 75, quality: 88 },
-  { week: 'W4', performance: 85, efficiency: 80, quality: 90 },
-]
 // Add this new data generation function
 const generatePerformanceBreakdown = () => ({
   mentor: {
@@ -267,11 +207,8 @@ const ModernStatisticsDashboard = () => {
   
   const [statisticsData, setStatisticsData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [filters, setFilters] = useState({ group: 'All', part: 'All', year: 'All', domain: 'All', team: 'All' })
-  const [options, setOptions] = useState({ years: [], domains: [], colleges: [], teams: [] })
-  const [selectedMetric, setSelectedMetric] = useState('overview')
-  const [mentorStats, setMentorStats] = useState(null)
+  const [filters, setFilters] = useState({ year: 'All', domain: 'All', team: 'All' })
+  const [options, setOptions] = useState({ years: [], domains: [], teams: [] })
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Load platform totals and trends from backend (driven by global year dropdown)
@@ -279,7 +216,6 @@ const ModernStatisticsDashboard = () => {
     const loadAll = async () => {
       try {
         setLoading(true)
-        setError(null)
 
         const params = new URLSearchParams()
         if (filters?.year && filters.year !== 'All') params.set('year', filters.year)
@@ -423,7 +359,6 @@ const ModernStatisticsDashboard = () => {
           status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
           performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
         }))
-        setError(err?.message || 'Failed to load data')
       } finally {
         setLoading(false)
       }
@@ -481,7 +416,7 @@ const ModernStatisticsDashboard = () => {
     }
 
     fetchFilteredOptions()
-  }, [filters.year, filters.domain])
+  }, [filters.year, filters.domain, filters.team])
 
   // Reset all filters to default values
   const handleResetFilters = () => {
@@ -625,7 +560,6 @@ const ModernStatisticsDashboard = () => {
       }))
     } catch (err) {
       console.error('Error refreshing data:', err)
-      setError(err?.message || 'Failed to refresh data')
     } finally {
       // Add a small delay to show the refresh animation
       setTimeout(() => {
@@ -633,142 +567,6 @@ const ModernStatisticsDashboard = () => {
       }, 1000)
     }
   }
-
-  // Replace your old performanceChartData with this new version
-  const performanceChartData = [
-    {
-      name: 'Excellent',
-      'Mentor Analysis': statisticsData?.performance_breakdown?.mentor['Excellent'] || 0,
-      'Overall Analysis': statisticsData?.performance_breakdown?.overall['Excellent'] || 0,
-    },
-    {
-      name: 'Good',
-      'Mentor Analysis': statisticsData?.performance_breakdown?.mentor['Very Good'] || 0,
-      'Overall Analysis': statisticsData?.performance_breakdown?.overall['Very Good'] || 0,
-    },
-    {
-      name: 'Average',
-      'Mentor Analysis': statisticsData?.performance_breakdown?.mentor['Good'] || 0,
-      'Overall Analysis': statisticsData?.performance_breakdown?.overall['Good'] || 0,
-    },
-    {
-      name: 'Poor',
-      'Mentor Analysis': statisticsData?.performance_breakdown?.mentor['Needs Improvement'] || 0,
-      'Overall Analysis': statisticsData?.performance_breakdown?.overall['Needs Improvement'] || 0,
-    },
-  ]
-
-  // Load platform stats given current filters
-  const loadPlatformStats = async (flt) => {
-    try {
-      const params = new URLSearchParams()
-      if (flt?.year && flt.year !== 'All') params.set('year', flt.year)
-      if (flt?.group && flt.group !== 'All') params.set('domain', flt.group)
-      if (flt?.part && flt.part !== 'All') params.set('college', flt.part)
-      const url = `/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`
-      const res = await secureAPI.get(url)
-      const json = res.data
-      setStatisticsData(json)
-    } catch (e) {
-      console.error('Failed to load platform stats', e)
-    }
-  }
-
-  // Export helpers
-  const exportPlatform = (section) => {
-    try {
-      const toCSV = (rows) => rows.map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n')
-      let rows = []
-      if (section === 'status') {
-        rows = [['Status', 'Count'], ...Object.entries(statisticsData?.status_counts || {})]
-      } else if (section === 'overview') {
-        rows = [
-          ['KPI', 'Value'],
-          ...Object.entries({
-            'All Worklets': statisticsData?.totals?.total_worklets || 0,
-            'All Students': statisticsData?.totals?.total_students || 0,
-            'Completion Rate (%)': statisticsData?.totals?.completion_rate || 0,
-            Ongoing: statisticsData?.totals?.ongoing_worklets || 0,
-            Completed: statisticsData?.totals?.completed_worklets || 0,
-            'All Mentors': statisticsData?.totals?.total_mentors || 0,
-          }),
-        ]
-      } else if (section === 'performance') {
-        rows = [['Bucket', 'Count'], ...Object.entries(statisticsData?.performance_counts || {})]
-      } else if (section === 'risk') {
-        rows = [['Risk', 'Count'], ...Object.entries(statisticsData?.risk_data || {})]
-      }
-      const csv = toCSV(rows)
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${section}_stats.csv`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (e) {
-      console.error('Export failed', e)
-    }
-  }
-
-  // Calculate derived stats from real-time data
-  let stats = {
-    statusCounts: {},
-    totalStudents: 0,
-    totalWorklets: 0,
-    performanceCounts: {},
-  }
-  if (statisticsData) {
-    stats = {
-      statusCounts: statisticsData.status_counts || {},
-      totalStudents: statisticsData.engagement_data?.['My Students'] || 0,
-      totalWorklets: statisticsData.engagement_data?.['My Worklets'] || 0,
-      performanceCounts: statisticsData.performance_counts || {},
-    }
-  }
-
-  // Platform overview KPIs
-  const engagementData = {
-    'All Worklets': statisticsData?.totals?.total_worklets || 0,
-    'All Students': statisticsData?.totals?.total_students || 0,
-    'Completion Rate': statisticsData?.totals?.completion_rate || 0,
-    Ongoing: statisticsData?.totals?.ongoing_worklets || 0,
-    Completed: statisticsData?.totals?.completed_worklets || 0,
-    'All Mentors': statisticsData?.totals?.total_mentors || 0,
-  }
-
-  const riskData = statisticsData?.risk_data || {
-    'High Risk': 0,
-    'Medium Risk': 0,
-    'Low Risk': 0,
-  }
-
-  const totalRisk = Object.values(riskData).reduce((a, b) => a + b, 0)
-
-  const statusColors = {
-    Approved: '#7c3aed',
-    Completed: '#2D3748',
-    Ongoing: '#4299E1',
-    'On Hold': '#ECC94B',
-    Dropped: '#F6AD55',
-  }
-
-  const performanceColors = {
-    Excellent: '#2D3748',
-    'Very Good': '#4299E1',
-    Good: '#A0AEC0',
-    Average: '#F6AD55',
-    Poor: '#E2E8F0',
-  }
-
-  const riskSliceColors = {
-    'High Risk': '#2D3748',
-    'Medium Risk': '#4299E1',
-    'Low Risk': '#E2E8F0',
-  }
-
-  const maxStatusValue = Math.max(...Object.values(stats.statusCounts || {}), 1)
-  const maxPerformanceValue = Math.max(...Object.values(stats.performanceCounts || {}), 1)
 
   // Modern export function
   const exportData = (type) => {

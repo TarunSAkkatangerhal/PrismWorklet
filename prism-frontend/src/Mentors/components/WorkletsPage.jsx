@@ -7,14 +7,8 @@ import {
   LayoutGrid,
   List,
   Search,
-  Filter,
-  Clock,
   ChevronRight,
   Building2,
-  User,
-  AlertCircle,
-  CheckCircle,
-  Circle
 } from "lucide-react";
 import LeftSidebar from "../../components/Left";
 
@@ -202,14 +196,6 @@ export default function WorkletsPage() {
   }, [layout, searchTerm]);
 
   // If a URL param 'tab' is present it was already read during initialization and used for activeTab.
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Ongoing': return <Circle className="w-4 h-4 text-blue-500 fill-current" />;
-      case 'Completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      default: return <Circle className="w-4 h-4 text-gray-400" />;
-    }
-  };
 
   const getStatusColor = (status) => {
     switch (status) {
