@@ -880,6 +880,7 @@ const ModernStatisticsDashboard = () => {
                           const colors = getColors(isDarkMode)
                           return (
                             <circle
+                              key={`worklets-dot-${props.cx}-${props.cy}-${props.payload?.month_key}`}
                               cx={props.cx}
                               cy={props.cy}
                               r={isCurrentMonth ? 8 : 6}
@@ -908,6 +909,7 @@ const ModernStatisticsDashboard = () => {
                           const colors = getColors(isDarkMode)
                           return (
                             <circle
+                              key={`completed-dot-${props.cx}-${props.cy}-${props.payload?.month_key}`}
                               cx={props.cx}
                               cy={props.cy}
                               r={isCurrentMonth ? 8 : 6}

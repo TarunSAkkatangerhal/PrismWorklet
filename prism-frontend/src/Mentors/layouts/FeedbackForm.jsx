@@ -3,6 +3,18 @@ import { useState, useEffect } from "react";
 import axios from 'axios';
 import apiClient from '../../services/secureAPI';
 
+// Define all possible stages outside component to avoid dependency issues
+const allStages = [
+  { value: 'first_review', label: 'First Review' },
+  { value: 'second_review', label: 'Second Review' },
+  { value: 'mid_review', label: 'Mid Review' },
+  { value: 'fourth_review', label: 'Fourth Review' },
+  { value: 'fifth_review', label: 'Fifth Review' },
+  { value: 'end_review', label: 'End Review' },
+  { value: 'extended', label: 'Extended' },
+  { value: 'ad_hoc', label: 'Ad-Hoc' }
+];
+
 export default function FeedbackForm({ isOpen, onClose }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
   const [selectedStage, setSelectedStage] = useState("");
@@ -15,18 +27,6 @@ export default function FeedbackForm({ isOpen, onClose }) {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
-
-  // Define all possible stages
-  const allStages = [
-    { value: 'first_review', label: 'First Review' },
-    { value: 'second_review', label: 'Second Review' },
-    { value: 'mid_review', label: 'Mid Review' },
-    { value: 'fourth_review', label: 'Fourth Review' },
-    { value: 'fifth_review', label: 'Fifth Review' },
-    { value: 'end_review', label: 'End Review' },
-    { value: 'extended', label: 'Extended' },
-    { value: 'ad_hoc', label: 'Ad-Hoc' }
-  ];
 
   useEffect(() => {
     if (isOpen) {
@@ -91,7 +91,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
         setAvailableStages(available);
         setSelectedStage(""); // Reset selection when worklet changes
       } catch (error) {
-        console.error("Error fetching milestones:", error);
+
         setMilestones([]);
         setAvailableStages([]);
       }
@@ -122,7 +122,6 @@ export default function FeedbackForm({ isOpen, onClose }) {
       setWorklets(Array.isArray(data) ? data : []);
       if ((data || []).length === 0) setError("No worklets found for this mentor");
     } catch (error) {
-      console.error("Error fetching worklets:", error);
       setError("Failed to load worklets. Please try again.");
     } finally {
       setLoading(false);
@@ -154,7 +153,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
 
       const response = await apiClient.post('/worklets/submit-feedback', feedbackData);
 
-      ;
+      
       
       // Reset form
       setSelectedWorklet("");
@@ -171,7 +170,6 @@ export default function FeedbackForm({ isOpen, onClose }) {
       }, 3000);
 
     } catch (error) {
-      console.error("Error submitting feedback:", error);
       setShowErrorPopup(true);
       setTimeout(() => setShowErrorPopup(false), 3000);
     } finally {
@@ -479,7 +477,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes progress {
           0% { width: 0%; }
           100% { width: 100%; }

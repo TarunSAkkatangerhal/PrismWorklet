@@ -57,7 +57,6 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
           setWorkletId(ongoingWorklets[0].id.toString());
         }
       } catch (error) {
-        console.error("Error fetching worklets:", error);
         setWorklets([]);
       } finally {
         setLoading(false);
@@ -131,7 +130,6 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
 
         setAvailableStages(available);
       } catch (error) {
-        console.error("Error fetching milestones:", error);
         setMilestones([]);
         setAvailableStages([]);
       }

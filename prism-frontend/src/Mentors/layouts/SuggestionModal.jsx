@@ -23,12 +23,10 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
   useEffect(() => {
     if (workletId) {
       // If workletId prop is provided, use it directly (it's the numeric ID)
-      console.log('Setting selectedWorklet from workletId:', workletId);
       setSelectedWorklet(workletId);
     } else if (preSelectedWorklet) {
       // Fallback to preSelectedWorklet
       const identifier = preSelectedWorklet.id || preSelectedWorklet.cert_id;
-      console.log('Setting selectedWorklet from preSelectedWorklet:', identifier);
       setSelectedWorklet(identifier);
     }
   }, [workletId, preSelectedWorklet]);
@@ -74,7 +72,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
   setWorklets(data);
       if ((data || []).length === 0) setError("No worklets found for this mentor");
     } catch (error) {
-      console.error("Error fetching worklets:", error);
       setError("Failed to load worklets. Please try again.");
     } finally {
       setLoading(false);
@@ -477,7 +474,7 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes progress {
           0% { width: 0%; }
           100% { width: 100%; }
