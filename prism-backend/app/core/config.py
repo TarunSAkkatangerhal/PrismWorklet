@@ -1,14 +1,17 @@
 ﻿import os
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator, ValidationError
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     react_app_api_url: str = "http://localhost:8000"
-    model_config = ConfigDict(env_file=".env")
+    model_config = ConfigDict(env_file=".env", extra="ignore")
     
     PROJECT_NAME: str = "Samsung PRISM Backend"
     VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False  # Changed default to False for security
     
     # Database configuration
     DB_USER: str = "root"
@@ -31,13 +34,56 @@ class Settings(BaseSettings):
     SMTP_PASS: str = ""
     SMTP_SENDER: str = ""
     
+    # Frontend URL (for email links)
+    FRONTEND_URL: str = "http://localhost:3000"
+    
     # CORS and Redis
     ALLOWED_ORIGINS: str = "http://localhost:3000"
     REDIS_URL: str = "redis://localhost:6379/0"
+    
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, v):
+        """Warn if using default secret key"""
+        if v == "your-secret-key-here":
+            logger.warning("⚠️  Using default SECRET_KEY! Please set a secure key in production.")
+        return v
+    
+    @field_validator("SMTP_USER")
+    @classmethod
+    def validate_smtp_user(cls, v):
+        """Warn if SMTP is not configured"""
+        if not v or v == "":
+            logger.warning("⚠️  SMTP_USER not configured. Email features will not work.")
+        return v
+    
+    def validate_required_settings(self):
+        """Validate critical settings on startup"""
+        issues = []
+        
+        if self.SECRET_KEY == "your-secret-key-here":
+            issues.append("SECRET_KEY is using default value")
+        
+        if not self.SMTP_USER or not self.SMTP_PASS:
+            issues.append("SMTP credentials not configured - email features disabled")
+        
+        if self.DEBUG:
+            logger.warning("🔧 DEBUG mode is enabled - sensitive errors will be exposed")
+        
+        if issues:
+            logger.warning(f"⚠️  Configuration issues detected:\n  - " + "\n  - ".join(issues))
+        else:
+            logger.info("✅ All critical settings validated")
 
 settings = Settings()
 
-print(f"SMTP_HOST: {settings.SMTP_HOST}")
-print(f"SMTP_PORT: {settings.SMTP_PORT}")
-print(f"SMTP_USER: {settings.SMTP_USER}")
-print(f"SMTP_SENDER: {settings.SMTP_SENDER}")
+# Validate settings on module load
+settings.validate_required_settings()
+
+# Only log non-sensitive config in production
+if settings.DEBUG:
+    logger.info(f"SMTP_HOST: {settings.SMTP_HOST}")
+    logger.info(f"SMTP_PORT: {settings.SMTP_PORT}")
+    logger.info(f"SMTP_USER: {settings.SMTP_USER}")
+    logger.info(f"SMTP_SENDER: {settings.SMTP_SENDER}")
+    logger.info(f"FRONTEND_URL: {settings.FRONTEND_URL}")

@@ -403,8 +403,8 @@ async def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_
             "created_at": user.created_at
         }
     except Exception as e:
-        logger.info(f"Error in /me endpoint: {str(e)}")  # Debug log
-        raise
+        logger.error(f"Error in /me endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # 8. Get User Profile (dedicated endpoint)
 @router.get("/profile")
@@ -449,7 +449,7 @@ async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = De
         return response
         
     except Exception as e:
-        logger.info(f"Error in /profile endpoint: {str(e)}")
+        logger.error(f"Error in /profile endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # 9. Update Current User Profile
@@ -524,6 +524,6 @@ async def update_my_profile(
             }
         }
     except Exception as e:
-        logger.info(f"Error in profile update endpoint: {str(e)}")  # Debug log
+        logger.error(f"Error in profile update endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 #push

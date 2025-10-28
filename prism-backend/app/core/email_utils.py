@@ -152,7 +152,7 @@ def send_activity_email(emails: list, subject: str, message: str, activity_type:
                                     </div>
                                     <p style='margin:22px 0 0; font-size:13px; line-height:1.55; color:#374151;'>Please log into <strong>Samsung PRISM</strong> to view full details and take any required action.</p>
                                     <div style='text-align:center; margin:30px 0 8px;'>
-                                        <a href='https://https://www.samsungprism.com' style='display:inline-block; background:#2563eb; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 26px; border-radius:10px; box-shadow:0 2px 6px rgba(37,99,235,0.35);'>Open Dashboard</a>
+                                        <a href='{settings.FRONTEND_URL}' style='display:inline-block; background:#2563eb; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 26px; border-radius:10px; box-shadow:0 2px 6px rgba(37,99,235,0.35);'>Open Dashboard</a>
                                     </div>
                                     <p style='margin:26px 0 0; font-size:14px; line-height:1.55;'>Regards,<br><strong>Samsung PRISM Team</strong></p>
                                 </td>
@@ -166,7 +166,10 @@ def send_activity_email(emails: list, subject: str, message: str, activity_type:
                     </body>
                 </html>
                 """
-                _send_email(email, f"Samsung PRISM - {subject}", body_html, body_plain)
+                try:
+                        _send_email(email, f"Samsung PRISM - {subject}", body_html, body_plain)
+                except Exception as e:
+                        print(f"Failed to send email to {email}: {str(e)}")
         print(f"Activity emails sent to {len(emails)} recipients")
         return True
 

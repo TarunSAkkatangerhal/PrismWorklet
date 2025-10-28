@@ -250,8 +250,7 @@ def get_dashboard_statistics(
         return result
     except Exception as e:
         import traceback
-        logger.error(f"Exception in get_dashboard_statistics:")
-        print(e)
+        logger.error(f"Exception in get_dashboard_statistics: {e}", exc_info=True)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
         mentor = db.query(User).filter(
@@ -452,7 +451,7 @@ def get_platform_monthly_trends(
             "years": present_years
         }
     except Exception as e:
-        logger.info(f"Error computing platform monthly trends: {e}")
+        logger.error(f"Error computing platform monthly trends: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/platform-status-trends")
@@ -568,7 +567,7 @@ def get_platform_status_trends(
             "years": present_years
         }
     except Exception as e:
-        logger.info(f"Error computing platform status trends: {e}")
+        logger.error(f"Error computing platform status trends: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/domains")

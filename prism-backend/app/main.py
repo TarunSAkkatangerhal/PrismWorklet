@@ -34,6 +34,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Static files for uploaded documents
@@ -115,10 +116,20 @@ async def startup_event():
     # Auto-create tables if not present
     try:
         Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully")
+        
+        # Display configuration warnings
+        if settings.DEBUG:
+            print("🔧 DEBUG mode is enabled - sensitive errors will be exposed")
+        
+        # Configuration validation warnings
+        settings.validate_required_settings()
+        
     except Exception as e:
-        logger.info(f"DB init error: {e}")
+        logger.error(f"DB init error: {e}", exc_info=True)
 
 @app.on_event("shutdown")
 async def shutdown_event():
     # You could cleanup connections here
+    logger.info("Application shutting down")
     pass

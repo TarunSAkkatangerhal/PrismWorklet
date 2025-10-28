@@ -43,9 +43,7 @@ class StudentOut(BaseModel):
 # Enums
 class WorkletStatusEnum(str, Enum):
     to_start = "To Start"
-    # Accept both legacy and normalized spellings
-    on_going = "On Going"
-    ongoing = "Ongoing"
+    ongoing = "Ongoing"      # Canonical spelling (normalized from "On Going")
     completed = "Completed"
     on_hold = "On Hold"
     dropped = "Dropped"
@@ -181,7 +179,7 @@ class WorkletBase(BaseModel):
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    status: Optional[WorkletStatusEnum] = WorkletStatusEnum.on_going
+    status: Optional[WorkletStatusEnum] = WorkletStatusEnum.ongoing
     year: int
     domain: Optional[str] = None
     problem_statement: Optional[str] = None

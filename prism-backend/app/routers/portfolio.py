@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, R
 from fastapi.responses import JSONResponse
 import os
 import json
+from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from app.database import get_db
@@ -15,6 +16,7 @@ from app.models import (
     Commercialization,
 )
 from app.auth import oauth2_scheme, require_access_token
+from app.core.constants import WORKLET_STATUS_MAP
 
 router = APIRouter()
 
@@ -67,8 +69,7 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
         if worklet_ids:
             worklets = db.query(Worklet).filter(Worklet.id.in_(worklet_ids)).all()
             for w in worklets:
-                status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
-                status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
+                status_text = WORKLET_STATUS_MAP.get(getattr(w, 'status_id', None), "Ongoing")
                 worklets_data.append({
                     "id": w.id,
                     "cert_id": w.cert_id,
@@ -199,8 +200,7 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
         if worklet_ids:
             worklets = db.query(Worklet).filter(Worklet.id.in_(worklet_ids)).all()
             for w in worklets:
-                status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
-                status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
+                status_text = WORKLET_STATUS_MAP.get(getattr(w, 'status_id', None), "Ongoing")
                 worklets_data.append({
                     "id": w.id,
                     "cert_id": w.cert_id,
@@ -287,6 +287,26 @@ def _ensure_upload_dir() -> str:
     return base
 
 
+def _sanitize_filename(filename: str) -> str:
+    """Sanitize filename to prevent path traversal attacks"""
+    import re
+    # Remove any path components
+    filename = os.path.basename(filename)
+    # Remove potentially dangerous characters
+    filename = re.sub(r'[^\w\s.-]', '', filename)
+    # Limit length
+    name, ext = os.path.splitext(filename)
+    if len(name) > 100:
+        name = name[:100]
+    return f"{name}{ext}"
+
+
+def _validate_file_type(filename: str, allowed_extensions: set) -> bool:
+    """Validate file extension"""
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in allowed_extensions
+
+
 @router.post("/papers")
 async def create_paper(
     request: Request,
@@ -306,14 +326,25 @@ async def create_paper(
 
     document_link = None
     if document is not None:
+        # Validate file type
+        allowed_extensions = {'.pdf', '.doc', '.docx', '.txt'}
+        if not _validate_file_type(document.filename, allowed_extensions):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+            )
+        
         upload_dir = _ensure_upload_dir()
-        filename = f"paper_{user.id}_{document.filename}"
+        safe_filename = _sanitize_filename(document.filename)
+        filename = f"paper_{user.id}_{int(datetime.now().timestamp())}_{safe_filename}"
         file_path = os.path.join(upload_dir, filename)
+        
         with open(file_path, "wb") as f:
             f.write(await document.read())
+        
         # build absolute URL
         base_url = str(request.base_url).rstrip('/')
-    document_link = f"{base_url}/uploads/{filename}"
+        document_link = f"{base_url}/uploads/{filename}"
 
     # authors not stored in DB per schema
 
@@ -364,13 +395,24 @@ async def create_patent(
 
     document_link = None
     if document is not None:
+        # Validate file type
+        allowed_extensions = {'.pdf', '.doc', '.docx', '.txt'}
+        if not _validate_file_type(document.filename, allowed_extensions):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+            )
+        
         upload_dir = _ensure_upload_dir()
-        filename = f"patent_{user.id}_{document.filename}"
+        safe_filename = _sanitize_filename(document.filename)
+        filename = f"patent_{user.id}_{int(datetime.now().timestamp())}_{safe_filename}"
         file_path = os.path.join(upload_dir, filename)
+        
         with open(file_path, "wb") as f:
             f.write(await document.read())
+        
         base_url = str(request.base_url).rstrip('/')
-    document_link = f"{base_url}/uploads/{filename}"
+        document_link = f"{base_url}/uploads/{filename}"
 
     # inventors not stored in DB per schema
 
@@ -416,13 +458,24 @@ async def create_commercialization(
 
     document_link = None
     if document is not None:
+        # Validate file type
+        allowed_extensions = {'.pdf', '.doc', '.docx', '.txt', '.xlsx', '.xls'}
+        if not _validate_file_type(document.filename, allowed_extensions):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+            )
+        
         upload_dir = _ensure_upload_dir()
-        filename = f"comm_{user.id}_{document.filename}"
+        safe_filename = _sanitize_filename(document.filename)
+        filename = f"comm_{user.id}_{int(datetime.now().timestamp())}_{safe_filename}"
         file_path = os.path.join(upload_dir, filename)
+        
         with open(file_path, "wb") as f:
             f.write(await document.read())
+        
         base_url = str(request.base_url).rstrip('/')
-    document_link = f"{base_url}/uploads/{filename}"
+        document_link = f"{base_url}/uploads/{filename}"
 
     rec = Commercialization(
         user_id=user.id,

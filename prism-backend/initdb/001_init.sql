@@ -370,3 +370,62 @@ CREATE TABLE meeting_recurrence (
   INDEX idx_recur_datetime (occurrence_datetime),
   INDEX idx_recur_cancelled (is_cancelled)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ========================================
+-- PERFORMANCE OPTIMIZATION INDEXES
+-- Additional indexes for improved query performance
+-- ========================================
+
+-- Users table indexes
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_college ON users(college_id);
+CREATE INDEX idx_users_active ON users(is_active);
+CREATE INDEX idx_users_created ON users(created_at);
+CREATE INDEX idx_users_active_till ON users(active_till);
+
+-- Worklets table indexes (for date-range queries)
+CREATE INDEX idx_worklet_status ON Prism_Worklet(StatusID);
+CREATE INDEX idx_worklet_dates ON Prism_Worklet(StartDate, EndDate);
+CREATE INDEX idx_worklet_college ON Prism_Worklet(CollegeID);
+CREATE INDEX idx_worklet_created ON Prism_Worklet(CreatedOn);
+CREATE INDEX idx_worklet_domain ON Prism_Worklet(TechDomainID);
+CREATE INDEX idx_worklet_team ON Prism_Worklet(TeamMGID);
+CREATE INDEX idx_worklet_stage ON Prism_Worklet(StageID);
+CREATE INDEX idx_worklet_active ON Prism_Worklet(IsActive);
+
+-- User-Worklet association indexes (in addition to PRIMARY KEY)
+CREATE INDEX idx_uw_worklet ON user_worklet_association(WorkletID);
+
+-- Portfolio tables indexes
+CREATE INDEX idx_achievement_user ON achievements(user_id);
+CREATE INDEX idx_achievement_worklet ON achievements(WorkletID);
+CREATE INDEX idx_achievement_year ON achievements(year);
+
+CREATE INDEX idx_paper_user ON papers(user_id);
+CREATE INDEX idx_paper_worklet ON papers(WorkletID);
+CREATE INDEX idx_paper_year ON papers(publication_year);
+
+CREATE INDEX idx_patent_user ON patents(user_id);
+CREATE INDEX idx_patent_worklet ON patents(WorkletID);
+CREATE INDEX idx_patent_year ON patents(filing_year);
+
+CREATE INDEX idx_comm_user ON commercializations(user_id);
+CREATE INDEX idx_comm_worklet ON commercializations(WorkletID);
+CREATE INDEX idx_comm_year ON commercializations(year);
+
+-- Suggestions indexes
+CREATE INDEX idx_suggestion_worklet ON Prism_Suggestion(worklet_id);
+CREATE INDEX idx_suggestion_mentor ON Prism_Suggestion(mentor_id);
+CREATE INDEX idx_suggestion_created ON Prism_Suggestion(created_at);
+CREATE INDEX idx_suggestion_read ON Prism_Suggestion(is_read);
+
+-- Meetings indexes
+CREATE INDEX idx_meeting_college ON meetings(college_id);
+CREATE INDEX idx_meeting_organizer ON meetings(organizer_id);
+CREATE INDEX idx_meeting_datetime ON meetings(start_datetime);
+CREATE INDEX idx_meeting_status ON meetings(status);
+
+-- Evaluations indexes
+CREATE INDEX idx_eval_user ON evaluations(user_id);
+CREATE INDEX idx_eval_worklet ON evaluations(WorkletID);
+CREATE INDEX idx_eval_date ON evaluations(evaluated_at);

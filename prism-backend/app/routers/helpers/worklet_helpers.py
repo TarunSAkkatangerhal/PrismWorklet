@@ -7,18 +7,15 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from app.models import Worklet, User, UserWorkletAssociation
 from app.schemas import WorkletRoleEnum
+from app.core.constants import normalize_status_text, WORKLET_STATUS_MAP
 
 
 def map_status_text(status_id: Optional[int]) -> str:
-    """Map status_id to human-readable text"""
-    status_map = {
-        0: 'To Start',
-        1: 'Ongoing', 
-        2: 'Completed',
-        3: 'On Hold',
-        4: 'Dropped'
-    }
-    return status_map.get(status_id, 'Ongoing')
+    """
+    Map status_id to human-readable text
+    Uses centralized constants for consistency
+    """
+    return normalize_status_text(status_id)
 
 
 def calculate_worklet_progress(worklet: Worklet) -> int:
