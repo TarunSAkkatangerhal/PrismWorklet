@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { 
   Calendar, 
   Users, 
@@ -36,6 +37,7 @@ const loadViewState = () => {
   }
 };
 export default function WorkletsPage() {
+  useDocumentTitle('MyWorklets');
   const [workletsData, setWorkletsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

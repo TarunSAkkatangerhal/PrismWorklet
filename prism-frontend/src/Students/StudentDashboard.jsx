@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import secureAPI from '../services/secureAPI';
 import { getCurrentUser } from '../services/auth';
 import { sanitizeInput } from '../utils/security';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { 
   Calendar, 
   Users,
@@ -71,6 +72,7 @@ const getCurrentLevelFromWorklets = (workletCount) => {
 };
 
 export default function StudentDashboard() {
+  useDocumentTitle('PRISM-home');
   const navigate = useNavigate();
   
   // Real state management

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import secureAPI from '../services/secureAPI'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Download,
   Activity,
@@ -162,6 +163,7 @@ const generatePerformanceBreakdown = () => ({
 })
 // Modern Statistics Dashboard component
 const ModernStatisticsDashboard = () => {
+  useDocumentTitle('Performance Analytics Dashboard');
   const navigate = useNavigate()
   
   // ## KEY CHANGE ##
@@ -880,7 +882,7 @@ const ModernStatisticsDashboard = () => {
                           const colors = getColors(isDarkMode)
                           return (
                             <circle
-                              key={`worklets-dot-${props.index || 0}-${props.cx}-${props.cy}`}
+                              key={`worklets-dot-${props.cx}-${props.cy}-${props.payload?.month_key}`}
                               cx={props.cx}
                               cy={props.cy}
                               r={isCurrentMonth ? 8 : 6}
@@ -909,7 +911,7 @@ const ModernStatisticsDashboard = () => {
                           const colors = getColors(isDarkMode)
                           return (
                             <circle
-                              key={`completed-dot-${props.index || 0}-${props.cx}-${props.cy}`}
+                              key={`completed-dot-${props.cx}-${props.cy}-${props.payload?.month_key}`}
                               cx={props.cx}
                               cy={props.cy}
                               r={isCurrentMonth ? 8 : 6}

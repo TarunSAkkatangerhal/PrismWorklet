@@ -72,7 +72,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
   setWorklets(data);
       if ((data || []).length === 0) setError("No worklets found for this mentor");
     } catch (error) {
-      console.error("Error fetching worklets:", error);
       setError("Failed to load worklets. Please try again.");
     } finally {
       setLoading(false);

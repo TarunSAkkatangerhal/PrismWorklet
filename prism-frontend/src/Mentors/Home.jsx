@@ -9,6 +9,7 @@ import { getCurrentUser } from '../services/auth' // Secure authentication
 import { sanitizeInput } from '../utils/security' // Security utilities
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import LeftSidebar from '../components/Left'   // Persistent navigation rail (left)
 import RightSidebar from '../components/Right' // Ancillary widgets / future extensions (right)
 import StatCard from '../components/StatCard'  // Reusable compact statistic display card
@@ -82,6 +83,8 @@ const generateColorFromName = (name) => {
 }
 
 export default function Dashboard() {
+  useDocumentTitle('PRISM-home');
+  
   // -------------------------- STATE --------------------------
   // User identity / profile
   const [userName, setUserName] = useState('')
@@ -145,6 +148,7 @@ export default function Dashboard() {
         // Fetch aggregate (all worklets) for totals
         const allData = await getMentorAllWorkletsById(userProfileData.id)       // Full collection (statuses)
         const list = assocData?.ongoing_worklets || []
+        
         
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet) => {

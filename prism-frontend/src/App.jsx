@@ -1,5 +1,6 @@
 import { Routes, Route} from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
+import { useDocumentTitle } from "./hooks/useDocumentTitle";
 import { MentorRoute, StudentRoute, ProtectedRoute } from "./components/RoleBasedRoute";
 import RoleRedirect from "./components/RoleRedirect";
 import Login from "./Shared Components/login";
@@ -21,6 +22,9 @@ import StudentDashboard from "./Students/StudentDashboard";
 
 
 export default function App() {
+  // Set default app title
+  useDocumentTitle();
+  
   return (
     <ThemeProvider>
       <Routes>
