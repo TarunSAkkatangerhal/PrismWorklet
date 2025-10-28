@@ -5,7 +5,7 @@ This service layer consolidates duplicate logic from multiple routers
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, date
-from app.models import Worklet, User, UserWorkletAssociation
+from app.models import Worklet, User, UserWorkletAssociation, Suggestion
 from app.routers.helpers.worklet_helpers import (
     calculate_worklet_progress,
     get_worklet_college,
@@ -319,6 +319,27 @@ class WorkletService:
             github_url = getattr(worklet, 'github_url', None)
             repo_name = WorkletService.extract_github_repo_name(github_url)
             
+            # Get latest suggestion for this worklet
+            latest_suggestion = (
+                db.query(Suggestion)
+                .filter(Suggestion.worklet_id == worklet.id)
+                .order_by(Suggestion.created_at.desc())
+                .first()
+            )
+            
+            # Format latest suggestion data
+            latest_suggestion_data = None
+            if latest_suggestion:
+                latest_suggestion_data = {
+                    "suggestion_id": latest_suggestion.suggestion_id,
+                    "title": latest_suggestion.suggestion_title,
+                    "content": latest_suggestion.suggestion_content,
+                    "category": latest_suggestion.category,
+                    "priority": latest_suggestion.priority,
+                    "created_at": latest_suggestion.created_at.isoformat() if latest_suggestion.created_at else None,
+                    "is_read": latest_suggestion.is_read,
+                }
+            
             worklet_data = {
                 "id": worklet.id,
                 "cert_id": worklet.cert_id,
@@ -338,6 +359,7 @@ class WorkletService:
                 "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
                 "github_repo_url": github_url,
                 "github_repo": repo_name,
+                "latest_suggestion": latest_suggestion_data,
             }
             
             all_worklets.append(worklet_data)
