@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Award,
   Star,
@@ -11,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  Clock,
   Shield,
   Target,
   PlusCircle,
@@ -868,6 +868,7 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
 
 // --- MAIN PORTFOLIO COMPONENT ---
 const Portfolio = () => {
+  useDocumentTitle('Portfolio');
   const navigate = useNavigate()
   const { isStudent, user } = useAuth() // Detect if user is a student and get user info
   const [activeTab, setActiveTab] = useState('achievements')

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import secureAPI from '../services/secureAPI'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Download,
   Activity,
@@ -162,6 +163,7 @@ const generatePerformanceBreakdown = () => ({
 })
 // Modern Statistics Dashboard component
 const ModernStatisticsDashboard = () => {
+  useDocumentTitle('Performance Analytics Dashboard');
   const navigate = useNavigate()
   
   // ## KEY CHANGE ##

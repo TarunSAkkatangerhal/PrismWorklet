@@ -11,6 +11,7 @@ import {
   Plus,
   ChevronDown
 } from 'lucide-react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
 
@@ -609,6 +610,7 @@ const CompactClockPicker = ({ hour, minute, onTimeChange, isOpen, onClose }) => 
 };
 
 const Meetings = () => {
+  useDocumentTitle('Meetings & Updates');
   const [selectedTab, setSelectedTab] = useState('department-meetings');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);

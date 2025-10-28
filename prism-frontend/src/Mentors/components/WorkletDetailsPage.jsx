@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 // --- Import your actual components from their files ---
 import RequestUpdate from '../layouts/Requestupdates'
@@ -201,6 +202,9 @@ export default function WorkletDetailPage() {
   const [worklet, setWorklet] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
+  // Dynamic title based on worklet data
+  useDocumentTitle(worklet ? `${worklet.title} - Worklet Details` : 'Worklet Details');
   const [activeTab, setActiveTab] = useState('overview')
   const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false)
   const [isProvideUpdateOpen, setIsProvideUpdateOpen] = useState(false) // Student version

@@ -5,8 +5,10 @@ import { useNavigate } from "react-router-dom";
 import prismLogo from "../assets/logo.jpeg";
 import prismLogoPng from "../assets/prism_logo.png";
 import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as apiSetPassword, login as secureLogin, getCurrentUserFromToken } from "../services/auth";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import Footer from "./Footer";
 export default function Login() {
+  useDocumentTitle('Prism');
   const navigate = useNavigate();
   
   // States for interactive character

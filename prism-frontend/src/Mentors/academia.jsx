@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Search,
   Users,
@@ -698,6 +699,7 @@ const AllStudentsView = ({ data, onBack }) => {
 
 // --- Main Colleges Component ---
 const Colleges = () => {
+  useDocumentTitle('College Analytics');
   const navigate = useNavigate()
   const location = useLocation()
   const [collegeSearch, setCollegeSearch] = useState(() => (typeof location.state?.collegeName === 'string' ? location.state.collegeName : ''))
