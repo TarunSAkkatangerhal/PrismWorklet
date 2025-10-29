@@ -5,7 +5,6 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { 
   Calendar, 
   Users, 
-  LayoutGrid,
   List,
   Search,
   ChevronRight,
@@ -13,15 +12,12 @@ import {
   Target,
   Activity,
   CheckCircle,
-  MapPin,
-  ExternalLink,
-  Loader,
   Grid3X3,
-  X,
+  X
 } from "lucide-react";
 import LeftSidebar from "../../components/Left";
 import { ThemeContext } from "../../context/ThemeContext";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion} from "framer-motion";
 
 // Filter options configuration similar to dashboard_details
 const filterOptions = [
