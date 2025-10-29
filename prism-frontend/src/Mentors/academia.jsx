@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import axios from 'axios'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Search,
@@ -702,9 +702,28 @@ const Colleges = () => {
   useDocumentTitle('College Analytics');
   const navigate = useNavigate()
   const location = useLocation()
-  const [collegeSearch, setCollegeSearch] = useState(() => (typeof location.state?.collegeName === 'string' ? location.state.collegeName : ''))
-  const [selectedYear, setSelectedYear] = useState('All Years')
-  const [selectedArea, setSelectedArea] = useState('Select Area')
+  const [searchParams, setSearchParams] = useSearchParams()
+  
+  // Initialize state from URL params, then fallback to location.state, then defaults
+  const [collegeSearch, setCollegeSearch] = useState(() => {
+    const urlCollege = searchParams.get('college')
+    if (urlCollege) return urlCollege
+    if (typeof location.state?.collegeName === 'string') return location.state.collegeName
+    return ''
+  })
+  
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const urlYear = searchParams.get('year')
+    if (urlYear) return urlYear
+    return 'All Years'
+  })
+  
+  const [selectedArea, setSelectedArea] = useState(() => {
+    const urlArea = searchParams.get('area')
+    if (urlArea) return urlArea
+    return 'Select Area'
+  })
+  
   const [allCollegeData, setAllCollegeData] = useState([])
   const [loading, setLoading] = useState(true)
   const [enlargedChartInfo, setEnlargedChartInfo] = useState(null) // State for modal
@@ -728,6 +747,25 @@ const Colleges = () => {
       })
     }
   }
+  
+  // Update URL params whenever filters change
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (collegeSearch) params.set('college', collegeSearch)
+    if (selectedYear && selectedYear !== 'All Years') params.set('year', selectedYear)
+    if (selectedArea && selectedArea !== 'Select Area') params.set('area', selectedArea)
+    
+    // Replace history to avoid back-button clutter
+    navigate({ search: params.toString() }, { replace: true })
+  }, [collegeSearch, selectedYear, selectedArea, navigate])
+  
+  // When college is selected, clear year and area filters (nested filtering)
+  useEffect(() => {
+    if (collegeSearch) {
+      setSelectedYear('All Years')
+      setSelectedArea('Select Area')
+    }
+  }, [collegeSearch])
 
   // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
@@ -796,7 +834,7 @@ const Colleges = () => {
     return Array.from(new Set(areas.filter((a) => typeof a === 'string' && a))).sort()
   }, [allCollegeData, collegeSearch, selectedYear])
 
-  // Filter colleges based on selected area and year
+  // Filter colleges based on selected area (year filtering is done by backend)
   const uniqueColleges = useMemo(() => {
     let collegesToUse = allCollegeData || []
     
@@ -813,48 +851,8 @@ const Colleges = () => {
       })
     }
     
-    // Filter by selected year if one is chosen (filter by worklet years, not college establishment)
-    if (selectedYear && selectedYear !== 'All Years') {
-      collegesToUse = collegesToUse.map((college) => {
-        // Filter worklets within the college
-        const filteredWorklets = (college.worklets || []).filter(
-          (worklet) => String(worklet.year) === selectedYear
-        )
-        
-        // Only include college if it has worklets from selected year
-        if (filteredWorklets.length > 0) {
-          // Return college with filtered worklets and updated counts
-          const completedCount = filteredWorklets.filter(w => w.status === 'Completed').length
-          const ongoingCount = filteredWorklets.filter(w => w.status === 'Ongoing').length
-          const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold').length
-          const terminatedCount = filteredWorklets.filter(w => w.status === 'Terminated').length
-          
-          const excellentCount = filteredWorklets.filter(w => w.performanceStatus === 'Excellent').length
-          const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
-          const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
-          
-          const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
-          
-          return {
-            ...college,
-            worklets: filteredWorklets,
-            workletCount: filteredWorklets.length,
-            completedCount,
-            ongoingCount,
-            onHoldCount,
-            terminatedCount,
-            excellentCount,
-            goodCount,
-            needsAttentionCount,
-            totalStudents
-          }
-        }
-        return null
-      }).filter(Boolean) // Remove null entries (colleges with no matching worklets)
-    }
-    
     return collegesToUse
-  }, [allCollegeData, selectedArea, selectedYear])
+  }, [allCollegeData, selectedArea])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -863,13 +861,27 @@ const Colleges = () => {
         const token = localStorage.getItem('access_token')
         const requestConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
 
-        // Fetch colleges first to ensure page renders even if worklets call fails
-        const collegesResponse = await axios.get(`${apiBaseUrl}/colleges`, requestConfig)
+        // Build query params for backend filtering (only when no college is selected)
+        const params = new URLSearchParams()
+        if (!collegeSearch && selectedYear && selectedYear !== 'All Years') {
+          params.append('year', selectedYear)
+        }
+        
+        // Fetch colleges with optional year filter (only when no specific college selected)
+        const collegesUrl = `${apiBaseUrl}/colleges${params.toString() ? `?${params.toString()}` : ''}`
+        const collegesResponse = await axios.get(collegesUrl, requestConfig)
 
-        // Try to fetch worklets, but don't fail the page if this call errors
+        // Build worklets query params
+        const workletsParams = new URLSearchParams()
+        if (!collegeSearch && selectedYear && selectedYear !== 'All Years') {
+          workletsParams.append('year', selectedYear)
+        }
+        
+        // Try to fetch worklets with filters, but don't fail the page if this call errors
         let workletsDataSafe = []
         try {
-          const workletsResponse = await axios.get(`${apiBaseUrl}/worklets`, requestConfig)
+          const workletsUrl = `${apiBaseUrl}/worklets${workletsParams.toString() ? `?${workletsParams.toString()}` : ''}`
+          const workletsResponse = await axios.get(workletsUrl, requestConfig)
           workletsDataSafe = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
         } catch (we) {
           console.warn('Worklets fetch failed; proceeding with colleges only', we)
@@ -980,50 +992,15 @@ const Colleges = () => {
     }
 
     fetchData()
-  }, [apiBaseUrl])
+  }, [apiBaseUrl, collegeSearch ? '' : selectedYear]) // Only re-fetch on year change when no college is selected
 
   // Restore selected college if provided via navigation state later
   useEffect(() => {
-    if (typeof location.state?.collegeName === 'string') {
+    if (typeof location.state?.collegeName === 'string' && !searchParams.get('college')) {
       setCollegeSearch(location.state.collegeName)
     }
-  }, [location.state?.collegeName])
+  }, [location.state?.collegeName, searchParams])
 
-  // Reset selected area and year when college selection changes
-  useEffect(() => {
-    setSelectedArea('Select Area')
-    setSelectedYear('All Years')
-  }, [collegeSearch])
-
-  // Reset selected area only if current area is not available in the filtered list
-  useEffect(() => {
-    if (selectedArea !== 'Select Area' && uniqueAreas.length > 0 && !uniqueAreas.includes(selectedArea)) {
-      setSelectedArea('Select Area')
-    }
-  }, [uniqueAreas, selectedArea])
-
-  // Reset college search when area selection changes if current college doesn't match
-  useEffect(() => {
-    // When area is selected, check if current college matches the area
-    if (selectedArea && selectedArea !== 'Select Area') {
-      if (collegeSearch) {
-        const currentCollege = allCollegeData.find((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
-        if (currentCollege) {
-          const area = currentCollege.areaOfExpertise
-          let hasArea = false
-          if (Array.isArray(area)) {
-            hasArea = area.some((item) => typeof item === 'string' && item === selectedArea)
-          } else if (typeof area === 'string') {
-            hasArea = area.split(',').map((item) => item.trim()).includes(selectedArea)
-          }
-          // If current college doesn't have the selected area, clear the college search
-          if (!hasArea) {
-            setCollegeSearch('')
-          }
-        }
-      }
-    }
-  }, [selectedArea, allCollegeData, collegeSearch])
   useEffect(() => {
     allCollegeDataRef.current = allCollegeData
   }, [allCollegeData])
@@ -1174,34 +1151,41 @@ const Colleges = () => {
     if (!allCollegeData) return []
 
     let collegesToFilter = allCollegeData
+    
+    // College search filter (single college selection)
     if (collegeSearch) {
       collegesToFilter = allCollegeData.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
-    }
-
-    return collegesToFilter.filter((college) => {
-      // Filter by worklet years, not college establishment year
-      let yearMatch = selectedYear === 'All Years'
-      if (!yearMatch && college.worklets && Array.isArray(college.worklets)) {
-        yearMatch = college.worklets.some(worklet => String(worklet.year) === selectedYear)
-      }
-
-      let areaMatch = selectedArea === 'Select Area'
-      if (!areaMatch) {
-        const area = college.areaOfExpertise
-        if (Array.isArray(area)) {
-          areaMatch = area.some((item) => typeof item === 'string' && item === selectedArea)
-        } else if (typeof area === 'string') {
-          areaMatch = area.split(',').map((item) => item.trim()).includes(selectedArea)
+      
+      // When college is selected, apply nested year and area filters to worklets
+      return collegesToFilter.map((college) => {
+        // Apply area filter first - check if college has the selected area
+        if (selectedArea && selectedArea !== 'Select Area') {
+          const area = college.areaOfExpertise
+          let matchesArea = false
+          
+          if (Array.isArray(area)) {
+            matchesArea = area.some((item) => typeof item === 'string' && item === selectedArea)
+          } else if (typeof area === 'string') {
+            matchesArea = area.split(',').map((item) => item.trim()).includes(selectedArea)
+          }
+          
+          // If college doesn't have selected area, exclude it
+          if (!matchesArea) {
+            return null
+          }
         }
-      }
-
-      return yearMatch && areaMatch
-    }).map((college) => {
-      // If year filter is active, filter the worklets and recalculate counts
-      if (selectedYear !== 'All Years' && college.worklets && Array.isArray(college.worklets)) {
-        const filteredWorklets = college.worklets.filter(worklet => String(worklet.year) === selectedYear)
         
-        if (filteredWorklets.length > 0) {
+        // Apply year filter to worklets within selected college
+        let filteredWorklets = college.worklets || []
+        if (selectedYear && selectedYear !== 'All Years') {
+          filteredWorklets = filteredWorklets.filter(worklet => String(worklet.year) === selectedYear)
+        }
+        
+        // Always recalculate counts when any filter is applied
+        const needsRecalculation = (selectedYear && selectedYear !== 'All Years') || 
+                                    (selectedArea && selectedArea !== 'Select Area')
+        
+        if (needsRecalculation) {
           const completedCount = filteredWorklets.filter(w => w.status === 'Completed').length
           const ongoingCount = filteredWorklets.filter(w => w.status === 'Ongoing').length
           const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold').length
@@ -1227,10 +1211,26 @@ const Colleges = () => {
             totalStudents
           }
         }
+        
+        return college
+      }).filter(Boolean)
+    }
+
+    // No college selected - apply area filter only (year filtering done by backend)
+    return collegesToFilter.filter((college) => {
+      let areaMatch = selectedArea === 'Select Area'
+      if (!areaMatch) {
+        const area = college.areaOfExpertise
+        if (Array.isArray(area)) {
+          areaMatch = area.some((item) => typeof item === 'string' && item === selectedArea)
+        } else if (typeof area === 'string') {
+          areaMatch = area.split(',').map((item) => item.trim()).includes(selectedArea)
+        }
       }
-      return college
+
+      return areaMatch
     })
-  }, [allCollegeData, collegeSearch, selectedYear, selectedArea])
+  }, [allCollegeData, collegeSearch, selectedArea, selectedYear])
 
   // College Overview list sorted by worklet counts (must be after filteredColleges)
   const overviewColleges = useMemo(() => {
