@@ -8,7 +8,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import RequestUpdate from '../layouts/Requestupdates'
 import SuggestionModal from '../layouts/SuggestionModal'
 import InternReferralForm from '../layouts/Intern'
-import FeedBack from '../layouts/FeedBack'
+import FeedbackForm from '../layouts/FeedbackForm'
 import LeftSidebar from '../../components/Left'
 import ProvideUpdateModal from '../components/ProvideUpdateModal'
 import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
@@ -2690,13 +2690,15 @@ export default function WorkletDetailPage() {
       />
       
       {isFeedbackOpen && worklet && (
-        <FeedBack
+        <FeedbackForm
+          isOpen={isFeedbackOpen}
           onClose={() => setIsFeedbackOpen(false)}
           workletId={worklet.id}
           preSelectedWorklet={{
             id: worklet.id,
             title: worklet.title,
             cert_id: worklet.cert_id || worklet.title,
+            description: worklet.description,
             status: worklet.status,
             college: worklet.college,
             team: worklet.team,
