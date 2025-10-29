@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Award,
   Star,
@@ -11,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  Clock,
   Shield,
   Target,
   PlusCircle,
@@ -75,10 +75,10 @@ const emptyPortfolio = {
 }
 
 // --- REUSABLE & IMPROVED COMPONENTS ---
-const Input = ({ register, name, errors, ...rest }) => (
+const Input = ({ register, name, errors, required, ...rest }) => (
   <div className="w-full">
     <input
-      {...register(name)}
+      {...register(name, required ? { required: `${name} is required` } : {})}
       {...rest}
       className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
     />
@@ -86,10 +86,10 @@ const Input = ({ register, name, errors, ...rest }) => (
   </div>
 )
 
-const Textarea = ({ register, name, errors, ...rest }) => (
+const Textarea = ({ register, name, errors, required, ...rest }) => (
   <div className="w-full">
     <textarea
-      {...register(name)}
+      {...register(name, required ? { required: `${name} is required` } : {})}
       {...rest}
       className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
     />
@@ -315,7 +315,6 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
   const [step, setStep] = useState(1)
   const [file, setFile] = useState(null)
   const loadingWorklets = false
-  const [selectedWorkletId, setSelectedWorkletId] = useState('')
   const {
     register,
     handleSubmit,
@@ -426,14 +425,14 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
                 register={register}
                 errors={errors}
                 placeholder="Paper Title"
-                {...register('title', { required: 'Title is required' })}
+                required
               />
               <Input
                 name="journal"
                 register={register}
                 errors={errors}
                 placeholder="Journal / Conference"
-                {...register('journal', { required: 'Journal is required' })}
+                required
               />
               <div className="flex gap-4">
                 <Input
@@ -443,7 +442,7 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
                   errors={errors}
                   placeholder="Year"
                   defaultValue={new Date().getFullYear()}
-                  {...register('year', { required: 'Year is required' })}
+                  required
                 />
                 <Input name="doi" register={register} errors={errors} placeholder="DOI (e.g., 10.xxxx/xxxx)" />
               </div>
@@ -479,7 +478,7 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
                   register={register}
                   errors={errors}
                   placeholder={`Author ${index + 1} Name`}
-                  {...register(`authors.${index}.name`, { required: 'Author name is required' })}
+                  required
                 />
                 {fields.length > 1 && (
                   <button
@@ -504,7 +503,7 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
             errors={errors}
             placeholder="Abstract"
             rows="4"
-            {...register('abstract', { required: 'Abstract is required' })}
+            required
           />
           <div className="flex justify-between pt-4">
             <button
@@ -656,7 +655,7 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
             register={register}
             errors={errors}
             placeholder="Patent Title"
-            {...register('title', { required: 'Title is required' })}
+            required
           />
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Inventors</label>
@@ -667,7 +666,7 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
                   register={register}
                   errors={errors}
                   placeholder={`Inventor ${index + 1} Name`}
-                  {...register(`inventors.${index}.name`, { required: 'Inventor name is required' })}
+                  required
                 />
                 {fields.length > 1 && (
                   <button
@@ -692,7 +691,7 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
               register={register}
               errors={errors}
               placeholder="Application Number"
-              {...register('application_number', { required: 'Application number is required' })}
+              required
             />
             <Input
               name="filing_year"
@@ -709,7 +708,7 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
             errors={errors}
             placeholder="Brief Description"
             rows="3"
-            {...register('description', { required: 'Description is required' })}
+            required
           />
           <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center pt-2">
             <Upload size={20} className="mr-2 text-yellow-500" /> Supporting Document
@@ -832,7 +831,7 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
             register={register}
             errors={errors}
             placeholder="Product/Service Title"
-            {...register('title', { required: 'Title is required' })}
+            required
           />
           <Input name="year" type="number" register={register} errors={errors} placeholder="Year" defaultValue={new Date().getFullYear()} />
           <Input name="link" register={register} errors={errors} placeholder="Product Link (e.g., https://...)" />
@@ -842,7 +841,7 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
             errors={errors}
             placeholder="Description"
             rows="3"
-            {...register('description', { required: 'Description is required' })}
+            required
           />
           <div className="flex justify-end space-x-3 pt-4">
             <button
@@ -868,15 +867,15 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
 
 // --- MAIN PORTFOLIO COMPONENT ---
 const Portfolio = () => {
+  useDocumentTitle('Portfolio');
   const navigate = useNavigate()
-  const { isStudent, user } = useAuth() // Detect if user is a student and get user info
+  const { isStudent } = useAuth() // Detect if user is a student
   const [activeTab, setActiveTab] = useState('achievements')
   const [expandedRows, setExpandedRows] = useState({})
   const [portfolioData, setPortfolioData] = useState(emptyPortfolio)
   const [loadingPortfolio, setLoadingPortfolio] = useState(true)
   const [portfolioError, setPortfolioError] = useState(null)
   const [completedWorklets, setCompletedWorklets] = useState([])
-  const [loadingCompleted, setLoadingCompleted] = useState(true)
   const [modalType, setModalType] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
@@ -925,13 +924,10 @@ const Portfolio = () => {
 
   const loadCompletedWorklets = useCallback(async () => {
     try {
-      setLoadingCompleted(true)
       const { completed } = await fetchCompletedWorkletsForCurrentUser()
       setCompletedWorklets(completed)
     } catch (e) {
       console.error(e)
-    } finally {
-      setLoadingCompleted(false)
     }
   }, [])
 

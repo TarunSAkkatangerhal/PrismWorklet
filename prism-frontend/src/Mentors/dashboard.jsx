@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import secureAPI from '../services/secureAPI'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Download,
   Activity,
@@ -50,10 +51,10 @@ const CustomTooltip = ({ active, payload, label, isDark }) => {
         className={`p-4 rounded-lg shadow-lg border ${
           isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200'
         }`}>
-        <p className="font-semibold">{`${label}`}</p>
+        <p className="font-semibold mb-2">{`${label}`}</p>
         {payload.map((entry, index) => (
-          <p key={index} style={{ color: entry.color }}>
-            {`${entry.dataKey}: ${entry.value}`}
+          <p key={index} style={{ color: entry.color }} className="text-sm">
+            {`${entry.name || entry.dataKey}: ${entry.value}`}
           </p>
         ))}
       </div>
@@ -162,6 +163,7 @@ const generatePerformanceBreakdown = () => ({
 })
 // Modern Statistics Dashboard component
 const ModernStatisticsDashboard = () => {
+  useDocumentTitle('Performance Analytics Dashboard');
   const navigate = useNavigate()
   
   // ## KEY CHANGE ##
@@ -237,7 +239,6 @@ const ModernStatisticsDashboard = () => {
             const yearParams = new URLSearchParams()
             yearParams.set('year', year)
             if (filters?.domain && filters.domain !== 'All') yearParams.set('domain', filters.domain)
-            if (filters?.team && filters.team !== 'All') yearParams.set('team', filters.team)
             if (filters?.team && filters.team !== 'All') yearParams.set('team', filters.team)
             
             return Promise.all([
@@ -370,7 +371,7 @@ const ModernStatisticsDashboard = () => {
     return () => clearInterval(interval)
   }, [filters.year, filters.domain, filters.team, isDarkMode])
 
-  // Update domains and teams list when year changes (nested filtering behavior)
+  // Update domains and teams list when year or domain changes (nested filtering behavior)
   useEffect(() => {
     const fetchFilteredOptions = async () => {
       // Fetch domains based on selected year
@@ -416,7 +417,8 @@ const ModernStatisticsDashboard = () => {
     }
 
     fetchFilteredOptions()
-  }, [filters.year, filters.domain, filters.team])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.year, filters.domain])  // Removed filters.team from dependencies to prevent circular updates
 
   // Reset all filters to default values
   const handleResetFilters = () => {
@@ -447,6 +449,7 @@ const ModernStatisticsDashboard = () => {
           const yearParams = new URLSearchParams()
           yearParams.set('year', year)
           if (filters?.domain && filters.domain !== 'All') yearParams.set('domain', filters.domain)
+          if (filters?.team && filters.team !== 'All') yearParams.set('team', filters.team)
           
           return Promise.all([
             secureAPI.get(`/api/dashboard/platform-monthly-trends?${yearParams.toString()}`),
@@ -880,6 +883,7 @@ const ModernStatisticsDashboard = () => {
                           const colors = getColors(isDarkMode)
                           return (
                             <circle
+                              key={`worklets-dot-${props.cx}-${props.cy}-${props.payload?.month_key}`}
                               cx={props.cx}
                               cy={props.cy}
                               r={isCurrentMonth ? 8 : 6}
@@ -908,6 +912,7 @@ const ModernStatisticsDashboard = () => {
                           const colors = getColors(isDarkMode)
                           return (
                             <circle
+                              key={`completed-dot-${props.cx}-${props.cy}-${props.payload?.month_key}`}
                               cx={props.cx}
                               cy={props.cy}
                               r={isCurrentMonth ? 8 : 6}

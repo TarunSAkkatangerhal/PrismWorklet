@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Search,
   Users,
-  TrendingUp,
   ChevronDown,
   Download,
-  Plus,
   Building2,
-  BookOpen,
   Target,
   RefreshCw,
   X,
   ArrowLeft,
-  ClipboardList,
   CheckCircle,
   PauseCircle,
   XCircle,
@@ -158,20 +155,22 @@ const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
   const performanceData = useMemo(() => {
     if (!data || data.length === 0) return []
     
-    // Use backend-provided performance counts (excellentCount, goodCount, needsAttentionCount)
+    // Use backend-provided performance counts (veryGoodCount, goodCount, averageCount, poorCount)
     // These are calculated based on evaluation scores and progress metrics
-    const totalExcellent = data.reduce((sum, college) => sum + (college.excellentCount || 0), 0)
+    const totalVeryGood = data.reduce((sum, college) => sum + (college.veryGoodCount || 0), 0)
     const totalGood = data.reduce((sum, college) => sum + (college.goodCount || 0), 0)
-    const totalNeedsAttention = data.reduce((sum, college) => sum + (college.needsAttentionCount || 0), 0)
+    const totalAverage = data.reduce((sum, college) => sum + (college.averageCount || 0), 0)
+    const totalPoor = data.reduce((sum, college) => sum + (college.poorCount || 0), 0)
     
     return [
-      { name: 'Excellent', value: totalExcellent },
+      { name: 'Very Good', value: totalVeryGood },
       { name: 'Good', value: totalGood },
-      { name: 'Needs Attention', value: totalNeedsAttention },
+      { name: 'Average', value: totalAverage },
+      { name: 'Poor', value: totalPoor },
     ].filter((item) => item.value > 0)
   }, [data])
 
-  const PIE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b']
+  const PIE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444']
 
   return (
     <div
@@ -493,6 +492,7 @@ const DashboardGraphs = ({ data, onEnlarge }) => {
 }
 
 // --- Reusable Worklet List View ---
+// eslint-disable-next-line no-unused-vars
 const WorkletListView = ({ data, onBack, filterStatus, title }) => {
   const worklets = useMemo(() => {
     const allWorklets = data.flatMap((college) =>
@@ -604,6 +604,7 @@ const WorkletListView = ({ data, onBack, filterStatus, title }) => {
 }
 
 // --- List View for All Students ---
+// eslint-disable-next-line no-unused-vars
 const AllStudentsView = ({ data, onBack }) => {
   const uniqueStudents = useMemo(() => {
     const studentMap = new Map()
@@ -698,6 +699,7 @@ const AllStudentsView = ({ data, onBack }) => {
 
 // --- Main Colleges Component ---
 const Colleges = () => {
+  useDocumentTitle('College Analytics');
   const navigate = useNavigate()
   const location = useLocation()
   const [collegeSearch, setCollegeSearch] = useState(() => (typeof location.state?.collegeName === 'string' ? location.state.collegeName : ''))
@@ -705,9 +707,7 @@ const Colleges = () => {
   const [selectedArea, setSelectedArea] = useState('Select Area')
   const [allCollegeData, setAllCollegeData] = useState([])
   const [loading, setLoading] = useState(true)
-  const [currentView, setCurrentView] = useState('dashboard')
   const [enlargedChartInfo, setEnlargedChartInfo] = useState(null) // State for modal
-  const [error, setError] = useState(null)
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000'
   const [collegeDetailStatus, setCollegeDetailStatus] = useState({}) // tracks detailed fetch status per college
   const allCollegeDataRef = useRef(allCollegeData)
@@ -859,7 +859,6 @@ const Colleges = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
-      setError(null)
       try {
         const token = localStorage.getItem('access_token')
         const requestConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
@@ -937,9 +936,10 @@ const Colleges = () => {
             established: college.established,
             areaOfExpertise: college.area_of_expertise ?? college.areaOfExpertise,
             workletCount: college.workletCount ?? worklets.length,
-            excellentCount: college.excellentCount ?? 0,
+            veryGoodCount: college.veryGoodCount ?? 0,
             goodCount: college.goodCount ?? 0,
-            needsAttentionCount: college.needsAttentionCount ?? 0,
+            averageCount: college.averageCount ?? 0,
+            poorCount: college.poorCount ?? 0,
             completedCount: college.completedCount ?? 0,
             ongoingCount: college.ongoingCount ?? 0,
             onHoldCount: college.onHoldCount ?? 0,
@@ -960,7 +960,7 @@ const Colleges = () => {
         })
 
         if (err.response?.status === 401) {
-          setError('Authentication required. Please log in again.')
+          console.error('Authentication required. Please log in again.')
           // Clear auth tokens
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
@@ -969,9 +969,9 @@ const Colleges = () => {
           // Redirect to login
           window.location.href = '/'
         } else if (err.response?.status === 404) {
-          setError('Colleges endpoint not found. Please check if the backend is running.')
+          console.error('Colleges endpoint not found. Please check if the backend is running.')
         } else {
-          setError(`Failed to fetch colleges: ${err.message}`)
+          console.error(`Failed to fetch colleges: ${err.message}`)
         }
         setAllCollegeData([])
       } finally {
@@ -1246,20 +1246,14 @@ const Colleges = () => {
     if (filteredColleges.length === 1) {
       fetchCollegeWorklets(filteredColleges[0])
     }
-
-    if (currentView === 'students' || currentView === 'worklets') {
-      filteredColleges.forEach((college) => {
-        fetchCollegeWorklets(college)
-      })
-    }
-  }, [filteredColleges, currentView, fetchCollegeWorklets])
+  }, [filteredColleges, fetchCollegeWorklets])
 
   const handleExport = () => {
     if (filteredColleges.length === 0) {
       alert('No data to export!')
       return
     }
-    const headers = ['ID', 'Name', 'Location', 'Total Worklets', 'Excellent', 'Good', 'Needs Attention']
+    const headers = ['ID', 'Name', 'Location', 'Total Worklets', 'Very Good', 'Good', 'Average', 'Poor']
     const csvRows = [
       headers.join(','),
       ...filteredColleges.map((college) =>
@@ -1268,9 +1262,10 @@ const Colleges = () => {
           `"${college.college_name || college.name}"`,
           `"${college.location}"`,
           college.workletCount,
-          college.excellentCount,
-          college.goodCount,
-          college.needsAttentionCount,
+          college.veryGoodCount || 0,
+          college.goodCount || 0,
+          college.averageCount || 0,
+          college.poorCount || 0,
         ].join(',')
       ),
     ]
@@ -1417,13 +1412,16 @@ const Colleges = () => {
                       Total Worklets
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Excellent
+                      Very Good
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Good
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Needs Attention
+                      Average
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Poor
                     </th>
                   </tr>
                 </thead>
@@ -1451,13 +1449,16 @@ const Colleges = () => {
                           {totalWorkletsRow}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
-                          {college.excellentCount}
+                          {college.veryGoodCount || 0}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-green-600 dark:text-green-400">
-                          {college.goodCount}
+                          {college.goodCount || 0}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
-                          {college.needsAttentionCount}
+                          {college.averageCount || 0}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-red-600 dark:text-red-400">
+                          {college.poorCount || 0}
                         </td>
                       </tr>
                     )
@@ -1691,20 +1692,23 @@ const Colleges = () => {
                       Total Worklets
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Excellent
+                      Very Good
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Good
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Needs Attention
+                      Average
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Poor
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {loading ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan="6" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                         Loading...
                       </td>
                     </tr>
@@ -1732,13 +1736,16 @@ const Colleges = () => {
                           {getWorkletCount(college)}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-blue-600 dark:text-blue-400">
-                          {college.excellentCount}
+                          {college.veryGoodCount || 0}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-green-600 dark:text-green-400">
-                          {college.goodCount}
+                          {college.goodCount || 0}
                         </td>
                         <td className="px-6 py-4 text-sm text-center font-medium text-yellow-600 dark:text-yellow-400">
-                          {college.needsAttentionCount}
+                          {college.averageCount || 0}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-red-600 dark:text-red-400">
+                          {college.poorCount || 0}
                         </td>
                       </tr>
                     ))

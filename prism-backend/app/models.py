@@ -117,6 +117,32 @@ class WorkletStage(Base):
         return f"<WorkletStage(stage_id={self.stage_id}, stage='{self.stage}')>"
 
 
+class TechDomain(Base):
+    """TechDomain lookup table for technology domains"""
+    __tablename__ = "TechDomain"
+    
+    id = Column("TechDomainID", Integer, primary_key=True, autoincrement=True)
+    domain_name = Column("DomainName", String(100), unique=True, nullable=False)
+    description = Column("Description", Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    
+    def __repr__(self):
+        return f"<TechDomain(id={self.id}, domain_name='{self.domain_name}')>"
+
+
+class TeamMG(Base):
+    """TeamMG lookup table for teams"""
+    __tablename__ = "TeamMG"
+    
+    id = Column("TeamMGID", Integer, primary_key=True, autoincrement=True)
+    team_name = Column("TeamName", String(100), unique=True, nullable=False)
+    description = Column("Description", Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    
+    def __repr__(self):
+        return f"<TeamMG(id={self.id}, team_name='{self.team_name}')>"
+
+
 class Worklet(Base):
     # Map to existing Prism_Worklet table (do not alter this table via migrations)
     __tablename__ = "Prism_Worklet"
@@ -384,3 +410,71 @@ class MilestoneFeedback(Base):
 
     def __repr__(self):
         return f"<MilestoneFeedback(feedback_id={self.feedback_id}, milestone_id={self.milestone_id}, role='{self.reviewer_role}')>"
+
+
+# Meeting table
+class Meeting(Base):
+    __tablename__ = "meetings"
+
+    meeting_id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    college_id = Column(Integer, ForeignKey("colleges.college_id", ondelete="CASCADE"), nullable=False)
+    organizer_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    start_datetime = Column(DateTime, nullable=False)
+    duration_minutes = Column(Integer, nullable=False, server_default="30")
+    meeting_link = Column(String(500), nullable=False)
+    status = Column(SAEnum("upcoming", "live", "completed", "cancelled", name="meeting_status_enum"), nullable=False, server_default="upcoming")
+    
+    # Recurring meeting fields
+    repeat_days = Column(String(50), nullable=True, comment="Comma-separated weekday abbreviations: Mon,Wed,Fri")
+    repeat_until = Column(Date, nullable=True)
+    
+    # Metadata
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    college_rel = relationship("College", foreign_keys=[college_id])
+    organizer = relationship("User", foreign_keys=[organizer_id])
+    worklet_associations = relationship("MeetingWorkletAssociation", back_populates="meeting", cascade="all, delete-orphan")
+    recurrences = relationship("MeetingRecurrence", back_populates="parent_meeting", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Meeting(meeting_id={self.meeting_id}, title='{self.title}', start='{self.start_datetime}')>"
+
+
+# Meeting-Worklet association table
+class MeetingWorkletAssociation(Base):
+    __tablename__ = "meeting_worklet_association"
+
+    meeting_id = Column(Integer, ForeignKey("meetings.meeting_id", ondelete="CASCADE"), primary_key=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), primary_key=True)
+    scheduled_datetime = Column(DateTime, nullable=False, comment="Specific start time for this worklet in the meeting")
+
+    # Relationships
+    meeting = relationship("Meeting", back_populates="worklet_associations")
+    worklet = relationship("Worklet")
+
+    def __repr__(self):
+        return f"<MeetingWorkletAssociation(meeting_id={self.meeting_id}, worklet_id={self.worklet_id})>"
+
+
+# Meeting recurrence table
+class MeetingRecurrence(Base):
+    __tablename__ = "meeting_recurrence"
+
+    recurrence_id = Column(Integer, primary_key=True, autoincrement=True)
+    parent_meeting_id = Column(Integer, ForeignKey("meetings.meeting_id", ondelete="CASCADE"), nullable=False, comment="Reference to the master/parent meeting")
+    occurrence_datetime = Column(DateTime, nullable=False, comment="Specific date/time for this occurrence")
+    is_cancelled = Column(Boolean, default=False, comment="Whether this specific occurrence is cancelled")
+    is_rescheduled = Column(Boolean, default=False, comment="Whether this specific occurrence was rescheduled")
+    rescheduled_datetime = Column(DateTime, nullable=True, comment="New datetime if rescheduled")
+    notes = Column(Text, nullable=True, comment="Optional notes for this occurrence")
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Relationships
+    parent_meeting = relationship("Meeting", back_populates="recurrences")
+
+    def __repr__(self):
+        return f"<MeetingRecurrence(recurrence_id={self.recurrence_id}, parent_meeting_id={self.parent_meeting_id}, occurrence={self.occurrence_datetime})>"

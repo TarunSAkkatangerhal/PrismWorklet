@@ -1,0 +1,71 @@
+"""
+Centralized constants for the application
+This ensures consistency across the codebase
+"""
+
+# Worklet Status Mapping (Database ID to Display Text)
+# Canonical spelling: "Ongoing" (not "On Going")
+WORKLET_STATUS_MAP = {
+    0: "To Start",
+    1: "Ongoing",      # Normalized spelling
+    2: "Completed",
+    3: "On Hold",
+    4: "Dropped"
+}
+
+# Reverse mapping for status text to ID
+WORKLET_STATUS_REVERSE_MAP = {
+    "To Start": 0,
+    "Ongoing": 1,
+    "On Going": 1,     # Accept legacy spelling
+    "Completed": 2,
+    "On Hold": 3,
+    "Dropped": 4
+}
+
+# Default status
+DEFAULT_WORKLET_STATUS_ID = 1  # Ongoing
+
+# Performance/Quality levels
+PERFORMANCE_LEVELS = ["Very Good", "Good", "Average", "Poor"]
+
+# Priority levels
+PRIORITY_LEVELS = ["low", "medium", "high"]
+
+# User roles
+USER_ROLES = ["Admin", "Mentor", "Professor", "Student"]
+
+# Worklet roles (in associations)
+WORKLET_ROLES = ["Mentor", "Student", "Professor"]
+
+def normalize_status_text(status_input: str | int | None) -> str:
+    """
+    Normalize status to canonical text representation
+    
+    Args:
+        status_input: Status as ID (int) or text (str)
+        
+    Returns:
+        Normalized status text (e.g., "Ongoing", not "On Going")
+    """
+    if isinstance(status_input, int):
+        return WORKLET_STATUS_MAP.get(status_input, "Ongoing")
+    elif isinstance(status_input, str):
+        # Normalize legacy "On Going" to "Ongoing"
+        if status_input == "On Going":
+            return "Ongoing"
+        return status_input
+    return "Ongoing"
+
+def get_status_id(status_text: str) -> int:
+    """
+    Convert status text to database ID
+    Accepts both "Ongoing" and legacy "On Going"
+    
+    Args:
+        status_text: Status as text
+        
+    Returns:
+        Status ID for database
+    """
+    return WORKLET_STATUS_REVERSE_MAP.get(status_text, DEFAULT_WORKLET_STATUS_ID)

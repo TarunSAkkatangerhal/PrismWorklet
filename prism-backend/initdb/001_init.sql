@@ -71,6 +71,26 @@ INSERT INTO WorkletStage (StageID, Stage) VALUES
   (7, 'Add OC');
 
 -- ========================
+-- 3b. TechDomain Lookup Table
+-- ========================
+CREATE TABLE TechDomain (
+  TechDomainID INT AUTO_INCREMENT PRIMARY KEY,
+  DomainName VARCHAR(100) UNIQUE NOT NULL,
+  Description TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================
+-- 3c. TeamMG Lookup Table
+-- ========================
+CREATE TABLE TeamMG (
+  TeamMGID INT AUTO_INCREMENT PRIMARY KEY,
+  TeamName VARCHAR(100) UNIQUE NOT NULL,
+  Description TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================
 -- 4. Worklets
 -- ========================
 CREATE TABLE Prism_Worklet (
@@ -128,6 +148,14 @@ CREATE TABLE Prism_Worklet (
       ON UPDATE CASCADE,
   CONSTRAINT fk_worklet_stage FOREIGN KEY (StageID)
       REFERENCES WorkletStage(StageID)
+      ON DELETE SET NULL
+      ON UPDATE CASCADE,
+  CONSTRAINT fk_worklet_techdomain FOREIGN KEY (TechDomainID)
+      REFERENCES TechDomain(TechDomainID)
+      ON DELETE RESTRICT
+      ON UPDATE CASCADE,
+  CONSTRAINT fk_worklet_team FOREIGN KEY (TeamMGID)
+      REFERENCES TeamMG(TeamMGID)
       ON DELETE SET NULL
       ON UPDATE CASCADE
 ) ENGINE=InnoDB 
@@ -271,3 +299,133 @@ CREATE TABLE IF NOT EXISTS Prism_Suggestion (
 -- ========================
 CREATE UNIQUE INDEX ix_user_email ON users(email);
 CREATE UNIQUE INDEX ix_prism_cert_id ON Prism_Worklet(CertID);
+
+-- ========================
+-- 13. Meetings System
+-- ========================
+
+-- Main meetings table
+CREATE TABLE meetings (
+  meeting_id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  college_id INT NOT NULL,
+  organizer_id INT NOT NULL,
+  start_datetime DATETIME NOT NULL,
+  duration_minutes INT NOT NULL DEFAULT 30,
+  meeting_link VARCHAR(500) NOT NULL,
+  status ENUM('upcoming', 'live', 'completed', 'cancelled') NOT NULL DEFAULT 'upcoming',
+  -- Recurring meeting fields
+  repeat_days VARCHAR(50) DEFAULT NULL COMMENT 'Comma-separated weekday abbreviations: Mon,Wed,Fri',
+  repeat_until DATE DEFAULT NULL,
+  -- Metadata
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- Foreign keys
+  CONSTRAINT fk_meeting_college FOREIGN KEY (college_id)
+    REFERENCES colleges(college_id) ON DELETE CASCADE,
+  CONSTRAINT fk_meeting_organizer FOREIGN KEY (organizer_id)
+    REFERENCES users(user_id) ON DELETE CASCADE,
+  -- Indexes
+  INDEX idx_meeting_college (college_id),
+  INDEX idx_meeting_organizer (organizer_id),
+  INDEX idx_meeting_datetime (start_datetime),
+  INDEX idx_meeting_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Meeting-Worklet association table (many-to-many)
+-- Stores which worklets are involved in each meeting
+CREATE TABLE meeting_worklet_association (
+  meeting_id INT NOT NULL,
+  WorkletID INT NOT NULL,
+  scheduled_datetime DATETIME NOT NULL COMMENT 'Specific start time for this worklet in the meeting',
+  PRIMARY KEY (meeting_id, WorkletID),
+  CONSTRAINT fk_mw_meeting FOREIGN KEY (meeting_id)
+    REFERENCES meetings(meeting_id) ON DELETE CASCADE,
+  CONSTRAINT fk_mw_worklet FOREIGN KEY (WorkletID)
+    REFERENCES Prism_Worklet(WorkletID) ON DELETE CASCADE,
+  INDEX idx_mw_meeting (meeting_id),
+  INDEX idx_mw_worklet (WorkletID),
+  INDEX idx_mw_datetime (scheduled_datetime)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_uw_role ON user_worklet_association(role_in_worklet);
+CREATE INDEX idx_mw_datetime_worklet ON meeting_worklet_association(scheduled_datetime, WorkletID);
+
+
+-- Meeting recurrence table (for recurring meetings)
+-- Stores individual occurrences of recurring meetings
+CREATE TABLE meeting_recurrence (
+  recurrence_id INT AUTO_INCREMENT PRIMARY KEY,
+  parent_meeting_id INT NOT NULL COMMENT 'Reference to the master/parent meeting',
+  occurrence_datetime DATETIME NOT NULL COMMENT 'Specific date/time for this occurrence',
+  is_cancelled BOOLEAN DEFAULT FALSE COMMENT 'Whether this specific occurrence is cancelled',
+  is_rescheduled BOOLEAN DEFAULT FALSE COMMENT 'Whether this specific occurrence was rescheduled',
+  rescheduled_datetime DATETIME DEFAULT NULL COMMENT 'New datetime if rescheduled',
+  notes TEXT DEFAULT NULL COMMENT 'Optional notes for this occurrence',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_recur_meeting FOREIGN KEY (parent_meeting_id)
+    REFERENCES meetings(meeting_id) ON DELETE CASCADE,
+  INDEX idx_recur_parent (parent_meeting_id),
+  INDEX idx_recur_datetime (occurrence_datetime),
+  INDEX idx_recur_cancelled (is_cancelled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ========================================
+-- PERFORMANCE OPTIMIZATION INDEXES
+-- Additional indexes for improved query performance
+-- ========================================
+
+-- Users table indexes
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_college ON users(college_id);
+CREATE INDEX idx_users_active ON users(is_active);
+CREATE INDEX idx_users_created ON users(created_at);
+CREATE INDEX idx_users_active_till ON users(active_till);
+
+-- Worklets table indexes (for date-range queries)
+CREATE INDEX idx_worklet_status ON Prism_Worklet(StatusID);
+CREATE INDEX idx_worklet_dates ON Prism_Worklet(StartDate, EndDate);
+CREATE INDEX idx_worklet_college ON Prism_Worklet(CollegeID);
+CREATE INDEX idx_worklet_created ON Prism_Worklet(CreatedOn);
+CREATE INDEX idx_worklet_domain ON Prism_Worklet(TechDomainID);
+CREATE INDEX idx_worklet_team ON Prism_Worklet(TeamMGID);
+CREATE INDEX idx_worklet_stage ON Prism_Worklet(StageID);
+CREATE INDEX idx_worklet_active ON Prism_Worklet(IsActive);
+
+-- User-Worklet association indexes (in addition to PRIMARY KEY)
+CREATE INDEX idx_uw_worklet ON user_worklet_association(WorkletID);
+
+-- Portfolio tables indexes
+CREATE INDEX idx_achievement_user ON achievements(user_id);
+CREATE INDEX idx_achievement_worklet ON achievements(WorkletID);
+CREATE INDEX idx_achievement_year ON achievements(year);
+
+CREATE INDEX idx_paper_user ON papers(user_id);
+CREATE INDEX idx_paper_worklet ON papers(WorkletID);
+CREATE INDEX idx_paper_year ON papers(publication_year);
+
+CREATE INDEX idx_patent_user ON patents(user_id);
+CREATE INDEX idx_patent_worklet ON patents(WorkletID);
+CREATE INDEX idx_patent_year ON patents(filing_year);
+
+CREATE INDEX idx_comm_user ON commercializations(user_id);
+CREATE INDEX idx_comm_worklet ON commercializations(WorkletID);
+CREATE INDEX idx_comm_year ON commercializations(year);
+
+-- Suggestions indexes
+CREATE INDEX idx_suggestion_worklet ON Prism_Suggestion(worklet_id);
+CREATE INDEX idx_suggestion_mentor ON Prism_Suggestion(mentor_id);
+CREATE INDEX idx_suggestion_created ON Prism_Suggestion(created_at);
+CREATE INDEX idx_suggestion_read ON Prism_Suggestion(is_read);
+
+-- Meetings indexes
+CREATE INDEX idx_meeting_college ON meetings(college_id);
+CREATE INDEX idx_meeting_organizer ON meetings(organizer_id);
+CREATE INDEX idx_meeting_datetime ON meetings(start_datetime);
+CREATE INDEX idx_meeting_status ON meetings(status);
+
+-- Evaluations indexes
+CREATE INDEX idx_eval_user ON evaluations(user_id);
+CREATE INDEX idx_eval_worklet ON evaluations(WorkletID);
+CREATE INDEX idx_eval_date ON evaluations(evaluated_at);

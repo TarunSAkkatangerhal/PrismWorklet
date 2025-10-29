@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app import auth
-from app.routers import worklets, health, dashboard, evaluations, associations, portfolio, suggestions, milestones
+from app.routers import worklets, health, dashboard, evaluations, associations, portfolio, suggestions, milestones, meetings
 from app.core.config import settings
 from app.core.rate_limiter import RateLimiter
 from app.database import get_db
@@ -34,6 +34,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Static files for uploaded documents
@@ -91,6 +92,7 @@ app.include_router(portfolio.router, prefix="/api/portfolio", tags=["portfolio"]
 app.include_router(suggestions.router)
 app.include_router(milestones.router)
 app.include_router(college.router)
+app.include_router(meetings.router, prefix="/api/meetings", tags=["meetings"])
 
 # Backwards-compatible alias for student worklets under /api
 from fastapi import Depends
@@ -114,10 +116,20 @@ async def startup_event():
     # Auto-create tables if not present
     try:
         Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully")
+        
+        # Display configuration warnings
+        if settings.DEBUG:
+            print("🔧 DEBUG mode is enabled - sensitive errors will be exposed")
+        
+        # Configuration validation warnings
+        settings.validate_required_settings()
+        
     except Exception as e:
-        logger.info(f"DB init error: {e}")
+        logger.error(f"DB init error: {e}", exc_info=True)
 
 @app.on_event("shutdown")
 async def shutdown_event():
     # You could cleanup connections here
+    logger.info("Application shutting down")
     pass

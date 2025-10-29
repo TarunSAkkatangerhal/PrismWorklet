@@ -15,6 +15,7 @@ from app.routers.helpers.worklet_helpers import (
     map_status_text
 )
 from app.services.worklet_service import WorkletService
+from app.core.constants import get_status_id, WORKLET_STATUS_MAP
 import logging
 logger = logging.getLogger(__name__)
 
@@ -49,11 +50,9 @@ def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme
     if not worklet_in.start_date or not worklet_in.end_date:
         raise HTTPException(status_code=400, detail="start_date and end_date are required")
 
-    # Map status to StatusID (new mapping, default On Going=1)
-    # Accept both 'On Going' and 'Ongoing' inbound
-    status_to_id = {"To Start": 0, "On Going": 1, "Ongoing": 1, "Completed": 2, "On Hold": 3, "Dropped": 4}
-    status_text = (worklet_in.status.value if hasattr(worklet_in.status, 'value') else worklet_in.status) or "On Going"
-    status_id = status_to_id.get(status_text, 1)
+    # Map status to StatusID using centralized constants
+    status_text = (worklet_in.status.value if hasattr(worklet_in.status, 'value') else worklet_in.status) or "Ongoing"
+    status_id = get_status_id(status_text)
 
     tech_domain_id = None
     if worklet_in.domain is not None:
@@ -144,9 +143,8 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
                 college_name = mentor_assoc.college
                 college_id = getattr(mentor_assoc, "college_id", None)
 
-        # Map status_id to textual status for API compatibility (normalize to 'Ongoing')
-        status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
-        status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
+        # Map status_id to textual status for API compatibility
+        status_text = map_status_text(getattr(w, 'status_id', None))
 
         # Derive a year from date range (fallback to current year)
         derived_year: Optional[int] = None
@@ -235,7 +233,7 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
     except HTTPException:
         raise
     except Exception as e:
-        logger.info(f"Error fetching student worklets: {e}")
+        logger.error(f"Error fetching student worklets for user: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{worklet_identifier}")
@@ -285,9 +283,8 @@ def update_worklet(worklet_id: int, worklet_in: WorkletUpdate, db: Session = Dep
     if "end_date" in payload:
         worklet.end_date = payload["end_date"]
     if "status" in payload and payload["status"] is not None:
-        status_to_id = {"To Start": 0, "On Going": 1, "Ongoing": 1, "Completed": 2, "On Hold": 3, "Dropped": 4}
         status_text = payload["status"].value if hasattr(payload["status"], 'value') else payload["status"]
-        worklet.status_id = status_to_id.get(status_text, worklet.status_id)
+        worklet.status_id = get_status_id(status_text)
     if "domain" in payload and payload["domain"] is not None:
         try:
             worklet.tech_domain_id = int(str(payload["domain"]))
@@ -348,8 +345,10 @@ def get_mentor_worklets_by_email(mentor_email: str, db: Session = Depends(get_db
             "total_worklets": result["total_worklets"],
             "total_mentees": result["total_mentees"]
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.info(f"Error fetching mentor worklets: {e}")
+        logger.error(f"Error fetching mentor worklets for {mentor_email}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # ----------------- Students for Worklet -----------------

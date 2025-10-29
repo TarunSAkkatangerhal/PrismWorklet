@@ -9,6 +9,7 @@ import { getCurrentUser } from '../services/auth' // Secure authentication
 import { sanitizeInput } from '../utils/security' // Security utilities
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import LeftSidebar from '../components/Left'   // Persistent navigation rail (left)
 import RightSidebar from '../components/Right' // Ancillary widgets / future extensions (right)
 import StatCard from '../components/StatCard'  // Reusable compact statistic display card
@@ -82,6 +83,8 @@ const generateColorFromName = (name) => {
 }
 
 export default function Dashboard() {
+  useDocumentTitle('PRISM-home');
+  
   // -------------------------- STATE --------------------------
   // User identity / profile
   const [userName, setUserName] = useState('')
@@ -146,11 +149,6 @@ export default function Dashboard() {
         const allData = await getMentorAllWorkletsById(userProfileData.id)       // Full collection (statuses)
         const list = assocData?.ongoing_worklets || []
         
-        // Debug: Log first worklet to verify performance field from Performance column
-        if (list.length > 0) {
-          console.log('First worklet from backend:', list[0])
-          console.log('Performance field (from Performance column):', list[0].performance)
-        }
         
         // Normalize each worklet and preserve student names from backend
         const normalized = list.map((worklet) => {
@@ -745,8 +743,8 @@ function WorkletCard({ worklet, layout, navigate }) {
                 <h4>Assigned Students</h4>
               </div>
               <ul className="mt-[0.25vw] list-disc list-inside text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-200 space-y-[0.15vw]">
-                {worklet.students.map((student) => (
-                  <li key={student}>{student}</li>
+                {worklet.students.map((student, index) => (
+                  <li key={`${worklet.id}-student-${index}`}>{student}</li>
                 ))}
               </ul>
             </div>

@@ -1,12 +1,14 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 // --- Import your actual components from their files ---
 import RequestUpdate from '../layouts/Requestupdates'
 import SuggestionModal from '../layouts/SuggestionModal'
 import InternReferralForm from '../layouts/Intern'
-import FeedBack from '../layouts/FeedBack'
+import FeedbackForm from '../layouts/FeedbackForm'
 import LeftSidebar from '../../components/Left'
 import ProvideUpdateModal from '../components/ProvideUpdateModal'
 import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
@@ -201,6 +203,9 @@ export default function WorkletDetailPage() {
   const [worklet, setWorklet] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
+  // Dynamic title based on worklet data
+  useDocumentTitle(worklet ? `${worklet.title} - Worklet Details` : 'Worklet Details');
   const [activeTab, setActiveTab] = useState('overview')
   const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false)
   const [isProvideUpdateOpen, setIsProvideUpdateOpen] = useState(false) // Student version
@@ -225,15 +230,12 @@ export default function WorkletDetailPage() {
     mentorWorkletIds.includes(parseInt(id))
   
   // --- NEW ENHANCED STATE ---
-  const [darkMode, setDarkMode] = useState(false)
-  const [searchTeam, setSearchTeam] = useState('')
+  const [searchTeam] = useState('')
   const [expandedSections, setExpandedSections] = useState({
     problemStatement: true,
     expectations: true,
     prerequisites: true
   })
-  const [activityFilter, setActivityFilter] = useState('all')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
   // --- HELPER FUNCTIONS ---
   const getInitials = (name) => {
@@ -476,11 +478,6 @@ export default function WorkletDetailPage() {
       fetchWorklet()
     }
   }, [id, retryCount])
-
-  // --- EVENT HANDLERS ---
-  const handleNavigation = (path) => {
-    navigate(path)
-  }
 
   // --- BACK NAVIGATION HANDLER ---
   const handleGoBack = () => {
@@ -853,10 +850,6 @@ export default function WorkletDetailPage() {
     const [nextSteps, setNextSteps] = useState('')
     const [githubAccessible, setGithubAccessible] = useState(false)
     const [fileUpdatedOnGithub, setFileUpdatedOnGithub] = useState(false)
-    const [deliverableTitle, setDeliverableTitle] = useState('')
-    const [deliverableDescription, setDeliverableDescription] = useState('')
-    const [testResults, setTestResults] = useState('')
-    const [documentationUpdated, setDocumentationUpdated] = useState(false)
     const [selectedFile, setSelectedFile] = useState(null)
 
     const milestoneTypes = [
@@ -1001,10 +994,6 @@ export default function WorkletDetailPage() {
       setNextSteps('')
       setGithubAccessible(false)
       setFileUpdatedOnGithub(false)
-      setDeliverableTitle('')
-      setDeliverableDescription('')
-      setTestResults('')
-      setDocumentationUpdated(false)
       setSelectedFile(null)
     }
 
@@ -2701,13 +2690,15 @@ export default function WorkletDetailPage() {
       />
       
       {isFeedbackOpen && worklet && (
-        <FeedBack
+        <FeedbackForm
+          isOpen={isFeedbackOpen}
           onClose={() => setIsFeedbackOpen(false)}
           workletId={worklet.id}
           preSelectedWorklet={{
             id: worklet.id,
             title: worklet.title,
             cert_id: worklet.cert_id || worklet.title,
+            description: worklet.description,
             status: worklet.status,
             college: worklet.college,
             team: worklet.team,

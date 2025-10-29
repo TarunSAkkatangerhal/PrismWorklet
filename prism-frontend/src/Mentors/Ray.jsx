@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import RightSidebar from '../components/Right';
 import LeftSidebar from '../components/Left';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import {
   ArrowUp
 } from 'lucide-react';
 
 export default function Ray() {
-  const navigate = useNavigate();
+  useDocumentTitle('AI Assistant - Ray');
   const [inputText, setInputText] = useState('');
   const [opening, setOpening] = useState(true);
   const [typedText, setTypedText] = useState('');

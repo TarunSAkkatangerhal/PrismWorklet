@@ -5,19 +5,15 @@ import { useNavigate } from "react-router-dom";
 import secureAPI from '../services/secureAPI';
 import { getCurrentUser } from '../services/auth';
 import { sanitizeInput } from '../utils/security';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { 
   Calendar, 
   Users,
   ChevronRight,
   AlertCircle,
   CheckCircle,
-  Circle,
   BookOpen,
   Target,
-  Zap,
-  Rocket,
-  Key,
-  Crown,
   MapPin,
   List,
   ArrowRightLeft,
@@ -26,21 +22,6 @@ import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
 import StatCard from '../components/StatCard';
 import samsungLogo from '../assets/prism_logo.png';
-
-// Level thresholds based on worklet count
-const LEVEL_THRESHOLDS = [
-  { name: 'SPARK', Icon: Zap, color: 'text-yellow-500', threshold: 1 },
-  { name: 'LEAD', Icon: Rocket, color: 'text-blue-500', threshold: 3 },
-  { name: 'CORE', Icon: Key, color: 'text-green-500', threshold: 6 },
-  { name: 'MASTER', Icon: Crown, color: 'text-purple-500', threshold: 10 },
-];
-
-const levels = [
-  { name: 'SPARK', Icon: Zap, color: 'text-yellow-500' },
-  { name: 'LEAD', Icon: Rocket, color: 'text-blue-500' },
-  { name: 'CORE', Icon: Key, color: 'text-green-500' },
-  { name: 'MASTER', Icon: Crown, color: 'text-purple-500' },
-];
 
 // Helper to get initials from name
 const getInitials = (name) => {
@@ -60,24 +41,14 @@ const generateColorFromName = (name) => {
   return colors[Math.abs(hash % colors.length)];
 };
 
-// Helper to get current level from worklet count
-const getCurrentLevelFromWorklets = (workletCount) => {
-  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (workletCount >= LEVEL_THRESHOLDS[i].threshold) {
-      return i;
-    }
-  }
-  return -1;
-};
-
 export default function StudentDashboard() {
+  useDocumentTitle('PRISM-home');
   const navigate = useNavigate();
   
   // Real state management
   const [workletsData, setWorkletsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastFetched, setLastFetched] = useState(null);
   
   // User profile state
   const [userName, setUserName] = useState('');
@@ -154,7 +125,6 @@ export default function StudentDashboard() {
                    (worklet.percentage_completion !== undefined ? worklet.percentage_completion : 0),
         }));
         setWorkletsData(processedWorklets);
-        setLastFetched(new Date());
       } else {
         setWorkletsData([]);
       }
@@ -179,15 +149,6 @@ export default function StudentDashboard() {
   useEffect(() => {
     fetchWorklets();
   }, [fetchWorklets]);
-
-  // Status icon helper
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Ongoing': return <Circle className="w-4 h-4 text-blue-500 fill-current" />;
-      case 'Completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      default: return <Circle className="w-4 h-4 text-gray-400" />;
-    }
-  };
 
   // Filter worklets based on selected filter
   const processedWorklets = React.useMemo(() => {

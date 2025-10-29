@@ -5,13 +5,14 @@ import { useNavigate } from "react-router-dom";
 import prismLogo from "../assets/logo.jpeg";
 import prismLogoPng from "../assets/prism_logo.png";
 import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as apiSetPassword, login as secureLogin, getCurrentUserFromToken } from "../services/auth";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import Footer from "./Footer";
 export default function Login() {
+  useDocumentTitle('Prism-Login');
   const navigate = useNavigate();
   
   // States for interactive character
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-  const [isUsernameTyping, setIsUsernameTyping] = useState(false);
   
   // Auto-login on page load if tokens exist - Secure version
   useEffect(() => {
@@ -42,7 +43,6 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState(""); // New state for name
   const [otpSent, setOtpSent] = useState(false);
-  const [otpInput, setOtpInput] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -255,7 +255,6 @@ export default function Login() {
     setIsLoading(true);
     
     // Clear old OTP and enable verify button for resend
-    setOtpInput("");
     setOtp(['', '', '', '', '', '']);
     setIsVerifyOtpDisabled(false);
     
@@ -568,13 +567,10 @@ const handleSignup = async (e) => {
                         onChange={(e) => {
                           const newEmail = e.target.value.trim();
                           setEmail(newEmail);
-                          setIsUsernameTyping(newEmail.length > 0);
                           // Clear error when user starts typing
                           if (emailError) setEmailError("");
                         }}
-                        onFocus={() => setIsUsernameTyping(true)}
                         onBlur={() => {
-                          setIsUsernameTyping(email.length > 0);
                           // Validate on blur
                           const error = validateEmail(email);
                           setEmailError(error);
@@ -762,6 +758,7 @@ const handleSignup = async (e) => {
         );
 
       case "signup":
+        
         return (
           <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex">
             {/* Left Side - Logo with Content Overlay */}
@@ -929,7 +926,6 @@ const handleSignup = async (e) => {
                           value={email}
                           onChange={(e) => { 
                             setEmail(e.target.value); 
-                            setIsUsernameTyping(e.target.value.length > 0);
                             setEmailError(validateEmail(e.target.value));
                           }}
                           onBlur={(e) => setEmailError(validateEmail(e.target.value))}
@@ -1145,7 +1141,7 @@ const handleSignup = async (e) => {
 
                 <div className="mt-6 text-center">
                   <p className="text-slate-600 dark:text-slate-400">Already have an account?{' '}
-                    <button onClick={() => { setPage('login'); setOtpSent(false); setOtpInput(''); setOtp(['', '', '', '', '', '']); setOtpVerified(false); setMessage(''); }} className="text-blue-600 hover:text-blue-500 dark:text-blue-400">Login</button>
+                    <button onClick={() => { setPage('login'); setOtpSent(false); setOtp(['', '', '', '', '', '']); setOtpVerified(false); setMessage(''); }} className="text-blue-600 hover:text-blue-500 dark:text-blue-400">Login</button>
                   </p>
                 </div>
               </div>
@@ -1174,17 +1170,6 @@ const handleSignup = async (e) => {
     </div>
   );
 }
-
-// Helper to get access token from localStorage
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("access_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
-// Example: Use in protected API call
-// axios.get("http://localhost:8000/protected-endpoint", { headers: getAuthHeaders() })
-//   .then(response => { /* handle data */ })
-//   .catch(error => { /* handle error */ });
 
 // Add custom CSS animations
 const styles = `

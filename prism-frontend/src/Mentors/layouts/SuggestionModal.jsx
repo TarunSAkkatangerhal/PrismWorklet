@@ -21,15 +21,12 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
 
   // Auto-select worklet if preSelectedWorklet is provided
   useEffect(() => {
-    console.log('useEffect triggered - workletId:', workletId, 'preSelectedWorklet:', preSelectedWorklet);
     if (workletId) {
       // If workletId prop is provided, use it directly (it's the numeric ID)
-      console.log('Setting selectedWorklet from workletId:', workletId);
       setSelectedWorklet(workletId);
     } else if (preSelectedWorklet) {
       // Fallback to preSelectedWorklet
       const identifier = preSelectedWorklet.id || preSelectedWorklet.cert_id;
-      console.log('Setting selectedWorklet from preSelectedWorklet:', identifier);
       setSelectedWorklet(identifier);
     }
   }, [workletId, preSelectedWorklet]);
@@ -75,7 +72,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
   setWorklets(data);
       if ((data || []).length === 0) setError("No worklets found for this mentor");
     } catch (error) {
-      console.error("Error fetching worklets:", error);
       setError("Failed to load worklets. Please try again.");
     } finally {
       setLoading(false);
@@ -83,21 +79,13 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
   };
 
   const handleSubmit = async () => {
-    console.log('=== SUBMIT DEBUG ===');
-    console.log('selectedWorklet:', selectedWorklet);
-    console.log('suggestionTitle:', suggestionTitle);
-    console.log('autoMode:', autoMode);
-    console.log('worklets length:', worklets.length);
-    
     if (!selectedWorklet) {
-      console.log('ERROR: No worklet selected');
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
     }
 
     if (!suggestionTitle.trim() || !suggestionContent.trim()) {
-      console.log('ERROR: Missing title or content');
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
@@ -106,8 +94,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
     try {
       setLoading(true);
       const token = localStorage.getItem("access_token");
-
-      console.log('selectedWorklet value:', selectedWorklet, 'type:', typeof selectedWorklet);
 
       // Determine the worklet_id
       let worklet_id = null;
@@ -127,7 +113,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
             headers: { 'Authorization': `Bearer ${token}` }
           });
           worklet_id = workletResp.data.id;
-          console.log('Fetched worklet_id from cert_id:', worklet_id);
         } catch (err) {
           console.error('Failed to fetch worklet by cert_id:', err);
           throw new Error('Invalid worklet identifier');
@@ -138,8 +123,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         throw new Error('Invalid worklet identifier');
       }
 
-      console.log('Final worklet_id:', worklet_id);
-
       // Create suggestion in database
       const suggestionData = {
         worklet_id: worklet_id,
@@ -149,9 +132,7 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         priority: "medium"    // You can add a priority field if needed
       };
 
-      console.log('Submitting suggestion data:', suggestionData);
-
-      const response = await axios.post(
+      await axios.post(
         "http://localhost:8000/suggestions/",
         suggestionData,
         {
@@ -161,8 +142,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
           }
         }
       );
-
-      console.log('Suggestion saved successfully:', response.data);
       
       // Reset form
       setSelectedWorklet("");
@@ -178,8 +157,6 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
 
     } catch (error) {
       console.error("Error submitting suggestion:", error);
-      console.error("Error response:", error.response?.data);
-      console.error("Error status:", error.response?.status);
       setShowErrorPopup(true);
       setTimeout(() => setShowErrorPopup(false), 3000);
     } finally {
@@ -478,7 +455,7 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes progress {
           0% { width: 0%; }
           100% { width: 100%; }

@@ -62,7 +62,13 @@ def debug_summary(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Debug query failed")
 
 @router.get("/statistics")
-def get_dashboard_statistics(year: int | None = None, debug: bool | None = False, db: Session = Depends(get_db)):
+def get_dashboard_statistics(
+    year: int | None = None, 
+    domain: str | None = None,
+    team: str | None = None,
+    debug: bool | None = False, 
+    db: Session = Depends(get_db)
+):
     """Get platform-wide dashboard statistics.
     When a year is provided, compute KPIs scoped to that year using active-window semantics:
       - total_worklets: worklets active at any point in the year (overlap)
@@ -70,8 +76,11 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
       - ongoing_worklets: worklets active in the year and not completed/terminated within the year
       - total_mentors/students/professors: unique users associated to year-active worklets (by role)
       - publications: counts of papers/patents in that year
+    Supports optional domain and team filtering.
     Without year, returns overall totals.
     """
+    from app.models import TechDomain, TeamMG
+    
     today = date.today()
     selected_year = year
 
@@ -89,6 +98,21 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
     debug_info = {}
 
     try:
+        # Build base worklet query with domain and team filters
+        worklets_query = db.query(Worklet)
+        
+        # Apply domain filter if provided
+        if domain is not None and domain != "All":
+            domain_obj = db.query(TechDomain).filter(TechDomain.domain_name == domain).first()
+            if domain_obj:
+                worklets_query = worklets_query.filter(Worklet.tech_domain_id == domain_obj.id)
+        
+        # Apply team filter if provided
+        if team is not None and team != "All":
+            team_obj = db.query(TeamMG).filter(TeamMG.team_name == team).first()
+            if team_obj:
+                worklets_query = worklets_query.filter(Worklet.team_mg_id == team_obj.id)
+        
         if selected_year is None:
             # Count all mentors and students regardless of created_at or active_till
             mentors_list = db.query(User.id, User.name).filter(role_eq(User.role, "Mentor")).all()
@@ -99,9 +123,10 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
             total_students = len(students_list)
             total_professors = len(professors_list)
 
-            total_worklets = safe_count(db.query(Worklet))
-            completed_worklets = safe_count(db.query(Worklet).filter(getattr(Worklet, 'status_id') == 2))
-            ongoing_worklets = safe_count(db.query(Worklet).filter(getattr(Worklet, 'status_id') == 1))
+            # Use filtered worklets query
+            total_worklets = safe_count(worklets_query)
+            completed_worklets = safe_count(worklets_query.filter(getattr(Worklet, 'status_id') == 2))
+            ongoing_worklets = safe_count(worklets_query.filter(getattr(Worklet, 'status_id') == 1))
 
             # Debug: show distinct role distribution in Users table
             role_distribution = db.query(User.role, func.count(User.id)).group_by(User.role).all()
@@ -125,7 +150,8 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
             start_dt = datetime.combine(year_start, time.min)
             end_dt = datetime.combine(year_end, time.max)
 
-            worklets = db.query(Worklet).all()
+            # Use filtered worklets query
+            worklets = worklets_query.all()
 
             def effective_window(w: Worklet):
                 s = getattr(w, "start_date", None)
@@ -224,8 +250,7 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
         return result
     except Exception as e:
         import traceback
-        logger.error(f"Exception in get_dashboard_statistics:")
-        print(e)
+        logger.error(f"Exception in get_dashboard_statistics: {e}", exc_info=True)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
         mentor = db.query(User).filter(
@@ -303,6 +328,8 @@ def get_dashboard_statistics(year: int | None = None, debug: bool | None = False
 @router.get("/platform-monthly-trends")
 def get_platform_monthly_trends(
     year: int | None = None,
+    domain: str | None = None,
+    team: str | None = None,
     db: Session = Depends(get_db)
 ):
     """Platform-wide monthly trends for a given year.
@@ -311,10 +338,28 @@ def get_platform_monthly_trends(
       - completed: number of worklets whose end_date falls in that month
       - students: total student associations across active worklets for that month
     Uses Worklet.start_date and Worklet.end_date when available; if end missing, cap at today.
+    Supports optional domain and team filtering.
     """
     try:
+        from app.models import TechDomain, TeamMG
+        
         today = date.today()
         selected_year = year if year is not None else today.year
+
+        # Build base worklet query with domain and team filters
+        worklets_query = db.query(Worklet)
+        
+        # Apply domain filter if provided
+        if domain is not None and domain != "All":
+            domain_obj = db.query(TechDomain).filter(TechDomain.domain_name == domain).first()
+            if domain_obj:
+                worklets_query = worklets_query.filter(Worklet.tech_domain_id == domain_obj.id)
+        
+        # Apply team filter if provided
+        if team is not None and team != "All":
+            team_obj = db.query(TeamMG).filter(TeamMG.team_name == team).first()
+            if team_obj:
+                worklets_query = worklets_query.filter(Worklet.team_mg_id == team_obj.id)
 
         # Build month windows
         months: list[dict] = []
@@ -334,8 +379,8 @@ def get_platform_monthly_trends(
         for idx, m in enumerate(months):
             m["order"] = idx
 
-        # Pull all worklets
-        worklets = db.query(Worklet).all()
+        # Pull filtered worklets
+        worklets = worklets_query.all()
 
         # Precompute student counts per worklet
         worklet_ids = [w.id for w in worklets]
@@ -358,18 +403,13 @@ def get_platform_monthly_trends(
         for w in worklets:
             start_date_val = getattr(w, 'start_date', None)
             end_date_val = getattr(w, 'end_date', None)
-            status = str(getattr(w, 'status', ''))
+            status_id = getattr(w, 'status_id', None)
             w_year = getattr(w, 'year', None)
 
             # Effective start
             start_eff = start_date_val if start_date_val is not None else (date(w_year, 1, 1) if w_year else None)
             # Effective end
-            if status == 'Completed':
-                end_eff = end_date_val if end_date_val is not None else now_d
-                completed_date = getattr(w, 'completed_date', None)
-            else:
-                end_eff = end_date_val if end_date_val is not None else now_d
-                completed_date = None
+            end_eff = end_date_val if end_date_val is not None else now_d
 
             # Clamp to year
             if start_eff is not None and start_eff < year_start:
@@ -382,21 +422,19 @@ def get_platform_monthly_trends(
                 if active:
                     m['worklets'] += 1
                     m['students'] += student_counts.get(getattr(w, 'id', None), 0)
-                if completed_date is not None and (m['start'] <= completed_date <= m['end']):
+                # Count as completed if status is Completed (2) and end_date falls in this month
+                if status_id == 2 and end_date_val is not None and (m['start'] <= end_date_val <= m['end']):
                     m['completed'] += 1
 
-        # Years list from actual dates only (start_date, end_date, completed_date), capped to current year
+        # Years list from actual dates only (start_date, end_date), capped to current year
         years_set: set[int] = set()
         for w in worklets:
             sd = getattr(w, 'start_date', None)
             ed = getattr(w, 'end_date', None)
-            cd = getattr(w, 'completed_date', None)
             if sd is not None:
                 years_set.add(int(sd.year))
             if ed is not None:
                 years_set.add(int(ed.year))
-            if cd is not None:
-                years_set.add(int(cd.year))
         if not years_set:
             years_set.add(today.year)
         # Only include present years up to current year (no future, no filled gaps)
@@ -413,20 +451,40 @@ def get_platform_monthly_trends(
             "years": present_years
         }
     except Exception as e:
-        logger.info(f"Error computing platform monthly trends: {e}")
+        logger.error(f"Error computing platform monthly trends: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/platform-status-trends")
 def get_platform_status_trends(
     year: int | None = None,
+    domain: str | None = None,
+    team: str | None = None,
     db: Session = Depends(get_db)
 ):
     """Platform-wide monthly status trends for a given year.
     Excludes Dropped. Completed count in completion month; completed worklets count as ongoing in months before their completion.
+    Supports optional domain and team filtering.
     """
     try:
+        from app.models import TechDomain, TeamMG
+        
         today = date.today()
         selected_year = year if year is not None else today.year
+
+        # Build base worklet query with domain and team filters
+        worklets_query = db.query(Worklet)
+        
+        # Apply domain filter if provided
+        if domain is not None and domain != "All":
+            domain_obj = db.query(TechDomain).filter(TechDomain.domain_name == domain).first()
+            if domain_obj:
+                worklets_query = worklets_query.filter(Worklet.tech_domain_id == domain_obj.id)
+        
+        # Apply team filter if provided
+        if team is not None and team != "All":
+            team_obj = db.query(TeamMG).filter(TeamMG.team_name == team).first()
+            if team_obj:
+                worklets_query = worklets_query.filter(Worklet.team_mg_id == team_obj.id)
 
         # Build months
         months: list[dict] = []
@@ -447,7 +505,8 @@ def get_platform_status_trends(
         for idx, m in enumerate(months):
             m["order"] = idx
 
-        worklets = db.query(Worklet).all()
+        # Pull filtered worklets
+        worklets = worklets_query.all()
         now_d = date.today()
         year_start = date(selected_year, 1, 1)
         year_end = date(selected_year, 12, 31)
@@ -495,13 +554,10 @@ def get_platform_status_trends(
         for w in worklets:
             sd = getattr(w, 'start_date', None)
             ed = getattr(w, 'end_date', None)
-            cd = None
             if sd is not None:
                 years_set.add(int(sd.year))
             if ed is not None:
                 years_set.add(int(ed.year))
-            if cd is not None:
-                years_set.add(int(cd.year))
         if not years_set:
             years_set.add(today.year)
         present_years = sorted([y for y in years_set if y <= today.year])
@@ -511,5 +567,108 @@ def get_platform_status_trends(
             "years": present_years
         }
     except Exception as e:
-        logger.info(f"Error computing platform status trends: {e}")
+        logger.error(f"Error computing platform status trends: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/domains")
+def get_domains(
+    year: int | None = None,
+    db: Session = Depends(get_db)
+):
+    """Get all domains with optional year filtering.
+    Returns domains that have worklets in the specified year.
+    If no year is provided, returns all domains.
+    """
+    try:
+        from app.models import TechDomain
+        
+        if year is None:
+            # Return all domains
+            domains = db.query(TechDomain.domain_name).order_by(TechDomain.domain_name).all()
+            return {"domains": [d.domain_name for d in domains]}
+        
+        # Filter domains by year - get domains that have worklets active in that year
+        year_start = date(year, 1, 1)
+        year_end = date(year, 12, 31)
+        
+        # Get distinct domain IDs from worklets active in the year
+        domain_ids = db.query(Worklet.tech_domain_id).distinct().filter(
+            and_(
+                Worklet.start_date <= year_end,
+                or_(
+                    Worklet.end_date >= year_start,
+                    Worklet.end_date == None
+                )
+            )
+        ).all()
+        
+        domain_ids = [d[0] for d in domain_ids if d[0] is not None]
+        
+        if not domain_ids:
+            return {"domains": []}
+        
+        # Get domain names
+        domains = db.query(TechDomain.domain_name).filter(
+            TechDomain.id.in_(domain_ids)
+        ).order_by(TechDomain.domain_name).all()
+        
+        return {"domains": [d.domain_name for d in domains]}
+        
+    except Exception as e:
+        logger.error(f"Error getting domains: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/teams")
+def get_teams(
+    year: int | None = None,
+    domain: str | None = None,
+    db: Session = Depends(get_db)
+):
+    """Get all teams with optional year and domain filtering.
+    Returns teams that have worklets matching the filters.
+    Nested filtering: year -> domain -> team
+    """
+    try:
+        from app.models import TeamMG, TechDomain
+        
+        # Start with base query
+        query = db.query(Worklet.team_mg_id).distinct()
+        
+        # Apply year filter if provided
+        if year is not None:
+            year_start = date(year, 1, 1)
+            year_end = date(year, 12, 31)
+            query = query.filter(
+                and_(
+                    Worklet.start_date <= year_end,
+                    or_(
+                        Worklet.end_date >= year_start,
+                        Worklet.end_date == None
+                    )
+                )
+            )
+        
+        # Apply domain filter if provided
+        if domain is not None and domain != "All":
+            # Get domain ID from name
+            domain_obj = db.query(TechDomain).filter(TechDomain.domain_name == domain).first()
+            if domain_obj:
+                query = query.filter(Worklet.tech_domain_id == domain_obj.id)
+        
+        team_ids = query.all()
+        team_ids = [t[0] for t in team_ids if t[0] is not None]
+        
+        if not team_ids:
+            return {"teams": []}
+        
+        # Get team names
+        teams = db.query(TeamMG.team_name).filter(
+            TeamMG.id.in_(team_ids)
+        ).order_by(TeamMG.team_name).all()
+        
+        return {"teams": [t.team_name for t in teams]}
+        
+    except Exception as e:
+        logger.error(f"Error getting teams: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
