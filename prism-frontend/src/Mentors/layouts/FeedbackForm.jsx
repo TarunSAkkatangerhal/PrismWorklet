@@ -15,9 +15,37 @@ const allStages = [
   { value: 'ad_hoc', label: 'Ad-Hoc' }
 ];
 
-export default function FeedbackForm({ isOpen, onClose }) {
-  const [selectedWorklet, setSelectedWorklet] = useState("");
+/**
+ * Unified Feedback Form Component
+ * 
+ * @param {Object} props
+ * @param {boolean} props.isOpen - Controls modal visibility
+ * @param {function} props.onClose - Callback when modal closes
+ * @param {string|number} [props.workletId] - Pre-selected worklet ID (optional)
+ * @param {Object} [props.preSelectedWorklet] - Pre-selected worklet object (optional)
+ * 
+ * Usage:
+ * 1. Standalone mode (from Dashboard):
+ *    <FeedbackForm isOpen={isOpen} onClose={onClose} />
+ * 
+ * 2. Pre-selected mode (from Worklet Details):
+ *    <FeedbackForm isOpen={isOpen} onClose={onClose} workletId={123} />
+ *    OR
+ *    <FeedbackForm isOpen={isOpen} onClose={onClose} preSelectedWorklet={workletObj} />
+ */
+export default function FeedbackForm({ 
+  isOpen, 
+  onClose, 
+  workletId: propWorkletId, 
+  preSelectedWorklet 
+}) {
+  // Determine if we're in pre-selection mode
+  const hasPreSelection = !!(propWorkletId || preSelectedWorklet);
+  const preSelectedId = propWorkletId?.toString() || preSelectedWorklet?.id?.toString() || "";
+
+  const [selectedWorklet, setSelectedWorklet] = useState(preSelectedId);
   const [selectedStage, setSelectedStage] = useState("");
+  const [performanceIndicator, setPerformanceIndicator] = useState("");
   const [feedbackContent, setFeedbackContent] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [milestones, setMilestones] = useState([]);
@@ -28,11 +56,26 @@ export default function FeedbackForm({ isOpen, onClose }) {
   const [showWarningPopup, setShowWarningPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
 
+  // Update selectedWorklet when props change
   useEffect(() => {
-    if (isOpen) {
-      fetchWorklets();
+    if (propWorkletId) {
+      setSelectedWorklet(propWorkletId.toString());
+    } else if (preSelectedWorklet?.id) {
+      setSelectedWorklet(preSelectedWorklet.id.toString());
     }
-  }, [isOpen]);
+  }, [propWorkletId, preSelectedWorklet]);
+
+  // Fetch worklets when modal opens (only if not pre-selected)
+  useEffect(() => {
+    if (isOpen && !hasPreSelection) {
+      fetchWorklets();
+    } else if (isOpen && hasPreSelection) {
+      // If pre-selected, we still need to populate worklets array for display
+      if (preSelectedWorklet) {
+        setWorklets([preSelectedWorklet]);
+      }
+    }
+  }, [isOpen, hasPreSelection, preSelectedWorklet]);
 
   // Fetch milestones when worklet changes
   useEffect(() => {
@@ -136,7 +179,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
       return;
     }
 
-    if (!selectedStage || !feedbackContent.trim()) {
+    if (!selectedStage || !performanceIndicator || !feedbackContent.trim()) {
       setShowWarningPopup(true);
       setTimeout(() => setShowWarningPopup(false), 2500);
       return;
@@ -148,17 +191,20 @@ export default function FeedbackForm({ isOpen, onClose }) {
 
       const feedbackData = {
         worklet_id: parseInt(selectedWorklet, 10),
-        stage: selectedStage, // Send stage instead of month
+        stage: selectedStage,
+        performance_indicator: performanceIndicator,
         feedback_content: feedbackContent.trim()
       };
 
       const response = await apiClient.post('/worklets/submit-feedback', feedbackData);
 
       
-      
       // Reset form
-      setSelectedWorklet("");
+      if (!hasPreSelection) {
+        setSelectedWorklet("");
+      }
       setSelectedStage("");
+      setPerformanceIndicator("");
       setFeedbackContent("");
       setMilestones([]);
       setAvailableStages([]);
@@ -179,8 +225,11 @@ export default function FeedbackForm({ isOpen, onClose }) {
   };
 
   const handleClose = () => {
-    setSelectedWorklet("");
+    if (!hasPreSelection) {
+      setSelectedWorklet("");
+    }
     setSelectedStage("");
+    setPerformanceIndicator("");
     setFeedbackContent("");
     setMilestones([]);
     setAvailableStages([]);
@@ -189,6 +238,11 @@ export default function FeedbackForm({ isOpen, onClose }) {
   };
 
   if (!isOpen) return null;
+
+  // Get selected worklet details for display
+  const selectedWorkletDetails = worklets.find(
+    w => w.id?.toString() === selectedWorklet
+  ) || preSelectedWorklet;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-[70]">
@@ -199,10 +253,12 @@ export default function FeedbackForm({ isOpen, onClose }) {
         <div className="flex items-center justify-between mb-[clamp(1rem,2vh,1.5rem)]">
           <div>
             <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold text-gray-900 dark:text-white">
-              📝 Submit Feedback
+              📝 {hasPreSelection ? 'Provide Feedback' : 'Submit Feedback'}
             </h2>
             <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-gray-600 dark:text-gray-300 mt-[clamp(0.25rem,0.5vh,0.5rem)]">
-              Send feedback to all students in the selected worklet
+              {hasPreSelection 
+                ? 'Provide feedback for this worklet' 
+                : 'Send feedback to all students in the selected worklet'}
             </p>
           </div>
           <button
@@ -237,34 +293,50 @@ export default function FeedbackForm({ isOpen, onClose }) {
               <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
                 Select Worklet *
               </label>
-              <select
-                value={selectedWorklet}
-                onChange={(e) => setSelectedWorklet(e.target.value)}
-                className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                style={{
-                  maxWidth: '100%',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <option value="">Choose a worklet...</option>
-                {worklets.map((worklet) => {
-                  const displayText = `${worklet.cert_id} - ${worklet.description || worklet.title || ''}`;
-                  const truncatedText = displayText.length > 60 
-                    ? displayText.substring(0, 60) + '...' 
-                    : displayText;
-                  return (
-                    <option 
-                      key={worklet.id} 
-                      value={worklet.id}
-                      title={displayText}
-                    >
-                      {truncatedText}
-                    </option>
-                  );
-                })}
-              </select>
+              
+              {hasPreSelection ? (
+                // Display pre-selected worklet (read-only)
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3">
+                  <p className="text-gray-800 dark:text-gray-200 font-medium">
+                    {selectedWorkletDetails?.cert_id || selectedWorkletDetails?.title || 'Loading...'}
+                  </p>
+                  {selectedWorkletDetails?.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {selectedWorkletDetails.description}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                // Dropdown for worklet selection
+                <select
+                  value={selectedWorklet}
+                  onChange={(e) => setSelectedWorklet(e.target.value)}
+                  className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  style={{
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <option value="">Choose a worklet...</option>
+                  {worklets.map((worklet) => {
+                    const displayText = `${worklet.cert_id} - ${worklet.description || worklet.title || ''}`;
+                    const truncatedText = displayText.length > 60 
+                      ? displayText.substring(0, 60) + '...' 
+                      : displayText;
+                    return (
+                      <option 
+                        key={worklet.id} 
+                        value={worklet.id}
+                        title={displayText}
+                      >
+                        {truncatedText}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
             </div>
 
             {/* Stage Selection */}
@@ -305,6 +377,25 @@ export default function FeedbackForm({ isOpen, onClose }) {
               )}
             </div>
 
+            {/* Performance Indicator */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Performance Indicator *
+              </label>
+              <select
+                value={performanceIndicator}
+                onChange={(e) => setPerformanceIndicator(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                disabled={loading}
+              >
+                <option value="">Select performance level...</option>
+                <option value="Very Good">Very Good</option>
+                <option value="Good">Good</option>
+                <option value="Average">Average</option>
+                <option value="Poor">Poor</option>
+              </select>
+            </div>
+
             {/* Feedback Content */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -314,7 +405,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
                 value={feedbackContent}
                 onChange={(e) => setFeedbackContent(e.target.value)}
                 placeholder="Enter your detailed feedback here..."
-                rows={6}
+                rows={4}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
               />
               <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -431,7 +522,7 @@ export default function FeedbackForm({ isOpen, onClose }) {
                 Please fill in all required fields.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Worklet, stage, and content are required.
+                Worklet, stage, performance indicator, and content are required.
               </p>
             </div>
           </div>
