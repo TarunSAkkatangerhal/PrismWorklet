@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 export const useDocumentTitle = (title) => {
   useEffect(() => {
-    const baseTitle = 'PrismWorklet';
+    const baseTitle = 'Samsung Prism';
     
     if (title) {
       document.title = title;

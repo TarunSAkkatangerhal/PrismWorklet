@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -10,11 +10,60 @@ import {
   Search,
   ChevronRight,
   Building2,
+  Target,
+  Activity,
+  CheckCircle,
+  MapPin,
+  ExternalLink,
+  Loader,
+  Grid3X3,
+  X,
 } from "lucide-react";
 import LeftSidebar from "../../components/Left";
+import { ThemeContext } from "../../context/ThemeContext";
+import { motion, AnimatePresence } from "framer-motion";
+
+// Filter options configuration similar to dashboard_details
+const filterOptions = [
+  {
+    key: 'all',
+    label: 'All Worklets',
+    icon: Target,
+    color: 'blue',
+    description: 'All worklets in the system'
+  },
+  {
+    key: 'ongoing',
+    label: 'Ongoing',
+    icon: Activity,
+    color: 'yellow',
+    description: 'Currently active worklets'
+  },
+  {
+    key: 'completed',
+    label: 'Completed',
+    icon: CheckCircle,
+    color: 'green',
+    description: 'Successfully finished worklets'
+  },
+  {
+    key: 'onhold',
+    label: 'On Hold',
+    icon: Users,
+    color: 'orange',
+    description: 'Temporarily paused worklets'
+  },
+  {
+    key: 'dropped',
+    label: 'Dropped',
+    icon: X,
+    color: 'red',
+    description: 'Discontinued worklets'
+  }
+];
 
 // Status options for tabs (UI remains unchanged; no 'To Start' tab)
-const STATUS_OPTIONS = ["All", "Ongoing", "Completed", "On Hold", "Dropped"]; 
+
 
 // localStorage utility functions
 const STORAGE_KEY = 'worklets_view_state';
@@ -38,6 +87,7 @@ const loadViewState = () => {
 };
 export default function WorkletsPage() {
   useDocumentTitle('MyWorklets');
+  const { isDarkMode } = useContext(ThemeContext);
   const [workletsData, setWorkletsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,8 +100,8 @@ export default function WorkletsPage() {
   const urlParams = new URLSearchParams(location.search);
   const initialTabFromUrl = urlParams.get('tab');
   // Do NOT initialize activeTab from savedState to avoid persisting tab selection in localStorage
-  const [activeTab, setActiveTab] = useState(initialTabFromUrl || "Ongoing");
-  const [layout, setLayout] = useState(savedState?.layout || "grid");
+  const [activeFilter, setActiveFilter] = useState(initialTabFromUrl?.toLowerCase() || "all");
+  const [viewMode, setViewMode] = useState(savedState?.layout || "grid");
   const [searchTerm, setSearchTerm] = useState(savedState?.searchTerm || "");
 
   // If a URL param 'tab' was used to initialize activeTab, remove it from the address bar
@@ -191,11 +241,11 @@ export default function WorkletsPage() {
   // Persist view state changes to localStorage (do not persist activeTab)
   useEffect(() => {
     const viewState = {
-      layout,
+      layout: viewMode,
       searchTerm
     };
     saveViewState(viewState);
-  }, [layout, searchTerm]);
+  }, [viewMode, searchTerm]);
 
   // If a URL param 'tab' is present it was already read during initialization and used for activeTab.
 
@@ -207,16 +257,54 @@ export default function WorkletsPage() {
     }
   };
 
-  const filteredWorklets = workletsData.filter(worklet => {
-    const matchesTab = activeTab === "All" || worklet.status === activeTab;
-    const needle = searchTerm.toLowerCase();
-    const matchesSearch = !needle || worklet.title.toLowerCase().includes(needle) || (worklet.college || '').toLowerCase().includes(needle) || (worklet.category || '').toLowerCase().includes(needle) || (String(worklet.id)).toLowerCase().includes(needle);
-    return matchesTab && matchesSearch;
-  });
+  const filteredWorklets = useMemo(() => {
+    let filtered = [...workletsData];
+    
+    // Apply search filter first
+    if (searchTerm.trim()) {
+      const needle = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(worklet => 
+        worklet.title.toLowerCase().includes(needle) || 
+        (worklet.college || '').toLowerCase().includes(needle) || 
+        (worklet.category || '').toLowerCase().includes(needle) ||
+        String(worklet.id).toLowerCase().includes(needle)
+      );
+    }
 
-  const getTabCount = (status) => {
-    return status === "All" ? workletsData.length : workletsData.filter(w => w.status === status).length;
+    // Apply status filter
+    if (activeFilter !== 'all') {
+      const statusMap = {
+        'ongoing': 'Ongoing',
+        'completed': 'Completed', 
+        'onhold': 'On Hold',
+        'dropped': 'Dropped'
+      };
+      filtered = filtered.filter(w => w.status === statusMap[activeFilter]);
+    }
+
+    return filtered;
+  }, [workletsData, activeFilter, searchTerm]);
+
+
+
+  // Filter handling function
+  const handleFilterChange = (filterKey) => {
+    setActiveFilter(filterKey);
   };
+
+  // Get filtered count for each filter
+  const getFilteredCount = (filterKey) => {
+    if (filterKey === 'all') return workletsData.length;
+    const statusMap = {
+      'ongoing': 'Ongoing',
+      'completed': 'Completed',
+      'onhold': 'On Hold',
+      'dropped': 'Dropped'
+    };
+    return workletsData.filter(w => w.status === statusMap[filterKey]).length;
+  };
+
+
 
   if (loading) {
     return (
@@ -233,142 +321,219 @@ export default function WorkletsPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className={`flex h-screen font-sans ${
+      isDarkMode 
+        ? 'bg-slate-900' 
+        : 'bg-slate-50'
+    }`}>
       <LeftSidebar />
       
+      {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-5 dark:opacity-10 pointer-events-none">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto p-6">
+        <div className="max-w-7xl mx-auto p-4">
           
-          {/* Enhanced Header */}
-          <div className="mb-8 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20 dark:border-slate-700/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold text-black dark:text-white mb-3 flex items-center gap-4">
-                  Worklets Overview
-                  
-                  
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400 text-lg">
-                  Manage and track project progress across all teams
-                </p>
-                {error && (
-                  <div className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-4 py-2 rounded-lg">
-                    {error}
-                  </div>
-                )}
-              </div>
-              <div className="hidden lg:flex items-center space-x-4">
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-slate-900 dark:text-white">{workletsData.length}</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">Total Projects</div>
-                </div>
-                <div className="w-px h-12 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent"></div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-blue-600">{getTabCount("Ongoing")}</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">Active</div>
-                </div>
-                <div className="w-px h-12 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent"></div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-green-600">{getTabCount("Completed")}</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">Completed</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Enhanced Controls */}
-          <div className="flex flex-col lg:flex-row gap-6 mb-8">
+          {/* Compact Header Section */}
+          <div className={`${
+            isDarkMode 
+              ? 'bg-slate-800/90 border-slate-700/50' 
+              : 'bg-white border-slate-200/50'
+          } rounded-xl shadow-sm border p-4 mb-4`}>
             
-            {/* Enhanced Search */}
-            <div className="relative flex-1">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search worklets, colleges, or categories..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 border-0 rounded-2xl shadow-lg
-                           bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg
-                           text-slate-900 dark:text-slate-100 placeholder-slate-500
-                           focus:ring-2 focus:ring-blue-500/50 focus:shadow-xl
-                           transition-all duration-300"
-                />
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-indigo-500/10 opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+            {/* Optimized Header Layout */}
+            <div className="flex items-center justify-between">
+              {/* Left Side - Title */}
+              <div className="flex items-center gap-3">
+                <div>
+                  <h1 className={`text-4xl font-bold font-sans ${
+                    isDarkMode ? 'text-white' : 'text-black'
+                  }`}>
+                    My Worklets
+                  </h1>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                  }`}>
+                    Manage and track your project progress
+                </p>
+                </div>
               </div>
-            </div>
 
-            {/* Enhanced Layout Toggle */}
-            <div className="flex bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg rounded-2xl border border-white/20 dark:border-slate-700/50 p-2 shadow-lg">
-              <button
-                onClick={() => setLayout("grid")}
-                className={`p-3 rounded-xl transition-all duration-300 ${
-                  layout === "grid" 
-                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg transform scale-105" 
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
-              >
-                <LayoutGrid className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setLayout("list")}
-                className={`p-3 rounded-xl transition-all duration-300 ${
-                  layout === "list" 
-                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg transform scale-105" 
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
-              >
-                <List className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Enhanced Status Tabs */}
-          <div className="flex flex-wrap gap-2 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg rounded-2xl p-3 mb-8 border border-white/20 dark:border-slate-700/50 shadow-lg">
-            {STATUS_OPTIONS.map((status) => (
-              <button
-                key={status}
-                onClick={() => setActiveTab(status)}
-                className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                  activeTab === status
-                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg transform scale-105"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50 hover:shadow-md"
-                }`}
-              >
-                <span className="text-sm font-medium">{status}</span>
-                <span className={`px-3 py-1 text-xs font-bold rounded-full ${
-                  activeTab === status 
-                    ? "bg-white/20 text-white backdrop-blur-sm"
-                    : "bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 text-slate-700 dark:text-slate-300"
+              {/* Right Side - Worklet Counts */}
+              <div className="flex items-center gap-4">
+                <div className={`text-center p-3 rounded-lg ${
+                  isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'
                 }`}>
-                  {getTabCount(status)}
-                </span>
-              </button>
-            ))}
+                  <div className={`text-2xl font-bold ${
+                    isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                  }`}>
+                    {workletsData.length}
+                  </div>
+                  <div className={`text-xs font-medium ${
+                    isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                  }`}>
+                    Total
+                  </div>
+                </div>
+                
+                <div className={`text-center p-3 rounded-lg ${
+                  isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'
+                }`}>
+                  <div className={`text-2xl font-bold ${
+                    isDarkMode ? 'text-yellow-400' : 'text-yellow-600'
+                  }`}>
+                    {workletsData.filter(w => w.status === 'Ongoing').length}
+                  </div>
+                  <div className={`text-xs font-medium ${
+                    isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                  }`}>
+                    Active
+                  </div>
+                </div>
+                
+                <div className={`text-center p-3 rounded-lg ${
+                  isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'
+                }`}>
+                  <div className={`text-2xl font-bold ${
+                    isDarkMode ? 'text-green-400' : 'text-green-600'
+                  }`}>
+                    {workletsData.filter(w => w.status === 'Completed').length}
+                  </div>
+                  <div className={`text-xs font-medium ${
+                    isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                  }`}>
+                    Completed
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            
+            {error && (
+              <div className={`mt-4 p-3 rounded-lg border ${
+                isDarkMode 
+                  ? 'bg-red-900/20 border-red-700/50 text-red-300' 
+                  : 'bg-red-50 border-red-200 text-red-600'
+              }`}>
+                {error}
+              </div>
+            )}
           </div>
 
-          {/* Enhanced Worklets Grid/List */}
-          {layout === "grid" ? (
+          {/* Search and View Controls */}
+          <div className={`flex items-center justify-between mb-6 p-4 rounded-lg ${
+            isDarkMode 
+              ? 'bg-slate-800/80 border-slate-700/50' 
+              : 'bg-white border-slate-200/50'
+          } border shadow-sm`}>
+            
+            {/* Search */}
+            <div className="relative flex-1 max-w-md">
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                isDarkMode ? 'text-slate-400' : 'text-slate-500'
+              }`} />
+              <input
+                type="text"
+                placeholder="Search worklets..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-colors ${
+                  isDarkMode 
+                    ? 'bg-slate-700/50 border-slate-600/50 text-slate-200 placeholder-slate-400 focus:border-slate-500 focus:ring-slate-500/20' 
+                    : 'bg-white/80 border-slate-300/50 text-slate-700 placeholder-slate-500 focus:border-purple-400 focus:ring-purple-400/20'
+                } focus:ring-2 focus:outline-none`}
+              />
+            </div>
+
+            {/* View Toggle */}
+            <div className={`flex rounded-lg overflow-hidden border ${
+              isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'
+            }`}>
+              <motion.button
+                onClick={() => setViewMode("grid")}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  viewMode === "grid"
+                    ? isDarkMode
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-purple-500 text-white'
+                    : isDarkMode
+                      ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                      : 'bg-white/80 text-slate-600 hover:bg-slate-50'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Grid3X3 size={16} />
+              </motion.button>
+              <motion.button
+                onClick={() => setViewMode("list")}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  viewMode === "list"
+                    ? isDarkMode
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-purple-500 text-white'
+                    : isDarkMode
+                      ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                      : 'bg-white/80 text-slate-600 hover:bg-slate-50'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <List size={16} />
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Filter Options */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            {filterOptions.map((option) => {
+              const isActive = activeFilter === option.key;
+              const count = getFilteredCount(option.key);
+              
+              return (
+                <motion.button
+                  key={option.key}
+                  onClick={() => handleFilterChange(option.key)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? isDarkMode
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-purple-500 text-white'
+                      : isDarkMode
+                        ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                        : 'bg-white/80 text-slate-600 hover:bg-slate-50'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <option.icon size={16} />
+                  <span>{option.label}</span>
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    isActive
+                      ? 'bg-white/20 text-white'
+                      : isDarkMode
+                        ? 'bg-slate-600 text-slate-300'
+                        : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {count}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Worklets Display */}
+          {viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredWorklets.map((worklet, index) => (
                 <Link key={worklet.id + ':' + index} to={`/worklet/${worklet.linkId || worklet.id}`}>
-                  <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-slate-700/50 
-                                hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 hover:border-blue-300/50 dark:hover:border-blue-600/50 
-                                group cursor-pointer hover:-translate-y-2 hover:scale-[1.02] transform-gpu"
+                  <div className="h-[480px] flex flex-col bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 
+                                cursor-pointer shadow-sm"
                        style={{ animationDelay: `${index * 100}ms` }}>
                     
                     {/* Gradient Accent */}
-                    <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 rounded-t-2xl"></div>
+                    <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 rounded-t-2xl flex-shrink-0"></div>
                     
                     {/* Card Header */}
-                    <div className="p-8 pb-6">
+                    <div className="flex-1 p-6 pb-4 flex flex-col">
                       <div className="flex items-start mb-4">
                         <div className="flex items-center space-x-3">
                           <span className="px-3 py-1 text-xs font-mono font-bold bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 rounded-lg">
@@ -377,17 +542,16 @@ export default function WorkletsPage() {
                         </div>
                       </div>
                       
-                      <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-3 line-clamp-2 
-                                   group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 leading-tight">
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-2 line-clamp-2 leading-tight">
                         {worklet.title}
                       </h3>
                       
-                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-6 leading-relaxed">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3 mb-4 leading-relaxed flex-1">
                         {worklet.description}
                       </p>
 
                       {/* Enhanced Progress Bar */}
-                      <div className="mb-6">
+                      <div className="mb-4">
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-slate-600 dark:text-slate-400 font-medium">Progress</span>
                           <span className="font-bold text-slate-900 dark:text-slate-100">{worklet.progress}%</span>
@@ -414,7 +578,7 @@ export default function WorkletsPage() {
                     </div>
 
                     {/* Enhanced Card Footer */}
-                    <div className="px-8 py-6 bg-gradient-to-r from-slate-50/80 to-white/80 dark:from-slate-700/30 dark:to-slate-800/50 
+                    <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-slate-50/80 to-white/80 dark:from-slate-700/30 dark:to-slate-800/50 
                                   border-t border-slate-200/50 dark:border-slate-600/50 rounded-b-2xl backdrop-blur-sm">
                       <div className="flex items-center justify-between text-sm mb-3">
                         <div className="flex items-center space-x-4">
@@ -431,8 +595,7 @@ export default function WorkletsPage() {
                             <span className="font-medium">{worklet.endDate}</span>
                           </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 
-                                               transition-all duration-300 group-hover:translate-x-1" />
+                        <ChevronRight className="w-5 h-5 text-slate-400" />
                       </div>
                       
                       <div className="flex items-center space-x-2 text-slate-500 dark:text-slate-400">
@@ -447,10 +610,10 @@ export default function WorkletsPage() {
           )
           //list view with enhancements
           : (
-            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-slate-700/50 shadow-2xl overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-700 dark:to-slate-600">
+                  <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
                       <th className="px-8 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                         Worklet
@@ -556,7 +719,7 @@ export default function WorkletsPage() {
               <button 
                 onClick={() => {
                   setSearchTerm(""); 
-                  setActiveTab("All");
+                  setActiveFilter("all");
                 }}
                 className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-xl 
                          hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105"

@@ -8,7 +8,7 @@ import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as 
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import Footer from "./Footer";
 export default function Login() {
-  useDocumentTitle('Prism');
+  useDocumentTitle('Prism-Login');
   const navigate = useNavigate();
   
   // States for interactive character
@@ -758,6 +758,7 @@ const handleSignup = async (e) => {
         );
 
       case "signup":
+        
         return (
           <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex">
             {/* Left Side - Logo with Content Overlay */}

@@ -7,7 +7,7 @@ import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import Footer from "./Footer";
 
 export default function ForgotPassword() {
-  useDocumentTitle('Prism');
+  useDocumentTitle('Prism-Login');
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
