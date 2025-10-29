@@ -330,14 +330,14 @@ export default function WorkletsPage() {
       
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-4">
+        <div className="max-w-none mx-0 p-4 pl-6">
           
           {/* Compact Header Section */}
           <div className={`${
             isDarkMode 
-              ? 'bg-slate-800/90 border-slate-700/50' 
-              : 'bg-white border-slate-200/50'
-          } rounded-xl shadow-sm border p-4 mb-4`}>
+              ? 'bg-gradient-to-r from-slate-800/80 via-slate-700/50 to-slate-800/80 backdrop-blur-sm border-slate-700/50' 
+              : 'bg-gradient-to-r from-white/80 via-purple-50/50 to-indigo-50/30 backdrop-blur-sm border-purple-200/30'
+          } rounded-2xl shadow-lg border p-4 mb-4`}>
             
             {/* Optimized Header Layout */}
             <div className="flex items-center justify-between">
@@ -422,24 +422,24 @@ export default function WorkletsPage() {
           <div className={`flex items-center justify-between mb-6 p-4 rounded-lg ${
             isDarkMode 
               ? 'bg-slate-800/80 border-slate-700/50' 
-              : 'bg-white border-slate-200/50'
+              : 'bg-white/60 border-slate-200/50'
           } border shadow-sm`}>
             
             {/* Search */}
-            <div className="relative flex-1 max-w-md">
-              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                isDarkMode ? 'text-slate-400' : 'text-slate-500'
+            <div className="relative flex-1">
+              <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-500'
               }`} />
               <input
                 type="text"
-                placeholder="Search worklets..."
+                placeholder="Search worklets by title, college, domain, or description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-colors ${
+                className={`w-full pl-12 pr-4 py-2.5 rounded-xl border transition-all duration-200 ${
                   isDarkMode 
-                    ? 'bg-slate-700/50 border-slate-600/50 text-slate-200 placeholder-slate-400 focus:border-slate-500 focus:ring-slate-500/20' 
-                    : 'bg-white/80 border-slate-300/50 text-slate-700 placeholder-slate-500 focus:border-purple-400 focus:ring-purple-400/20'
-                } focus:ring-2 focus:outline-none`}
+                    ? 'bg-slate-800/50 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20' 
+                    : 'bg-white/70 border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
+                } backdrop-blur-sm`}
               />
             </div>
 
@@ -492,14 +492,14 @@ export default function WorkletsPage() {
                 <motion.button
                   key={option.key}
                   onClick={() => handleFilterChange(option.key)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? isDarkMode
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-purple-500 text-white'
+                        ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
+                        : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
                       : isDarkMode
-                        ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
-                        : 'bg-white/80 text-slate-600 hover:bg-slate-50'
+                        ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-gradient-to-r hover:from-gray-800/40 hover:to-gray-700/40 hover:text-white'
+                        : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 hover:text-gray-800'
                   }`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -510,8 +510,8 @@ export default function WorkletsPage() {
                     isActive
                       ? 'bg-white/20 text-white'
                       : isDarkMode
-                        ? 'bg-slate-600 text-slate-300'
-                        : 'bg-slate-200 text-slate-700'
+                        ? 'bg-gray-800/30 text-gray-300'
+                        : 'bg-gray-100/80 text-gray-700'
                   }`}>
                     {count}
                   </span>
@@ -521,86 +521,87 @@ export default function WorkletsPage() {
           </div>
 
           {/* Worklets Display */}
-          {viewMode === "grid" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredWorklets.map((worklet, index) => (
-                <Link key={worklet.id + ':' + index} to={`/worklet/${worklet.linkId || worklet.id}`}>
-                  <div className="h-[480px] flex flex-col bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 
-                                cursor-pointer shadow-sm"
-                       style={{ animationDelay: `${index * 100}ms` }}>
+          <div className={`${
+            isDarkMode 
+              ? 'bg-gradient-to-br from-slate-800/80 via-slate-700/50 to-slate-800/80 backdrop-blur-sm border-slate-700/50' 
+              : 'bg-gradient-to-br from-white/80 via-purple-50/30 to-indigo-50/20 backdrop-blur-sm border-purple-200/30'
+          } rounded-2xl shadow-lg border overflow-hidden p-6`}>
+            
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredWorklets.map((worklet, index) => (
+                  <Link key={worklet.id + ':' + index} to={`/worklet/${worklet.linkId || worklet.id}`}>
+                    <div className="h-[320px] flex flex-col bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-xl border border-white/20 dark:border-slate-700/50 
+                                  cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:border-purple-300/50 dark:hover:border-purple-600/50 
+                                  group hover:-translate-y-1 transform-gpu"
+                         style={{ animationDelay: `${index * 100}ms` }}>
                     
                     {/* Gradient Accent */}
-                    <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 rounded-t-2xl flex-shrink-0"></div>
+                    <div className="h-1 bg-gradient-to-r from-purple-500 via-purple-500 to-indigo-500 rounded-t-2xl flex-shrink-0"></div>
                     
                     {/* Card Header */}
-                    <div className="flex-1 p-6 pb-4 flex flex-col">
-                      <div className="flex items-start mb-4">
+                    <div className="flex-1 p-4 pb-3 flex flex-col">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-3">
-                          <span className="px-3 py-1 text-xs font-mono font-bold bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 rounded-lg">
+                          <span className="px-2 py-1 text-xs font-mono font-bold bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 rounded-md">
                             {worklet.id}
                           </span>
                         </div>
+                        {/* Status Badge at top right */}
+                        <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold shadow-md ${getStatusColor(worklet.status)}`}>
+                          {worklet.status}
+                        </span>
                       </div>
                       
-                      <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-2 line-clamp-2 leading-tight">
+                      <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 mb-2 line-clamp-2 leading-tight">
                         {worklet.title}
                       </h3>
                       
-                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3 mb-4 leading-relaxed flex-1">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-4 mb-3 leading-relaxed flex-1">
                         {worklet.description}
                       </p>
 
                       {/* Enhanced Progress Bar */}
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm mb-2">
+                      <div className="mb-3">
+                        <div className="flex justify-between text-sm mb-1">
                           <span className="text-slate-600 dark:text-slate-400 font-medium">Progress</span>
                           <span className="font-bold text-slate-900 dark:text-slate-100">{worklet.progress}%</span>
                         </div>
-                        <div className="w-full bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-full h-3 shadow-inner">
+                        <div className="w-full bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-full h-2 shadow-inner">
                           <div 
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full shadow-lg transition-all duration-700 relative overflow-hidden"
+                            className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2 rounded-full shadow-lg transition-all duration-700 relative overflow-hidden"
                             style={{ width: `${worklet.progress}%` }}
                           >
                             <div className="absolute inset-0 bg-white/30 animate-pulse"></div>
                           </div>
                         </div>
                       </div>
-
-                      {/* Enhanced Status Badge */}
-                      <div className="flex items-center justify-between">
-                        <span className={`inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold shadow-lg ${getStatusColor(worklet.status)}`}>
-                          {worklet.status}
-                        </span>
-                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                          {worklet.category}
-                        </div>
-                      </div>
                     </div>
 
                     {/* Enhanced Card Footer */}
-                    <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-slate-50/80 to-white/80 dark:from-slate-700/30 dark:to-slate-800/50 
+                    <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-slate-50/80 to-white/80 dark:from-slate-700/30 dark:to-slate-800/50 
                                   border-t border-slate-200/50 dark:border-slate-600/50 rounded-b-2xl backdrop-blur-sm">
-                      <div className="flex items-center justify-between text-sm mb-3">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2 text-slate-600 dark:text-slate-400">
-                            <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                              <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-1 text-slate-600 dark:text-slate-400">
+                            <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
+                              <Users className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                             </div>
-                            <span className="font-medium">{worklet.students}</span>
+                            <span className="font-medium text-xs">{worklet.students}</span>
                           </div>
-                          <div className="flex items-center space-x-2 text-slate-600 dark:text-slate-400">
-                            <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                              <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                          <div className="flex items-center space-x-1 text-slate-600 dark:text-slate-400">
+                            <div className="p-1 bg-indigo-100 dark:bg-indigo-900/30 rounded-md">
+                              <Calendar className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                             </div>
-                            <span className="font-medium">{worklet.endDate}</span>
+                            <span className="font-medium text-xs">{worklet.endDate}</span>
                           </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                        <ChevronRight className="w-4 h-4 text-slate-400" />
                       </div>
                       
-                      <div className="flex items-center space-x-2 text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center space-x-1 text-slate-500 dark:text-slate-400">
                         <Building2 className="w-3 h-3" />
-                        <span className="truncate font-medium">{worklet.college}</span>
+                        <span className="truncate font-medium text-xs">{worklet.college}</span>
                       </div>
                     </div>
                   </div>
@@ -728,6 +729,7 @@ export default function WorkletsPage() {
               </button>
             </div>
           )}
+        </div>
         </div>
       </main>
     </div>
