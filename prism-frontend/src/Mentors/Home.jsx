@@ -185,7 +185,7 @@ export default function Dashboard() {
             title: worklet.cert_id || worklet.title || 'Untitled Worklet',
             status,
             progress: progressVal,
-            description: worklet.description || 'No description available',
+            description: worklet.description || worklet.problem_statement || worklet.title || 'No description available',
             startDateISO: startISO,
             endDateISO: endISO,
             startDate: startDisplay,

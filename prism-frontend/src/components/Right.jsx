@@ -189,7 +189,7 @@ const RightSidebar = () => {
         onClose={() => setIsFeedbackFormOpen(false)}
       />
       {isInternModalOpen && (
-        <div className="fixed inset-0 flex items-start justify-center bg-black bg-opacity-40 z-50 p-4 overflow-y-auto">
+        <div className="fixed inset-0 flex items-start justify-center bg-black bg-opacity-40 backdrop-blur-sm z-50 p-4 overflow-y-auto">
           <div className="relative w-full max-w-3xl bg-white rounded-xl mt-10 mb-10 dark:bg-slate-900">
             <div className=" top-0 right-0 flex justify-end bg-white rounded-t-xl p-2 dark:bg-slate-900">
               <button
