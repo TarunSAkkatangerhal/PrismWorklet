@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Loader2, CheckCircle2, Send, Download, FileText } from "lucide-react";
+import { Loader2, CheckCircle2, Send, Download, FileText, X } from "lucide-react";
 import axios from "axios";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // -----------  }, [formData.studentName, students]);
 
@@ -257,18 +259,32 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
     e.preventDefault();
     setStatus("submitting");
     
+    // Get current mentor info
+    const currentMentor = getCurrentMentor();
+    
+    // Prepare submission data
+    const dataToSubmit = {
+      ...formData,
+      mentorName: currentMentor.mentorName,
+      mentorEmail: currentMentor.mentorEmail,
+      submittedAt: new Date().toISOString()
+    };
+    
     // Simulate submission delay for better UX
     setTimeout(() => {
-      // Just show success without any complex logic
+      // Save submitted data for download
+      setSubmittedData(dataToSubmit);
+      // Show success without any complex logic
       setStatus("success");
       setShowSuccessPopup(true);
       
-      // Hide popup after 3 seconds
-      setTimeout(() => {
-        setShowSuccessPopup(false);
-        setStatus("idle");
-      }, 3000);
+      // Remove automatic hide - let user close manually
     }, 1000);
+  };
+
+  const handleCloseSuccessPopup = () => {
+    setShowSuccessPopup(false);
+    setStatus("idle");
   };
   
   const criteriaOptions = [
@@ -417,7 +433,14 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
       {showSuccessPopup && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
           <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full transform animate-bounce">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full">
+            <button
+              onClick={handleCloseSuccessPopup}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
+              aria-label="Close"
+            >
+              <X size={24} />
+            </button>
             <div className="flex items-center justify-center mb-6">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900">
                 <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -427,6 +450,12 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">✅ Referral Submitted!</h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">Your referral has been submitted successfully!</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">The referral will be reviewed by our team.</p>
+              <button
+                onClick={handleCloseSuccessPopup}
+                className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -440,28 +469,244 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
 // ----------------------------------------------------------------------------------
 function SuccessScreen({ submittedData, onReset }) {
   const handleDownload = () => {
-    // This function can be implemented to generate and download a text file or PDF
-    const content = `
-      Intern Referral Summary
-      -------------------------
-      Mentor: ${submittedData.mentorName} (${submittedData.mentorEmail})
-      Student: ${submittedData.studentName} (${submittedData.studentEmail})
-      College: ${submittedData.studentCollege}
-      Worklet ID: ${submittedData.workletId}
+    const doc = new jsPDF();
+    
+    // Define colors matching the form
+    const primaryBlue = [37, 99, 235]; // blue-600
+    const lightBlue = [219, 234, 254]; // blue-100
+    const darkGray = [55, 65, 81]; // gray-700
+    const lightGray = [243, 244, 246]; // gray-100
+    const mediumGray = [156, 163, 175]; // gray-400
+    const borderGray = [209, 213, 219]; // gray-300
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPos = 15;
+    
+    // Add border around the page
+    doc.setDrawColor(147, 197, 253); // blue-300
+    doc.setLineWidth(1);
+    doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
+    
+    // Title Section - Matching form title
+    doc.setFillColor(...primaryBlue);
+    doc.rect(15, yPos, pageWidth - 30, 15, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INTERN REFERRAL FORM', pageWidth / 2, yPos + 10, { align: 'center' });
+    yPos += 20;
+    
+    // Subtitle
+    doc.setTextColor(...darkGray);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const subtitle = 'This form allows you to refer a PRISM mentee for our internship process.';
+    const subtitle2 = "Your referral will be reviewed by our team and we'll reach out if the profile aligns with our criteria.";
+    doc.text(subtitle, pageWidth / 2, yPos, { align: 'center', maxWidth: pageWidth - 40 });
+    yPos += 5;
+    doc.text(subtitle2, pageWidth / 2, yPos, { align: 'center', maxWidth: pageWidth - 40 });
+    yPos += 12;
+    
+    // Section: Mentor Information
+    doc.setFillColor(...primaryBlue);
+    doc.rect(15, yPos, pageWidth - 30, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Mentor Information', 20, yPos + 5);
+    yPos += 10;
+    
+    // Mentor Details - Form-like layout with borders
+    const fieldHeight = 10;
+    const colWidth = (pageWidth - 36) / 2;
+    
+    // Mentor Name Field
+    doc.setDrawColor(...borderGray);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1);
+    doc.setFillColor(...lightGray);
+    doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1, 'F');
+    doc.setTextColor(...darkGray);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(submittedData.mentorName || '', 17, yPos + 6.5);
+    
+    // Mentor Email Field
+    doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1);
+    doc.setFillColor(...lightGray);
+    doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1, 'F');
+    doc.text(submittedData.mentorEmail || '', 20 + colWidth, yPos + 6.5);
+    
+    yPos += fieldHeight + 8;
+    
+    // Section: PRISM Mentee Information
+    doc.setFillColor(...primaryBlue);
+    doc.rect(15, yPos, pageWidth - 30, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PRISM Mentee Information', 20, yPos + 5);
+    yPos += 10;
+    
+    // Row 1: Worklet ID and Student Name
+    // Worklet ID
+    doc.setDrawColor(...borderGray);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1, 'F');
+    doc.setTextColor(...darkGray);
+    doc.setFontSize(9);
+    doc.text(submittedData.workletId || '', 17, yPos + 6.5);
+    
+    // Student Name
+    doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1, 'F');
+    doc.text(submittedData.studentName || '', 20 + colWidth, yPos + 6.5);
+    
+    yPos += fieldHeight + 3;
+    
+    // Row 2: Student Email and Student College
+    // Student Email (read-only style)
+    doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1);
+    doc.setFillColor(...lightGray);
+    doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1, 'F');
+    doc.setTextColor(...mediumGray);
+    doc.text(submittedData.studentEmail || 'Student Email (auto-filled)', 17, yPos + 6.5);
+    
+    // Student College (read-only style)
+    doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1);
+    doc.setFillColor(...lightGray);
+    doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1, 'F');
+    doc.text(submittedData.studentCollege || 'Student College (auto-filled)', 20 + colWidth, yPos + 6.5);
+    
+    yPos += fieldHeight + 8;
+    
+    // Section: Referral Criteria
+    doc.setFillColor(...primaryBlue);
+    doc.rect(15, yPos, pageWidth - 30, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Referral Criteria', 20, yPos + 5);
+    yPos += 10;
+    
+    // Criteria mapping for full descriptions (ALL criteria from form)
+    const criteriaMap = {
+      exemplary: "Exemplary Performance: Consistently exceeds expectations.",
+      teamwork: "Teamwork: Works collaboratively and contributes to team success.",
+      leadership: "Leadership: Demonstrates leadership and initiative.",
+      innovation: "Innovation: Suggests new ideas or methods that help improve the worklet.",
+      problemSolving: "Problem-Solving Ability: Approaches challenges with logical thinking.",
+      positiveAttitude: "Positive Attitude: Maintains a positive attitude and morale within the team.",
+      communication: "Communication: Expresses ideas and concerns clearly.",
+      learningAgility: "Learning Agility: Picks up new skills or tools quickly and applies feedback to improve."
+    };
+    
+    // Create ALL criteria checkboxes (showing both checked and unchecked)
+    const allCriteria = Object.entries(criteriaMap);
+    const selectedCriteria = submittedData.referralCriteria || [];
+    
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...darkGray);
+    
+    allCriteria.forEach(([key, description]) => {
+      const isChecked = selectedCriteria.includes(key);
       
-      Criteria Selected:
-      ${submittedData.referralCriteria.join(', ')}
+      // Draw checkbox border (always show)
+      doc.setDrawColor(...borderGray);
+      doc.setLineWidth(0.3);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(18, yPos - 2.5, 3.5, 3.5, 0.3, 0.3, 'FD');
       
-      Reason:
-      ${submittedData.reason}
-    `;
-    const blob = new Blob([content.trim()], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Referral_${submittedData.studentName.replace(' ', '_')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+      // Draw checkmark if selected
+      if (isChecked) {
+        doc.setFillColor(...primaryBlue);
+        doc.circle(19.75, yPos - 0.75, 1.2, 'F');
+      }
+      
+      // Draw description text
+      const splitText = doc.splitTextToSize(description, pageWidth - 45);
+      doc.setTextColor(...darkGray);
+      doc.text(splitText, 24, yPos);
+      yPos += Math.max(5.5, splitText.length * 4.5);
+    });
+    
+    yPos += 3;
+    
+    // Check if we need a new page for the reason section
+    if (yPos > pageHeight - 70) {
+      doc.addPage();
+      // Redraw border on new page
+      doc.setDrawColor(147, 197, 253);
+      doc.setLineWidth(1);
+      doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
+      yPos = 20;
+    }
+    
+    // Section: Reason for Referring
+    doc.setFillColor(...primaryBlue);
+    doc.rect(15, yPos, pageWidth - 30, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Reason for Referring', 20, yPos + 5);
+    yPos += 10;
+    
+    // Reason text box - Large textarea style matching the form
+    const textAreaHeight = 35;
+    doc.setDrawColor(...borderGray);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, yPos, pageWidth - 30, textAreaHeight, 1, 1);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(15, yPos, pageWidth - 30, textAreaHeight, 1, 1, 'F');
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...darkGray);
+    
+    // Handle long text with proper wrapping
+    const reasonText = doc.splitTextToSize(
+      submittedData.reason || 'Please provide a detailed explanation...', 
+      pageWidth - 36
+    );
+    
+    // Only show first lines that fit in the box
+    const lineHeight = 4;
+    const maxLines = Math.floor((textAreaHeight - 4) / lineHeight);
+    const displayText = reasonText.slice(0, maxLines);
+    
+    doc.text(displayText, 17, yPos + 5);
+    
+    yPos += textAreaHeight + 5;
+    
+    // Footer with submission timestamp
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.setFont('helvetica', 'italic');
+    const timestamp = submittedData.submittedAt 
+      ? new Date(submittedData.submittedAt).toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })
+      : new Date().toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+    doc.text(`Submitted on: ${timestamp}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
+    
+    // Save the PDF
+    const fileName = `Internship_Referral_${submittedData.studentName?.replace(/\s+/g, '_') || 'Student'}.pdf`;
+    doc.save(fileName);
   };
 
   return (
