@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, CheckCircle2, Send, Download, FileText, X } from "lucide-react";
 import axios from "axios";
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
-// -----------  }, [formData.studentName, students]);
+// -----------
 
   // ----------------------------------------------------------------------------------
 // 1. API FUNCTIONS 
@@ -262,12 +262,18 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
     // Get current mentor info
     const currentMentor = getCurrentMentor();
     
+    // Get worklet details for PDF
+    const workletDetails = preSelectedWorklet || 
+      (selectedWorkletObj || worklets.find(w => String(w.id ?? w.cert_id) === String(formData.workletId)));
+    
     // Prepare submission data
     const dataToSubmit = {
       ...formData,
       mentorName: currentMentor.mentorName,
       mentorEmail: currentMentor.mentorEmail,
-      submittedAt: new Date().toISOString()
+      submittedAt: new Date().toISOString(),
+      workletCertId: workletDetails?.cert_id || formData.workletId,
+      workletTitle: workletDetails?.title || workletDetails?.description || ''
     };
     
     // Simulate submission delay for better UX
@@ -530,13 +536,13 @@ function SuccessScreen({ submittedData, onReset }) {
     doc.setTextColor(...darkGray);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(submittedData.mentorName || '', 17, yPos + 6.5);
+    doc.text(String(submittedData.mentorName || ''), 17, yPos + 6.5);
     
     // Mentor Email Field
     doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1);
     doc.setFillColor(...lightGray);
     doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1, 'F');
-    doc.text(submittedData.mentorEmail || '', 20 + colWidth, yPos + 6.5);
+    doc.text(String(submittedData.mentorEmail || ''), 20 + colWidth, yPos + 6.5);
     
     yPos += fieldHeight + 8;
     
@@ -550,7 +556,7 @@ function SuccessScreen({ submittedData, onReset }) {
     yPos += 10;
     
     // Row 1: Worklet ID and Student Name
-    // Worklet ID
+    // Worklet Cert ID with Title
     doc.setDrawColor(...borderGray);
     doc.setLineWidth(0.3);
     doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1);
@@ -558,13 +564,18 @@ function SuccessScreen({ submittedData, onReset }) {
     doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1, 'F');
     doc.setTextColor(...darkGray);
     doc.setFontSize(9);
-    doc.text(submittedData.workletId || '', 17, yPos + 6.5);
+    const workletDisplay = submittedData.workletTitle
+      ? `${String(submittedData.workletCertId || submittedData.workletId || '')} - ${String(submittedData.workletTitle)}`
+      : String(submittedData.workletCertId || submittedData.workletId || '');
+    // Truncate if too long to fit in field
+    const truncatedWorklet = doc.splitTextToSize(workletDisplay, colWidth - 4);
+    doc.text(truncatedWorklet[0], 17, yPos + 6.5);
     
     // Student Name
     doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1);
     doc.setFillColor(255, 255, 255);
     doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1, 'F');
-    doc.text(submittedData.studentName || '', 20 + colWidth, yPos + 6.5);
+    doc.text(String(submittedData.studentName || ''), 20 + colWidth, yPos + 6.5);
     
     yPos += fieldHeight + 3;
     
@@ -574,13 +585,13 @@ function SuccessScreen({ submittedData, onReset }) {
     doc.setFillColor(...lightGray);
     doc.roundedRect(15, yPos, colWidth, fieldHeight, 1, 1, 'F');
     doc.setTextColor(...mediumGray);
-    doc.text(submittedData.studentEmail || 'Student Email (auto-filled)', 17, yPos + 6.5);
+    doc.text(String(submittedData.studentEmail || 'Student Email (auto-filled)'), 17, yPos + 6.5);
     
     // Student College (read-only style)
     doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1);
     doc.setFillColor(...lightGray);
     doc.roundedRect(18 + colWidth, yPos, colWidth, fieldHeight, 1, 1, 'F');
-    doc.text(submittedData.studentCollege || 'Student College (auto-filled)', 20 + colWidth, yPos + 6.5);
+    doc.text(String(submittedData.studentCollege || 'Student College (auto-filled)'), 20 + colWidth, yPos + 6.5);
     
     yPos += fieldHeight + 8;
     
@@ -670,7 +681,7 @@ function SuccessScreen({ submittedData, onReset }) {
     
     // Handle long text with proper wrapping
     const reasonText = doc.splitTextToSize(
-      submittedData.reason || 'Please provide a detailed explanation...', 
+      String(submittedData.reason || 'Please provide a detailed explanation...'), 
       pageWidth - 36
     );
     
@@ -705,7 +716,7 @@ function SuccessScreen({ submittedData, onReset }) {
     doc.text(`Submitted on: ${timestamp}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
     
     // Save the PDF
-    const fileName = `Internship_Referral_${submittedData.studentName?.replace(/\s+/g, '_') || 'Student'}.pdf`;
+    const fileName = `Internship_Referral_${String(submittedData.studentName || 'Student').replace(/\s+/g, '_')}.pdf`;
     doc.save(fileName);
   };
 
