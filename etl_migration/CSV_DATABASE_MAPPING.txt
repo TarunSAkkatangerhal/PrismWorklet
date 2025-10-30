@@ -1,0 +1,227 @@
+CSV TO DATABASE MAPPING
+========================
+
+COLLEGES TABLE
+--------------
+CSV Column          → DB Column
+College             → college_name
+(not in CSV)        → location (NULL)
+(not in CSV)        → established (NULL)
+(not in CSV)        → infrastructure (NULL)
+(not in CSV)        → area_of_expertise (NULL)
+
+
+USERS TABLE
+-----------
+CSV Column          → DB Column                    → Notes
+-----------------------------------------------------------------------------
+Mentor1             → name                         → For mentors (3 mentors per row)
+Mentor2             → name
+Mentor3             → name
+Mentor1EmailID      → email                        → Unique identifier
+Mentor2EmailID      → email
+Mentor3EmailID      → email
+Mentor1Contact      → (not mapped to users table)  → Could go to user_profiles
+Mentor2Contact      → (not mapped to users table)
+Mentor3Contact      → (not mapped to users table)
+(hardcoded)         → password_hash                → Always 'dummyhash'
+(hardcoded)         → role                         → 'Mentor'
+College             → college_id (via lookup)      → References colleges table
+(hardcoded)         → is_active                    → Always 1 for mentors
+
+Prof1Name           → name                         → For professors (4 professors per row)
+Prof2Name           → name
+Prof3Name           → name
+Prof4Name           → name
+Prof1EmailID        → email
+Prof2EmailID        → email
+Prof3EmailID        → email
+Prof4EmailID        → email
+Prof1Contact        → (not mapped to users table)
+Prof2Contact        → (not mapped to users table)
+Prof3Contact        → (not mapped to users table)
+Prof4Contact        → (not mapped to users table)
+(hardcoded)         → role                         → 'Professor'
+(hardcoded)         → is_active                    → Always 1 for professors
+
+Student1Name        → name                         → For students (8 students per row)
+Student2Name        → name
+Student3Name        → name
+Student4Name        → name
+Student5Name        → name
+Student6Name        → name
+Student7Name        → name
+Student8Name        → name
+Student1EmailID     → email
+Student2EmailID     → email
+Student3EmailID     → email
+Student4EmailID     → email
+Student5EmailID     → email
+Student6EmailID     → email
+Student7EmailID     → email
+Student8EmailID     → email
+Student1Contact     → (not mapped to users table)
+Student2Contact     → (not mapped to users table)
+Student3Contact     → (not mapped to users table)
+Student4Contact     → (not mapped to users table)
+Student5Contact     → (not mapped to users table)
+Student6Contact     → (not mapped to users table)
+Student7Contact     → (not mapped to users table)
+Student8Contact     → (not mapped to users table)
+ACTIVE_1            → is_active (1 if 'YES', else 0)
+ACTIVE_2            → is_active
+ACTIVE_3            → is_active
+ACTIVE_4            → is_active
+ACTIVE_5            → is_active
+ACTIVE_6            → is_active
+ACTIVE_7            → is_active
+ACTIVE_8            → is_active
+(hardcoded)         → role                         → 'Student'
+
+
+PRISM_WORKLET TABLE
+-------------------
+CSV Column          → DB Column                    → Notes
+-----------------------------------------------------------------------------
+WorkletDescription  → Title                        → Main title
+StatusID            → StatusID                     → Foreign key to status table
+Mentor1EmailID      → CreatedMentorID (via lookup) → References users.user_id
+College             → CollegeID (via lookup)       → References colleges.college_id
+AssignedDate        → StartDate                    → Uses datetime.now() if NULL
+CreatedOn           → CreatedOn                    → Uses datetime.now() if NULL
+RiskStatus          → RiskStatus                   → Nullable
+PerformanceStatus   → Performance                  → Nullable
+(hardcoded)         → IsActive                     → Always 1
+ImagePath           → ImagePath                    → Defaults to empty string ''
+ProblemStmt         → ProblemStmt                  → Defaults to empty string ''
+Expectations        → Expectations                 → Defaults to empty string ''
+Prerequest          → Prerequest                   → Defaults to empty string ''
+TechDomainID        → TechDomainID                 → Defaults to 1 if missing/0
+(hardcoded/default) → Progress                     → Defaults to 0
+EndDate             → EndDate                      → Defaults to StartDate + 180 days
+CertID              → CertID                       → Nullable, unique
+TeamID              → TeamMGID                     → Direct mapping from CSV TeamID to TeamMGID
+GitPath             → GitHubUrl                    → Direct mapping from CSV
+
+
+TEAMMG TABLE
+------------
+NOT POPULATED FROM CSV - TeamID from CSV is inserted directly into Prism_Worklet.TeamMGID
+TeamMG table should be pre-populated with existing team records in the database.
+
+
+USER_WORKLET_ASSOCIATION TABLE
+------------------------------
+CSV Column          → DB Column                    → Notes
+-----------------------------------------------------------------------------
+Mentor1EmailID      → user_id (via lookup)        → Links user to worklet
+Mentor2EmailID      → user_id (via lookup)
+Mentor3EmailID      → user_id (via lookup)
+TeamName            → WorkletID (via lookup)      → Mapped using TeamName to find WorkletID
+(hardcoded)         → role_in_worklet             → 'Mentor'
+
+Prof1EmailID        → user_id (via lookup)
+Prof2EmailID        → user_id (via lookup)
+Prof3EmailID        → user_id (via lookup)
+Prof4EmailID        → user_id (via lookup)
+TeamName            → WorkletID (via lookup)
+(hardcoded)         → role_in_worklet             → 'Professor'
+
+Student1EmailID     → user_id (via lookup)
+Student2EmailID     → user_id (via lookup)
+Student3EmailID     → user_id (via lookup)
+Student4EmailID     → user_id (via lookup)
+Student5EmailID     → user_id (via lookup)
+Student6EmailID     → user_id (via lookup)
+Student7EmailID     → user_id (via lookup)
+Student8EmailID     → user_id (via lookup)
+TeamName            → WorkletID (via lookup)
+(hardcoded)         → role_in_worklet             → 'Student'
+
+
+UNUSED CSV COLUMNS
+------------------
+These columns exist in the CSV but are NOT currently mapped to any database table:
+
+- WorkletID (old ID, new auto-increment used)
+- TeamID (CSV column, but TeamMGID is auto-generated from TeamName)
+- GroupID
+- GroupName
+- PartName
+- PartID
+- Year
+- Group
+- Phase
+- Professors (count?)
+- Students (count?)
+- Mentees (count?)
+- Prof1Designation
+- Prof2Designation
+- Prof3Designation
+- Prof4Designation
+- Prof1Department
+- Prof2Department
+- Prof3Department
+- Prof4Department
+- Mentor1Access
+- Mentor2Access
+- OldGit
+- RepoLink
+- RequestedPath
+- Studentscreatedfolder
+
+
+DEFAULT/HARDCODED VALUES
+------------------------
+TechDomainID = 1 (if missing)
+TeamMGID = 1 (if missing)
+StatusID = 10 (Ongoing) - if not in CSV
+IsActive = 1 (for worklets)
+password_hash = 'dummyhash' (for all users)
+Progress = 0 (if missing)
+ImagePath = '' (if missing)
+ProblemStmt = '' (if missing)
+Expectations = '' (if missing)
+Prerequest = '' (if missing)
+
+
+SUMMARY OF USED CSV COLUMNS
+----------------------------
+✓ College
+✓ WorkletDescription
+✓ StatusID
+✓ AssignedDate
+✓ EndDate
+✓ CreatedOn
+✓ RiskStatus
+✓ PerformanceStatus
+✓ CertID
+✓ TechDomainID (if present)
+✓ TeamMGID (if present)
+✓ ImagePath (if present)
+✓ ProblemStmt (if present)
+✓ Expectations (if present)
+✓ Prerequest (if present)
+
+✓ Mentor1, Mentor1EmailID, Mentor1Contact
+✓ Mentor2, Mentor2EmailID, Mentor2Contact
+✓ Mentor3, Mentor3EmailID, Mentor3Contact
+
+✓ Prof1Name, Prof1EmailID, Prof1Contact
+✓ Prof2Name, Prof2EmailID, Prof2Contact
+✓ Prof3Name, Prof3EmailID, Prof3Contact
+✓ Prof4Name, Prof4EmailID, Prof4Contact
+
+✓ Student1Name, Student1EmailID, Student1Contact
+✓ Student2Name, Student2EmailID, Student2Contact
+✓ Student3Name, Student3EmailID, Student3Contact
+✓ Student4Name, Student4EmailID, Student4Contact
+✓ Student5Name, Student5EmailID, Student5Contact
+✓ Student6Name, Student6EmailID, Student6Contact
+✓ Student7Name, Student7EmailID, Student7Contact
+✓ Student8Name, Student8EmailID, Student8Contact
+
+✓ ACTIVE_1, ACTIVE_2, ACTIVE_3, ACTIVE_4, ACTIVE_5, ACTIVE_6, ACTIVE_7, ACTIVE_8
+
+✓ TeamName (stored in TeamMG table and referenced via TeamMGID)
+✓ GitPath (mapped to GitHubUrl)
