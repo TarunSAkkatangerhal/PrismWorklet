@@ -167,6 +167,9 @@ const CollapsibleSection = ({ title, children, isExpanded, onToggle, icon }) => 
 
 // --- Team Member Card Component ---
 const TeamMemberCard = ({ member, role = "Team Member", avatar }) => {
+  // Handle both string format (legacy) and object format (new)
+  const memberName = typeof member === 'string' ? member : (member?.name || member?.email || 'Unknown');
+  
   const getInitials = (name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase()
   }
@@ -178,16 +181,16 @@ const TeamMemberCard = ({ member, role = "Team Member", avatar }) => {
       <div className="flex items-center gap-3">
         <div className="relative">
           {avatar ? (
-            <img src={avatar} alt={member} className="w-12 h-12 rounded-full object-cover" />
+            <img src={avatar} alt={memberName} className="w-12 h-12 rounded-full object-cover" />
           ) : (
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-500 
                            flex items-center justify-center text-white font-bold text-sm">
-              {getInitials(member)}
+              {getInitials(memberName)}
             </div>
           )}
         </div>
         <div className="flex-grow">
-          <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{member}</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{memberName}</h4>
         </div>
       </div>
     </div>
@@ -1802,9 +1805,10 @@ export default function WorkletDetailPage() {
     }
   }
 
-  const filteredTeamMembers = worklet?.students?.filter(member =>
-    member.toLowerCase().includes(searchTeam.toLowerCase())
-  ) || []
+  const filteredTeamMembers = worklet?.students?.filter(member => {
+    const memberName = typeof member === 'string' ? member : (member?.name || member?.email || '');
+    return memberName.toLowerCase().includes(searchTeam.toLowerCase());
+  }) || []
 
   // --- RENDER ---
   return (
