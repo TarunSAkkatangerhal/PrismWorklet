@@ -231,7 +231,7 @@ class WorkletService:
         # Add students if requested
         if include_students:
             students = get_worklet_students(db, worklet.id)
-            response["students"] = [s.name for s in students if s.name]
+            response["students"] = [{"id": s.id, "name": s.name, "email": s.email} for s in students]
             response["student_count"] = len(students)
         
         # Add mentors if requested
@@ -355,7 +355,7 @@ class WorkletService:
                 "worklet_progress": getattr(worklet, "worklet_progress", None),
                 "percentage_completion": percentage_completion,
                 "performance": performance,
-                "students": [s.name for s in students if s.name],
+                "students": [{"id": s.id, "name": s.name, "email": s.email} for s in students],
                 "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
                 "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
                 "github_repo_url": github_url,

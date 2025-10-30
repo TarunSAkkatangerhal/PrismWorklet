@@ -702,7 +702,7 @@ const Colleges = () => {
   useDocumentTitle('College Analytics');
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   
   // Initialize state from URL params, then fallback to location.state, then defaults
   const [collegeSearch, setCollegeSearch] = useState(() => {
@@ -1864,7 +1864,7 @@ const Colleges = () => {
       <AnimationStyles />
       <LeftSidebar />
       
-      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
+      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="max-w-7xl mx-auto">{renderCurrentView()}</div>
       </main>
       <ChartModal chartInfo={enlargedChartInfo} onClose={() => setEnlargedChartInfo(null)} />
