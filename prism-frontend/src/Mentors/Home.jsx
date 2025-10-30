@@ -305,11 +305,6 @@ export default function Dashboard() {
                 {/* Refined glass chips row */}
                 <div className="mt-[0.8vw] flex flex-wrap gap-[0.5vw]">
                   
-                  {userProfileData?.college && (
-                    <span className="px-3 py-1.5 rounded-full text-[clamp(0.65rem,0.85vw,0.8rem)] bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 backdrop-blur dark:text-indigo-200">
-                      {userProfileData.college}
-                    </span>
-                  )}
                   
                   
                 </div>
@@ -335,7 +330,7 @@ export default function Dashboard() {
                   } else if (levelsToGo === 0) {
                     tooltipText = idx === levels.length - 1 ? 'Highest level achieved! ✨' : `You are here (${totalWorkletsCount} worklets)`;
                   } else {
-                    tooltipText = `Milestone achieved ✅)`;
+                    tooltipText = `${level.name} achieved ✅`;
                   }
                   // Spark dot: filled if user has at least one worklet
                   let filled;
