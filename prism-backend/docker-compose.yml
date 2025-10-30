@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: prismtest
+      MYSQL_DATABASE: prism_db
       MYSQL_USER: prism
       MYSQL_PASSWORD: prism
     ports:

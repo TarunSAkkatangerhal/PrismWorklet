@@ -1762,6 +1762,16 @@ export default function WorkletDetailPage() {
     const perf = worklet.performance
     if (!perf && perf !== 0) return null
     
+    // Check if performance is numeric (1-5 rating scale)
+    const numPerf = parseInt(perf)
+    if (!isNaN(numPerf)) {
+      if (numPerf === 5) return 'Very Good'
+      if (numPerf === 4) return 'Good'
+      if (numPerf === 3) return 'Average'
+      if (numPerf === 2) return 'Poor'
+      if (numPerf === 1) return 'Very Poor'
+    }
+    
     // Normalize backend value (case-insensitive)
     const p = String(perf).toLowerCase().trim()
     if (p.includes('excel')) return 'Excellence'
@@ -1775,9 +1785,16 @@ export default function WorkletDetailPage() {
   const getPerformanceColor = (performance) => {
     switch (performance) {
       case 'Excellence':
+      case 'Very Good':
         return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
       case 'Good':
         return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+      case 'Average':
+        return 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white'
+      case 'Poor':
+        return 'bg-gradient-to-r from-orange-500 to-red-600 text-white'
+      case 'Very Poor':
+        return 'bg-gradient-to-r from-red-600 to-red-700 text-white'
       case 'Needs Attention':
         return 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white'
       default:
@@ -1860,9 +1877,10 @@ export default function WorkletDetailPage() {
                       {/* Performance Badge - Only show if backend provides quality/performance */}
                       {getWorkletPerformance(worklet) && (
                         <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
-                          {getWorkletPerformance(worklet) === 'Excellence' && <Award size={16} className="mr-2" />}
+                          {(getWorkletPerformance(worklet) === 'Excellence' || getWorkletPerformance(worklet) === 'Very Good') && <Award size={16} className="mr-2" />}
                           {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
-                          {getWorkletPerformance(worklet) === 'Needs Attention' && <AlertCircle size={16} className="mr-2" />}
+                          {getWorkletPerformance(worklet) === 'Average' && <Activity size={16} className="mr-2" />}
+                          {(getWorkletPerformance(worklet) === 'Poor' || getWorkletPerformance(worklet) === 'Very Poor' || getWorkletPerformance(worklet) === 'Needs Attention') && <AlertCircle size={16} className="mr-2" />}
                           {getWorkletPerformance(worklet)}
                         </span>
                       )}
