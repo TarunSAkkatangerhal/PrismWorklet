@@ -51,6 +51,7 @@ import {
   Zap,
   Star
 } from 'lucide-react'
+import { interpolate } from 'framer-motion'
 
 // --- Enhanced Activity Button Component ---
 const ActivityButton = ({ icon, label, onClick, badge, status, disabled = false }) => {
@@ -111,7 +112,6 @@ const EnhancedProgressBar = ({ progress, size = "md", showPercentage = true, ani
     md: 'h-3',
     lg: 'h-4'
   }
-
   return (
     <div className="space-y-2">
       {showPercentage && (
@@ -2735,7 +2735,7 @@ export default function WorkletDetailPage() {
                           shadow-2xl border border-white/20 dark:border-gray-600/20 flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50 flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                INTERN REFERRAL FORM
+                
               </h2>
               <button
                 onClick={() => setIsInternModalOpen(false)}
