@@ -1,0 +1,7 @@
+StatusID,StatusName
+0,"To Start"
+1,OnGoing
+2,Completed
+3,"On Hold"
+4,Dropped
+10,Ongoing
