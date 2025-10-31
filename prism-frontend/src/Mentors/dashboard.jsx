@@ -171,26 +171,23 @@ const ModernStatisticsDashboard = () => {
   // This replaces the hardcoded `const isDarkMode = true;`
   const { isDarkMode } = useContext(ThemeContext)
 
-  // Custom scrollbar styles - Hidden
+  // Custom scrollbar styles
   React.useEffect(() => {
     const style = document.createElement('style')
     style.textContent = `
       .custom-scrollbar::-webkit-scrollbar {
-        height: 0px;
-        display: none;
+        height: 8px;
       }
       .custom-scrollbar::-webkit-scrollbar-track {
-        display: none;
+        background: ${isDarkMode ? '#374151' : '#f1f5f9'};
+        border-radius: 4px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        display: none;
+        background: ${isDarkMode ? '#6b7280' : '#cbd5e1'};
+        border-radius: 4px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        display: none;
-      }
-      .custom-scrollbar {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
+        background: ${isDarkMode ? '#9ca3af' : '#94a3b8'};
       }
     `
     document.head.appendChild(style)
@@ -646,7 +643,7 @@ const ModernStatisticsDashboard = () => {
       }`}>
       <LeftSidebar />
 
-      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 ">
         <header className="flex justify-between items-center mb-[3vh]">
           <div>
             <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">

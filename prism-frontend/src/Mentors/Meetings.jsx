@@ -875,6 +875,31 @@ const Meetings = () => {
     }
   }, [showRepeatDaysDropdown]);
 
+  // Helper function to fetch worklet details with participant count
+  const fetchWorkletParticipants = async (workletId) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`http://localhost:8000/worklets/${workletId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch worklet details');
+      }
+      
+      const data = await response.json();
+      const studentCount = data.students?.length || 0;
+      const professorCount = data.professors?.length || 0;
+      return studentCount + professorCount;
+    } catch (error) {
+      console.error(`Failed to fetch participants for worklet ${workletId}:`, error);
+      return 5; // Fallback estimate
+    }
+  };
+
   // Data fetching functions
   const fetchColleges = async () => {
     try {
@@ -909,27 +934,47 @@ const Meetings = () => {
       }
       
       // Filter out cancelled meetings and transform backend data to frontend format
-      const transformedMeetings = data
-        .filter(meeting => meeting.status !== 'cancelled')
-        .map(meeting => {
-        return {
-          id: meeting.meeting_id,
-          title: meeting.title,
-          date: formatMeetingDateForDisplay(meeting.start_datetime, meeting.duration_minutes),
-          datetime: meeting.start_datetime,
-          duration: meeting.duration_minutes,
-          workletCode: meeting.worklets?.map(w => w.worklet_cert_id || w.worklet_id).join(', ') || '',
-          worklets: meeting.worklets || [],
-          college: meeting.college_name,
-          participants: (meeting.worklets?.length || 0) * 5, // Estimate
-          meetingLink: meeting.meeting_link,
-          organizer: meeting.organizer_name,
-          status: meeting.status,
-          repeat_days: meeting.repeat_days,
-          repeat_until: meeting.repeat_until,
-          description: meeting.description
-        };
-      });
+      const transformedMeetings = await Promise.all(
+        data
+          .filter(meeting => meeting.status !== 'cancelled')
+          .map(async (meeting) => {
+          
+          // Fetch actual participant counts for each worklet
+          let totalParticipants = 0;
+          if (meeting.worklets && meeting.worklets.length > 0) {
+            const participantCounts = await Promise.all(
+              meeting.worklets.map(async (worklet) => {
+                const workletId = worklet.worklet_id || worklet.id;
+                if (workletId) {
+                  return await fetchWorkletParticipants(workletId);
+                }
+                return 5; // Fallback estimate
+              })
+            );
+            totalParticipants = participantCounts.reduce((sum, count) => sum + count, 0);
+          }
+          
+          console.log(`📊 Meeting "${meeting.title}": ${totalParticipants} total participants`);
+          
+          return {
+            id: meeting.meeting_id,
+            title: meeting.title,
+            date: formatMeetingDateForDisplay(meeting.start_datetime, meeting.duration_minutes),
+            datetime: meeting.start_datetime,
+            duration: meeting.duration_minutes,
+            workletCode: meeting.worklets?.map(w => w.worklet_cert_id || w.worklet_id).join(', ') || '',
+            worklets: meeting.worklets || [],
+            college: meeting.college_name,
+            participants: totalParticipants,
+            meetingLink: meeting.meeting_link,
+            organizer: meeting.organizer_name,
+            status: meeting.status,
+            repeat_days: meeting.repeat_days,
+            repeat_until: meeting.repeat_until,
+            description: meeting.description
+          };
+        })
+      );
       
       setMeetings(transformedMeetings);
       setError(null);
