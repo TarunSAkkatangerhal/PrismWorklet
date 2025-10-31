@@ -954,8 +954,6 @@ const Meetings = () => {
             totalParticipants = participantCounts.reduce((sum, count) => sum + count, 0);
           }
           
-          console.log(`📊 Meeting "${meeting.title}": ${totalParticipants} total participants`);
-          
           return {
             id: meeting.meeting_id,
             title: meeting.title,
@@ -1194,18 +1192,6 @@ const Meetings = () => {
       // Get timezone offset and adjust for it
       const timezoneOffset = localDateTime.getTimezoneOffset();
       const adjustedDateTime = new Date(localDateTime.getTime() - (timezoneOffset * 60000));
-      
-      // Debug logging
-      console.log('Reschedule Debug:', {
-        rescheduleDate,
-        rescheduleHour,
-        rescheduleMinute,
-        localDateTime,
-        timezoneOffset,
-        adjustedDateTime,
-        finalISO: adjustedDateTime.toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      });
       
       const rescheduleData = {
         start_datetime: adjustedDateTime.toISOString(), // Send timezone-adjusted ISO string
@@ -2083,19 +2069,6 @@ const Meetings = () => {
                   const timezoneOffset = localDateTime.getTimezoneOffset();
                   const adjustedDateTime = new Date(localDateTime.getTime() - (timezoneOffset * 60000));
                   
-                  // Debug logging
-                  console.log('Meeting Creation Debug:', {
-                    formDate,
-                    formHour,
-                    formMinute,
-                    localDateTime,
-                    timezoneOffset,
-                    adjustedDateTime,
-                    finalISO: adjustedDateTime.toISOString(),
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    selectedWorklets: formSelectedWorklets.length
-                  });
-                  
                   // Get college_id from colleges array
                   const selectedCollege = colleges.find(c => c.college_name === formCollege);
                   if (!selectedCollege) {
@@ -2122,8 +2095,6 @@ const Meetings = () => {
                   
                   // Create consecutive meetings for multiple worklets
                   if (formSelectedWorklets.length > 1) {
-                    console.log('Creating consecutive meetings for', formSelectedWorklets.length, 'worklets');
-                    
                     let successCount = 0;
                     let currentStartTime = new Date(adjustedDateTime);
                     
@@ -2143,8 +2114,6 @@ const Meetings = () => {
                           repeat_days: formRepeatDays.length > 0 ? formRepeatDays.join(',') : null,
                           repeat_until: formRepeatUntil || null
                         };
-                        
-                        console.log(`Creating meeting ${i + 1}/${selectedWorkletDetails.length} for worklet:`, worklet.worklet_cert_id, 'at', currentStartTime.toLocaleTimeString());
                         
                         await meetingsAPI.createMeeting(meetingData);
                         successCount++;
@@ -2179,8 +2148,6 @@ const Meetings = () => {
                       repeat_days: formRepeatDays.length > 0 ? formRepeatDays.join(',') : null,
                       repeat_until: formRepeatUntil || null
                     };
-                    
-                    console.log('Creating single meeting for worklet:', worklet.worklet_cert_id);
                     
                     await meetingsAPI.createMeeting(meetingData);
                     
