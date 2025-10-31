@@ -158,15 +158,28 @@ export default function Dashboard() {
           
           // Use backend performance field (from Performance column - single source of truth)
           let quality = null
-          if (worklet.performance) {
-            const perf = String(worklet.performance).toLowerCase().trim()
-            // Map to new quality labels: Very Good, Good, Average, Poor
-            if (perf.includes('very') && perf.includes('good')) quality = 'Very Good'
-            else if (perf.includes('excellent') || perf.includes('excel')) quality = 'Very Good' // Map Excellence -> Very Good
-            else if (perf.includes('good') && !perf.includes('very')) quality = 'Good'
-            else if (perf.includes('average') || perf.includes('avg')) quality = 'Average'
-            else if (perf.includes('poor') || perf.includes('need')) quality = 'Poor' // Map Needs Attention -> Poor
-            else quality = worklet.performance.charAt(0).toUpperCase() + worklet.performance.slice(1)
+          if (worklet.performance || worklet.performance === 0) {
+            const perf = worklet.performance
+            
+            // Check if performance is numeric (0-5 rating scale)
+            const numPerf = parseInt(perf)
+            if (!isNaN(numPerf)) {
+              if (numPerf === 0) quality = 'Not Applicable'
+              else if (numPerf === 1) quality = 'Poor'
+              else if (numPerf === 2) quality = 'Average'
+              else if (numPerf === 3) quality = 'Good'
+              else if (numPerf === 4) quality = 'Very Good'
+              else if (numPerf === 5) quality = 'Very Good'
+            } else {
+              // Handle string-based performance
+              const perfStr = String(perf).toLowerCase().trim()
+              if (perfStr.includes('very') && perfStr.includes('good')) quality = 'Very Good'
+              else if (perfStr.includes('excellent') || perfStr.includes('excel')) quality = 'Very Good' // Map Excellence -> Very Good
+              else if (perfStr.includes('good') && !perfStr.includes('very')) quality = 'Good'
+              else if (perfStr.includes('average') || perfStr.includes('avg')) quality = 'Average'
+              else if (perfStr.includes('poor') || perfStr.includes('need')) quality = 'Poor' // Map Needs Attention -> Poor
+              else quality = worklet.performance.charAt(0).toUpperCase() + worklet.performance.slice(1)
+            }
           }
           
           // Extract student names (fallback to email if name missing)
@@ -528,39 +541,46 @@ function WorkletCard({ worklet, layout, navigate }) {
     switch (quality) {
       case 'Very Good':
         return `linear-gradient(135deg, 
-          #1e3a8a 0%, 
-          #1e40af 25%, 
+          #3b82f6 0%, 
+          #2563eb 25%, 
           #1d4ed8 50%, 
-          #2563eb 75%, 
-          #3b82f6 100%)`
+          #1e40af 75%, 
+          #6366f1 100%)`
       case 'Good':
         return `linear-gradient(135deg, 
-          #065f46 0%, 
-          #047857 25%, 
-          #059669 50%, 
-          #10b981 75%, 
+          #10b981 0%, 
+          #059669 25%, 
+          #047857 50%, 
+          #065f46 75%, 
           #34d399 100%)`
       case 'Average':
         return `linear-gradient(135deg, 
-          #854d0e 0%, 
-          #a16207 25%, 
-          #ca8a04 50%, 
-          #eab308 75%, 
-          #facc15 100%)`
+          #f59e0b 0%, 
+          #d97706 25%, 
+          #b45309 50%, 
+          #92400e 75%, 
+          #fbbf24 100%)`
       case 'Poor':
         return `linear-gradient(135deg, 
-          #7c2d12 0%, 
-          #9a3412 25%, 
-          #c2410c 50%, 
-          #ea580c 75%, 
-          #f97316 100%)`
+          #ef4444 0%, 
+          #dc2626 25%, 
+          #b91c1c 50%, 
+          #991b1b 75%, 
+          #f87171 100%)`
+      case 'Not Applicable':
+        return `linear-gradient(135deg, 
+          #64748b 0%, 
+          #475569 25%, 
+          #334155 50%, 
+          #1e293b 75%, 
+          #94a3b8 100%)`
       default:
         return `linear-gradient(135deg, 
-          #374151 0%, 
+          #6b7280 0%, 
           #4b5563 25%, 
-          #6b7280 50%, 
-          #9ca3af 75%, 
-          #d1d5db 100%)`
+          #374151 50%, 
+          #1f2937 75%, 
+          #9ca3af 100%)`
     }
   }
 
@@ -584,11 +604,12 @@ function WorkletCard({ worklet, layout, navigate }) {
 
   // Badge background palette per quality band
   const qualityStyles = {
-    'Very Good': 'bg-blue-600/90',
-    'Good': 'bg-green-500/90',
-    'Average': 'bg-yellow-500/90',
-    'Poor': 'bg-red-500/90',
-    'Default': 'bg-gray-500/80',
+    'Very Good': 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg',
+    'Good': 'bg-gradient-to-r from-green-400 to-emerald-500 shadow-lg',
+    'Average': 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-lg',
+    'Poor': 'bg-gradient-to-r from-red-400 to-pink-500 shadow-lg',
+    'Not Applicable': 'bg-gradient-to-r from-slate-400 to-gray-500 shadow-lg',
+    'Default': 'bg-gradient-to-r from-gray-400 to-slate-500 shadow-lg',
   }
   
   // Primary navigation: open worklet detail view

@@ -1765,14 +1765,15 @@ export default function WorkletDetailPage() {
     const perf = worklet.performance
     if (!perf && perf !== 0) return null
     
-    // Check if performance is numeric (1-5 rating scale)
+    // Check if performance is numeric (0-5 rating scale)
     const numPerf = parseInt(perf)
     if (!isNaN(numPerf)) {
+      if (numPerf === 0) return 'Not Applicable'
+      if (numPerf === 1) return 'Poor'
+      if (numPerf === 2) return 'Average'
+      if (numPerf === 3) return 'Good'
+      if (numPerf === 4) return 'Very Good'
       if (numPerf === 5) return 'Very Good'
-      if (numPerf === 4) return 'Good'
-      if (numPerf === 3) return 'Average'
-      if (numPerf === 2) return 'Poor'
-      if (numPerf === 1) return 'Very Poor'
     }
     
     // Normalize backend value (case-insensitive)
@@ -1800,6 +1801,8 @@ export default function WorkletDetailPage() {
         return 'bg-gradient-to-r from-red-600 to-red-700 text-white'
       case 'Needs Attention':
         return 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white'
+      case 'Not Applicable':
+        return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
       default:
         return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
     }
