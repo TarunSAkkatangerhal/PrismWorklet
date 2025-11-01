@@ -2640,7 +2640,7 @@ export default function WorkletDetailPage() {
                         label="Provide Feedback"
                         status="Give project feedback"
                         onClick={() => setIsFeedbackOpen(true)}
-                        disabled={!isCurrentUserMentor}
+                        disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100}
                       />
                       <ActivityButton
                         icon={<Users size={18} />}
