@@ -219,6 +219,8 @@ export default function WorkletDetailPage() {
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false)
   
+  // Notification state for success/error messages
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' })
 
   
   const [retryCount, setRetryCount] = useState(0)
@@ -341,6 +343,21 @@ export default function WorkletDetailPage() {
   })
   const [allMilestoneFiles, setAllMilestoneFiles] = useState([])
   const [suggestions, setSuggestions] = useState([])
+
+  // --- NOTIFICATION HANDLERS ---
+  const showSuccessNotification = (message) => {
+    setNotification({ show: true, message, type: 'success' })
+    setTimeout(() => {
+      setNotification({ show: false, message: '', type: '' })
+    }, 3000)
+  }
+
+  const showErrorNotification = (message) => {
+    setNotification({ show: true, message, type: 'error' })
+    setTimeout(() => {
+      setNotification({ show: false, message: '', type: '' })
+    }, 3000)
+  }
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -1792,6 +1809,68 @@ export default function WorkletDetailPage() {
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:bg-slate-900">
       <LeftSidebar />
       
+      {/* Success/Error Notification - Top Middle */}
+      {notification.show && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[200]">
+          <div className={`rounded-lg shadow-xl p-6 mx-4 max-w-md w-full animate-slide-down ${
+            notification.type === 'success' 
+              ? 'bg-white dark:bg-slate-800' 
+              : 'bg-white dark:bg-slate-800'
+          }`}>
+            <div className="flex items-center justify-center mb-4">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                notification.type === 'success'
+                  ? 'bg-green-50 dark:bg-green-900/30'
+                  : 'bg-red-50 dark:bg-red-900/30'
+              }`}>
+                {notification.type === 'success' ? (
+                  <svg 
+                    className="w-8 h-8 text-green-600 dark:text-green-400" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2.5} 
+                      d="M5 13l4 4L19 7" 
+                    />
+                  </svg>
+                ) : (
+                  <svg 
+                    className="w-8 h-8 text-red-600 dark:text-red-400" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M6 18L18 6M6 6l12 12" 
+                    />
+                  </svg>
+                )}
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <h3 className={`text-lg font-semibold mb-2 ${
+                notification.type === 'success'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-900 dark:text-white'
+              }`}>
+                {notification.type === 'success' ? '✅ Success!' : '❌ Error'}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {notification.message}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto bg-transparent dark:bg-slate-900">
         <div className="max-w-7xl mx-auto p-6 space-y-6 min-h-full">
@@ -2644,6 +2723,8 @@ export default function WorkletDetailPage() {
           team: worklet.team,
           progress: worklet.progress
         } : null}
+        onSuccess={showSuccessNotification}
+        onError={showErrorNotification}
       />
       
       <SuggestionModal
@@ -2659,6 +2740,8 @@ export default function WorkletDetailPage() {
           team: worklet.team,
           progress: worklet.progress
         } : null}
+        onSuccess={showSuccessNotification}
+        onError={showErrorNotification}
       />
 
       {/* Add Milestone Modal */}
@@ -2701,6 +2784,8 @@ export default function WorkletDetailPage() {
             team: worklet.team,
             progress: worklet.progress
           }}
+          onSuccess={showSuccessNotification}
+          onError={showErrorNotification}
         />
       )}
 
@@ -2732,6 +2817,8 @@ export default function WorkletDetailPage() {
                   team: worklet.team,
                   progress: worklet.progress
                 }}
+                onSuccess={showSuccessNotification}
+                onError={showErrorNotification}
               />
             </div>
           </div>

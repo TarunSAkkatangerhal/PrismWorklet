@@ -37,7 +37,9 @@ export default function FeedbackForm({
   isOpen, 
   onClose, 
   workletId: propWorkletId, 
-  preSelectedWorklet 
+  preSelectedWorklet,
+  onSuccess,
+  onError
 }) {
   // Determine if we're in pre-selection mode
   const hasPreSelection = !!(propWorkletId || preSelectedWorklet);
@@ -52,9 +54,7 @@ export default function FeedbackForm({
   const [availableStages, setAvailableStages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
-  const [showErrorPopup, setShowErrorPopup] = useState(false);
 
   // Update selectedWorklet when props change
   useEffect(() => {
@@ -209,16 +209,18 @@ export default function FeedbackForm({
       setMilestones([]);
       setAvailableStages([]);
       
-      // Show success popup
-      setShowSuccessPopup(true);
-      setTimeout(() => {
-        setShowSuccessPopup(false);
-        onClose();
-      }, 2000); // 2 seconds
+      // Close modal and show success message on parent page
+      onClose();
+      if (onSuccess) {
+        onSuccess("Feedback submitted successfully! Students have been notified.");
+      }
 
     } catch (error) {
-      setShowErrorPopup(true);
-      setTimeout(() => setShowErrorPopup(false), 3000);
+      // Close modal and show error message on parent page
+      onClose();
+      if (onError) {
+        onError("Failed to submit feedback. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -431,43 +433,6 @@ export default function FeedbackForm({
         )}
       </div>
 
-      {/* Professional Success Popup */}
-      {showSuccessPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-          <div className="bg-white rounded-lg shadow-xl p-6 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full">
-            {/* Success Icon */}
-            <div className="flex items-center justify-center mb-4">
-              <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center dark:bg-green-900/30">
-                <svg 
-                  className="w-8 h-8 text-green-600 dark:text-green-400" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2.5} 
-                    d="M5 13l4 4L19 7" 
-                  />
-                </svg>
-              </div>
-            </div>
-            
-            {/* Success Message */}
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Feedback Submitted Successfully
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Students have been notified about the feedback.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Beautiful Warning Popup */}
       {showWarningPopup && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
@@ -507,53 +472,6 @@ export default function FeedbackForm({
           </div>
         </div>
       )}
-
-      {/* Beautiful Error Popup */}
-      {showErrorPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full transform animate-pulse">
-            {/* Error Icon */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center dark:bg-red-900">
-                <svg 
-                  className="w-8 h-8 text-red-600 dark:text-red-400" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M6 18L18 6M6 6l12 12" 
-                  />
-                </svg>
-              </div>
-            </div>
-            
-            {/* Error Message */}
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                ❌ Submission Failed
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Failed to submit feedback. Please try again.
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Check your connection and try again.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes progress {
-          0% { width: 0%; }
-          100% { width: 100%; }
-        }
-      `}</style>
     </div>
   );
 }

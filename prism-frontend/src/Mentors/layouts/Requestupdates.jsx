@@ -1,16 +1,14 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedWorklet }) {
+export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedWorklet, onSuccess, onError }) {
   const [selectedWorklet, setSelectedWorklet] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(false);
   // loading = fetching worklets; isSubmitting = sending the request-update action
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
-  const [showErrorPopup, setShowErrorPopup] = useState(false);
   const autoMode = !!preSelectedWorklet; // If opened from Worklet Details page
 
   useEffect(() => {
@@ -107,15 +105,18 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
         }
       );
       
-      setShowSuccessPopup(true);
-      setTimeout(() => {
-        setShowSuccessPopup(false);
-        onClose();
-      }, 2000); // show for 2 seconds
+      // Close modal and show success message on parent page
+      onClose();
+      if (onSuccess) {
+        onSuccess("Update request sent successfully! Students have been notified.");
+      }
     } catch (err) {
       console.error("Error requesting update:", err);
-      setShowErrorPopup(true);
-      setTimeout(() => setShowErrorPopup(false), 3000);
+      // Close modal and show error message on parent page
+      onClose();
+      if (onError) {
+        onError("Failed to send update request. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -221,16 +222,16 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
         )}
       </div>
 
-      {/* Professional Success Popup */}
-      {showSuccessPopup && (
+      {/* Beautiful Warning Popup */}
+      {showWarningPopup && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-          <div className="bg-white rounded-lg shadow-xl p-6 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full">
-            {/* Success Icon */}
-            <div className="flex items-center justify-center mb-4">
-              <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center dark:bg-green-900/30">
+          <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full transform animate-pulse">
+            {/* Warning Icon */}
+            <div className="flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center dark:bg-yellow-900">
                 <svg 
-                  className="w-8 h-8 text-green-600 dark:text-green-400" 
+                  className="w-8 h-8 text-yellow-600 dark:text-yellow-400" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -238,21 +239,37 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
                   <path 
                     strokeLinecap="round" 
                     strokeLinejoin="round" 
-                    strokeWidth={2.5} 
-                    d="M5 13l4 4L19 7" 
+                    strokeWidth={2} 
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" 
                   />
                 </svg>
               </div>
             </div>
             
-            {/* Success Message */}
+            {/* Warning Message */}
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Request Sent Successfully
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                ⚠️ Hold On!
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Students have been notified about the update request.
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
+                Please select a worklet first
               </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Choose a worklet from the dropdown menu above.
+              </p>
+            </div>
+            
+            {/* Progress bar animation */}
+            <div className="mt-6">
+              <div className="w-full bg-gray-200 rounded-full h-1 dark:bg-gray-700">
+                <div 
+                  className="bg-yellow-600 h-1 rounded-full"
+                  style={{
+                    width: '100%',
+                    animation: 'progress 2s linear forwards'
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
         </div>
@@ -310,96 +327,6 @@ export default function RequestUpdate({ isOpen, onClose, workletId, preSelectedW
           </div>
         </div>
       )}
-
-      {/* Beautiful Error Popup */}
-      {showErrorPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full transform animate-shake">
-            {/* Error Icon */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center dark:bg-red-900">
-                <svg 
-                  className="w-8 h-8 text-red-600 dark:text-red-400" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M6 18L18 6M6 6l12 12" 
-                  />
-                </svg>
-              </div>
-            </div>
-            
-            {/* Error Message */}
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                ❌ Oops!
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Failed to send update request
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Please try again in a moment.
-              </p>
-            </div>
-            
-            {/* Progress bar animation */}
-            <div className="mt-6">
-              <div className="w-full bg-gray-200 rounded-full h-1 dark:bg-gray-700">
-                <div 
-                  className="bg-red-600 h-1 rounded-full"
-                  style={{
-                    width: '100%',
-                    animation: 'progress 3s linear forwards'
-                  }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CSS Animation for progress bar */}
-      <style>{`
-        @keyframes progress {
-          from { width: 0%; }
-          to { width: 100%; }
-        }
-        
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-          20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-        
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
-        }
-        
-        .animate-bounce {
-          animation: bounce 0.6s ease-in-out;
-        }
-        
-        @keyframes bounce {
-          0%, 20%, 53%, 80%, 100% {
-            transform: translate3d(0, 0, 0);
-          }
-          40%, 43% {
-            transform: translate3d(0, -10px, 0);
-          }
-          70% {
-            transform: translate3d(0, -5px, 0);
-          }
-          90% {
-            transform: translate3d(0, -2px, 0);
-          }
-        }
-      `}</style>
     </div>
   );
 }

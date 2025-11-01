@@ -27,8 +27,26 @@ const RightSidebar = () => {
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false);
   
+  // Notification state for success/error messages
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  
   // Get user data from validated JWT token
   const [userData, setUserData] = useState(null);
+
+  // Notification handlers
+  const showSuccessNotification = (message) => {
+    setNotification({ show: true, message, type: 'success' });
+    setTimeout(() => {
+      setNotification({ show: false, message: '', type: '' });
+    }, 3000);
+  };
+
+  const showErrorNotification = (message) => {
+    setNotification({ show: true, message, type: 'error' });
+    setTimeout(() => {
+      setNotification({ show: false, message: '', type: '' });
+    }, 3000);
+  };
 
   // Get user data on component mount
   useEffect(() => {
@@ -84,6 +102,69 @@ const RightSidebar = () => {
 
   return (
     <aside className="w-[clamp(12rem,18vw,16rem)] bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black shadow-lg px-[clamp(0.75rem,1.5vw,1.25rem)] py-[clamp(1rem,2vh,1.5rem)] flex flex-col justify-between overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      
+      {/* Success/Error Notification - Top Middle */}
+      {notification.show && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[200]">
+          <div className={`rounded-lg shadow-xl p-6 mx-4 max-w-md w-full animate-slide-down ${
+            notification.type === 'success' 
+              ? 'bg-white dark:bg-slate-800' 
+              : 'bg-white dark:bg-slate-800'
+          }`}>
+            <div className="flex items-center justify-center mb-4">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                notification.type === 'success'
+                  ? 'bg-green-50 dark:bg-green-900/30'
+                  : 'bg-red-50 dark:bg-red-900/30'
+              }`}>
+                {notification.type === 'success' ? (
+                  <svg 
+                    className="w-8 h-8 text-green-600 dark:text-green-400" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2.5} 
+                      d="M5 13l4 4L19 7" 
+                    />
+                  </svg>
+                ) : (
+                  <svg 
+                    className="w-8 h-8 text-red-600 dark:text-red-400" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M6 18L18 6M6 6l12 12" 
+                    />
+                  </svg>
+                )}
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <h3 className={`text-lg font-semibold mb-2 ${
+                notification.type === 'success'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-900 dark:text-white'
+              }`}>
+                {notification.type === 'success' ? '✅ Success!' : '❌ Error'}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {notification.message}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div>
         {/* Role-based content - Using validated token data */}
         {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
@@ -179,14 +260,20 @@ const RightSidebar = () => {
       <RequestUpdate
         isOpen={isRequestUpdateOpen}
         onClose={() => setIsRequestUpdateOpen(false)}
+        onSuccess={showSuccessNotification}
+        onError={showErrorNotification}
       />
       <SuggestionModal
         isOpen={isSuggestionModalOpen}
         onClose={() => setIsSuggestionModalOpen(false)}
+        onSuccess={showSuccessNotification}
+        onError={showErrorNotification}
       />
       <FeedbackForm
         isOpen={isFeedbackFormOpen}
         onClose={() => setIsFeedbackFormOpen(false)}
+        onSuccess={showSuccessNotification}
+        onError={showErrorNotification}
       />
       {isInternModalOpen && (
         <div className="fixed inset-0 flex items-start justify-center bg-black bg-opacity-40 backdrop-blur-sm z-50 p-4 overflow-y-auto">
@@ -200,7 +287,10 @@ const RightSidebar = () => {
               </button>
             </div>
             <div className="p-4">
-              <InternReferralForm />
+              <InternReferralForm 
+                onSuccess={showSuccessNotification}
+                onError={showErrorNotification}
+              />
             </div>
           </div>
         </div>

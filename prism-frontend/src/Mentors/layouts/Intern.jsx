@@ -115,7 +115,7 @@ const initialFormData = {
   reason: "",
 };
 
-export default function InternReferralForm({ workletId, preSelectedWorklet }) {
+export default function InternReferralForm({ workletId, preSelectedWorklet, onSuccess, onError }) {
   const [formData, setFormData] = useState(initialFormData);
   const [status, setStatus] = useState("idle");
   const [submittedData, setSubmittedData] = useState(null);
@@ -282,9 +282,11 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
       setSubmittedData(dataToSubmit);
       // Show success without any complex logic
       setStatus("success");
-      setShowSuccessPopup(true);
       
-      // Remove automatic hide - let user close manually
+      // Show success message on parent page
+      if (onSuccess) {
+        onSuccess("Intern referral submitted successfully! The referral will be reviewed by our team.");
+      }
     }, 1000);
   };
 
@@ -434,38 +436,6 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
           </div>
         </form>
       </div>
-
-      {/* Success Popup */}
-      {showSuccessPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full">
-            <button
-              onClick={handleCloseSuccessPopup}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
-              aria-label="Close"
-            >
-              <X size={24} />
-            </button>
-            <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900">
-                <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">✅ Referral Submitted!</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">Your referral has been submitted successfully!</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">The referral will be reviewed by our team.</p>
-              <button
-                onClick={handleCloseSuccessPopup}
-                className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
