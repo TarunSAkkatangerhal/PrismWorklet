@@ -172,13 +172,14 @@ class Worklet(Base):
     # Optional/less-used fields mapped for completeness
     group_mg_id = Column("GroupMGID", Integer, nullable=True)
     part_mg_id = Column("PartMGID", Integer, nullable=True)
-    team_mg_id = Column("TeamMGID", Integer, nullable=True)
+    team_mg_id = Column("TeamMGID", Integer, ForeignKey("TeamMG.TeamMGID", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
     stage_id = Column("StageID", Integer, ForeignKey("WorkletStage.StageID", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
 
     # Relationships
     user_associations = relationship("UserWorkletAssociation", back_populates="worklet", cascade="all, delete-orphan")
     college_rel = relationship("College", primaryjoin="Worklet.college_id==College.college_id", uselist=False)
     stage_rel = relationship("WorkletStage", primaryjoin="Worklet.stage_id==WorkletStage.stage_id", uselist=False, foreign_keys=[stage_id])
+    team_rel = relationship("TeamMG", primaryjoin="Worklet.team_mg_id==TeamMG.id", uselist=False, foreign_keys=[team_mg_id])
     suggestions = relationship("Suggestion", back_populates="worklet", cascade="all, delete-orphan")
     milestones = relationship("Milestone", back_populates="worklet", cascade="all, delete-orphan")
 

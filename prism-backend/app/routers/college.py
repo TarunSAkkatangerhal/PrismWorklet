@@ -108,8 +108,14 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
         .all()
     ]
     worklet_id_set = set(direct_ids) | set(assoc_ids)
+    
+    # Eager load team relationship to avoid N+1 queries
+    from sqlalchemy.orm import joinedload
     worklets = (
-        db.query(Worklet).filter(Worklet.id.in_(worklet_id_set)).all() if worklet_id_set else []
+        db.query(Worklet)
+        .options(joinedload(Worklet.team_rel))
+        .filter(Worklet.id.in_(worklet_id_set))
+        .all() if worklet_id_set else []
     )
 
     # OPTIMIZATION: Bulk fetch all student associations for all worklets in one query
@@ -134,6 +140,11 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
     for worklet in worklets:
         # Get students from pre-fetched map (no query per worklet)
         assigned_students = students_by_worklet.get(worklet.id, [])
+        
+        # Get team name from eager-loaded relationship
+        team_name = None
+        if worklet.team_rel:
+            team_name = worklet.team_rel.team_name
 
         status_text = normalize_status_text(getattr(worklet, 'status_id', None))
         performance_text = normalize_performance(getattr(worklet, 'Performance', None))
@@ -144,6 +155,7 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
             "assignedStudents": assigned_students,
             "performanceStatus": performance_text,
             "progressStatus": status_text,
+            "team": team_name,  # Add team name
             "collegeName": (
                 worklet.college_rel.college_name
                 if getattr(worklet, 'college_rel', None) and getattr(worklet.college_rel, 'college_name', None)
