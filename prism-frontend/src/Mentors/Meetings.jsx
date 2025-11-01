@@ -10,7 +10,8 @@ import {
   Clock,
   MapPin,
   Plus,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import LeftSidebar from '../components/Left';
@@ -625,6 +626,10 @@ const Meetings = () => {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false); // Add Meeting modal
   const [selectedMeeting, setSelectedMeeting] = useState(null);
+  
+  // Export and Reminder UI state
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showReminderSettings, setShowReminderSettings] = useState(false);
 
   // ---------------- Add Meeting Form State ----------------
   const [formTitle, setFormTitle] = useState('');
@@ -900,6 +905,244 @@ const Meetings = () => {
     }
   };
 
+  // Export meeting to calendar (ICS format)
+  const exportMeetingToCalendar = (meeting) => {
+    const startDate = new Date(meeting.datetime);
+    const endDate = new Date(startDate.getTime() + (meeting.duration * 60000));
+    
+    // Format dates for ICS format (YYYYMMDDTHHMMSSZ)
+    const formatICSDate = (date) => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+    
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//PrismWorklet//Meeting//EN',
+      'BEGIN:VEVENT',
+      `UID:meeting-${meeting.id}@prismworklet.com`,
+      `DTSTART:${formatICSDate(startDate)}`,
+      `DTEND:${formatICSDate(endDate)}`,
+      `SUMMARY:${meeting.title}`,
+      `DESCRIPTION:${meeting.description || 'PrismWorklet Meeting'}\\nWorklets: ${meeting.workletCode}\\nParticipants: ${meeting.participants}`,
+      `LOCATION:${meeting.meetingLink || 'Online Meeting'}`,
+      meeting.meetingLink ? `URL:${meeting.meetingLink}` : '',
+      'STATUS:CONFIRMED',
+      'TRANSP:OPAQUE',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].filter(line => line !== '').join('\r\n');
+
+    // Create and download ICS file
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${meeting.title.replace(/[^a-z0-9]/gi, '_')}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    showConfirmationMessage(`✅ Meeting "${meeting.title}" exported to calendar`);
+  };
+
+  // Export all visible meetings
+  const exportAllMeetings = () => {
+    const filteredMeetings = getFilteredMeetings();
+    if (filteredMeetings.length === 0) {
+      showConfirmationMessage('❌ No meetings to export');
+      return;
+    }
+
+    // Create combined ICS file with all meetings
+    const startContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//PrismWorklet//Meetings//EN'
+    ];
+    
+    const events = filteredMeetings.map(meeting => {
+      const startDate = new Date(meeting.datetime);
+      const endDate = new Date(startDate.getTime() + (meeting.duration * 60000));
+      
+      const formatICSDate = (date) => {
+        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      };
+      
+      return [
+        'BEGIN:VEVENT',
+        `UID:meeting-${meeting.id}@prismworklet.com`,
+        `DTSTART:${formatICSDate(startDate)}`,
+        `DTEND:${formatICSDate(endDate)}`,
+        `SUMMARY:${meeting.title}`,
+        `DESCRIPTION:${meeting.description || 'PrismWorklet Meeting'}\\nWorklets: ${meeting.workletCode}\\nParticipants: ${meeting.participants}`,
+        `LOCATION:${meeting.meetingLink || 'Online Meeting'}`,
+        meeting.meetingLink ? `URL:${meeting.meetingLink}` : '',
+        'STATUS:CONFIRMED',
+        'TRANSP:OPAQUE',
+        'END:VEVENT'
+      ].filter(line => line !== '').join('\r\n');
+    });
+    
+    const endContent = ['END:VCALENDAR'];
+    const icsContent = [...startContent, ...events, ...endContent].join('\r\n');
+    
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `PrismWorklet_Meetings_${new Date().toISOString().split('T')[0]}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    showConfirmationMessage(`✅ ${filteredMeetings.length} meetings exported to calendar`);
+  };
+
+  // Automated Reminders functionality
+  const [reminders, setReminders] = useState({});
+  const [reminderSettings, setReminderSettings] = useState({
+    enabled: true,
+    intervals: [15, 60, 1440], // 15 min, 1 hour, 1 day before (in minutes)
+    methods: ['browser', 'email'] // notification methods
+  });
+
+  // Set up reminders for a meeting
+  const setupMeetingReminders = (meeting) => {
+    const meetingTime = new Date(meeting.datetime).getTime();
+    const now = new Date().getTime();
+    
+    if (meetingTime <= now) return; // Don't set reminders for past meetings
+    
+    reminderSettings.intervals.forEach(interval => {
+      const reminderTime = meetingTime - (interval * 60 * 1000);
+      
+      if (reminderTime > now) {
+        const timeoutId = setTimeout(() => {
+          triggerReminder(meeting, interval);
+        }, reminderTime - now);
+        
+        setReminders(prev => ({
+          ...prev,
+          [`${meeting.id}-${interval}`]: timeoutId
+        }));
+      }
+    });
+  };
+
+  // Trigger reminder notification
+  const triggerReminder = (meeting, minutesBefore) => {
+    const formatReminderTime = (minutes) => {
+      if (minutes < 60) return `${minutes} minutes`;
+      if (minutes < 1440) return `${Math.floor(minutes / 60)} hour${Math.floor(minutes / 60) > 1 ? 's' : ''}`;
+      return `${Math.floor(minutes / 1440)} day${Math.floor(minutes / 1440) > 1 ? 's' : ''}`;
+    };
+
+    // Browser notification
+    if (reminderSettings.methods.includes('browser') && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(`Meeting Reminder - ${meeting.title}`, {
+          body: `Starting in ${formatReminderTime(minutesBefore)}\nWorklets: ${meeting.workletCode}\nParticipants: ${meeting.participants}`,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: `meeting-${meeting.id}`,
+          data: { meetingId: meeting.id, action: 'join' },
+          actions: [
+            { action: 'join', title: 'Join Meeting' },
+            { action: 'snooze', title: 'Remind in 5 min' }
+          ]
+        });
+      }
+    }
+
+    // In-app notification
+    showConfirmationMessage(
+      `🔔 Reminder: "${meeting.title}" starts in ${formatReminderTime(minutesBefore)}`,
+      'info',
+      8000 // Show for 8 seconds
+    );
+
+    // Email reminder (would need backend API integration)
+    if (reminderSettings.methods.includes('email')) {
+      sendEmailReminder(meeting, minutesBefore);
+    }
+  };
+
+  // Send email reminder (placeholder for backend integration)
+  const sendEmailReminder = async (meeting, minutesBefore) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      await fetch('/api/meetings/send-reminder', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          meetingId: meeting.id,
+          minutesBefore,
+          recipients: 'all' // Could be customized
+        })
+      });
+    } catch (error) {
+      console.error('Failed to send email reminder:', error);
+    }
+  };
+
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        showConfirmationMessage('✅ Notifications enabled for meeting reminders');
+      } else {
+        showConfirmationMessage('❌ Notifications permission denied. Reminders will show in-app only.');
+      }
+    }
+  };
+
+  // Clear reminders for a meeting (when cancelled/rescheduled)
+  const clearMeetingReminders = (meetingId) => {
+    Object.keys(reminders).forEach(key => {
+      if (key.startsWith(`${meetingId}-`)) {
+        clearTimeout(reminders[key]);
+        setReminders(prev => {
+          const updated = { ...prev };
+          delete updated[key];
+          return updated;
+        });
+      }
+    });
+  };
+
+  // Set up reminders for all upcoming meetings
+  useEffect(() => {
+    if (reminderSettings.enabled && meetings.length > 0) {
+      meetings.forEach(meeting => {
+        const meetingStatus = meeting.status || calculateMeetingStatus(meeting.date);
+        if (meetingStatus === 'upcoming') {
+          setupMeetingReminders(meeting);
+        }
+      });
+    }
+
+    return () => {
+      // Clean up all timeouts when component unmounts
+      Object.values(reminders).forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+    };
+  }, [meetings, reminderSettings.enabled]);
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if (reminderSettings.enabled && reminderSettings.methods.includes('browser')) {
+      requestNotificationPermission();
+    }
+  }, []);
+
   // Data fetching functions
   const fetchColleges = async () => {
     try {
@@ -1047,6 +1290,29 @@ const Meetings = () => {
 
     return priorityA - priorityB;
   });
+
+  // Helper function to get filtered meetings for export functionality
+  const getFilteredMeetings = () => {
+    return meetings.filter(meeting => {
+      // Determine status based on backend or calculate from time
+      const meetingStatus = meeting.status || calculateMeetingStatus(meeting.date);
+
+      // If not showing completed meetings, exclude them unless specifically filtered
+      if (!showCompletedMeetings && meetingStatus === 'completed' && selectedFilter !== 'completed') {
+        return false;
+      }
+
+      if (selectedFilter === 'all') return true;
+      // Calculate dynamic status for filtering
+      // Map filter names to meeting statuses
+      const filterMap = {
+        'present': 'live',
+        'upcoming': 'upcoming', 
+        'completed': 'completed'
+      };
+      return meetingStatus === (filterMap[selectedFilter] || selectedFilter);
+    });
+  };
 
   // Optimized filter counts with useMemo
   const filterCounts = useMemo(() => {
@@ -1403,6 +1669,85 @@ const Meetings = () => {
               Manage department and mentor meetings
             </p>
           </div>
+          
+          {/* Export and Settings Actions */}
+          <div className="flex items-center gap-3">
+            {/* Export Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export
+                <ChevronDown className={`w-4 h-4 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
+                  <div className="p-2">
+                    <button
+                      onClick={() => {
+                        exportAllMeetings();
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <div>
+                        <div className="font-medium">Export All Meetings</div>
+                        <div className="text-xs text-slate-500">Download as calendar file (.ics)</div>
+                      </div>
+                    </button>
+                    
+                    <div className="border-t border-slate-200 dark:border-slate-600 my-2"></div>
+                    
+                    <button
+                      onClick={() => {
+                        if (getFilteredMeetings().length === 0) {
+                          showConfirmationMessage('❌ No meetings in current view');
+                        } else {
+                          exportAllMeetings();
+                        }
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                      </svg>
+                      <div>
+                        <div className="font-medium">Export Filtered</div>
+                        <div className="text-xs text-slate-500">Export current view only</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Reminder Settings Button */}
+            <button
+              onClick={() => setShowReminderSettings(!showReminderSettings)}
+              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors text-sm font-medium ${
+                reminderSettings.enabled 
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300'
+                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.18 0 2.34-.2 3.44-.58L12 17V7h5.28c-.34-2.84-2.62-5.14-5.46-5.47C11.56 1.18 11.29 1 11 1s-.56.18-.82.53C9.38 1.86 9.38 2.14 9.62 2.47 9.86 2.8 10.4 2.8 10.64 2.47 10.88 2.14 11.12 2 11 2z" />
+              </svg>
+              Reminders
+              {reminderSettings.enabled && (
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              )}
+            </button>
+          </div>
         </header>
 
         {/* Tab Navigation */}
@@ -1505,6 +1850,17 @@ const Meetings = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
+                          {/* Export to Calendar Button */}
+                          <button
+                            onClick={() => exportMeetingToCalendar(meeting)}
+                            className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                            title="Export to Calendar"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </button>
+                          
                           {/* Only show Join button if meeting is not completed and can be joined (10 min before start) */}
                           {status !== 'completed' && canJoinMeeting(meeting.date) && (
                             <button
@@ -1725,6 +2081,17 @@ const Meetings = () => {
                               Join
                             </button>
                           )}
+                          {/* Export to Calendar Button */}
+                          <button
+                            onClick={() => exportMeetingToCalendar(meeting)}
+                            className="px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                            title="Export to Calendar"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </button>
+                          
                           {/* Reschedule and Cancel actions (cancelled meetings are filtered out) */}
                           <>
                             {status !== 'completed' ? (
@@ -2488,6 +2855,168 @@ const Meetings = () => {
           </div>
         </div>
       )}
+
+      {/* Reminder Settings Modal */}
+      {showReminderSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  Meeting Reminders
+                </h3>
+                <button
+                  onClick={() => setShowReminderSettings(false)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Enable/Disable Reminders */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-slate-900 dark:text-white">
+                      Enable Reminders
+                    </label>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Get notified before meetings start
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setReminderSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      reminderSettings.enabled 
+                        ? 'bg-blue-600' 
+                        : 'bg-slate-200 dark:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        reminderSettings.enabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {reminderSettings.enabled && (
+                  <>
+                    {/* Reminder Intervals */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
+                        Reminder Times
+                      </label>
+                      <div className="space-y-2">
+                        {[
+                          { value: 15, label: '15 minutes before' },
+                          { value: 60, label: '1 hour before' },
+                          { value: 1440, label: '1 day before' }
+                        ].map(interval => (
+                          <label key={interval.value} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={reminderSettings.intervals.includes(interval.value)}
+                              onChange={(e) => {
+                                setReminderSettings(prev => ({
+                                  ...prev,
+                                  intervals: e.target.checked
+                                    ? [...prev.intervals, interval.value]
+                                    : prev.intervals.filter(i => i !== interval.value)
+                                }));
+                              }}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="ml-2 text-sm text-slate-600 dark:text-slate-400">
+                              {interval.label}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Notification Methods */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
+                        Notification Methods
+                      </label>
+                      <div className="space-y-2">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={reminderSettings.methods.includes('browser')}
+                            onChange={(e) => {
+                              setReminderSettings(prev => ({
+                                ...prev,
+                                methods: e.target.checked
+                                  ? [...prev.methods, 'browser']
+                                  : prev.methods.filter(m => m !== 'browser')
+                              }));
+                            }}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-slate-600 dark:text-slate-400">
+                            Browser notifications
+                          </span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={reminderSettings.methods.includes('email')}
+                            onChange={(e) => {
+                              setReminderSettings(prev => ({
+                                ...prev,
+                                methods: e.target.checked
+                                  ? [...prev.methods, 'email']
+                                  : prev.methods.filter(m => m !== 'email')
+                              }));
+                            }}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-slate-600 dark:text-slate-400">
+                            Email notifications
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-600">
+                  <button
+                    onClick={() => setShowReminderSettings(false)}
+                    className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowReminderSettings(false);
+                      showConfirmationMessage('✅ Reminder settings saved');
+                      
+                      // Re-setup reminders for all upcoming meetings with new settings
+                      if (reminderSettings.enabled) {
+                        meetings.forEach(meeting => {
+                          clearMeetingReminders(meeting.id);
+                          const meetingStatus = meeting.status || calculateMeetingStatus(meeting.date);
+                          if (meetingStatus === 'upcoming') {
+                            setupMeetingReminders(meeting);
+                          }
+                        });
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Save Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

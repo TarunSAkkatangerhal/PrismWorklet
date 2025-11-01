@@ -2,23 +2,51 @@
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 def _send_email(to_email: str, subject: str, body_html: str, body_plain: str = None):
     """Helper function to send styled HTML email"""
-    msg = MIMEMultipart("alternative")
-    msg["From"] = settings.SMTP_USER
-    msg["To"] = to_email
-    msg["Subject"] = subject
+    try:
+        # Validate SMTP configuration
+        if not settings.SMTP_USER or not settings.SMTP_PASS:
+            logger.error("❌ SMTP credentials not configured. Cannot send email.")
+            raise Exception("SMTP credentials not configured")
+        
+        logger.info(f"📧 Attempting to send email to {to_email}")
+        logger.info(f"   Subject: {subject}")
+        logger.info(f"   SMTP: {settings.SMTP_HOST}:{settings.SMTP_PORT}")
+        logger.info(f"   User: {settings.SMTP_USER}")
+        
+        msg = MIMEMultipart("alternative")
+        msg["From"] = settings.SMTP_USER
+        msg["To"] = to_email
+        msg["Subject"] = subject
 
-    # Attach plain text (fallback) and HTML
-    if body_plain:
-        msg.attach(MIMEText(body_plain, "plain"))
-    msg.attach(MIMEText(body_html, "html"))
+        # Attach plain text (fallback) and HTML
+        if body_plain:
+            msg.attach(MIMEText(body_plain, "plain"))
+        msg.attach(MIMEText(body_html, "html"))
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        server.starttls()
-        server.login(settings.SMTP_USER, settings.SMTP_PASS)
-        server.sendmail(settings.SMTP_USER, to_email, msg.as_string())
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+            server.set_debuglevel(0)  # Set to 1 for detailed SMTP logs
+            server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASS)
+            server.sendmail(settings.SMTP_USER, to_email, msg.as_string())
+        
+        logger.info(f"✅ Email sent successfully to {to_email}")
+        
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"❌ SMTP Authentication failed: {str(e)}")
+        logger.error("   Check your SMTP_USER and SMTP_PASS in .env file")
+        raise
+    except smtplib.SMTPException as e:
+        logger.error(f"❌ SMTP error occurred: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to send email to {to_email}: {str(e)}")
+        raise
 
 
 def send_otp_email(email: str, name: str, otp_code: str):

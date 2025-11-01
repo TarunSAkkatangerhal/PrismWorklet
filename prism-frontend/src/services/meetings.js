@@ -45,17 +45,17 @@ export const getMeetingById = async (meetingId) => {
  * @returns {Promise} Updated meeting object
  */
 export const rescheduleMeeting = async (meetingId, rescheduleData) => {
-  const response = await api.put(`${MEETINGS_BASE}/${meetingId}/reschedule`, rescheduleData);
+  const response = await api.patch(`${MEETINGS_BASE}/${meetingId}/reschedule`, rescheduleData);
   return response.data;
 };
 
 /**
  * Cancel a meeting
- * @param {number} meetingId - Meeting ID
+ * @param {number} meetingId - Meeting ID to cancel
  * @returns {Promise} Cancellation confirmation
  */
 export const cancelMeeting = async (meetingId) => {
-  const response = await api.delete(`${MEETINGS_BASE}/${meetingId}`);
+  const response = await api.delete(`${MEETINGS_BASE}/${meetingId}/cancel`);
   return response.data;
 };
 
