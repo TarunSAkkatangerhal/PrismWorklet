@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useContext, useMemo } from "re
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { normalizeRiskStatus, getRiskStatusColor } from "../../utils/performance";
 import { 
   Calendar, 
   Users, 
@@ -13,7 +14,9 @@ import {
   Activity,
   CheckCircle,
   Grid3X3,
-  X
+  X,
+  AlertCircle,
+  Clock
 } from "lucide-react";
 import LeftSidebar from "../../components/Left";
 import { ThemeContext } from "../../context/ThemeContext";
@@ -138,6 +141,17 @@ export default function WorkletsPage() {
     return w.status === 'Completed' ? 100 : 0;
   };
 
+  // Helper function to generate static risk status values for demo purposes
+  const generateStaticRiskStatus = (workletId) => {
+    // Generate consistent risk status based on worklet ID for demo
+    const riskValues = [3, 2, 1, 0]; // Green, Amber, Red, Not Applicable
+    const hash = workletId ? String(workletId).split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0) : 0;
+    return riskValues[Math.abs(hash) % riskValues.length];
+  };
+
   const fmtDate = (d) => {
     if (!d) return 'N/A';
     try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return 'N/A'; }
@@ -213,6 +227,10 @@ export default function WorkletsPage() {
         const status = toDisplayStatus(w.status);
         const progress = computeProgress(w);
         const studentsCount = Array.isArray(w.students) ? w.students.length : (w.student_count || w.students || 0);
+        // Generate static risk status for demo (will be replaced with backend data later)
+        const staticRiskValue = generateStaticRiskStatus(w.id);
+        const riskStatus = normalizeRiskStatus(staticRiskValue);
+        
         return {
           id: w.cert_id || w.id, // display id (prefer cert_id)
           linkId: w.id,          // numeric id for detail linking if needed
@@ -225,7 +243,8 @@ export default function WorkletsPage() {
           students: studentsCount,
           college: w.college || '—',
           mentor: w.mentor || '',
-          category: w.domain || w.category || 'General'
+          category: w.domain || w.category || 'General',
+          riskStatus
         };
       });
       setWorkletsData(normalized);
@@ -266,6 +285,15 @@ export default function WorkletsPage() {
     switch (status) {
       case 'Ongoing': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getRiskStatusLightColor = (riskStatus) => {
+    switch (riskStatus) {
+      case 'Green': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'Amber': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'Red': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -560,10 +588,21 @@ export default function WorkletsPage() {
                             {worklet.id}
                           </span>
                         </div>
-                        {/* Status Badge at top right */}
-                        <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold shadow-md ${getStatusColor(worklet.status)}`}>
-                          {worklet.status}
-                        </span>
+                        {/* Status and Risk Badges at top right */}
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold shadow-md ${getStatusColor(worklet.status)}`}>
+                            {worklet.status}
+                          </span>
+                          {/* Risk Status Badge - Show for non-completed worklets */}
+                          {worklet.status !== 'Completed' && worklet.riskStatus && worklet.riskStatus !== 'Not Applicable' && (
+                            <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold shadow-md ${getRiskStatusLightColor(worklet.riskStatus)}`}>
+                              {worklet.riskStatus === 'Red' && <AlertCircle size={10} className="mr-1" />}
+                              {worklet.riskStatus === 'Amber' && <Clock size={10} className="mr-1" />}
+                              {worklet.riskStatus === 'Green' && <CheckCircle size={10} className="mr-1" />}
+                              {worklet.riskStatus}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
                       <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 mb-2 line-clamp-2 leading-tight">
@@ -667,9 +706,20 @@ export default function WorkletsPage() {
                           </Link>
                         </td>
                         <td className="px-8 py-6">
-                          <span className={`inline-flex px-4 py-2 rounded-xl text-xs font-bold shadow-md ${getStatusColor(worklet.status)}`}>
-                            {worklet.status}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex px-4 py-2 rounded-xl text-xs font-bold shadow-md ${getStatusColor(worklet.status)}`}>
+                              {worklet.status}
+                            </span>
+                            {/* Risk Status Badge - Show for non-completed worklets */}
+                            {worklet.status !== 'Completed' && worklet.riskStatus && worklet.riskStatus !== 'Not Applicable' && (
+                              <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold shadow-md ${getRiskStatusLightColor(worklet.riskStatus)}`}>
+                                {worklet.riskStatus === 'Red' && <AlertCircle size={12} className="mr-1" />}
+                                {worklet.riskStatus === 'Amber' && <Clock size={12} className="mr-1" />}
+                                {worklet.riskStatus === 'Green' && <CheckCircle size={12} className="mr-1" />}
+                                {worklet.riskStatus}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-8 py-6">
                           <div className="flex items-center space-x-3">

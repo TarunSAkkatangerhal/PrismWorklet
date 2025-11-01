@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { normalizePerformance, getPerformanceColor } from '../../utils/performance'
+import { normalizePerformance, getPerformanceColor, normalizeRiskStatus, getRiskStatusColor } from '../../utils/performance'
 
 // --- Import your actual components from their files ---
 import RequestUpdate from '../layouts/Requestupdates'
@@ -258,6 +258,17 @@ export default function WorkletDetailPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase()
   }
   
+  // Helper function to generate static risk status values for demo purposes
+  const generateStaticRiskStatus = (workletId) => {
+    // Generate consistent risk status based on worklet ID for demo
+    const riskValues = [3, 2, 1, 0]; // Green, Amber, Red, Not Applicable
+    const hash = workletId ? String(workletId).split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0) : 0;
+    return riskValues[Math.abs(hash) % riskValues.length];
+  }
+  
   // --- BACK NAVIGATION STATE ---
   const [canGoBack, setCanGoBack] = useState(false)
 
@@ -422,6 +433,8 @@ export default function WorkletDetailPage() {
             github_repo_url: response.data.github_repo_url || null,
             // Backend-provided performance (single source of truth for badge)
             performance: response.data.performance || null,
+            // Generate static risk status for demo (will be replaced with backend data later)
+            riskStatus: normalizeRiskStatus(generateStaticRiskStatus(response.data.id)),
             // Current stage from backend
             current_stage: response.data.current_stage || null,
             stage_id: response.data.stage_id || null,
@@ -1942,6 +1955,16 @@ export default function WorkletDetailPage() {
                           {normalizePerformance(worklet?.performance) === 'Average' && <Activity size={16} className="mr-2" />}
                           {(normalizePerformance(worklet?.performance) === 'Poor' || normalizePerformance(worklet?.performance) === 'Very Poor' || normalizePerformance(worklet?.performance) === 'Needs Attention') && <AlertCircle size={16} className="mr-2" />}
                           {normalizePerformance(worklet?.performance)}
+                        </span>
+                      )}
+                      
+                      {/* Risk Status Badge - Show for ongoing and dropped worklets, but not completed ones */}
+                      {worklet?.status !== 'Completed' && worklet?.riskStatus && worklet?.riskStatus !== 'Not Applicable' && (
+                        <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getRiskStatusColor(worklet?.riskStatus)}`}>
+                          {worklet?.riskStatus === 'Red' && <AlertCircle size={16} className="mr-2" />}
+                          {worklet?.riskStatus === 'Amber' && <Clock size={16} className="mr-2" />}
+                          {worklet?.riskStatus === 'Green' && <CheckCircle size={16} className="mr-2" />}
+                          Risk: {worklet?.riskStatus}
                         </span>
                       )}
                       
