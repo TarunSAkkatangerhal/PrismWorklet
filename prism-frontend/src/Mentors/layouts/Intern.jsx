@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Loader2, CheckCircle2, Send, Download, FileText, X } from "lucide-react";
+import { Loader2, CheckCircle2, Send, Download, FileText } from "lucide-react";
 import axios from "axios";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
@@ -121,7 +121,6 @@ export default function InternReferralForm({ workletId, preSelectedWorklet, onSu
   const [submittedData, setSubmittedData] = useState(null);
   const [worklets, setWorklets] = useState([]);
   const [isLoadingWorklets, setIsLoadingWorklets] = useState(true);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [selectedWorkletObj, setSelectedWorkletObj] = useState(null);
   // Students actually shown in dropdown (may come from selected worklet object or API fetch)
   const [displayStudents, setDisplayStudents] = useState([]);
@@ -288,11 +287,6 @@ export default function InternReferralForm({ workletId, preSelectedWorklet, onSu
         onSuccess("Intern referral submitted successfully! The referral will be reviewed by our team.");
       }
     }, 1000);
-  };
-
-  const handleCloseSuccessPopup = () => {
-    setShowSuccessPopup(false);
-    setStatus("idle");
   };
   
   const criteriaOptions = [

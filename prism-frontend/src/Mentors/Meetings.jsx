@@ -1037,6 +1037,7 @@ const Meetings = () => {
         clearTimeout(timeoutId);
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meetings, reminderSettings.enabled]);
 
   // Request notification permission on component mount
@@ -1044,6 +1045,7 @@ const Meetings = () => {
     if (reminderSettings.enabled && reminderSettings.methods.includes('browser')) {
       requestNotificationPermission();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Data fetching functions

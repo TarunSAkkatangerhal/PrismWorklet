@@ -1002,6 +1002,7 @@ const Colleges = () => {
     }
 
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBaseUrl, collegeSearch ? '' : selectedYear]) // Only re-fetch on year change when no college is selected
 
   // Restore selected college if provided via navigation state later
