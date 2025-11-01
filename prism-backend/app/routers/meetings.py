@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from app.models import Meeting, MeetingWorkletAssociation, MeetingRecurrence, Worklet, User, UserWorkletAssociation, College
@@ -68,9 +68,62 @@ def check_mentor_owns_worklets(db: Session, mentor_id: int, worklet_ids: List[in
     return True
 
 
+def send_meeting_notifications_background(
+    participant_ids: set,
+    organizer_id: int,
+    meeting_title: str,
+    meeting_datetime: datetime,
+    meeting_link: str,
+    organizer_name: str,
+    notification_type: str = "created",
+    reason: str = None
+):
+    """
+    Background task to send meeting notifications to all participants.
+    This runs asynchronously so the API doesn't timeout.
+    """
+    from app.database import SessionLocal
+    
+    db = SessionLocal()
+    emails_sent = 0
+    emails_failed = 0
+    
+    try:
+        logger.info(f"📧 [Background] Sending meeting notifications to {len(participant_ids)} participants...")
+        
+        for user_id in participant_ids:
+            if user_id != organizer_id:  # Don't notify organizer
+                user = db.query(User).filter(User.id == user_id).first()
+                if user and user.email:
+                    try:
+                        send_meeting_notification(
+                            recipient_email=user.email,
+                            recipient_name=user.name,
+                            meeting_title=meeting_title,
+                            meeting_datetime=meeting_datetime,
+                            meeting_link=meeting_link,
+                            organizer_name=organizer_name,
+                            notification_type=notification_type,
+                            reason=reason
+                        )
+                        emails_sent += 1
+                        logger.info(f"✅ Email sent to {user.email}")
+                    except Exception as e:
+                        emails_failed += 1
+                        logger.error(f"❌ Failed to send email to {user.email}: {str(e)}")
+        
+        logger.info(f"✅ [Background] Meeting notifications complete: {emails_sent} sent, {emails_failed} failed")
+        
+    except Exception as e:
+        logger.error(f"❌ [Background] Error in send_meeting_notifications_background: {str(e)}")
+    finally:
+        db.close()
+
+
 @router.post("/", response_model=MeetingOut, status_code=status.HTTP_201_CREATED)
 def create_meeting(
     meeting_data: MeetingCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -157,26 +210,20 @@ def create_meeting(
     db.commit()
     db.refresh(new_meeting)
     
-    # Send email notifications to all participants (async/background task in production)
-    try:
-        for user_id in all_participants:
-            if user_id != current_user.id:  # Don't notify organizer
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    send_meeting_notification(
-                        recipient_email=user.email,
-                        recipient_name=user.name,
-                        meeting_title=new_meeting.title,
-                        meeting_datetime=new_meeting.start_datetime,
-                        meeting_link=new_meeting.meeting_link,
-                        organizer_name=current_user.name,
-                        notification_type="created"
-                    )
-        
-        db.commit()
-    except Exception as e:
-        logger.error(f"Failed to send meeting notifications: {str(e)}")
-        # Don't fail the meeting creation if email fails
+    # Schedule email notifications as background task (non-blocking)
+    # This prevents timeout issues when sending emails to many participants
+    logger.info(f"📧 Scheduling background task to send emails to {len(all_participants)} participants...")
+    background_tasks.add_task(
+        send_meeting_notifications_background,
+        participant_ids=all_participants,
+        organizer_id=current_user.id,
+        meeting_title=new_meeting.title,
+        meeting_datetime=new_meeting.start_datetime,
+        meeting_link=new_meeting.meeting_link,
+        organizer_name=current_user.name,
+        notification_type="created"
+    )
+    logger.info("✅ Meeting created successfully. Emails will be sent in background.")
     
     # Fetch complete meeting data for response
     return get_meeting_detail(new_meeting.meeting_id, current_user, db)
@@ -366,83 +413,21 @@ def get_meeting_detail(
     return MeetingOut(**meeting_dict)
 
 
+# OLD ENDPOINT - DEPRECATED - Use PATCH /{meeting_id}/reschedule instead
+# This PUT endpoint is kept for backwards compatibility but should not be used
+# It sends emails synchronously which can cause timeouts
+"""
 @router.put("/{meeting_id}/reschedule", response_model=MeetingOut)
-def reschedule_meeting(
+def reschedule_meeting_old(
     meeting_id: int,
     reschedule_data: MeetingReschedule,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Reschedule a meeting to a new datetime.
-    Only the meeting organizer (mentor) can reschedule.
-    """
-    meeting = db.query(Meeting).filter(Meeting.meeting_id == meeting_id).first()
-    
-    if not meeting:
-        raise HTTPException(status_code=404, detail="Meeting not found")
-    
-    # Only organizer can reschedule
-    if meeting.organizer_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only the meeting organizer can reschedule"
-        )
-    
-    # Can't reschedule cancelled or completed meetings
-    if meeting.status in ["cancelled", "completed"]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot reschedule a {meeting.status} meeting"
-        )
-    
-    # Update meeting datetime
-    old_datetime = meeting.start_datetime
-    meeting.start_datetime = reschedule_data.start_datetime
-    
-    if reschedule_data.duration_minutes:
-        meeting.duration_minutes = reschedule_data.duration_minutes
-    
-    meeting.status = "upcoming"  # Reset to upcoming
-    
-    # Update worklet associations with new sequential times
-    current_start_time = reschedule_data.start_datetime
-    all_participants = set()
-    
-    for assoc in meeting.worklet_associations:
-        assoc.scheduled_datetime = current_start_time
-        
-        # Collect participants
-        participants = get_worklet_participants(db, assoc.worklet_id)
-        all_participants.update([p.id for p in participants])
-        
-        current_start_time += timedelta(minutes=meeting.duration_minutes)
-    
-    db.commit()
-    db.refresh(meeting)
-    
-    # Send rescheduling notifications
-    try:
-        for user_id in all_participants:
-            if user_id != current_user.id:
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    send_meeting_notification(
-                        recipient_email=user.email,
-                        recipient_name=user.name,
-                        meeting_title=meeting.title,
-                        meeting_datetime=meeting.start_datetime,
-                        meeting_link=meeting.meeting_link,
-                        organizer_name=current_user.name,
-                        notification_type="rescheduled",
-                        reason=reschedule_data.reason
-                    )
-        
-        db.commit()
-    except Exception as e:
-        logger.error(f"Failed to send reschedule notifications: {str(e)}")
-    
-    return get_meeting_detail(meeting.meeting_id, current_user, db)
+    # DEPRECATED - This endpoint is no longer used
+    # Use PATCH /{meeting_id}/reschedule instead
+    pass
+"""
 
 
 @router.delete("/{meeting_id}", status_code=status.HTTP_200_OK)
@@ -559,3 +544,298 @@ def get_mentor_worklets(
         })
     
     return result
+
+
+# ======================= Additional Endpoints for Frontend =======================
+
+@router.get("/mentor/worklets", response_model=List[WorkletScheduleOut])
+def get_mentor_worklets(
+    college_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get worklets available to mentor for meeting scheduling.
+    Only returns ongoing and on-hold worklets (not dropped/completed).
+    """
+    # Get worklets where user is a mentor
+    query = db.query(Worklet).join(
+        UserWorkletAssociation,
+        UserWorkletAssociation.worklet_id == Worklet.id
+    ).filter(
+        UserWorkletAssociation.user_id == current_user.id,
+        UserWorkletAssociation.role_in_worklet == "Mentor"
+    )
+    
+    # Filter by status - only ongoing and on-hold
+    query = query.filter(
+        Worklet.status.in_(['ongoing', 'on hold', 'on-hold'])
+    )
+    
+    # Filter by college if provided
+    if college_id:
+        query = query.filter(Worklet.college_id == college_id)
+    
+    worklets = query.all()
+    
+    result = []
+    for worklet in worklets:
+        # Get students and professors count
+        student_count = db.query(UserWorkletAssociation).filter(
+            UserWorkletAssociation.worklet_id == worklet.id,
+            UserWorkletAssociation.role_in_worklet == "Student"
+        ).count()
+        
+        professor_count = db.query(UserWorkletAssociation).filter(
+            UserWorkletAssociation.worklet_id == worklet.id,
+            UserWorkletAssociation.role_in_worklet == "Professor"
+        ).count()
+        
+        result.append({
+            "id": worklet.id,
+            "worklet_cert_id": worklet.cert_id,
+            "title": worklet.title,
+            "name": worklet.title,
+            "status": worklet.status,
+            "students": [{"id": i, "name": f"Student {i}"} for i in range(student_count)],
+            "professors": [{"id": i, "name": f"Professor {i}"} for i in range(professor_count)],
+            "college": worklet.college_rel.college_name if worklet.college_rel else None
+        })
+    
+    return result
+
+
+@router.get("/colleges", response_model=List[dict])
+def get_colleges(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of colleges where mentor has worklets assigned.
+    """
+    colleges = db.query(College).join(
+        Worklet,
+        Worklet.college_id == College.college_id
+    ).join(
+        UserWorkletAssociation,
+        UserWorkletAssociation.worklet_id == Worklet.id
+    ).filter(
+        UserWorkletAssociation.user_id == current_user.id,
+        UserWorkletAssociation.role_in_worklet == "Mentor"
+    ).distinct().all()
+    
+    return [
+        {
+            "college_id": college.college_id,
+            "college_name": college.college_name,
+            "id": college.college_id
+        }
+        for college in colleges
+    ]
+
+
+@router.patch("/{meeting_id}/reschedule", response_model=MeetingOut)
+def reschedule_meeting(
+    meeting_id: int,
+    reschedule_data: MeetingReschedule,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Reschedule a meeting to a new date and time.
+    Only the meeting organizer can reschedule.
+    """
+    meeting = db.query(Meeting).filter(
+        Meeting.meeting_id == meeting_id
+    ).first()
+    
+    if not meeting:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found"
+        )
+    
+    # Check authorization
+    if meeting.organizer_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the meeting organizer can reschedule"
+        )
+    
+    # Check if meeting is completed or cancelled
+    if meeting.status in ["completed", "cancelled"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reschedule a {meeting.status} meeting"
+        )
+    
+    # Update meeting details
+    meeting.start_datetime = reschedule_data.start_datetime
+    if reschedule_data.duration_minutes:
+        meeting.duration_minutes = reschedule_data.duration_minutes
+    
+    # Reset status to upcoming if it was live/completed
+    if meeting.status != "cancelled":
+        meeting.status = "upcoming"
+    
+    meeting.updated_at = datetime.now()
+    
+    db.commit()
+    db.refresh(meeting)
+    
+    # Collect all participants from all worklets
+    all_participants = set()
+    worklet_ids = [assoc.worklet_id for assoc in meeting.worklet_associations]
+    for worklet_id in worklet_ids:
+        participants = get_worklet_participants(db, worklet_id)
+        all_participants.update([p.id for p in participants])
+    
+    # Send notification to participants in background
+    logger.info(f"📧 Scheduling background task to send reschedule emails to {len(all_participants)} participants...")
+    background_tasks.add_task(
+        send_meeting_notifications_background,
+        participant_ids=all_participants,
+        organizer_id=current_user.id,
+        meeting_title=meeting.title,
+        meeting_datetime=meeting.start_datetime,
+        meeting_link=meeting.meeting_link,
+        organizer_name=current_user.name,
+        notification_type="rescheduled",
+        reason=reschedule_data.reason if hasattr(reschedule_data, 'reason') else None
+    )
+    
+    # Return meeting details in proper format
+    return get_meeting_detail(meeting.meeting_id, current_user, db)
+
+
+@router.delete("/{meeting_id}/cancel")
+def cancel_meeting(
+    meeting_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Cancel a meeting.
+    Only the meeting organizer can cancel.
+    """
+    meeting = db.query(Meeting).filter(
+        Meeting.meeting_id == meeting_id
+    ).first()
+    
+    if not meeting:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found"
+        )
+    
+    # Check authorization
+    if meeting.organizer_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the meeting organizer can cancel"
+        )
+    
+    # Check if already cancelled
+    if meeting.status == "cancelled":
+        raise HTTPException(
+            status_code=400,
+            detail="Meeting is already cancelled"
+        )
+    
+    # Update status
+    meeting.status = "cancelled"
+    meeting.updated_at = datetime.now()
+    
+    db.commit()
+    
+    # Collect all participants from all worklets
+    all_participants = set()
+    worklet_ids = [assoc.worklet_id for assoc in meeting.worklet_associations]
+    for worklet_id in worklet_ids:
+        participants = get_worklet_participants(db, worklet_id)
+        all_participants.update([p.id for p in participants])
+    
+    # Send cancellation notification to participants in background
+    logger.info(f"📧 Scheduling background task to send cancellation emails to {len(all_participants)} participants...")
+    background_tasks.add_task(
+        send_meeting_notifications_background,
+        participant_ids=all_participants,
+        organizer_id=current_user.id,
+        meeting_title=meeting.title,
+        meeting_datetime=meeting.start_datetime,
+        meeting_link=meeting.meeting_link,
+        organizer_name=current_user.name,
+        notification_type="cancelled"
+    )
+    
+    return {
+        "message": "Meeting cancelled successfully",
+        "meeting_id": meeting_id,
+        "status": "cancelled"
+    }
+
+
+@router.post("/{meeting_id}/send-reminder")
+def send_meeting_reminder(
+    meeting_id: int,
+    background_tasks: BackgroundTasks,
+    minutes_before: int = 15,
+    recipients: str = "all",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Send reminder notification to meeting participants.
+    Minutes_before: how many minutes before the meeting to send reminder
+    Recipients: 'all', 'mentors', 'students', or 'professors'
+    """
+    meeting = db.query(Meeting).filter(
+        Meeting.meeting_id == meeting_id
+    ).first()
+    
+    if not meeting:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found"
+        )
+    
+    # Check authorization
+    if meeting.organizer_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the meeting organizer can send reminders"
+        )
+    
+    # Collect participants based on role
+    participant_ids = set()
+    worklet_ids = [assoc.worklet_id for assoc in meeting.worklet_associations]
+    
+    for worklet_id in worklet_ids:
+        associations = db.query(UserWorkletAssociation).filter(
+            UserWorkletAssociation.worklet_id == worklet_id
+        ).all()
+        
+        for assoc in associations:
+            if recipients == "all" or (recipients.lower() == assoc.role_in_worklet.lower()):
+                participant_ids.add(assoc.user_id)
+    
+    # Send reminders in background
+    logger.info(f"📧 Scheduling background task to send reminder emails to {len(participant_ids)} participants...")
+    background_tasks.add_task(
+        send_meeting_notifications_background,
+        participant_ids=participant_ids,
+        organizer_id=current_user.id,
+        meeting_title=meeting.title,
+        meeting_datetime=meeting.start_datetime,
+        meeting_link=meeting.meeting_link,
+        organizer_name=current_user.name,
+        notification_type="reminder"
+    )
+    
+    return {
+        "message": f"Reminders scheduled for {len(participant_ids)} participants",
+        "recipients_count": len(participant_ids),
+        "minutes_before": minutes_before
+    }

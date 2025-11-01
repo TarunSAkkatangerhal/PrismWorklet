@@ -2,10 +2,23 @@
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 def _send_email(to_email: str, subject: str, body_html: str, body_plain: str = None):
     """Helper function to send styled HTML email"""
     try:
+        # Validate SMTP configuration
+        if not settings.SMTP_USER or not settings.SMTP_PASS:
+            logger.error("❌ SMTP credentials not configured. Cannot send email.")
+            raise Exception("SMTP credentials not configured")
+        
+        logger.info(f"📧 Attempting to send email to {to_email}")
+        logger.info(f"   Subject: {subject}")
+        logger.info(f"   SMTP: {settings.SMTP_HOST}:{settings.SMTP_PORT}")
+        logger.info(f"   User: {settings.SMTP_USER}")
+        
         msg = MIMEMultipart("alternative")
         msg["From"] = settings.SMTP_USER
         msg["To"] = to_email
@@ -16,22 +29,24 @@ def _send_email(to_email: str, subject: str, body_html: str, body_plain: str = N
             msg.attach(MIMEText(body_plain, "plain"))
         msg.attach(MIMEText(body_html, "html"))
 
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+            server.set_debuglevel(0)  # Set to 1 for detailed SMTP logs
             server.starttls()
             server.login(settings.SMTP_USER, settings.SMTP_PASS)
             server.sendmail(settings.SMTP_USER, to_email, msg.as_string())
         
-        print(f"✅ Email sent successfully to {to_email}")
-        return True
+        logger.info(f"✅ Email sent successfully to {to_email}")
+        
     except smtplib.SMTPAuthenticationError as e:
-        print(f"❌ SMTP Authentication failed: {str(e)}")
-        raise Exception(f"Email authentication failed. Please check SMTP credentials.")
+        logger.error(f"❌ SMTP Authentication failed: {str(e)}")
+        logger.error("   Check your SMTP_USER and SMTP_PASS in .env file")
+        raise
     except smtplib.SMTPException as e:
-        print(f"❌ SMTP Error sending email to {to_email}: {str(e)}")
-        raise Exception(f"Failed to send email: {str(e)}")
+        logger.error(f"❌ SMTP error occurred: {str(e)}")
+        raise
     except Exception as e:
-        print(f"❌ Unexpected error sending email to {to_email}: {str(e)}")
-        raise Exception(f"Email sending failed: {str(e)}")
+        logger.error(f"❌ Failed to send email to {to_email}: {str(e)}")
+        raise
 
 
 def send_otp_email(email: str, name: str, otp_code: str):
