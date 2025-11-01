@@ -30,6 +30,7 @@ class WorkletOut(BaseModel):
     assignedStudents: Optional[list] = []
     performanceStatus: Optional[str] = None
     progressStatus: Optional[str] = None
+    team: Optional[str] = None
     collegeName: Optional[str] = None
     class Config:
         from_attributes = True
