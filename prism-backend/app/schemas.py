@@ -223,6 +223,9 @@ class WorkletResponse(BaseModel):
     problem_statement: Optional[str] = None
     expectation: Optional[str] = None
     prerequisites: Optional[str] = None
+    performance: Optional[str] = None
+    github_repo: Optional[str] = None
+    github_repo_url: Optional[str] = None
     
     class Config:
         from_attributes = True

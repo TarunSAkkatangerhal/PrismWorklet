@@ -126,13 +126,25 @@ def get_worklet_with_users(
     
     for assoc in associations:
         user = assoc.user
+        # Serialize user data with all required fields for UserResponse schema
+        user_dict = {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "team": getattr(user, 'team', None),
+            "college": getattr(user, 'college', None),
+            "is_verified": getattr(user, 'is_verified', False),
+            "created_at": getattr(user, 'created_at', None),
+        }
+        
         # role_in_worklet is stored as a string in DB; compare to enum .value
         if assoc.role_in_worklet == WorkletRoleEnum.mentor.value:
-            mentors.append(user)
+            mentors.append(user_dict)
         elif assoc.role_in_worklet == WorkletRoleEnum.student.value:
-            students.append(user)
+            students.append(user_dict)
         elif assoc.role_in_worklet == WorkletRoleEnum.professor.value:
-            professors.append(user)
+            professors.append(user_dict)
     
     # Derive status, year and progress using centralized helpers
     status_text = normalize_status_text(getattr(worklet, 'status_id', None))
@@ -178,6 +190,10 @@ def get_worklet_with_users(
         college_name = getattr(m, 'college', None)
         college_id = getattr(m, 'college_id', None)
 
+    # Get GitHub info
+    github_url = getattr(worklet, 'github_url', None)
+    repo_name = WorkletService.extract_github_repo_name(github_url)
+
     # Convert worklet to dict and add associations
     worklet_dict = {
         "id": worklet.id,
@@ -199,6 +215,8 @@ def get_worklet_with_users(
         "expectation": getattr(worklet, "expectation", None),
         "prerequisites": getattr(worklet, "prerequisites", None),
         "performance": normalize_performance(getattr(worklet, 'Performance', None)),
+        "github_repo_url": github_url,
+        "github_repo": repo_name,
         "mentors": mentors,
         "students": students,
         "professors": professors,

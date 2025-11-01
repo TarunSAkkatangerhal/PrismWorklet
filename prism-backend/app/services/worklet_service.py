@@ -119,8 +119,10 @@ class WorkletService:
             return None
         
         try:
-            if 'github.com' in github_url:
-                m = re.search(r"github\.com/([^/]+/[^/]+)", github_url)
+            # Support both github.com and github.ecodesamsung.com
+            if 'github' in github_url:
+                # Match pattern: github.*/owner/repo
+                m = re.search(r"github[^/]*/([^/]+/[^/]+)", github_url)
                 if m:
                     return m.group(1)
         except Exception:
