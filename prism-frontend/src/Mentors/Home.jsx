@@ -7,7 +7,7 @@
 import { getMentorWorkletsById } from '../services/worklets' // Service helpers for API calls
 import { getCurrentUser } from '../services/auth' // Secure authentication
 import { sanitizeInput } from '../utils/security' // Security utilities
-import { normalizePerformance, getPerformanceColor } from '../utils/performance' // Performance mapping
+import { normalizePerformance, getPerformanceColor, normalizeRiskStatus, getRiskStatusColor } from '../utils/performance' // Performance and Risk Status mapping
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -80,7 +80,18 @@ const generateColorFromName = (name) => {
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash)
   }
-  return colors[Math.abs(hash % colors.length)]
+  return colors[Math.abs(hash) % colors.length]
+}
+
+// Helper function to generate static risk status values for demo purposes
+const generateStaticRiskStatus = (workletId) => {
+  // Generate consistent risk status based on worklet ID for demo
+  const riskValues = [3, 2, 1, 0]; // Green, Amber, Red, Not Applicable
+  const hash = workletId ? String(workletId).split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0) : 0;
+  return riskValues[Math.abs(hash) % riskValues.length];
 }
 
 export default function Dashboard() {
@@ -163,6 +174,10 @@ export default function Dashboard() {
           // Use centralized performance normalization
           const quality = normalizePerformance(worklet.performance)
           
+          // Generate static risk status for demo (will be replaced with backend data later)
+          const staticRiskValue = generateStaticRiskStatus(worklet.id)
+          const riskStatus = normalizeRiskStatus(staticRiskValue)
+          
           // Extract student names (fallback to email if name missing)
           const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : []
           // Keep raw ISO dates for calculations and formatted versions for display
@@ -187,6 +202,7 @@ export default function Dashboard() {
             students: studentNames,
             notificationCount: 0,
             quality,
+            riskStatus,
             college: worklet.college || 'Unknown College',
             team: worklet.team || worklet.domain || 'General',
             latestSuggestion
@@ -739,13 +755,24 @@ function WorkletCard({ worklet, layout, navigate }) {
 
         {/* Right side panel with latest update */}
         <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center text-center p-[0.4vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out overflow-hidden">
+          
+          {/* Performance Badge */}
           {worklet.quality && (
             <span
               className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${getPerformanceColor(worklet.quality)}`}>
               {worklet.quality}
             </span>
           )}
-          <div className={`${worklet.quality ? 'mt-[0.6vw]' : ''} flex-1 flex flex-col justify-center`}>
+          
+          {/* Risk Status Badge */}
+          {worklet.riskStatus && worklet.riskStatus !== 'Not Applicable' && (
+            <span
+              className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${getRiskStatusColor(worklet.riskStatus)} ${worklet.quality ? 'mt-[0.3vw]' : ''}`}>
+              Risk: {worklet.riskStatus}
+            </span>
+          )}
+          
+          <div className={`${(worklet.quality || worklet.riskStatus) ? 'mt-[0.6vw]' : ''} flex-1 flex flex-col justify-center`}>
             <p className="text-[clamp(1.2rem,2.5vw,2rem)] font-bold">{remaining.days}</p>
             <p className="text-[clamp(0.5rem,0.7vw,0.65rem)] text-gray-300">{remaining.label}</p>
           </div>
