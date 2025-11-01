@@ -220,6 +220,7 @@ class WorkletResponse(BaseModel):
     college_id: Optional[int] = None
     college: Optional[str] = None
     student_count: Optional[int] = 0
+    team: Optional[str] = None
     problem_statement: Optional[str] = None
     expectation: Optional[str] = None
     prerequisites: Optional[str] = None

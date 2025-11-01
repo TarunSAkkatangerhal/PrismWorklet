@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import secureAPI from '../services/secureAPI'
 import {
   Search,
   Users,
@@ -718,15 +719,17 @@ const Colleges = () => {
     return 'All Years'
   })
   
-  const [selectedArea, setSelectedArea] = useState(() => {
-    const urlArea = searchParams.get('area')
-    if (urlArea) return urlArea
-    return 'Select Area'
+  const [selectedTeam, setSelectedTeam] = useState(() => {
+    const urlTeam = searchParams.get('team')
+    if (urlTeam) return urlTeam
+    return 'Select Team'
   })
   
   const [allCollegeData, setAllCollegeData] = useState([])
+  const [allYears, setAllYears] = useState([]) // Store all available years
   const [loading, setLoading] = useState(true)
   const [enlargedChartInfo, setEnlargedChartInfo] = useState(null) // State for modal
+  const [availableTeams, setAvailableTeams] = useState([]) // Available teams for filtering
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000'
   const [collegeDetailStatus, setCollegeDetailStatus] = useState({}) // tracks detailed fetch status per college
   const allCollegeDataRef = useRef(allCollegeData)
@@ -753,22 +756,32 @@ const Colleges = () => {
     const params = new URLSearchParams()
     if (collegeSearch) params.set('college', collegeSearch)
     if (selectedYear && selectedYear !== 'All Years') params.set('year', selectedYear)
-    if (selectedArea && selectedArea !== 'Select Area') params.set('area', selectedArea)
+    if (selectedTeam && selectedTeam !== 'Select Team') params.set('team', selectedTeam)
     
     // Replace history to avoid back-button clutter
     navigate({ search: params.toString() }, { replace: true })
-  }, [collegeSearch, selectedYear, selectedArea, navigate])
+  }, [collegeSearch, selectedYear, selectedTeam, navigate])
   
-  // When college is selected, clear year and area filters (nested filtering)
+  // When college is selected, clear year and team filters (nested filtering)
   useEffect(() => {
     if (collegeSearch) {
       setSelectedYear('All Years')
-      setSelectedArea('Select Area')
+      setSelectedTeam('Select Team')
     }
   }, [collegeSearch])
+  
+  // When year changes, reset team filter (nested filtering)
+  useEffect(() => {
+    setSelectedTeam('Select Team')
+  }, [selectedYear])
 
   // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
+    // If no college is selected, use the stored allYears
+    if (!collegeSearch && allYears.length > 0) {
+      return allYears
+    }
+    
     // If a college is selected, only show years for that college's worklets
     let collegesToConsider = allCollegeData || []
     
@@ -786,7 +799,7 @@ const Colleges = () => {
     
     const unique = Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))
     return unique
-  }, [allCollegeData, collegeSearch])
+  }, [allCollegeData, collegeSearch, allYears])
 
   // Helper: robust worklet count computation aligned with charts
   const getWorkletCount = useCallback((college) => {
@@ -804,55 +817,41 @@ const Colleges = () => {
 
 
 
-  const uniqueAreas = useMemo(() => {
-    // Start with all colleges
-    let collegesToConsider = allCollegeData || []
-    
-    // If a college is selected, only show areas for that college
-    if (collegeSearch) {
-      collegesToConsider = collegesToConsider.filter(
-        (c) => typeof c?.name === 'string' && c.name.toLowerCase() === collegeSearch.toLowerCase()
-      )
-    }
-    
-    // If a year is selected, only show areas from colleges that have worklets in that year
-    if (selectedYear && selectedYear !== 'All Years') {
-      collegesToConsider = collegesToConsider.filter((college) => {
-        const hasWorkletsInYear = (college.worklets || []).some(
-          (worklet) => String(worklet.year) === selectedYear
-        )
-        return hasWorkletsInYear
-      })
-    }
-    
-    // Extract areas from the filtered colleges
-    const areas = collegesToConsider
-      .map((college) => college.areaOfExpertise)
-      .filter((area) => area && (typeof area === 'string' || Array.isArray(area)))
-      .flatMap((area) => (Array.isArray(area) ? area : area.split(',').map((a) => a.trim())))
-
-    return Array.from(new Set(areas.filter((a) => typeof a === 'string' && a))).sort()
-  }, [allCollegeData, collegeSearch, selectedYear])
-
-  // Filter colleges based on selected area (year filtering is done by backend)
-  const uniqueColleges = useMemo(() => {
-    let collegesToUse = allCollegeData || []
-    
-    // Filter by selected area if one is chosen
-    if (selectedArea && selectedArea !== 'Select Area') {
-      collegesToUse = collegesToUse.filter((college) => {
-        const area = college.areaOfExpertise
-        if (Array.isArray(area)) {
-          return area.some((item) => typeof item === 'string' && item === selectedArea)
-        } else if (typeof area === 'string') {
-          return area.split(',').map((item) => item.trim()).includes(selectedArea)
+  // Fetch available teams based on selected year (nested filtering)
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const teamsParams = new URLSearchParams()
+        if (selectedYear && selectedYear !== 'All Years') {
+          teamsParams.set('year', selectedYear)
         }
-        return false
-      })
+        
+        const teamsRes = await secureAPI.get(
+          `/api/dashboard/teams${teamsParams.toString() ? `?${teamsParams.toString()}` : ''}`
+        )
+        const teams = teamsRes?.data?.teams || []
+        setAvailableTeams(teams)
+      } catch (error) {
+        console.error('Failed to fetch teams:', error)
+        // Fallback to default teams if API fails
+        setAvailableTeams(['Vision', 'Innovation', 'Research', 'Development', 'Analytics', 'Design'])
+      }
     }
     
-    return collegesToUse
-  }, [allCollegeData, selectedArea])
+    fetchTeams()
+  }, [selectedYear])
+
+  // Extract unique college names for dropdown
+  const uniqueColleges = useMemo(() => {
+    if (!allCollegeData || allCollegeData.length === 0) return []
+    return allCollegeData
+      .filter((college) => college.name && typeof college.name === 'string')
+      .map((college) => ({
+        id: college.id,
+        name: college.name
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [allCollegeData])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -915,6 +914,7 @@ const Colleges = () => {
             performanceStatus: performanceStatus,
             domain: worklet.domain,
             year: worklet.year,
+            team: worklet.team,
             startDate: worklet.start_date,
             endDate: worklet.end_date,
             studentCount: derivedStudentCount,
@@ -962,6 +962,16 @@ const Colleges = () => {
         })
 
         setAllCollegeData(processedData)
+        
+        // Store all available years from the initial fetch (before filters are applied)
+        if (!collegeSearch && (!selectedYear || selectedYear === 'All Years')) {
+          const allAvailableYears = processedData
+            .flatMap((college) => college.worklets || [])
+            .map((worklet) => worklet.year)
+            .filter((year) => year && !isNaN(Number(year)))
+          const uniqueAvailableYears = Array.from(new Set(allAvailableYears)).sort((a, b) => Number(b) - Number(a))
+          setAllYears(uniqueAvailableYears)
+        }
       } catch (err) {
         console.error('Failed to fetch colleges overview:', err)
         console.error('Error details:', {
@@ -1060,6 +1070,7 @@ const Colleges = () => {
             performanceStatus: performanceStatus,
             domain: rawWorklet.domain,
             year: rawWorklet.year,
+            team: rawWorklet.team, // Include team field
             startDate: rawWorklet.start_date,
             endDate: rawWorklet.end_date,
             studentCount,
@@ -1156,34 +1167,23 @@ const Colleges = () => {
     if (collegeSearch) {
       collegesToFilter = allCollegeData.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
       
-      // When college is selected, apply nested year and area filters to worklets
+      // When college is selected, apply nested year and team filters to worklets
       return collegesToFilter.map((college) => {
-        // Apply area filter first - check if college has the selected area
-        if (selectedArea && selectedArea !== 'Select Area') {
-          const area = college.areaOfExpertise
-          let matchesArea = false
-          
-          if (Array.isArray(area)) {
-            matchesArea = area.some((item) => typeof item === 'string' && item === selectedArea)
-          } else if (typeof area === 'string') {
-            matchesArea = area.split(',').map((item) => item.trim()).includes(selectedArea)
-          }
-          
-          // If college doesn't have selected area, exclude it
-          if (!matchesArea) {
-            return null
-          }
-        }
-        
         // Apply year filter to worklets within selected college
         let filteredWorklets = college.worklets || []
+        
         if (selectedYear && selectedYear !== 'All Years') {
           filteredWorklets = filteredWorklets.filter(worklet => String(worklet.year) === selectedYear)
         }
         
+        // Apply team filter to worklets
+        if (selectedTeam && selectedTeam !== 'Select Team') {
+          filteredWorklets = filteredWorklets.filter(worklet => worklet.team === selectedTeam)
+        }
+        
         // Always recalculate counts when any filter is applied
         const needsRecalculation = (selectedYear && selectedYear !== 'All Years') || 
-                                    (selectedArea && selectedArea !== 'Select Area')
+                                    (selectedTeam && selectedTeam !== 'Select Team')
         
         if (needsRecalculation) {
           const completedCount = filteredWorklets.filter(w => w.status === 'Completed').length
@@ -1216,21 +1216,54 @@ const Colleges = () => {
       }).filter(Boolean)
     }
 
-    // No college selected - apply area filter only (year filtering done by backend)
-    return collegesToFilter.filter((college) => {
-      let areaMatch = selectedArea === 'Select Area'
-      if (!areaMatch) {
-        const area = college.areaOfExpertise
-        if (Array.isArray(area)) {
-          areaMatch = area.some((item) => typeof item === 'string' && item === selectedArea)
-        } else if (typeof area === 'string') {
-          areaMatch = area.split(',').map((item) => item.trim()).includes(selectedArea)
+    // No college selected - apply year and team filters to ALL colleges
+    return collegesToFilter.map((college) => {
+      let filteredWorklets = college.worklets || []
+      
+      // Apply year filter if selected
+      if (selectedYear && selectedYear !== 'All Years') {
+        filteredWorklets = filteredWorklets.filter(worklet => String(worklet.year) === selectedYear)
+      }
+      
+      // Apply team filter if selected
+      if (selectedTeam && selectedTeam !== 'Select Team') {
+        filteredWorklets = filteredWorklets.filter(worklet => worklet.team === selectedTeam)
+      }
+      
+      // If any filters applied, recalculate counts
+      const needsRecalculation = (selectedYear && selectedYear !== 'All Years') || 
+                                  (selectedTeam && selectedTeam !== 'Select Team')
+      
+      if (needsRecalculation) {
+        const completedCount = filteredWorklets.filter(w => w.status === 'Completed').length
+        const ongoingCount = filteredWorklets.filter(w => w.status === 'Ongoing').length
+        const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold').length
+        const terminatedCount = filteredWorklets.filter(w => w.status === 'Terminated').length
+        
+        const excellentCount = filteredWorklets.filter(w => w.performanceStatus === 'Excellent').length
+        const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
+        const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
+        
+        const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
+        
+        return {
+          ...college,
+          worklets: filteredWorklets,
+          workletCount: filteredWorklets.length,
+          completedCount,
+          ongoingCount,
+          onHoldCount,
+          terminatedCount,
+          excellentCount,
+          goodCount,
+          needsAttentionCount,
+          totalStudents
         }
       }
-
-      return areaMatch
+      
+      return college
     })
-  }, [allCollegeData, collegeSearch, selectedArea, selectedYear])
+  }, [allCollegeData, collegeSearch, selectedTeam, selectedYear])
 
   // College Overview list sorted by worklet counts (must be after filteredColleges)
   const overviewColleges = useMemo(() => {
@@ -1291,14 +1324,14 @@ const Colleges = () => {
   const handleResetFilters = () => {
     setCollegeSearch('')
     setSelectedYear('All Years')
-    setSelectedArea('Select Area')
+    setSelectedTeam('Select Team')
   }
 
   const handleCollegeSelect = (collegeName) => {
     setCollegeSearch(collegeName)
     // Reset dependent filters when college selection changes
     setSelectedYear('All Years')
-    setSelectedArea('Select Area')
+    setSelectedTeam('Select Team')
   }
 
   // New handler for opening the chart modal
@@ -1372,7 +1405,7 @@ const Colleges = () => {
           collegeName: targetCollege === 'All Colleges' ? '' : targetCollege,
           count,
           year: selectedYear,
-          area: selectedArea
+          team: selectedTeam
         }
       })
     } else {
@@ -1818,15 +1851,15 @@ const Colleges = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Area:</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Team:</label>
                 <div className="relative">
                   <select
-                    value={selectedArea}
-                    onChange={(e) => setSelectedArea(e.target.value)}
+                    value={selectedTeam}
+                    onChange={(e) => setSelectedTeam(e.target.value)}
                     className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
-                    <option>Select Area</option>
-                    {uniqueAreas.map((area) => (
-                      <option key={area} value={area}>{area}</option>
+                    <option>Select Team</option>
+                    {availableTeams.map((team) => (
+                      <option key={team} value={team}>{team}</option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />

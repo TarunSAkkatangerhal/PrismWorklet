@@ -93,9 +93,10 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
     """
     from sqlalchemy.orm import joinedload
     
-    # Eager load college relationship to avoid N+1 queries
+    # Eager load college and team relationships to avoid N+1 queries
     worklets = db.query(Worklet).options(
-        joinedload(Worklet.college_rel)
+        joinedload(Worklet.college_rel),
+        joinedload(Worklet.team_rel)
     ).all()
     
     # Batch fetch all student associations to avoid N+1 queries
@@ -192,6 +193,11 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
                     repo_name = m.group(1)
         except Exception:
             repo_name = None
+        
+        # Get team name from eager-loaded relationship
+        team_name = None
+        if w.team_rel:
+            team_name = w.team_rel.team_name
 
         response.append({
             'id': w.id,
@@ -209,6 +215,7 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             'college_id': college_id,
             'college': college_name,
             'student_count': student_count,
+            'team': team_name,
             'github_repo_url': github_url,
             'github_repo': repo_name,
             'performance': normalize_performance(getattr(w, 'Performance', None))
