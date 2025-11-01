@@ -627,8 +627,7 @@ const Meetings = () => {
   const [showAddModal, setShowAddModal] = useState(false); // Add Meeting modal
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   
-  // Export and Reminder UI state
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  // Reminder UI state
   const [showReminderSettings, setShowReminderSettings] = useState(false);
 
   // ---------------- Add Meeting Form State ----------------
@@ -903,102 +902,6 @@ const Meetings = () => {
       console.error(`Failed to fetch participants for worklet ${workletId}:`, error);
       return 5; // Fallback estimate
     }
-  };
-
-  // Export meeting to calendar (ICS format)
-  const exportMeetingToCalendar = (meeting) => {
-    const startDate = new Date(meeting.datetime);
-    const endDate = new Date(startDate.getTime() + (meeting.duration * 60000));
-    
-    // Format dates for ICS format (YYYYMMDDTHHMMSSZ)
-    const formatICSDate = (date) => {
-      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    };
-    
-    const icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//PrismWorklet//Meeting//EN',
-      'BEGIN:VEVENT',
-      `UID:meeting-${meeting.id}@prismworklet.com`,
-      `DTSTART:${formatICSDate(startDate)}`,
-      `DTEND:${formatICSDate(endDate)}`,
-      `SUMMARY:${meeting.title}`,
-      `DESCRIPTION:${meeting.description || 'PrismWorklet Meeting'}\\nWorklets: ${meeting.workletCode}\\nParticipants: ${meeting.participants}`,
-      `LOCATION:${meeting.meetingLink || 'Online Meeting'}`,
-      meeting.meetingLink ? `URL:${meeting.meetingLink}` : '',
-      'STATUS:CONFIRMED',
-      'TRANSP:OPAQUE',
-      'END:VEVENT',
-      'END:VCALENDAR'
-    ].filter(line => line !== '').join('\r\n');
-
-    // Create and download ICS file
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${meeting.title.replace(/[^a-z0-9]/gi, '_')}.ics`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    showConfirmationMessage(`✅ Meeting "${meeting.title}" exported to calendar`);
-  };
-
-  // Export all visible meetings
-  const exportAllMeetings = () => {
-    const filteredMeetings = getFilteredMeetings();
-    if (filteredMeetings.length === 0) {
-      showConfirmationMessage('❌ No meetings to export');
-      return;
-    }
-
-    // Create combined ICS file with all meetings
-    const startContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//PrismWorklet//Meetings//EN'
-    ];
-    
-    const events = filteredMeetings.map(meeting => {
-      const startDate = new Date(meeting.datetime);
-      const endDate = new Date(startDate.getTime() + (meeting.duration * 60000));
-      
-      const formatICSDate = (date) => {
-        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-      };
-      
-      return [
-        'BEGIN:VEVENT',
-        `UID:meeting-${meeting.id}@prismworklet.com`,
-        `DTSTART:${formatICSDate(startDate)}`,
-        `DTEND:${formatICSDate(endDate)}`,
-        `SUMMARY:${meeting.title}`,
-        `DESCRIPTION:${meeting.description || 'PrismWorklet Meeting'}\\nWorklets: ${meeting.workletCode}\\nParticipants: ${meeting.participants}`,
-        `LOCATION:${meeting.meetingLink || 'Online Meeting'}`,
-        meeting.meetingLink ? `URL:${meeting.meetingLink}` : '',
-        'STATUS:CONFIRMED',
-        'TRANSP:OPAQUE',
-        'END:VEVENT'
-      ].filter(line => line !== '').join('\r\n');
-    });
-    
-    const endContent = ['END:VCALENDAR'];
-    const icsContent = [...startContent, ...events, ...endContent].join('\r\n');
-    
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `PrismWorklet_Meetings_${new Date().toISOString().split('T')[0]}.ics`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    showConfirmationMessage(`✅ ${filteredMeetings.length} meetings exported to calendar`);
   };
 
   // Automated Reminders functionality
@@ -1291,7 +1194,7 @@ const Meetings = () => {
     return priorityA - priorityB;
   });
 
-  // Helper function to get filtered meetings for export functionality
+  // Helper function to get filtered meetings
   const getFilteredMeetings = () => {
     return meetings.filter(meeting => {
       // Determine status based on backend or calculate from time
@@ -1670,66 +1573,8 @@ const Meetings = () => {
             </p>
           </div>
           
-          {/* Export and Settings Actions */}
+          {/* Settings Actions */}
           <div className="flex items-center gap-3">
-            {/* Export Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export
-                <ChevronDown className={`w-4 h-4 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {showExportMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
-                  <div className="p-2">
-                    <button
-                      onClick={() => {
-                        exportAllMeetings();
-                        setShowExportMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <div>
-                        <div className="font-medium">Export All Meetings</div>
-                        <div className="text-xs text-slate-500">Download as calendar file (.ics)</div>
-                      </div>
-                    </button>
-                    
-                    <div className="border-t border-slate-200 dark:border-slate-600 my-2"></div>
-                    
-                    <button
-                      onClick={() => {
-                        if (getFilteredMeetings().length === 0) {
-                          showConfirmationMessage('❌ No meetings in current view');
-                        } else {
-                          exportAllMeetings();
-                        }
-                        setShowExportMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                      </svg>
-                      <div>
-                        <div className="font-medium">Export Filtered</div>
-                        <div className="text-xs text-slate-500">Export current view only</div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            
             {/* Reminder Settings Button */}
             <button
               onClick={() => setShowReminderSettings(!showReminderSettings)}
@@ -1850,17 +1695,6 @@ const Meetings = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
-                          {/* Export to Calendar Button */}
-                          <button
-                            onClick={() => exportMeetingToCalendar(meeting)}
-                            className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                            title="Export to Calendar"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </button>
-                          
                           {/* Only show Join button if meeting is not completed and can be joined (10 min before start) */}
                           {status !== 'completed' && canJoinMeeting(meeting.date) && (
                             <button
@@ -2081,16 +1915,6 @@ const Meetings = () => {
                               Join
                             </button>
                           )}
-                          {/* Export to Calendar Button */}
-                          <button
-                            onClick={() => exportMeetingToCalendar(meeting)}
-                            className="px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                            title="Export to Calendar"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </button>
                           
                           {/* Reschedule and Cancel actions (cancelled meetings are filtered out) */}
                           <>
