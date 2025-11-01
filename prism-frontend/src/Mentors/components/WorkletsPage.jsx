@@ -158,17 +158,31 @@ export default function WorkletsPage() {
       }
 
       const role = (profile?.role || localStorage.getItem('user_role') || '').toLowerCase();
-      const email = profile?.email || localStorage.getItem('user_email');
 
       let data = [];
       if (role === 'mentor') {
-        if (!email) {
-          throw new Error('Mentor email not available to query worklets');
+        // Get mentor ID - try profile from /auth/me first, then fetch from /auth/profile if needed
+        let mentorId = profile?.id;
+        
+        if (!mentorId) {
+          try {
+            const profileRes = await axios.get(`${base}/auth/profile`);
+            mentorId = profileRes.data?.id;
+          } catch (profileErr) {
+            console.error('Failed to fetch mentor ID:', profileErr);
+            throw new Error('Mentor ID not available to query worklets');
+          }
         }
-        // Strict: only mentor-specific endpoint; if fails, surface a helpful error
+        
+        if (!mentorId) {
+          throw new Error('Mentor ID not available to query worklets');
+        }
+        
+        // Use the new ID-based endpoint with all worklets (no filter)
         try {
-          const res = await axios.get(`${base}/worklets/mentor/${encodeURIComponent(email)}/worklets`);
-          data = res.data?.worklets || [];
+          const res = await axios.get(`${base}/api/associations/mentor/${mentorId}/worklets`);
+          // When no status_filter, it returns all_worklets or worklets
+          data = res.data?.all_worklets || res.data?.worklets || [];
         } catch (e) {
           // Fallback to all worklets (read-only) to avoid a blank page
           try {

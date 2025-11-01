@@ -2,7 +2,7 @@
 Worklet Service - Centralized business logic for worklet operations
 This service layer consolidates duplicate logic from multiple routers
 """
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, date
 from app.models import Worklet, User, UserWorkletAssociation, Suggestion
@@ -12,7 +12,7 @@ from app.routers.helpers.worklet_helpers import (
     get_worklet_students,
     map_status_text
 )
-from app.core.constants import WORKLET_STATUS_MAP
+from app.core.constants import WORKLET_STATUS_MAP, normalize_performance
 import re
 
 
@@ -176,8 +176,9 @@ class WorkletService:
         # Get status text
         status_text = map_status_text(getattr(worklet, 'status_id', None))
         
-        # Get performance
-        performance = getattr(worklet, 'Performance', None) if include_performance else None
+        # Get performance and normalize it
+        raw_performance = getattr(worklet, 'Performance', None)
+        performance = normalize_performance(raw_performance) if include_performance else None
         
         # Derive year
         derived_year = WorkletService.derive_worklet_year(worklet)
@@ -256,7 +257,7 @@ class WorkletService:
         include_performance: bool = True
     ) -> Dict[str, Any]:
         """
-        Get all worklets for a mentor with filtering options
+        Get all worklets for a mentor with filtering options (OPTIMIZED with eager loading)
         
         Args:
             db: Database session
@@ -276,17 +277,69 @@ class WorkletService:
         if not mentor:
             return None
         
-        # Get all worklet associations for this mentor
-        associations = db.query(UserWorkletAssociation).filter(
+        # OPTIMIZATION: Use eager loading to fetch all associations with related worklets in one query
+        associations = db.query(UserWorkletAssociation).options(
+            joinedload(UserWorkletAssociation.worklet)  # Eager load worklets
+        ).filter(
             UserWorkletAssociation.user_id == mentor_id,
             UserWorkletAssociation.role_in_worklet.in_(["Mentor", "mentor"])
         ).all()
         
-        all_worklets = []
+        # Extract worklet IDs for bulk queries
+        worklet_ids = [assoc.worklet.id for assoc in associations if assoc.worklet]
+        
+        if not worklet_ids:
+            return {
+                "mentor_id": mentor_id,
+                "mentor_name": mentor.name,
+                "total_worklets": 0,
+                "total_mentees": 0,
+                "worklets": [],
+                "ongoing_worklets": [],
+                "completed_worklets": [],
+                "total_ongoing": 0,
+                "total_completed": 0
+            }
+        
+        # OPTIMIZATION: Bulk fetch all student associations for all worklets in one query
+        student_associations = db.query(UserWorkletAssociation).options(
+            joinedload(UserWorkletAssociation.user)  # Eager load users
+        ).filter(
+            UserWorkletAssociation.worklet_id.in_(worklet_ids),
+            UserWorkletAssociation.role_in_worklet.in_(["Student", "student"])
+        ).all()
+        
+        # Build a map: worklet_id -> list of students
+        students_by_worklet = {}
         all_student_ids = set()
+        for assoc in student_associations:
+            if assoc.worklet_id not in students_by_worklet:
+                students_by_worklet[assoc.worklet_id] = []
+            students_by_worklet[assoc.worklet_id].append(assoc.user)
+            if assoc.user and assoc.user.id:
+                all_student_ids.add(assoc.user.id)
+        
+        # OPTIMIZATION: Bulk fetch latest suggestions for all worklets in one query
+        suggestions = db.query(Suggestion).filter(
+            Suggestion.worklet_id.in_(worklet_ids)
+        ).order_by(
+            Suggestion.worklet_id, 
+            Suggestion.created_at.desc()
+        ).all()
+        
+        # Build a map: worklet_id -> latest suggestion
+        latest_suggestions = {}
+        for suggestion in suggestions:
+            if suggestion.worklet_id not in latest_suggestions:
+                latest_suggestions[suggestion.worklet_id] = suggestion
+        
+        all_worklets = []
         
         for assoc in associations:
             worklet = assoc.worklet
+            if not worklet:
+                continue
+                
             status_id = getattr(worklet, 'status_id', None)
             
             # Apply status filter
@@ -296,13 +349,8 @@ class WorkletService:
                 elif status_filter.lower() == "completed" and status_id != 2:
                     continue
             
-            # Get students for this worklet
-            students = get_worklet_students(db, worklet.id)
-            
-            # Collect unique student IDs
-            for s in students:
-                if s.id is not None:
-                    all_student_ids.add(s.id)
+            # Get students for this worklet (from pre-fetched map)
+            students = students_by_worklet.get(worklet.id, [])
             
             # Get college info
             worklet_college, college_id = get_worklet_college(worklet, students, mentor)
@@ -313,20 +361,16 @@ class WorkletService:
             # Get status text
             status_text = map_status_text(status_id)
             
-            # Get performance
-            performance = getattr(worklet, 'Performance', None) if include_performance else None
+            # Get performance and normalize it
+            raw_performance = getattr(worklet, 'Performance', None)
+            performance = normalize_performance(raw_performance) if include_performance else None
             
             # Get GitHub info
             github_url = getattr(worklet, 'github_url', None)
             repo_name = WorkletService.extract_github_repo_name(github_url)
             
-            # Get latest suggestion for this worklet
-            latest_suggestion = (
-                db.query(Suggestion)
-                .filter(Suggestion.worklet_id == worklet.id)
-                .order_by(Suggestion.created_at.desc())
-                .first()
-            )
+            # Get latest suggestion (from pre-fetched map)
+            latest_suggestion = latest_suggestions.get(worklet.id)
             
             # Format latest suggestion data
             latest_suggestion_data = None

@@ -6,6 +6,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.models import College, Worklet, User, UserWorkletAssociation, Evaluation
 from app.schemas import CollegeOut, WorkletOut, StudentOut
+from app.core.constants import WORKLET_STATUS_MAP, normalize_status_text, normalize_performance
 
 router = APIRouter(
     prefix="/colleges",
@@ -38,33 +39,23 @@ def get_college_stats(college: College, db: Session):
     }
     
     for w in worklets:
-        # Use Performance column from Prism_Worklet table (single source of truth)
-        performance = getattr(w, 'Performance', None)
+        # Use Performance column from Prism_Worklet table and normalize it
+        raw_performance = getattr(w, 'Performance', None)
+        performance = normalize_performance(raw_performance)
         
-        if performance:
-            # Normalize performance value to new categories: Very Good, Good, Average, Poor
-            perf_lower = str(performance).lower().strip()
-            # Check in specific order to avoid mismatches
-            if 'very good' in perf_lower or 'verygood' in perf_lower:
-                stats["veryGoodCount"] += 1
-            elif 'excel' in perf_lower:  # Map old "Excellent" to "Very Good"
-                stats["veryGoodCount"] += 1
-            elif 'good' in perf_lower:
-                stats["goodCount"] += 1
-            elif 'average' in perf_lower or 'avg' in perf_lower:
-                stats["averageCount"] += 1
-            elif 'poor' in perf_lower or 'bad' in perf_lower:
-                stats["poorCount"] += 1
-            elif 'need' in perf_lower or 'attention' in perf_lower:  # Map old "Needs Attention" to "Poor"
-                stats["poorCount"] += 1
-            else:
-                # Unknown performance value - count as average
-                stats["averageCount"] += 1
-        # If Performance is NULL, don't count in any performance category
+        # Count performance categories
+        if performance == "Very Good":
+            stats["veryGoodCount"] += 1
+        elif performance == "Good":
+            stats["goodCount"] += 1
+        elif performance == "Average":
+            stats["averageCount"] += 1
+        elif performance == "Poor":
+            stats["poorCount"] += 1
+        # NA doesn't count in any category
             
-        # Count worklets by status (new mapping)
-        status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
-        status_text = status_map.get(getattr(w, 'status_id', None), "Ongoing")
+        # Count worklets by status (using centralized constants)
+        status_text = normalize_status_text(getattr(w, 'status_id', None))
         if status_text == "Completed":
             stats["completedCount"] += 1
         elif status_text in ("Ongoing", "To Start"):
@@ -105,6 +96,7 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
     """Return worklets for a college.
     Priority: Worklet.college_id == college_id, plus any worklets inferred via
     associated users from that college. De-duplicate by id.
+    OPTIMIZED: Uses bulk queries to avoid N+1 problem.
     """
     direct_ids = [r[0] for r in db.query(Worklet.id).filter(Worklet.college_id == college_id).all()]
     assoc_ids = [
@@ -120,31 +112,37 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
         db.query(Worklet).filter(Worklet.id.in_(worklet_id_set)).all() if worklet_id_set else []
     )
 
-    response = []
-    for worklet in worklets:
+    # OPTIMIZATION: Bulk fetch all student associations for all worklets in one query
+    students_by_worklet = {}
+    if worklet_id_set:
         student_rows = (
-            db.query(User.name, User.email)
-            .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+            db.query(UserWorkletAssociation.worklet_id, User.name, User.email)
+            .join(User, User.id == UserWorkletAssociation.user_id)
             .filter(
-                UserWorkletAssociation.worklet_id == worklet.id,
+                UserWorkletAssociation.worklet_id.in_(worklet_id_set),
                 UserWorkletAssociation.role_in_worklet == "Student",
             )
             .all()
         )
-        assigned_students = [
-            {"name": student.name, "email": student.email}
-            for student in student_rows
-            if student.email
-        ]
+        for worklet_id, name, email in student_rows:
+            if worklet_id not in students_by_worklet:
+                students_by_worklet[worklet_id] = []
+            if email:
+                students_by_worklet[worklet_id].append({"name": name, "email": email})
 
-        status_map = {0: "To Start", 1: "Ongoing", 2: "Completed", 3: "On Hold", 4: "Dropped"}
-        status_text = status_map.get(getattr(worklet, 'status_id', None), "Ongoing")
+    response = []
+    for worklet in worklets:
+        # Get students from pre-fetched map (no query per worklet)
+        assigned_students = students_by_worklet.get(worklet.id, [])
+
+        status_text = normalize_status_text(getattr(worklet, 'status_id', None))
+        performance_text = normalize_performance(getattr(worklet, 'Performance', None))
         response.append({
             "id": worklet.id,
             "title": worklet.title,
             "description": getattr(worklet, 'problem_statement', None),
             "assignedStudents": assigned_students,
-            "performanceStatus": None,
+            "performanceStatus": performance_text,
             "progressStatus": status_text,
             "collegeName": (
                 worklet.college_rel.college_name

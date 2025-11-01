@@ -6,19 +6,6 @@ export const getAllWorklets = async () => {
   return response.data;
 };
 
-// DEPRECATED: Use getMentorWorkletsById instead
-// Fetch worklets for a specific mentor by email
-// opts: { onlyOngoing: boolean }
-export const getMentorWorklets = async (mentorEmail, opts = {}) => {
-  const params = new URLSearchParams();
-  if (opts.onlyOngoing) params.append("only_ongoing", "true");
-  const qs = params.toString();
-  const encodedEmail = encodeURIComponent(mentorEmail);
-  const url = `${BASE}/worklets/mentor/${encodedEmail}/worklets${qs ? `?${qs}` : ""}`;
-  const response = await axios.get(url);
-  return response.data;
-};
-
 /**
  * UNIFIED API - Fetch worklets for a mentor by user ID
  * @param {number} mentorUserId - The mentor's user ID
@@ -38,18 +25,6 @@ export const getMentorWorkletsById = async (mentorUserId, options = {}) => {
   const url = `${BASE}/api/associations/mentor/${mentorUserId}/worklets${qs ? `?${qs}` : ""}`;
   const response = await axios.get(url);
   return response.data;
-};
-
-// DEPRECATED: Use getMentorWorkletsById with statusFilter="ongoing"
-// Kept for backward compatibility
-export const getMentorOngoingWorkletsById = async (mentorUserId) => {
-  return getMentorWorkletsById(mentorUserId, { statusFilter: "ongoing" });
-};
-
-// DEPRECATED: Use getMentorWorkletsById with statusFilter="all" or null
-// Kept for backward compatibility
-export const getMentorAllWorkletsById = async (mentorUserId) => {
-  return getMentorWorkletsById(mentorUserId, { statusFilter: "all" });
 };
 
 export const getWorkletById = async (id) => {

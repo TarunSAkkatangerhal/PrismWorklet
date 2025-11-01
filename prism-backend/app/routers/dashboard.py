@@ -34,33 +34,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
-@router.get("/debug/summary")
-def debug_summary(db: Session = Depends(get_db)):
-    """Lightweight debug endpoint to verify DB connection and basic Worklet counts.
-    Returns only non-sensitive info when DEBUG is enabled.
-    """
-    from app.core.config import settings as app_settings
-    if not getattr(app_settings, "DEBUG", False):
-        raise HTTPException(status_code=403, detail="Debug disabled")
-
-    try:
-        total = db.query(Worklet).count()
-        by_status = db.query(Worklet.status_id, func.count(Worklet.id)).group_by(Worklet.status_id).all()
-        status_counts = {int(s if s is not None else 0): int(c) for s, c in by_status}
-        sample = db.query(Worklet.id, Worklet.cert_id, Worklet.title).limit(5).all()
-        return {
-            "db_name": getattr(app_settings, "DB_NAME", None),
-            "db_host": getattr(app_settings, "DB_HOST", None),
-            "worklet_total": int(total),
-            "status_counts": status_counts,
-            "sample_worklets": [
-                {"id": int(r.id), "cert_id": r.cert_id, "title": r.title} for r in sample
-            ],
-        }
-    except Exception as e:
-        logger.debug(f"debug_summary error: {e}")
-        raise HTTPException(status_code=500, detail="Debug query failed")
-
 @router.get("/statistics")
 def get_dashboard_statistics(
     year: int | None = None, 
@@ -252,78 +225,6 @@ def get_dashboard_statistics(
         import traceback
         logger.error(f"Exception in get_dashboard_statistics: {e}", exc_info=True)
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Internal server error")
-        mentor = db.query(User).filter(
-            and_(User.id == mentor_id, User.role == "Mentor")
-        ).first()
-        
-        if not mentor:
-            raise HTTPException(status_code=404, detail="Mentor not found")
-        
-        # Get mentor's associations with worklet details
-        associations_query = db.query(
-            UserWorkletAssociation,
-            Worklet
-        ).join(
-            Worklet, UserWorkletAssociation.worklet_id == Worklet.id
-        ).filter(
-            and_(
-                UserWorkletAssociation.user_id == mentor_id,
-                UserWorkletAssociation.role_in_worklet == 'Mentor'
-            )
-        ).all()
-        
-        worklets_detail = []
-        total_progress = 0
-        progress_count = 0
-        
-        for assoc, worklet in associations_query:
-            # Get students for this worklet
-            students = db.query(UserWorkletAssociation).filter(
-                and_(
-                    UserWorkletAssociation.worklet_id == worklet.id,
-                    UserWorkletAssociation.role_in_worklet == 'Student'
-                )
-            ).count()
-            
-            worklet_info = {
-                "worklet_id": worklet.id,
-                "cert_id": worklet.cert_id,
-                "title": getattr(worklet, "title", None),
-                "description": getattr(worklet, "problem_statement", None),
-                "status": worklet.status,
-                "student_count": students,
-                "domain": getattr(worklet, "domain", None),
-            }
-            
-            worklets_detail.append(worklet_info)
-            
-            if assoc.progress_percentage is not None:
-                total_progress += assoc.progress_percentage
-                progress_count += 1
-        
-        avg_progress = 0
-        
-        return {
-            "mentor": {
-                "id": mentor.id,
-                "name": mentor.name,
-                "email": mentor.email,
-                "team": mentor.profile.expertise if mentor.profile else None,
-                "college": mentor.college
-            },
-            "summary": {
-                "total_worklets": len(worklets_detail),
-                "average_progress": avg_progress,
-                "total_students": sum(w["student_count"] for w in worklets_detail)
-            },
-            "worklets": worklets_detail
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.info(f"Error getting detailed mentor stats: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 @router.get("/platform-monthly-trends")
 def get_platform_monthly_trends(

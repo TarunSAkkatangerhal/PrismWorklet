@@ -255,7 +255,9 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
             {autoMode && (
               <div className="mb-2 p-3 rounded-lg bg-cyan-50 dark:bg-slate-700/50 border border-cyan-200 dark:border-slate-600">
                 <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">WORKLET</div>
-                <div className="text-sm font-medium text-gray-800 dark:text-white">{preSelectedWorklet?.cert_id || preSelectedWorklet?.title || preSelectedWorklet?.id}</div>
+                <div className="text-sm font-medium text-gray-800 dark:text-white">
+                  {preSelectedWorklet?.cert_id || preSelectedWorklet?.id} - {preSelectedWorklet?.description || preSelectedWorklet?.title || 'No title'}
+                </div>
               </div>
             )}
 
@@ -322,14 +324,14 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
         )}
       </div>
 
-      {/* Beautiful Success Popup */}
+      {/* Professional Success Popup */}
       {showSuccessPopup && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full transform animate-bounce">
+          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+          <div className="bg-white rounded-lg shadow-xl p-6 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full">
             {/* Success Icon */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center dark:bg-cyan-900">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center dark:bg-cyan-900/30">
                 <svg 
                   className="w-8 h-8 text-cyan-600 dark:text-cyan-400" 
                   fill="none" 
@@ -339,7 +341,7 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
                   <path 
                     strokeLinecap="round" 
                     strokeLinejoin="round" 
-                    strokeWidth={2} 
+                    strokeWidth={2.5} 
                     d="M5 13l4 4L19 7" 
                   />
                 </svg>
@@ -348,28 +350,12 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
             
             {/* Success Message */}
             <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                💡 Suggestion Shared!
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Suggestion Submitted Successfully
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Suggestion submitted successfully!
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Students have been notified about the suggestion.
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                All students in the worklet will receive an email notification.
-              </p>
-            </div>
-            
-            {/* Progress bar animation */}
-            <div className="mt-6">
-              <div className="w-full bg-gray-200 rounded-full h-1 dark:bg-gray-700">
-                <div 
-                  className="bg-cyan-600 h-1 rounded-full animate-pulse"
-                  style={{
-                    width: '100%',
-                    animation: 'progress 3s linear forwards'
-                  }}
-                ></div>
-              </div>
             </div>
           </div>
         </div>

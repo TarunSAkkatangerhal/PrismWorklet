@@ -214,7 +214,7 @@ export default function FeedbackForm({
       setTimeout(() => {
         setShowSuccessPopup(false);
         onClose();
-      }, 3000);
+      }, 2000); // 2 seconds
 
     } catch (error) {
       setShowErrorPopup(true);
@@ -298,13 +298,8 @@ export default function FeedbackForm({
                 // Display pre-selected worklet (read-only)
                 <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3">
                   <p className="text-gray-800 dark:text-gray-200 font-medium">
-                    {selectedWorkletDetails?.cert_id || selectedWorkletDetails?.title || 'Loading...'}
+                    {selectedWorkletDetails?.cert_id || selectedWorkletDetails?.id || 'N/A'} - {selectedWorkletDetails?.description || selectedWorkletDetails?.title || 'No title'}
                   </p>
-                  {selectedWorkletDetails?.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {selectedWorkletDetails.description}
-                    </p>
-                  )}
                 </div>
               ) : (
                 // Dropdown for worklet selection
@@ -436,14 +431,14 @@ export default function FeedbackForm({
         )}
       </div>
 
-      {/* Beautiful Success Popup */}
+      {/* Professional Success Popup */}
       {showSuccessPopup && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full transform animate-bounce">
+          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+          <div className="bg-white rounded-lg shadow-xl p-6 mx-4 relative z-10 dark:bg-slate-800 max-w-md w-full">
             {/* Success Icon */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center dark:bg-green-900/30">
                 <svg 
                   className="w-8 h-8 text-green-600 dark:text-green-400" 
                   fill="none" 
@@ -453,7 +448,7 @@ export default function FeedbackForm({
                   <path 
                     strokeLinecap="round" 
                     strokeLinejoin="round" 
-                    strokeWidth={2} 
+                    strokeWidth={2.5} 
                     d="M5 13l4 4L19 7" 
                   />
                 </svg>
@@ -462,28 +457,12 @@ export default function FeedbackForm({
             
             {/* Success Message */}
             <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                🎉 Feedback Sent!
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Feedback Submitted Successfully
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Your feedback has been sent successfully!
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Students have been notified about the feedback.
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                All students in the worklet will receive an email notification.
-              </p>
-            </div>
-            
-            {/* Progress bar animation */}
-            <div className="mt-6">
-              <div className="w-full bg-gray-200 rounded-full h-1 dark:bg-gray-700">
-                <div 
-                  className="bg-green-600 h-1 rounded-full animate-pulse"
-                  style={{
-                    width: '100%',
-                    animation: 'progress 3s linear forwards'
-                  }}
-                ></div>
-              </div>
             </div>
           </div>
         </div>

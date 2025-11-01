@@ -196,15 +196,27 @@ const NavColl = () => {
         if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
         if (Array.isArray(college.students) && college.students.length) {
           college.students.forEach((s) => {
-            const key = s.email || String(s.userId)
-            if (!studentMap.has(key)) studentMap.set(key, { ...s, collegeName: college.name })
+            const key = s.email || String(s.userId) || s.name || `student-${Math.random()}`
+            if (!studentMap.has(key)) {
+              studentMap.set(key, { 
+                ...s, 
+                id: s.userId || s.email || s.name || key, // Ensure each student has an id
+                collegeName: college.name 
+              })
+            }
           })
         } else {
           // Fallback: derive from worklet.assignedStudents if any (may be empty)
           college.worklets.forEach((worklet) => {
             (worklet.assignedStudents || []).forEach((student) => {
-              const key = student.email || student.name
-              if (!studentMap.has(key)) studentMap.set(key, { ...student, collegeName: college.name })
+              const key = student.email || student.name || `student-${Math.random()}`
+              if (!studentMap.has(key)) {
+                studentMap.set(key, { 
+                  ...student, 
+                  id: student.userId || student.email || student.name || key, // Ensure each student has an id
+                  collegeName: college.name 
+                })
+              }
             })
           })
         }
@@ -702,8 +714,8 @@ const NavColl = () => {
                               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <div className="space-y-1">
                                   <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Assigned Worklets:</p>
-                                  {item.worklets.slice(0, 2).map((worklet, idx) => (
-                                    <div key={idx} className="text-xs text-gray-600 dark:text-gray-400">
+                                  {item.worklets.slice(0, 2).map((worklet) => (
+                                    <div key={worklet.id || worklet.workletId || worklet.cert_id || worklet.title} className="text-xs text-gray-600 dark:text-gray-400">
                                       {worklet.title}
                                     </div>
                                   ))}

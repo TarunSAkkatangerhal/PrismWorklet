@@ -4,9 +4,10 @@
 // 2. Transform backend worklet shape into a normalized card-friendly structure
 // 3. Provide responsive layout (grid / horizontal scroll) with animated, accessible UI
 // 4. Avoid unnecessary re-renders via localized derived data (e.g., filtered ongoing worklets)
-import { getMentorOngoingWorkletsById, getMentorAllWorkletsById } from '../services/worklets' // Service helpers for API calls
+import { getMentorWorkletsById } from '../services/worklets' // Service helpers for API calls
 import { getCurrentUser } from '../services/auth' // Secure authentication
 import { sanitizeInput } from '../utils/security' // Security utilities
+import { normalizePerformance, getPerformanceColor } from '../utils/performance' // Performance mapping
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -143,11 +144,13 @@ export default function Dashboard() {
       try {
         // Prefer associations endpoint (same as WorkletsPage) for canonical ongoing worklets list
         if (!userProfileData?.id) throw new Error('Mentor user id missing')
-        // Fetch ongoing subset for display
-        const assocData = await getMentorOngoingWorkletsById(userProfileData.id) // Ongoing subset
-        // Fetch aggregate (all worklets) for totals
-        const allData = await getMentorAllWorkletsById(userProfileData.id)       // Full collection (statuses)
-        const list = assocData?.ongoing_worklets || []
+        
+        // Fetch all data in a single call (no filter or 'all' filter)
+        // This returns all worklets with breakdowns by status
+        const allData = await getMentorWorkletsById(userProfileData.id, { statusFilter: null })
+        
+        // Extract ongoing worklets for display
+        const list = allData?.ongoing_worklets || []
         
         
         // Normalize each worklet and preserve student names from backend
@@ -157,30 +160,8 @@ export default function Dashboard() {
           const status = worklet.completion_status ? (worklet.completion_status === 'Completed' ? 'Completed' : 'Ongoing') : (worklet.status || 'Ongoing')
           
           // Use backend performance field (from Performance column - single source of truth)
-          let quality = null
-          if (worklet.performance || worklet.performance === 0) {
-            const perf = worklet.performance
-            
-            // Check if performance is numeric (0-5 rating scale)
-            const numPerf = parseInt(perf)
-            if (!isNaN(numPerf)) {
-              if (numPerf === 0) quality = 'Not Applicable'
-              else if (numPerf === 1) quality = 'Poor'
-              else if (numPerf === 2) quality = 'Average'
-              else if (numPerf === 3) quality = 'Good'
-              else if (numPerf === 4) quality = 'Very Good'
-              else if (numPerf === 5) quality = 'Very Good'
-            } else {
-              // Handle string-based performance
-              const perfStr = String(perf).toLowerCase().trim()
-              if (perfStr.includes('very') && perfStr.includes('good')) quality = 'Very Good'
-              else if (perfStr.includes('excellent') || perfStr.includes('excel')) quality = 'Very Good' // Map Excellence -> Very Good
-              else if (perfStr.includes('good') && !perfStr.includes('very')) quality = 'Good'
-              else if (perfStr.includes('average') || perfStr.includes('avg')) quality = 'Average'
-              else if (perfStr.includes('poor') || perfStr.includes('need')) quality = 'Poor' // Map Needs Attention -> Poor
-              else quality = worklet.performance.charAt(0).toUpperCase() + worklet.performance.slice(1)
-            }
-          }
+          // Use centralized performance normalization
+          const quality = normalizePerformance(worklet.performance)
           
           // Extract student names (fallback to email if name missing)
           const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : []
@@ -215,24 +196,13 @@ export default function Dashboard() {
           // Only show ongoing subset on dashboard
           const ongoing = normalized.filter(w => w.status === 'Ongoing')
           setWorklets(ongoing)
-          // Use backend aggregate from all-worklets response; fallback to ongoing response; then fallback to local uniq calculation
-          let mentees = allData?.total_mentees ?? assocData?.total_mentees // Prefer authoritative aggregate counts
-          if (mentees === undefined) {
-            const uniqueStudentIds = new Set()
-            list.forEach(w => {
-              if (Array.isArray(w.students)) {
-                w.students.forEach(s => {
-                  if (s && (s.id !== undefined && s.id !== null)) uniqueStudentIds.add(s.id)
-                  else if (s?.email) uniqueStudentIds.add(s.email)
-                })
-              }
-            })
-            mentees = uniqueStudentIds.size
-          }
+          
+          // Use backend aggregate counts (always available in response)
+          const mentees = allData?.total_mentees ?? 0
+          const totalWorklets = allData?.total_worklets ?? ongoing.length
+          
           setMentorStats({ engagement_data: { 'My Students': mentees } })
-          // Store total worklets (all statuses) for StatCard display by temporarily attaching to state length derivation
-          // We'll override worklets.length usage by storing count separately if needed
-          setTotalWorkletsCount(allData?.total_worklets ?? ongoing.length)
+          setTotalWorkletsCount(totalWorklets)
           setIsLoadingMentorStats(false)
         }
       } catch (e) {
@@ -601,16 +571,6 @@ function WorkletCard({ worklet, layout, navigate }) {
   }
 
   const remaining = calculateRemainingDays(worklet.endDateISO)
-
-  // Badge background palette per quality band
-  const qualityStyles = {
-    'Very Good': 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg',
-    'Good': 'bg-gradient-to-r from-green-400 to-emerald-500 shadow-lg',
-    'Average': 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-lg',
-    'Poor': 'bg-gradient-to-r from-red-400 to-pink-500 shadow-lg',
-    'Not Applicable': 'bg-gradient-to-r from-slate-400 to-gray-500 shadow-lg',
-    'Default': 'bg-gradient-to-r from-gray-400 to-slate-500 shadow-lg',
-  }
   
   // Primary navigation: open worklet detail view
   const handleCardClick = () => {
@@ -781,9 +741,7 @@ function WorkletCard({ worklet, layout, navigate }) {
         <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center text-center p-[0.4vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out overflow-hidden">
           {worklet.quality && (
             <span
-              className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${
-                qualityStyles[worklet.quality] || qualityStyles.Default
-              }`}>
+              className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${getPerformanceColor(worklet.quality)}`}>
               {worklet.quality}
             </span>
           )}

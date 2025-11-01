@@ -1,8 +1,7 @@
 // Secure Worklets API Client
-import axios from 'axios';
+// Re-exports the main API client with additional worklet-specific methods
+import API from '../api';
 import DOMPurify from 'dompurify';
-
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 // Input sanitization
 const sanitizeInput = (input) => {
@@ -13,42 +12,7 @@ const sanitizeInput = (input) => {
   });
 };
 
-// Create secure axios instance
-const apiClient = axios.create({
-  baseURL: BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    config.headers['X-Timestamp'] = Date.now().toString();
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // Token expired, redirect to login
-      localStorage.clear();
-      window.location.href = '/';
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Secure worklets API
+// Secure worklets API using shared API client
 export const secureWorkletsAPI = {
   getWorklets: async (params = {}) => {
     try {
@@ -60,7 +24,7 @@ export const secureWorkletsAPI = {
         search: sanitizeInput(params.search || '').slice(0, 100),
       };
 
-      const response = await apiClient.get('/api/worklets', { 
+      const response = await API.get('/api/worklets', { 
         params: sanitizedParams 
       });
       
@@ -90,7 +54,7 @@ export const secureWorkletsAPI = {
     }
 
     try {
-      const response = await apiClient.get(`/api/worklets/${workletId}`);
+      const response = await API.get(`/api/worklets/${workletId}`);
       return response.data;
     } catch (error) {
       if (error.response?.status === 404) {
@@ -101,4 +65,5 @@ export const secureWorkletsAPI = {
   },
 };
 
-export default apiClient;
+// Re-export the main API client as default
+export default API;

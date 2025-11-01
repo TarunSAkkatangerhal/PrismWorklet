@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { normalizePerformance, getPerformanceColor } from '../../utils/performance'
 
 // --- Import your actual components from their files ---
 import RequestUpdate from '../layouts/Requestupdates'
@@ -283,8 +284,22 @@ export default function WorkletDetailPage() {
         const token = localStorage.getItem('access_token')
         if (!token) return
 
+        // First get user profile to get the mentor ID
+        const profileResponse = await axios.get(
+          `http://localhost:8000/auth/profile`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+            },
+          }
+        )
+
+        const mentorId = profileResponse.data.id
+
+        // Use the new ID-based endpoint
         const response = await axios.get(
-          `http://localhost:8000/worklets/mentor/${encodeURIComponent(currentUserEmail)}/worklets`,
+          `http://localhost:8000/api/associations/mentor/${mentorId}/worklets`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -1757,57 +1772,6 @@ export default function WorkletDetailPage() {
   }
 
 
-  // --- PERFORMANCE CALCULATION ---
-  const getWorkletPerformance = (worklet) => {
-    // Use backend-provided performance/quality field (single source of truth)
-    if (!worklet) return null
-    
-    const perf = worklet.performance
-    if (!perf && perf !== 0) return null
-    
-    // Check if performance is numeric (0-5 rating scale)
-    const numPerf = parseInt(perf)
-    if (!isNaN(numPerf)) {
-      if (numPerf === 0) return 'Not Applicable'
-      if (numPerf === 1) return 'Poor'
-      if (numPerf === 2) return 'Average'
-      if (numPerf === 3) return 'Good'
-      if (numPerf === 4) return 'Very Good'
-      if (numPerf === 5) return 'Very Good'
-    }
-    
-    // Normalize backend value (case-insensitive)
-    const p = String(perf).toLowerCase().trim()
-    if (p.includes('excel')) return 'Excellence'
-    if (p.includes('good')) return 'Good'
-    if (p.includes('need')) return 'Needs Attention'
-    
-    // Fallback: title-case the provided string
-    return p.charAt(0).toUpperCase() + p.slice(1)
-  }
-
-  const getPerformanceColor = (performance) => {
-    switch (performance) {
-      case 'Excellence':
-      case 'Very Good':
-        return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-      case 'Good':
-        return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-      case 'Average':
-        return 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white'
-      case 'Poor':
-        return 'bg-gradient-to-r from-orange-500 to-red-600 text-white'
-      case 'Very Poor':
-        return 'bg-gradient-to-r from-red-600 to-red-700 text-white'
-      case 'Needs Attention':
-        return 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white'
-      case 'Not Applicable':
-        return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
-      default:
-        return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
-    }
-  }
-
   const filteredTeamMembers = worklet?.students?.filter(member => {
     const memberName = typeof member === 'string' ? member : (member?.name || member?.email || '');
     return memberName.toLowerCase().includes(searchTeam.toLowerCase());
@@ -1882,13 +1846,13 @@ export default function WorkletDetailPage() {
                     {/* Performance and Status Row - Performance first, then Status */}
                     <div className="flex items-center gap-3 flex-wrap">
                       {/* Performance Badge - Only show if backend provides quality/performance */}
-                      {getWorkletPerformance(worklet) && (
-                        <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(getWorkletPerformance(worklet))}`}>
-                          {(getWorkletPerformance(worklet) === 'Excellence' || getWorkletPerformance(worklet) === 'Very Good') && <Award size={16} className="mr-2" />}
-                          {getWorkletPerformance(worklet) === 'Good' && <CheckCircle size={16} className="mr-2" />}
-                          {getWorkletPerformance(worklet) === 'Average' && <Activity size={16} className="mr-2" />}
-                          {(getWorkletPerformance(worklet) === 'Poor' || getWorkletPerformance(worklet) === 'Very Poor' || getWorkletPerformance(worklet) === 'Needs Attention') && <AlertCircle size={16} className="mr-2" />}
-                          {getWorkletPerformance(worklet)}
+                      {normalizePerformance(worklet?.performance) && (
+                        <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${getPerformanceColor(normalizePerformance(worklet?.performance))}`}>
+                          {(normalizePerformance(worklet?.performance) === 'Excellence' || normalizePerformance(worklet?.performance) === 'Very Good') && <Award size={16} className="mr-2" />}
+                          {normalizePerformance(worklet?.performance) === 'Good' && <CheckCircle size={16} className="mr-2" />}
+                          {normalizePerformance(worklet?.performance) === 'Average' && <Activity size={16} className="mr-2" />}
+                          {(normalizePerformance(worklet?.performance) === 'Poor' || normalizePerformance(worklet?.performance) === 'Very Poor' || normalizePerformance(worklet?.performance) === 'Needs Attention') && <AlertCircle size={16} className="mr-2" />}
+                          {normalizePerformance(worklet?.performance)}
                         </span>
                       )}
                       

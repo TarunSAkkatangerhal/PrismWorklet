@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from app.models import Worklet, User, UserWorkletAssociation
 from app.schemas import WorkletRoleEnum
-from app.core.constants import normalize_status_text, WORKLET_STATUS_MAP
+from app.core.constants import normalize_status_text, WORKLET_STATUS_MAP, normalize_performance
 
 
 def map_status_text(status_id: Optional[int]) -> str:
@@ -141,7 +141,7 @@ def format_worklet_response(
     
     # Optionally include performance data
     if include_performance:
-        performance = getattr(worklet, 'Performance', None)
-        worklet_data["performance"] = performance
+        raw_performance = getattr(worklet, 'Performance', None)
+        worklet_data["performance"] = normalize_performance(raw_performance)
     
     return worklet_data

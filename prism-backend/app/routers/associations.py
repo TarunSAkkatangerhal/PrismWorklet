@@ -3,7 +3,7 @@ User Worklet Association Router - Handles many-to-many relationships between use
 Now uses centralized WorkletService for consistent data formatting.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_
 from typing import List, Optional
 from datetime import datetime
@@ -23,8 +23,8 @@ from app.core.config import settings
 from app.routers.helpers.worklet_helpers import (
     get_worklet_students,
     format_worklet_response,
-    map_status_text
 )
+from app.core.constants import normalize_status_text, normalize_performance
 from app.services.worklet_service import WorkletService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -108,8 +108,10 @@ def get_worklet_with_users(
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
-    # Build query for associations
-    query = db.query(UserWorkletAssociation).filter(
+    # OPTIMIZATION: Eager load users to avoid N+1 queries
+    query = db.query(UserWorkletAssociation).options(
+        joinedload(UserWorkletAssociation.user)
+    ).filter(
         UserWorkletAssociation.worklet_id == worklet_id
     )
     
@@ -132,9 +134,8 @@ def get_worklet_with_users(
         elif assoc.role_in_worklet == WorkletRoleEnum.professor.value:
             professors.append(user)
     
-    # Derive status, year and progress
-    status_map = {0: 'To Start', 1: 'Ongoing', 2: 'Completed', 3: 'On Hold', 4: 'Dropped'}
-    status_text = status_map.get(getattr(worklet, 'status_id', None), 'Ongoing')
+    # Derive status, year and progress using centralized helpers
+    status_text = normalize_status_text(getattr(worklet, 'status_id', None))
 
     derived_year = None
     try:
@@ -197,6 +198,7 @@ def get_worklet_with_users(
         "problem_statement": getattr(worklet, "problem_statement", None),
         "expectation": getattr(worklet, "expectation", None),
         "prerequisites": getattr(worklet, "prerequisites", None),
+        "performance": normalize_performance(getattr(worklet, 'Performance', None)),
         "mentors": mentors,
         "students": students,
         "professors": professors,
@@ -218,8 +220,10 @@ def get_user_worklets(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Build query for associations
-    query = db.query(UserWorkletAssociation).filter(
+    # OPTIMIZATION: Eager load worklets to avoid N+1 queries
+    query = db.query(UserWorkletAssociation).options(
+        joinedload(UserWorkletAssociation.worklet)
+    ).filter(
         UserWorkletAssociation.user_id == user_id
     )
     
@@ -376,26 +380,36 @@ def bulk_assign_users_to_worklet(
     created_associations = []
     errors = []
     
+    # OPTIMIZATION: Bulk fetch all user IDs and existing associations in one query each
+    user_ids = [assignment.user_id for assignment in user_assignments]
+    
+    # Check all users exist at once
+    existing_users = db.query(User.id).filter(User.id.in_(user_ids)).all()
+    existing_user_ids = {user.id for user in existing_users}
+    
+    # Check all existing associations at once
+    existing_associations = db.query(
+        UserWorkletAssociation.user_id
+    ).filter(
+        and_(
+            UserWorkletAssociation.user_id.in_(user_ids),
+            UserWorkletAssociation.worklet_id == worklet_id,
+        )
+    ).all()
+    existing_association_user_ids = {assoc.user_id for assoc in existing_associations}
+    
     for assignment in user_assignments:
         try:
             # Set worklet_id from URL parameter
             assignment.worklet_id = worklet_id
             
-            # Check if user exists
-            user = db.query(User).filter(User.id == assignment.user_id).first()
-            if not user:
+            # Check if user exists (from pre-fetched set)
+            if assignment.user_id not in existing_user_ids:
                 errors.append(f"User {assignment.user_id} not found")
                 continue
             
-            # Check if association already exists
-            existing = db.query(UserWorkletAssociation).filter(
-                and_(
-                    UserWorkletAssociation.user_id == assignment.user_id,
-                    UserWorkletAssociation.worklet_id == worklet_id,
-                )
-            ).first()
-            
-            if existing:
+            # Check if association already exists (from pre-fetched set)
+            if assignment.user_id in existing_association_user_ids:
                 errors.append(f"User {assignment.user_id} already assigned to worklet")
                 continue
             

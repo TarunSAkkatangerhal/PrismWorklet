@@ -236,7 +236,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     This prevents a user from attempting to log in as a different role.
     """
     logger.info(f"Login attempt for email: {form_data.username}")
-    logger.info(f"Password received: {form_data.password}")
     
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     

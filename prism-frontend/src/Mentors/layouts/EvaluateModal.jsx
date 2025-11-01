@@ -137,7 +137,6 @@ function EvaluateModal({ isOpen, onClose }) {
 
     try {
       setSubmitting(true);
-      const token = localStorage.getItem("access_token");
       
       const evaluationPayload = {
         worklet_id: parseInt(selectedWorklet),
@@ -224,7 +223,7 @@ function EvaluateModal({ isOpen, onClose }) {
                 {completedWorklets.length > 0 ? (
                   completedWorklets.map(worklet => (
                     <option key={worklet.id} value={worklet.id}>
-                      {(worklet.cert_id || worklet.id)} - {worklet.description?.substring(0, 50) || ''}
+                      {(worklet.cert_id || worklet.id)} - {worklet.title?.substring(0, 50) || worklet.description?.substring(0, 50) || 'No title'}
                     </option>
                   ))
                 ) : (
@@ -239,16 +238,13 @@ function EvaluateModal({ isOpen, onClose }) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h3 className="font-semibold text-lg mb-1 text-gray-900 dark:text-white">
-                      {selectedWorkletDetails.cert_id}{' '}
+                      {selectedWorkletDetails.cert_id} - {selectedWorkletDetails.title || selectedWorkletDetails.description || 'No title'}{' '}
                       {selectedWorkletDetails.status && (
                         <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-200 text-blue-800 dark:bg-blue-600 dark:text-white">
                           {selectedWorkletDetails.status}
                         </span>
                       )}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                      {selectedWorkletDetails.description || 'No description available'}
-                    </p>
                   </div>
                   <button
                     type="button"
@@ -514,10 +510,19 @@ function EvaluateModal({ isOpen, onClose }) {
           </form>
         )}
         {showSuccess && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg">
-            <div className="bg-white dark:bg-slate-700 p-6 rounded-xl shadow-xl flex flex-col items-center gap-3">
-              <CheckCircle2 className="w-12 h-12 text-green-600 dark:text-green-400" />
-              <p className="text-green-700 dark:text-green-300 font-semibold">Evaluation submitted!</p>
+          <div className="absolute inset-0 flex items-center justify-center bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-lg z-50">
+            <div className="bg-white dark:bg-slate-700 p-8 rounded-xl shadow-2xl flex flex-col items-center gap-4 max-w-sm">
+              <div className="w-16 h-16 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" strokeWidth={2.5} />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                  Evaluation Submitted
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Student has been notified successfully.
+                </p>
+              </div>
             </div>
           </div>
         )}

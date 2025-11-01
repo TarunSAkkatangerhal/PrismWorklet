@@ -28,39 +28,58 @@ import LeftSidebar from '../components/Left'
 import apiClient from '../services/secureWorkletsAPI' // reuse configured axios instance for auth headers
 import { useAuth } from '../hooks/useAuth' // Import useAuth hook to detect user role
 
-const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || 'http://localhost:8000'
-
-// --- API HELPERS (live) ---
-const authHeader = () => {
-  const token = localStorage.getItem('access_token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
+// --- API HELPERS ---
 
 const fetchStudentPortfolio = async () => {
-  const resp = await apiClient.get('/api/portfolio/student/me')
-  return resp.data
+  try {
+    const resp = await apiClient.get('/api/portfolio/student/me')
+    return resp.data
+  } catch (error) {
+    console.error('Error fetching student portfolio:', error)
+    console.error('Error details:', error.response?.data || error.message)
+    const errorMessage = error.response?.data?.detail || error.message || 'Failed to load portfolio'
+    throw new Error(errorMessage)
+  }
 }
 
 const fetchCompletedWorkletsForCurrentUser = async () => {
-  // Use associations endpoint similar to existing code; attempt both mentor & student roles
-  const token = localStorage.getItem('access_token')
-  if (!token) return { completed: [] }
-  const profileResp = await fetch(`${API_BASE}/auth/profile`, { headers: authHeader() })
-  if (!profileResp.ok) throw new Error('Failed to load profile')
-  const profile = await profileResp.json()
-  const userId = profile.id
-  // We need worklets with status Completed regardless of role; try fetching association endpoint (mentor path used previously)
-  const assocResp = await fetch(`${API_BASE}/api/associations/mentor/${userId}/worklets`, { headers: authHeader() })
-  if (!assocResp.ok) return { completed: [] }
-  const assocData = await assocResp.json()
-  return { completed: assocData.completed_worklets || [] }
+  try {
+    // Use associations endpoint to get completed worklets
+    const token = localStorage.getItem('access_token')
+    if (!token) return { completed: [] }
+    
+    // Get user profile using the API client
+    const profileResp = await apiClient.get('/auth/profile')
+    const profile = profileResp.data
+    const userId = profile.id
+    
+    // Fetch worklets using the associations endpoint with status filter
+    const assocResp = await apiClient.get(`/api/associations/mentor/${userId}/worklets`, {
+      params: { status_filter: 'completed' }
+    })
+    const assocData = assocResp.data
+    
+    // Return completed worklets from the response
+    return { completed: assocData.completed_worklets || [] }
+  } catch (error) {
+    console.error('Error fetching completed worklets:', error)
+    return { completed: [] }
+  }
 }
 
 const submitPortfolioItem = async (type, formData) => {
-  const endpoint = `${API_BASE}/api/portfolio/${type}`
-  const resp = await fetch(endpoint, { method: 'POST', headers: { ...authHeader() }, body: formData })
-  if (!resp.ok) throw new Error(`Failed to create ${type.slice(0, -1)}`)
-  return await resp.json()
+  try {
+    const endpoint = `/api/portfolio/${type}`
+    const resp = await apiClient.post(endpoint, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return resp.data
+  } catch (error) {
+    console.error(`Error creating ${type.slice(0, -1)}:`, error)
+    throw new Error(`Failed to create ${type.slice(0, -1)}`)
+  }
 }
 
 // --- INITIAL EMPTY STATE ---
@@ -889,11 +908,13 @@ const Portfolio = () => {
       // Get current user info
       const token = localStorage.getItem('access_token')
       if (token) {
-        const profileResp = await fetch(`${API_BASE}/auth/profile`, { headers: authHeader() })
-        if (profileResp.ok) {
-          const profile = await profileResp.json()
+        try {
+          const profileResp = await apiClient.get('/auth/profile')
+          const profile = profileResp.data
           setCurrentUserId(profile.id)
           setCurrentUserRole(profile.role)
+        } catch (error) {
+          console.error('Failed to load profile:', error)
         }
       }
       

@@ -360,7 +360,7 @@ export default function InternReferralForm({ workletId, preSelectedWorklet }) {
             )}
             {autoMode && (
               <div className="p-2 rounded-md bg-indigo-50 dark:bg-slate-700/50 border border-indigo-200 dark:border-slate-600 text-sm font-medium text-indigo-700 dark:text-indigo-300">
-                {preSelectedWorklet?.cert_id || preSelectedWorklet?.title || preSelectedWorklet?.id}
+                {(preSelectedWorklet?.cert_id || preSelectedWorklet?.id)} - {(preSelectedWorklet?.description || preSelectedWorklet?.title || 'No title')}
               </div>
             )}
 
@@ -479,7 +479,6 @@ function SuccessScreen({ submittedData, onReset }) {
     
     // Define colors matching the form
     const primaryBlue = [37, 99, 235]; // blue-600
-    const lightBlue = [219, 234, 254]; // blue-100
     const darkGray = [55, 65, 81]; // gray-700
     const lightGray = [243, 244, 246]; // gray-100
     const mediumGray = [156, 163, 175]; // gray-400

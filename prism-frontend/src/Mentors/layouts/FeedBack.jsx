@@ -38,15 +38,28 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
     const fetchWorklets = async () => {
       try {
         setLoading(true);
-        const userEmail = localStorage.getItem("user_email");
         const token = localStorage.getItem("access_token");
         
-        if (!userEmail || !token) {
+        if (!token) {
           throw new Error("User information not found");
         }
 
+        // First get user profile to get the mentor ID
+        const profileResponse = await axios.get(
+          `http://localhost:8000/auth/profile`,
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        const mentorId = profileResponse.data.id;
+
+        // Use the new ID-based endpoint
         const response = await axios.get(
-          `http://localhost:8000/worklets/mentor/${encodeURIComponent(userEmail)}/worklets`,
+          `http://localhost:8000/api/associations/mentor/${mentorId}/worklets?status_filter=ongoing`,
           {
             headers: { 
               'Authorization': `Bearer ${token}`,
@@ -55,9 +68,7 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
           }
         );
         
-        const ongoingWorklets = (response.data || []).filter(worklet => 
-          worklet.status === 'Ongoing'
-        );
+        const ongoingWorklets = response.data.ongoing_worklets || [];
         
         setWorklets(ongoingWorklets);
         

@@ -26,8 +26,24 @@ WORKLET_STATUS_REVERSE_MAP = {
 # Default status
 DEFAULT_WORKLET_STATUS_ID = 1  # Ongoing
 
-# Performance/Quality levels
-PERFORMANCE_LEVELS = ["Very Good", "Good", "Average", "Poor"]
+# Performance Mapping (Database ID/Number to Display Text)
+PERFORMANCE_MAP = {
+    0: "NA",
+    1: "Poor",
+    2: "Average",
+    3: "Good",
+    4: "Very Good",
+    5: "Very Good"
+}
+
+# Reverse mapping for performance text to ID
+PERFORMANCE_REVERSE_MAP = {
+    "NA": 0,
+    "Poor": 1,
+    "Average": 2,
+    "Good": 3,
+    "Very Good": 4
+}
 
 # Priority levels
 PRIORITY_LEVELS = ["low", "medium", "high"]
@@ -69,3 +85,27 @@ def get_status_id(status_text: str) -> int:
         Status ID for database
     """
     return WORKLET_STATUS_REVERSE_MAP.get(status_text, DEFAULT_WORKLET_STATUS_ID)
+
+def normalize_performance(performance_input: str | int | None) -> str | None:
+    """
+    Normalize performance to display text
+    
+    Args:
+        performance_input: Performance as ID (int) or text (str)
+        
+    Returns:
+        Performance text if string is present, return it directly
+        If number is present, map it to string using PERFORMANCE_MAP
+    """
+    if performance_input is None:
+        return None
+    
+    # Try to parse as int first (handles both int and numeric strings)
+    try:
+        num_perf = int(performance_input)
+        return PERFORMANCE_MAP.get(num_perf, None)
+    except (ValueError, TypeError):
+        # If it's a non-numeric string, return it directly
+        if isinstance(performance_input, str):
+            return performance_input
+        return None

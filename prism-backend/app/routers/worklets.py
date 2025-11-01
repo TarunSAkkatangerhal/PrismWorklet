@@ -15,7 +15,7 @@ from app.routers.helpers.worklet_helpers import (
     map_status_text
 )
 from app.services.worklet_service import WorkletService
-from app.core.constants import get_status_id, WORKLET_STATUS_MAP
+from app.core.constants import get_status_id, WORKLET_STATUS_MAP, normalize_performance
 import logging
 logger = logging.getLogger(__name__)
 
@@ -89,8 +89,33 @@ def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme
 def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
     """List worklets from the new DB shape with optional year filtering.
     Year is derived from start_date/end_date when not explicitly stored.
+    Uses eager loading to avoid N+1 query problems.
     """
-    worklets = db.query(Worklet).all()
+    from sqlalchemy.orm import joinedload
+    
+    # Eager load college relationship to avoid N+1 queries
+    worklets = db.query(Worklet).options(
+        joinedload(Worklet.college_rel)
+    ).all()
+    
+    # Batch fetch all student associations to avoid N+1 queries
+    worklet_ids = [w.id for w in worklets]
+    student_associations = {}
+    if worklet_ids:
+        assocs = (
+            db.query(UserWorkletAssociation.worklet_id, User)
+            .join(User, User.id == UserWorkletAssociation.user_id)
+            .filter(
+                UserWorkletAssociation.worklet_id.in_(worklet_ids),
+                UserWorkletAssociation.role_in_worklet == "Student",
+            )
+            .all()
+        )
+        for worklet_id, user in assocs:
+            if worklet_id not in student_associations:
+                student_associations[worklet_id] = []
+            student_associations[worklet_id].append(user)
+    
     response: List[dict] = []
     for w in worklets:
         progress = getattr(w, 'worklet_progress', None)
@@ -107,17 +132,10 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             else:
                 progress = 0
 
-        # Gather students (names just for counting) via association
-        assoc_students = (
-            db.query(User)
-            .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
-            .filter(
-                UserWorkletAssociation.worklet_id == w.id,
-                UserWorkletAssociation.role_in_worklet == "Student",
-            )
-            .all()
-        )
+        # Use pre-fetched student associations
+        assoc_students = student_associations.get(w.id, [])
         student_count = len(assoc_students)
+        
         # Prefer worklet's own college assignment; fallback to associations
         college_id = getattr(w, 'college_id', None)
         college_name = w.college_rel.college_name if getattr(w, 'college_rel', None) else None
@@ -128,20 +146,9 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
                     college_name = stu.college
                     college_id = getattr(stu, "college_id", None)
                     break
-        if college_name is None:
-            # Fallback: try mentor college if no student college found
-            mentor_assoc = (
-                db.query(User)
-                .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
-                .filter(
-                    UserWorkletAssociation.worklet_id == w.id,
-                    UserWorkletAssociation.role_in_worklet == "Mentor",
-                )
-                .first()
-            )
-            if mentor_assoc and getattr(mentor_assoc, "college", None):
-                college_name = mentor_assoc.college
-                college_id = getattr(mentor_assoc, "college_id", None)
+        
+        # Note: Removed redundant mentor college fallback to avoid additional queries.
+        # College should be assigned directly to worklet or through student associations.
 
         # Map status_id to textual status for API compatibility
         status_text = map_status_text(getattr(w, 'status_id', None))
@@ -204,7 +211,7 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             'student_count': student_count,
             'github_repo_url': github_url,
             'github_repo': repo_name,
-            'performance': getattr(w, 'Performance', None)
+            'performance': normalize_performance(getattr(w, 'Performance', None))
         })
     return response
 
@@ -304,52 +311,6 @@ def delete_worklet(worklet_id: int, db: Session = Depends(get_db)):
     db.delete(worklet)
     db.commit()
     return None
-
-# ----------------- Mentor Worklets (Email-based lookup) -----------------
-@router.get("/mentor/{mentor_email}/worklets")
-def get_mentor_worklets_by_email(mentor_email: str, db: Session = Depends(get_db), only_ongoing: bool = False):
-    """
-    Get worklets for a mentor using their email address.
-    
-    DEPRECATED: For new code, prefer /api/associations/mentor/{mentor_id}/worklets which uses ID.
-    This endpoint is kept for backward compatibility with legacy frontends.
-    Email-based lookup is less secure and slower than ID-based lookup.
-    
-    Query Parameters:
-    - only_ongoing: If true, returns only worklets with status "Ongoing"
-    
-    Returns worklets with students, progress, and performance data.
-    Now uses centralized WorkletService for consistent data formatting.
-    """
-    try:
-        # Find mentor by email
-        mentor = db.query(User).filter(User.email == mentor_email, User.role == "Mentor").first()
-        if not mentor:
-            raise HTTPException(status_code=404, detail="Mentor not found")
-
-        # Use service layer with status filter
-        status_filter = "ongoing" if only_ongoing else None
-        result = WorkletService.get_worklets_for_mentor(
-            db=db,
-            mentor_id=mentor.id,
-            status_filter=status_filter,
-            include_performance=True
-        )
-        
-        if result is None:
-            raise HTTPException(status_code=404, detail="Mentor not found")
-        
-        # Return in legacy format for backward compatibility
-        return {
-            "worklets": result["worklets"],
-            "total_worklets": result["total_worklets"],
-            "total_mentees": result["total_mentees"]
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching mentor worklets for {mentor_email}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 # ----------------- Students for Worklet -----------------
 @router.get("/{worklet_identifier}/students")
@@ -466,53 +427,6 @@ def submit_feedback(feedback_data: FeedbackSchema, db: Session = Depends(get_db)
         "timestamp": datetime.now().isoformat(),
     }
 
-# Flexible suggestion endpoint that accepts cert_id or numeric ID
-class SuggestionSchemaFlexible(BaseModel):
-    worklet_identifier: str  # Can be either integer ID or cert_id string
-    suggestion_title: str
-    suggestion_content: str
+# Note: Use /suggestions/ POST endpoint for persisted suggestions instead of the deprecated
+# /worklets/submit-suggestion endpoint which only sent emails without database persistence.
 
-@router.post("/submit-suggestion")
-def submit_suggestion_flexible(suggestion_data: SuggestionSchemaFlexible, db: Session = Depends(get_db)):
-    """
-    Submit suggestion for worklet by either integer ID or cert_id string
-    Examples: worklet_identifier can be 6 or "25TST04WT"
-    
-    DEPRECATED: Use /suggestions/ POST endpoint instead which persists to database.
-    This endpoint only sends emails without persistence.
-    Now uses centralized WorkletService for identifier resolution.
-    """
-    # Use service to resolve identifier
-    worklet = WorkletService.get_worklet_by_identifier(db, suggestion_data.worklet_identifier)
-    
-    if not worklet:
-        raise HTTPException(status_code=404, detail="Worklet not found")
-    
-    # Fetch dynamic students
-    student_records = _get_students_for_worklet(db, worklet.id)
-    student_emails = [s["email"] for s in student_records]
-
-    email_sent = False
-    if student_emails:
-        email_subject = f"New Suggestion for Worklet {worklet.cert_id}"
-        email_message = (
-            f"A mentor has shared a suggestion for your worklet.\n\n"
-            f"Title: {suggestion_data.suggestion_title}\nSuggestion: {suggestion_data.suggestion_content}"
-        )
-        email_sent = send_activity_email(student_emails, email_subject, email_message, "Share Suggestion")
-
-    return {
-        "message": "Suggestion submitted successfully",
-        "suggestion_data": {
-            "worklet_identifier": suggestion_data.worklet_identifier,
-            "worklet_cert_id": worklet.cert_id,
-            "suggestion_title": suggestion_data.suggestion_title,
-            "suggestion_content": suggestion_data.suggestion_content,
-        },
-        "email_sent": email_sent,
-        "students_notified": len(student_emails),
-        "student_emails": student_emails,
-        "timestamp": datetime.now().isoformat(),
-    }
-
-# Note: Completed-worklets and internship-referral routes removed as unused in current frontend
