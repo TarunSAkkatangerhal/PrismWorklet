@@ -757,12 +757,3 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 - **Documentation**: [Documentation Portal]
 
 ---
-
-<div align="center">
-
-### 🌟 Built with ❤️ under the Samsung PRISM Program
-
-**Empowering the next generation of innovators through technology and collaboration**
-
-</div>
-

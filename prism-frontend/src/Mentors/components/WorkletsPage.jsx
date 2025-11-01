@@ -98,8 +98,10 @@ export default function WorkletsPage() {
   // Prefer URL query param 'tab' if present (enables cross-page linking without localStorage)
   const urlParams = new URLSearchParams(location.search);
   const initialTabFromUrl = urlParams.get('tab');
-  // Do NOT initialize activeTab from savedState to avoid persisting tab selection in localStorage
-  const [activeFilter, setActiveFilter] = useState(initialTabFromUrl?.toLowerCase() || "all");
+  // Initialize activeFilter from savedState (persisting tab selection)
+  const [activeFilter, setActiveFilter] = useState(
+    initialTabFromUrl?.toLowerCase() || savedState?.activeFilter || "all"
+  );
   const [viewMode, setViewMode] = useState(savedState?.layout || "grid");
   const [searchTerm, setSearchTerm] = useState(savedState?.searchTerm || "");
 
@@ -267,14 +269,15 @@ export default function WorkletsPage() {
     return () => clearInterval(interval);
   }, [fetchWorklets, loading, error]);
 
-  // Persist view state changes to localStorage (do not persist activeTab)
+  // Persist view state changes to localStorage (including activeFilter)
   useEffect(() => {
     const viewState = {
       layout: viewMode,
-      searchTerm
+      searchTerm,
+      activeFilter
     };
     saveViewState(viewState);
-  }, [viewMode, searchTerm]);
+  }, [viewMode, searchTerm, activeFilter]);
 
   // If a URL param 'tab' is present it was already read during initialization and used for activeTab.
 

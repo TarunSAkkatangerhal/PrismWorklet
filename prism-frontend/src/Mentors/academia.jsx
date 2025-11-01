@@ -1159,7 +1159,7 @@ const Colleges = () => {
   // Backend fetch useEffect is defined earlier in the component; remove mock mapping
 
   const filteredColleges = useMemo(() => {
-    if (!allCollegeData) return []
+    if (!allCollegeData || allCollegeData.length === 0) return []
 
     let collegesToFilter = allCollegeData
     
@@ -1170,7 +1170,7 @@ const Colleges = () => {
       // When college is selected, apply nested year and team filters to worklets
       return collegesToFilter.map((college) => {
         // Apply year filter to worklets within selected college
-        let filteredWorklets = college.worklets || []
+        let filteredWorklets = Array.isArray(college.worklets) ? college.worklets : []
         
         if (selectedYear && selectedYear !== 'All Years') {
           filteredWorklets = filteredWorklets.filter(worklet => String(worklet.year) === selectedYear)
@@ -1218,7 +1218,7 @@ const Colleges = () => {
 
     // No college selected - apply year and team filters to ALL colleges
     return collegesToFilter.map((college) => {
-      let filteredWorklets = college.worklets || []
+      let filteredWorklets = Array.isArray(college.worklets) ? college.worklets : []
       
       // Apply year filter if selected
       if (selectedYear && selectedYear !== 'All Years') {
