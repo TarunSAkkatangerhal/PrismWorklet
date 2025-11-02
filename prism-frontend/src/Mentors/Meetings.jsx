@@ -627,9 +627,6 @@ const Meetings = () => {
   const [showAddModal, setShowAddModal] = useState(false); // Add Meeting modal
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   
-  // Reminder UI state
-  const [showReminderSettings, setShowReminderSettings] = useState(false);
-
   // ---------------- Add Meeting Form State ----------------
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -1577,23 +1574,6 @@ const Meetings = () => {
           
           {/* Settings Actions */}
           <div className="flex items-center gap-3">
-            {/* Reminder Settings Button */}
-            <button
-              onClick={() => setShowReminderSettings(!showReminderSettings)}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors text-sm font-medium ${
-                reminderSettings.enabled 
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300'
-                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.18 0 2.34-.2 3.44-.58L12 17V7h5.28c-.34-2.84-2.62-5.14-5.46-5.47C11.56 1.18 11.29 1 11 1s-.56.18-.82.53C9.38 1.86 9.38 2.14 9.62 2.47 9.86 2.8 10.4 2.8 10.64 2.47 10.88 2.14 11.12 2 11 2z" />
-              </svg>
-              Reminders
-              {reminderSettings.enabled && (
-                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              )}
-            </button>
           </div>
         </header>
 
@@ -2678,167 +2658,6 @@ const Meetings = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Reminder Settings Modal */}
-      {showReminderSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  Meeting Reminders
-                </h3>
-                <button
-                  onClick={() => setShowReminderSettings(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {/* Enable/Disable Reminders */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium text-slate-900 dark:text-white">
-                      Enable Reminders
-                    </label>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Get notified before meetings start
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setReminderSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      reminderSettings.enabled 
-                        ? 'bg-blue-600' 
-                        : 'bg-slate-200 dark:bg-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        reminderSettings.enabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {reminderSettings.enabled && (
-                  <>
-                    {/* Reminder Intervals */}
-                    <div>
-                      <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
-                        Reminder Times
-                      </label>
-                      <div className="space-y-2">
-                        {[
-                          { value: 15, label: '15 minutes before' },
-                          { value: 60, label: '1 hour before' },
-                          { value: 1440, label: '1 day before' }
-                        ].map(interval => (
-                          <label key={interval.value} className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={reminderSettings.intervals.includes(interval.value)}
-                              onChange={(e) => {
-                                setReminderSettings(prev => ({
-                                  ...prev,
-                                  intervals: e.target.checked
-                                    ? [...prev.intervals, interval.value]
-                                    : prev.intervals.filter(i => i !== interval.value)
-                                }));
-                              }}
-                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-sm text-slate-600 dark:text-slate-400">
-                              {interval.label}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Notification Methods */}
-                    <div>
-                      <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
-                        Notification Methods
-                      </label>
-                      <div className="space-y-2">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={reminderSettings.methods.includes('browser')}
-                            onChange={(e) => {
-                              setReminderSettings(prev => ({
-                                ...prev,
-                                methods: e.target.checked
-                                  ? [...prev.methods, 'browser']
-                                  : prev.methods.filter(m => m !== 'browser')
-                              }));
-                            }}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-sm text-slate-600 dark:text-slate-400">
-                            Browser notifications
-                          </span>
-                        </label>
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={reminderSettings.methods.includes('email')}
-                            onChange={(e) => {
-                              setReminderSettings(prev => ({
-                                ...prev,
-                                methods: e.target.checked
-                                  ? [...prev.methods, 'email']
-                                  : prev.methods.filter(m => m !== 'email')
-                              }));
-                            }}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-sm text-slate-600 dark:text-slate-400">
-                            Email notifications
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-600">
-                  <button
-                    onClick={() => setShowReminderSettings(false)}
-                    className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowReminderSettings(false);
-                      showConfirmationMessage('✅ Reminder settings saved');
-                      
-                      // Re-setup reminders for all upcoming meetings with new settings
-                      if (reminderSettings.enabled) {
-                        meetings.forEach(meeting => {
-                          clearMeetingReminders(meeting.id);
-                          const meetingStatus = meeting.status || calculateMeetingStatus(meeting.date);
-                          if (meetingStatus === 'upcoming') {
-                            setupMeetingReminders(meeting);
-                          }
-                        });
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Save Settings
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}

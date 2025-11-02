@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -370,33 +370,32 @@ export default function WorkletDetailPage() {
     }, 3000)
   }
 
-  // --- DATA FETCHING ---
-  useEffect(() => {
-    const fetchWorklet = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const token = localStorage.getItem('access_token')
+  // --- DATA FETCHING FUNCTION ---
+  const fetchWorklet = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const token = localStorage.getItem('access_token')
 
-        if (!token) {
-          throw new Error('Authentication token not found')
-        }
+      if (!token) {
+        throw new Error('Authentication token not found')
+      }
 
-        // Use associations endpoint to get worklet with mentors data
-        const response = await axios.get(`http://localhost:8000/api/associations/worklet/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-          },
-        })
+      // Use associations endpoint to get worklet with mentors data
+      const response = await axios.get(`http://localhost:8000/api/associations/worklet/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      })
 
-        if (response.data) {
-          // Transform backend data to match expected format
-          const imageUrls = [
-            'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=400&auto=format&fit=crop',
-          ]
+      if (response.data) {
+        // Transform backend data to match expected format
+        const imageUrls = [
+          'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop',
+          'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=400&auto=format&fit=crop',
+          'https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=400&auto=format&fit=crop',
+        ]
 
           const transformedWorklet = {
             id: response.data.id,
@@ -440,102 +439,104 @@ export default function WorkletDetailPage() {
             stage_id: response.data.stage_id || null,
           }
 
-          setWorklet(transformedWorklet)
+        setWorklet(transformedWorklet)
+        
+        // Fetch suggestions for this worklet
+        try {
+          const suggestionsResponse = await axios.get(
+            `http://localhost:8000/suggestions/worklet/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+              },
+            }
+          )
           
-          // Fetch suggestions for this worklet
-          try {
-            const suggestionsResponse = await axios.get(
-              `http://localhost:8000/suggestions/worklet/${id}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  Accept: 'application/json',
-                },
-              }
-            )
+          if (suggestionsResponse.data) {
+            // Transform suggestions to match expected format
+            const transformedSuggestions = suggestionsResponse.data.map(sug => ({
+              id: sug.suggestion_id,
+              mentorName: sug.mentor_name || 'Unknown Mentor',
+              mentorEmail: sug.mentor_email || '',
+              mentorInitials: getInitials(sug.mentor_name || 'UN'),
+              title: sug.suggestion_title,
+              content: sug.suggestion_content,
+              category: sug.category || 'General',
+              priority: sug.priority || 'medium',
+              date: sug.created_at,
+              isRead: sug.is_read || false,
+              isHelpful: sug.is_helpful || null,
+              studentResponse: sug.student_response || null,
+              responseDate: sug.response_date || null
+            }))
             
-            if (suggestionsResponse.data) {
-              // Transform suggestions to match expected format
-              const transformedSuggestions = suggestionsResponse.data.map(sug => ({
-                id: sug.suggestion_id,
-                mentorName: sug.mentor_name || 'Unknown Mentor',
-                mentorEmail: sug.mentor_email || '',
-                mentorInitials: getInitials(sug.mentor_name || 'UN'),
-                title: sug.suggestion_title,
-                content: sug.suggestion_content,
-                category: sug.category || 'General',
-                priority: sug.priority || 'medium',
-                date: sug.created_at,
-                isRead: sug.is_read || false,
-                isHelpful: sug.is_helpful || null,
-                studentResponse: sug.student_response || null,
-                responseDate: sug.response_date || null
+            setSuggestions(transformedSuggestions)
+          }
+        } catch (suggError) {
+          console.error('Error fetching suggestions:', suggError)
+          // Don't fail the whole page if suggestions fetch fails
+          setSuggestions([])
+        }
+
+        // Fetch milestones for this worklet
+        try {
+          const milestonesResponse = await axios.get(
+            `http://localhost:8000/milestones/worklet/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json'
+              }
+            }
+          )
+          
+          if (milestonesResponse.data) {
+            setMilestones(milestonesResponse.data)
+            
+            // Extract files from milestones and populate allMilestoneFiles
+            const files = milestonesResponse.data
+              .filter(milestone => milestone.attachment_name) // Only milestones with attachments
+              .map(milestone => ({
+                name: milestone.attachment_name,
+                size: milestone.attachment_size || 0,
+                type: milestone.attachment_type || 'application/octet-stream',
+                url: milestone.attachment_url || null,
+                uploadedBy: milestone.student_name || 'Unknown',
+                uploadedByRole: 'student', // Milestones are created by students
+                uploadedDate: milestone.date_created,
+                milestoneTitle: milestone.milestone_type
               }))
-              
-              setSuggestions(transformedSuggestions)
-            }
-          } catch (suggError) {
-            console.error('Error fetching suggestions:', suggError)
-            // Don't fail the whole page if suggestions fetch fails
-            setSuggestions([])
-          }
-
-          // Fetch milestones for this worklet
-          try {
-            const milestonesResponse = await axios.get(
-              `http://localhost:8000/milestones/worklet/${id}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  Accept: 'application/json'
-                }
-              }
-            )
             
-            if (milestonesResponse.data) {
-              setMilestones(milestonesResponse.data)
-              
-              // Extract files from milestones and populate allMilestoneFiles
-              const files = milestonesResponse.data
-                .filter(milestone => milestone.attachment_name) // Only milestones with attachments
-                .map(milestone => ({
-                  name: milestone.attachment_name,
-                  size: milestone.attachment_size || 0,
-                  type: milestone.attachment_type || 'application/octet-stream',
-                  url: milestone.attachment_url || null,
-                  uploadedBy: milestone.student_name || 'Unknown',
-                  uploadedByRole: 'student', // Milestones are created by students
-                  uploadedDate: milestone.date_created,
-                  milestoneTitle: milestone.milestone_type
-                }))
-              
-              setAllMilestoneFiles(files)
-            }
-          } catch (milestoneError) {
-            console.error('Error fetching milestones:', milestoneError)
-            // Don't fail the whole page if milestones fetch fails
-            setMilestones([])
-            setAllMilestoneFiles([])
+            setAllMilestoneFiles(files)
           }
+        } catch (milestoneError) {
+          console.error('Error fetching milestones:', milestoneError)
+          // Don't fail the whole page if milestones fetch fails
+          setMilestones([])
+          setAllMilestoneFiles([])
         }
-      } catch (error) {
-        console.error('Error fetching worklet:', error)
-        if (error?.response?.status === 404) {
-          setError('Worklet not found')
-        } else if (error?.response?.status === 401) {
-          setError('Authentication failed. Please login again.')
-        } else {
-          setError('Failed to load worklet details. Please check your connection.')
-        }
-      } finally {
-        setLoading(false)
       }
+    } catch (error) {
+      console.error('Error fetching worklet:', error)
+      if (error?.response?.status === 404) {
+        setError('Worklet not found')
+      } else if (error?.response?.status === 401) {
+        setError('Authentication failed. Please login again.')
+      } else {
+        setError('Failed to load worklet details. Please check your connection.')
+      }
+    } finally {
+      setLoading(false)
     }
+  }, [id])
 
+  // --- DATA FETCHING ---
+  useEffect(() => {
     if (id) {
       fetchWorklet()
     }
-  }, [id, retryCount])
+  }, [id, retryCount, fetchWorklet])
 
   // --- BACK NAVIGATION HANDLER ---
   const handleGoBack = () => {
@@ -2807,7 +2808,10 @@ export default function WorkletDetailPage() {
             team: worklet.team,
             progress: worklet.progress
           }}
-          onSuccess={showSuccessNotification}
+          onSuccess={(message) => {
+            showSuccessNotification(message);
+            fetchWorklet(); // Refresh worklet data to show updated progress
+          }}
           onError={showErrorNotification}
         />
       )}

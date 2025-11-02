@@ -1,12 +1,13 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.models import Milestone, MilestoneFeedback, Worklet, User, UserWorkletAssociation
 from app.schemas import MilestoneCreate, MilestoneOut, MilestoneFeedbackCreate, MilestoneFeedbackOut
 from app.auth import oauth2_scheme, require_access_token
+from app.core.email_utils import send_milestone_notification
 
 router = APIRouter(
     prefix="/milestones",
@@ -23,16 +24,88 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
+# Helper function to auto-increment progress for old milestones without feedback
+def check_and_auto_increment_progress(worklet_id: int, db: Session):
+    """
+    Check if worklet has milestones older than 2 days without mentor feedback.
+    If yes, auto-increment progress. This ensures progress moves forward even
+    if mentor doesn't provide timely feedback.
+    
+    Returns True if progress was updated, False otherwise.
+    """
+    # Get worklet
+    worklet = db.query(Worklet).filter(Worklet.id == worklet_id).first()
+    if not worklet:
+        return False
+    
+    # Calculate cutoff date (2 days ago)
+    cutoff_date = datetime.utcnow() - timedelta(days=2)
+    
+    # Get milestones for this worklet that are older than 2 days
+    old_milestones = db.query(Milestone).filter(
+        Milestone.worklet_id == worklet_id,
+        Milestone.date_created <= cutoff_date
+    ).all()
+    
+    if not old_milestones:
+        return False
+    
+    # Map milestone types to progress values
+    review_stages = {
+        'first review': 17,
+        'weekly meeting': 17,
+        'second review': 33,
+        'monthly meeting': 33,
+        'mid review': 50,
+        'mid-review': 50,
+        'fourth review': 67,
+        'fifth review': 83,
+        'end review': 100
+    }
+    
+    highest_auto_progress = 0
+    current_progress = worklet.worklet_progress or 0
+    
+    for milestone in old_milestones:
+        # Check if this milestone has feedback from mentor/professor
+        has_feedback = db.query(MilestoneFeedback).filter(
+            MilestoneFeedback.milestone_id == milestone.milestone_id
+        ).first()
+        
+        # Skip if mentor already reviewed this milestone
+        if has_feedback:
+            continue
+        
+        # Check if milestone type is a review stage
+        milestone_type_lower = milestone.milestone_type.lower() if milestone.milestone_type else ""
+        
+        for stage_name, progress_value in review_stages.items():
+            if stage_name in milestone_type_lower:
+                # Track the highest progress from unreviewed milestones
+                highest_auto_progress = max(highest_auto_progress, progress_value)
+                break
+    
+    # Update progress only if higher than current
+    if highest_auto_progress > current_progress:
+        worklet.worklet_progress = highest_auto_progress
+        db.commit()
+        return True
+    
+    return False
+
+
 # Create a new milestone (Student only)
 @router.post("/", response_model=MilestoneOut, status_code=status.HTTP_201_CREATED)
 def create_milestone(
     milestone: MilestoneCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Create a new milestone for a worklet.
     Only students can create milestones.
+    Sends email notification to all mentors/professors associated with the worklet.
     """
     # Verify user is a student
     if current_user.role.lower() != 'student':
@@ -83,6 +156,37 @@ def create_milestone(
     db.add(new_milestone)
     db.commit()
     db.refresh(new_milestone)
+    
+    # Get all mentors and professors associated with this worklet
+    mentor_associations = db.query(UserWorkletAssociation).filter(
+        UserWorkletAssociation.worklet_id == milestone.worklet_id,
+        UserWorkletAssociation.role_in_worklet.in_(["Mentor", "Professor"])
+    ).all()
+    
+    # Send email notifications to all mentors/professors in background
+    for mentor_assoc in mentor_associations:
+        mentor_user = db.query(User).filter(User.id == mentor_assoc.user_id).first()
+        if mentor_user and mentor_user.email:
+            background_tasks.add_task(
+                send_milestone_notification,
+                mentor_email=mentor_user.email,
+                mentor_name=mentor_user.name,
+                student_name=current_user.name,
+                student_email=current_user.email,
+                milestone_type=milestone.milestone_type,
+                worklet_title=worklet.worklet_title,
+                field1_label=milestone.field1_label,
+                field1_value=milestone.field1_value,
+                field2_label=milestone.field2_label,
+                field2_value=milestone.field2_value,
+                toggle_label=milestone.toggle_label,
+                toggle_value=milestone.toggle_value,
+                attachment_name=milestone.attachment_name
+            )
+    
+    # Note: Auto-increment logic is now handled by background scheduler or lazy evaluation
+    # Progress will only auto-increment after 2 days if mentor hasn't provided feedback
+    # This prevents immediate progress increase and gives mentor time to review
     
     # Add student info to response
     result = MilestoneOut.from_orm(new_milestone)
