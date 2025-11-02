@@ -209,7 +209,14 @@ export default function StudentDashboard() {
         <header className="flex justify-between items-center mb-[3vh]">
           <div>
             <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
-              {loadingName ? 'Loading...' : `Welcome, ${userName.split(' ')[0]}`}
+              {loadingName ? 'Loading...' : `Welcome, ${(() => {
+                const nameParts = userName.split(' ');
+                // Check if first part is an initial (single character or ends with .)
+                if (nameParts.length > 1 && (nameParts[0].length === 1 || nameParts[0].endsWith('.'))) {
+                  return nameParts.slice(0, 2).join(' '); // Keep initial + first name
+                }
+                return nameParts[0]; // Keep just first word for regular names
+              })()}`}
             </h1>
             <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">
               Track your learning journey and worklet progress

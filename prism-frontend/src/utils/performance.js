@@ -77,3 +77,108 @@ export const getPerformanceColor = (performance) => {
   // Default
   return 'bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700';
 };
+
+/**
+ * Risk Status Utility Functions
+ * Risk levels: 3=Green (Low Risk), 2=Amber (Medium Risk), 1=Red (High Risk), 0=Not Applicable
+ */
+
+// Risk status mapping
+const RISK_STATUS_MAP = {
+  3: 'Green',
+  2: 'Amber', 
+  1: 'Red',
+  0: 'Not Applicable'
+};
+
+/**
+ * Normalize risk status value
+ * @param {string|number|null} riskStatus - Raw risk status value
+ * @returns {string|null} - Normalized risk status string or null
+ */
+export const normalizeRiskStatus = (riskStatus) => {
+  if (riskStatus === null || riskStatus === undefined) {
+    return null;
+  }
+
+  // If it's already a string, return it directly
+  if (typeof riskStatus === 'string') {
+    return riskStatus;
+  }
+
+  // If it's a number, map it to string
+  if (typeof riskStatus === 'number') {
+    return RISK_STATUS_MAP[riskStatus] || null;
+  }
+
+  // Try to parse as int if it's a numeric string
+  const numRisk = parseInt(riskStatus);
+  if (!isNaN(numRisk)) {
+    return RISK_STATUS_MAP[numRisk] || null;
+  }
+
+  return null;
+};
+
+/**
+ * Get Tailwind CSS classes for risk status badge color
+ * @param {string} riskStatus - Normalized risk status string
+ * @returns {string} - Tailwind CSS classes for badge styling
+ */
+export const getRiskStatusColor = (riskStatus) => {
+  if (!riskStatus) {
+    return 'bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700';
+  }
+
+  const riskLower = riskStatus.toLowerCase();
+  
+  if (riskLower === 'green') {
+    return 'bg-gradient-to-r from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700';
+  }
+  
+  if (riskLower === 'amber') {
+    return 'bg-gradient-to-r from-amber-500 to-yellow-600 dark:from-amber-600 dark:to-yellow-700';
+  }
+  
+  if (riskLower === 'red') {
+    return 'bg-gradient-to-r from-red-500 to-red-600 dark:from-red-600 dark:to-red-700';
+  }
+  
+  if (riskLower === 'not applicable') {
+    return 'bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700';
+  }
+
+  // Default
+  return 'bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700';
+};
+
+/**
+ * Get risk status icon
+ * @param {string} riskStatus - Normalized risk status string
+ * @returns {string} - Icon name or emoji
+ */
+export const getRiskStatusIcon = (riskStatus) => {
+  if (!riskStatus) {
+    return '●';
+  }
+
+  const riskLower = riskStatus.toLowerCase();
+  
+  if (riskLower === 'green') {
+    return '●';
+  }
+  
+  if (riskLower === 'amber') {
+    return '●';
+  }
+  
+  if (riskLower === 'red') {
+    return '●';
+  }
+  
+  if (riskLower === 'not applicable') {
+    return '●';
+  }
+
+  return '●';
+};
