@@ -17,6 +17,7 @@ from app.schemas import (
     UserWithWorklets,
     WorkletRoleEnum
 )
+from app.routers.milestones import check_and_auto_increment_progress
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from app.core.config import settings
@@ -107,6 +108,9 @@ def get_worklet_with_users(
     worklet = db.query(Worklet).filter(Worklet.id == worklet_id).first()
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
+    
+    # Check and auto-increment progress if needed (2-day delay, stops after mentor review)
+    check_and_auto_increment_progress(worklet_id, db)
     
     # OPTIMIZATION: Eager load users to avoid N+1 queries
     query = db.query(UserWorkletAssociation).options(

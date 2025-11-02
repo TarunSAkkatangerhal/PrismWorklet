@@ -299,6 +299,8 @@ const RightSidebar = () => {
       <EvaluateModal
         isOpen={isEvaluateModalOpen}
         onClose={() => setISEvaluateModalOpen(false)}
+        onSuccess={showSuccessNotification}
+        onError={showErrorNotification}
       />
 
       {/* Student Modals */}
