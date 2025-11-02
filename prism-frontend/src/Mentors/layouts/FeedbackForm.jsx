@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import axios from 'axios';
 import apiClient from '../../services/secureAPI';
+import { RefreshCcw } from 'lucide-react';
 
 // Define all possible stages outside component to avoid dependency issues
 const allStages = [
@@ -49,12 +50,14 @@ export default function FeedbackForm({
   const [selectedStage, setSelectedStage] = useState("");
   const [performanceIndicator, setPerformanceIndicator] = useState("");
   const [feedbackContent, setFeedbackContent] = useState("");
+  const [progressCompletion, setProgressCompletion] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [availableStages, setAvailableStages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showWarningPopup, setShowWarningPopup] = useState(false);
+  const [refreshingProgress, setRefreshingProgress] = useState(false);
 
   // Update selectedWorklet when props change
   useEffect(() => {
@@ -84,12 +87,30 @@ export default function FeedbackForm({
         setMilestones([]);
         setAvailableStages([]);
         setSelectedStage("");
+        setProgressCompletion("");
         return;
       }
 
       try {
         const token = localStorage.getItem("access_token");
         if (!token) return;
+
+        // Fetch worklet data to get current progress
+        const workletResponse = await axios.get(
+          `http://localhost:8000/api/associations/worklet/${selectedWorklet}`,
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        // Set current progress as default
+        if (workletResponse.data) {
+          const currentProgress = workletResponse.data.worklet_progress || workletResponse.data.percentage_completion || 0;
+          setProgressCompletion(currentProgress.toString());
+        }
 
         const response = await axios.get(
           `http://localhost:8000/milestones/worklet/${selectedWorklet}`,
@@ -172,6 +193,67 @@ export default function FeedbackForm({
     }
   };
 
+  // Refresh current worklet progress
+  const refreshCurrentProgress = async () => {
+    if (!selectedWorklet) return;
+    
+    try {
+      setRefreshingProgress(true);
+      const token = localStorage.getItem("access_token");
+      if (!token) return;
+
+      const workletResponse = await axios.get(
+        `http://localhost:8000/api/associations/worklet/${selectedWorklet}`,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (workletResponse.data) {
+        const currentProgress = workletResponse.data.worklet_progress || workletResponse.data.percentage_completion || 0;
+        setProgressCompletion(currentProgress.toString());
+      }
+    } catch (error) {
+      console.error('Error refreshing progress:', error);
+    } finally {
+      setRefreshingProgress(false);
+    }
+  };
+
+  // Calculate allowed progress range based on milestone stage
+  const getProgressRange = (stage) => {
+    const reviewStages = ['first_review', 'second_review', 'mid_review', 'fourth_review', 'fifth_review', 'end_review'];
+    const stageIndex = reviewStages.indexOf(stage);
+    
+    if (stageIndex === -1) {
+      // For extended or ad_hoc, allow any progress
+      return { min: 0, max: 100 };
+    }
+    
+    // Each review stage represents roughly 17% of progress (100/6 ≈ 16.67)
+    const segmentSize = 100 / 6;
+    const max = Math.round((stageIndex + 1) * segmentSize);
+    
+    // Always start from 0, only restrict the maximum
+    return { min: 0, max };
+  };
+
+  // Check if progress is valid
+  const isProgressValid = () => {
+    if (!progressCompletion || progressCompletion.trim() === "" || !selectedStage) {
+      return true; // Valid if empty (optional field)
+    }
+    
+    const progress = parseInt(progressCompletion, 10);
+    if (isNaN(progress)) return false;
+    
+    const { max } = getProgressRange(selectedStage);
+    return progress >= 0 && progress <= max;
+  };
+
   const handleSubmit = async () => {
     if (!selectedWorklet) {
       setShowWarningPopup(true);
@@ -185,6 +267,19 @@ export default function FeedbackForm({
       return;
     }
 
+    // Validate progress range based on selected stage (only if progress is provided)
+    let progress = null;
+    if (progressCompletion && progressCompletion.trim() !== "") {
+      progress = parseInt(progressCompletion, 10);
+      
+      if (!isProgressValid()) {
+        // Don't close modal, just show warning and focus will be on the red-bordered field
+        setShowWarningPopup(true);
+        setTimeout(() => setShowWarningPopup(false), 2500);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       const token = localStorage.getItem("access_token");
@@ -196,6 +291,11 @@ export default function FeedbackForm({
         feedback_content: feedbackContent.trim()
       };
 
+      // Only add progress if it was provided
+      if (progress !== null) {
+        feedbackData.progress_completion = progress;
+      }
+
       const response = await apiClient.post('/worklets/submit-feedback', feedbackData);
 
       
@@ -206,6 +306,7 @@ export default function FeedbackForm({
       setSelectedStage("");
       setPerformanceIndicator("");
       setFeedbackContent("");
+      setProgressCompletion("");
       setMilestones([]);
       setAvailableStages([]);
       
@@ -233,6 +334,7 @@ export default function FeedbackForm({
     setSelectedStage("");
     setPerformanceIndicator("");
     setFeedbackContent("");
+    setProgressCompletion("");
     setMilestones([]);
     setAvailableStages([]);
     setError(null);
@@ -391,6 +493,76 @@ export default function FeedbackForm({
                 <option value="Average">Average</option>
                 <option value="Poor">Poor</option>
               </select>
+            </div>
+
+            {/* Progress Completion */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Progress Completion
+                  </label>
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {progressCompletion || 0}%
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={refreshCurrentProgress}
+                  disabled={!selectedWorklet || refreshingProgress}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Refresh current worklet progress"
+                >
+                  <RefreshCcw 
+                    size={14} 
+                    className={refreshingProgress ? 'animate-spin' : ''}
+                  />
+                  Refresh
+                </button>
+              </div>
+
+              {/* Range Slider */}
+              <div className="mb-3">
+                <input
+                  type="range"
+                  value={progressCompletion || 0}
+                  onChange={(e) => setProgressCompletion(e.target.value)}
+                  min="0"
+                  max="100"
+                  step="1"
+                  className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                    !isProgressValid() && progressCompletion && progressCompletion.trim() !== ""
+                      ? 'accent-red-500'
+                      : 'accent-blue-600'
+                  }`}
+                  disabled={loading || !selectedStage}
+                  style={{
+                    background: selectedStage ? `linear-gradient(to right, ${
+                      !isProgressValid() && progressCompletion && progressCompletion.trim() !== "" 
+                        ? '#ef4444' 
+                        : '#3b82f6'
+                    } 0%, ${
+                      !isProgressValid() && progressCompletion && progressCompletion.trim() !== "" 
+                        ? '#ef4444' 
+                        : '#3b82f6'
+                    } ${progressCompletion || 0}%, #e5e7eb ${progressCompletion || 0}%, #e5e7eb 100%)` : ''
+                  }}
+                />
+              </div>
+
+              {/* Helper Text */}
+              {selectedStage && (() => {
+                const { max } = getProgressRange(selectedStage);
+                const isInvalid = !isProgressValid() && progressCompletion && progressCompletion.trim() !== "";
+                return (
+                  <p className={`mt-2 text-xs ${isInvalid ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {isInvalid 
+                      ? `⚠️ Progress must be between 0% and ${max}% for ${selectedStage.replace(/_/g, ' ')}`
+                      : `Allowed range for ${selectedStage.replace(/_/g, ' ')}: 0% - ${max}%`
+                    }
+                  </p>
+                );
+              })()}
             </div>
 
             {/* Feedback Content */}

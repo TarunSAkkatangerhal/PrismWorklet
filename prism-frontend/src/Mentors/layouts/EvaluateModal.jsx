@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Award, Star, Trophy, Gift, CheckCircle2 } from 'lucide-react';
 import apiClient from '../../services/secureAPI';
 
-function EvaluateModal({ isOpen, onClose }) {
+function EvaluateModal({ isOpen, onClose, onSuccess, onError }) {
   const [completedWorklets, setCompletedWorklets] = useState([]);
   const [selectedWorklet, setSelectedWorklet] = useState('');
   const [selectedWorkletDetails, setSelectedWorkletDetails] = useState(null);
@@ -25,7 +25,6 @@ function EvaluateModal({ isOpen, onClose }) {
     feedback: ''
   });
   const [submitting, setSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
@@ -147,12 +146,12 @@ function EvaluateModal({ isOpen, onClose }) {
 
       // Submit evaluation (we'll create this endpoint)
       await apiClient.post('/evaluations/submit', evaluationPayload);
-      setShowSuccess(true);
-      // Auto close after short delay
-      setTimeout(() => {
-        setShowSuccess(false);
-        onClose();
-      }, 2000);
+      
+      // Close modal and notify parent of success
+      onClose();
+      if (onSuccess) {
+        onSuccess("Evaluation submitted successfully!");
+      }
       
       // Reset form
       setSelectedWorklet('');
@@ -176,7 +175,9 @@ function EvaluateModal({ isOpen, onClose }) {
       });
     } catch (error) {
       console.error('Error submitting evaluation:', error?.response?.data || error.message);
-      alert('Failed to submit evaluation. Please try again.');
+      if (onError) {
+        onError("Failed to submit evaluation. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -508,23 +509,6 @@ function EvaluateModal({ isOpen, onClose }) {
               </button>
             </div>
           </form>
-        )}
-        {showSuccess && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-lg z-50">
-            <div className="bg-white dark:bg-slate-700 p-8 rounded-xl shadow-2xl flex flex-col items-center gap-4 max-w-sm">
-              <div className="w-16 h-16 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" strokeWidth={2.5} />
-              </div>
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                  Evaluation Submitted
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Student has been notified successfully.
-                </p>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </div>

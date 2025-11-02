@@ -338,3 +338,167 @@ def send_meeting_notification(
     except Exception as e:
         print(f"Failed to send meeting notification to {recipient_email}: {str(e)}")
         raise e
+
+
+def send_milestone_notification(
+    mentor_email: str,
+    mentor_name: str,
+    student_name: str,
+    student_email: str,
+    milestone_type: str,
+    worklet_title: str,
+    field1_label: str = None,
+    field1_value: str = None,
+    field2_label: str = None,
+    field2_value: str = None,
+    toggle_label: str = None,
+    toggle_value: bool = None,
+    attachment_name: str = None
+):
+    """
+    Send milestone upload notification email to mentor.
+    
+    Args:
+        mentor_email: Mentor's email address
+        mentor_name: Mentor's name
+        student_name: Student's name who uploaded the milestone
+        student_email: Student's email
+        milestone_type: Type of milestone (e.g., "First Review", "Mid Review")
+        worklet_title: Title of the worklet
+        field1_label: Label for first custom field
+        field1_value: Value for first custom field
+        field2_label: Label for second custom field
+        field2_value: Value for second custom field
+        toggle_label: Label for toggle field
+        toggle_value: Value for toggle field
+        attachment_name: Name of attached file (if any)
+    """
+    subject = f"New Milestone Uploaded: {milestone_type}"
+    
+    # Build content details HTML
+    content_details = ""
+    
+    if field1_label and field1_value:
+        content_details += f"""
+        <tr>
+            <td style='padding:8px 0; font-size:14px; color:#6b7280; width:140px;'>{field1_label}:</td>
+            <td style='padding:8px 0; font-size:14px; color:#1a1f29;'>{field1_value}</td>
+        </tr>
+        """
+    
+    if field2_label and field2_value:
+        content_details += f"""
+        <tr>
+            <td style='padding:8px 0; font-size:14px; color:#6b7280; width:140px;'>{field2_label}:</td>
+            <td style='padding:8px 0; font-size:14px; color:#1a1f29;'>{field2_value}</td>
+        </tr>
+        """
+    
+    if toggle_label is not None:
+        toggle_display = "✅ Yes" if toggle_value else "❌ No"
+        content_details += f"""
+        <tr>
+            <td style='padding:8px 0; font-size:14px; color:#6b7280; width:140px;'>{toggle_label}:</td>
+            <td style='padding:8px 0; font-size:14px; color:#1a1f29;'>{toggle_display}</td>
+        </tr>
+        """
+    
+    if attachment_name:
+        content_details += f"""
+        <tr>
+            <td style='padding:8px 0; font-size:14px; color:#6b7280; width:140px;'>Attachment:</td>
+            <td style='padding:8px 0; font-size:14px; color:#1a1f29;'>📎 {attachment_name}</td>
+        </tr>
+        """
+    
+    body_plain = (
+        f"Hello {mentor_name},\n\n"
+        f"A new milestone has been uploaded by your student.\n\n"
+        f"Student: {student_name} ({student_email})\n"
+        f"Milestone Type: {milestone_type}\n"
+        f"Worklet: {worklet_title}\n\n"
+    )
+    
+    if field1_label and field1_value:
+        body_plain += f"{field1_label}: {field1_value}\n"
+    if field2_label and field2_value:
+        body_plain += f"{field2_label}: {field2_value}\n"
+    if toggle_label is not None:
+        toggle_text = "Yes" if toggle_value else "No"
+        body_plain += f"{toggle_label}: {toggle_text}\n"
+    if attachment_name:
+        body_plain += f"Attachment: {attachment_name}\n"
+    
+    body_plain += "\nPlease log into Samsung PRISM to review and provide feedback.\n\n— Samsung PRISM Team"
+    
+    body_html = f"""
+    <html>
+        <body style='margin:0; padding:24px; background:#f5f7fb; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#1a1f29;'>
+            <table role='presentation' cellpadding='0' cellspacing='0' width='100%' style='max-width:640px; margin:0 auto; background:#ffffff; border-radius:16px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;'>
+                <tr>
+                    <td style='background:linear-gradient(135deg,#7c3aed,#2563eb); padding:28px 24px; text-align:center;'>
+                        <h1 style='margin:0; font-size:22px; color:#ffffff; letter-spacing:.5px; font-weight:600;'>📝 New Milestone Uploaded</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td style='padding:32px 28px 18px;'>
+                        <p style='font-size:15px; line-height:1.55; margin:0 0 16px;'>Hello <strong>{mentor_name}</strong>,</p>
+                        <p style='font-size:15px; line-height:1.55; margin:0 0 18px;'>Your student <strong>{student_name}</strong> has uploaded a new milestone for review.</p>
+                        
+                        <div style='background:#f0f9ff; border-left:4px solid #2563eb; padding:18px; margin:22px 0; border-radius:8px;'>
+                            <table style='width:100%; border-collapse:collapse;'>
+                                <tr>
+                                    <td style='padding:8px 0; font-size:14px; color:#6b7280; width:140px;'>Student:</td>
+                                    <td style='padding:8px 0; font-size:14px; color:#1a1f29; font-weight:600;'>{student_name}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding:8px 0; font-size:14px; color:#6b7280;'>Email:</td>
+                                    <td style='padding:8px 0; font-size:14px; color:#1a1f29;'>{student_email}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding:8px 0; font-size:14px; color:#6b7280;'>Worklet:</td>
+                                    <td style='padding:8px 0; font-size:14px; color:#1a1f29; font-weight:600;'>{worklet_title}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding:8px 0; font-size:14px; color:#6b7280;'>Milestone Type:</td>
+                                    <td style='padding:8px 0; font-size:14px; color:#1a1f29;'>
+                                        <span style='background:#7c3aed; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:600; font-size:13px;'>{milestone_type}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                        {f'''
+                        <div style='background:#f9fafb; border:1px solid #e5e7eb; padding:18px; margin:22px 0; border-radius:8px;'>
+                            <h3 style='margin:0 0 12px; font-size:15px; color:#374151; font-weight:600;'>📋 Milestone Content:</h3>
+                            <table style='width:100%; border-collapse:collapse;'>
+                                {content_details}
+                            </table>
+                        </div>
+                        ''' if content_details else ''}
+                        
+                        <div style='text-align:center; margin:30px 0 8px;'>
+                            <a href='{settings.FRONTEND_URL}' style='display:inline-block; background:#2563eb; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 26px; border-radius:10px; box-shadow:0 2px 6px rgba(37,99,235,0.35);'>Review Milestone</a>
+                        </div>
+                        
+                        <p style='margin:26px 0 0; font-size:14px; line-height:1.55;'>Regards,<br><strong>Samsung PRISM Team</strong></p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style='padding:16px 28px 26px;'>
+                        <p style='margin:0; font-size:11px; line-height:1.5; color:#6b7280; text-align:center;'>This is an automated notification. Please log into Samsung PRISM to provide feedback.</p>
+                    </td>
+                </tr>
+            </table>
+        </body>
+    </html>
+    """
+    
+    try:
+        _send_email(mentor_email, f"Samsung PRISM - {subject}", body_html, body_plain)
+        logger.info(f"Milestone notification sent to {mentor_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send milestone notification to {mentor_email}: {str(e)}")
+        # Don't raise - we don't want email failure to block milestone creation
+        return False
