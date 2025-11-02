@@ -112,12 +112,12 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsOpen(true)}
-          className="w-full pl-10 pr-10 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          className={`w-full pl-10 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${value ? 'pr-20' : 'pr-10'}`}
         />
         {value ? (
           <button
             onClick={() => onChange('')}
-            className="absolute right-9 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800">
+            className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
             <X className="w-4 h-4" />
           </button>
         ) : null}

@@ -763,19 +763,19 @@ function WorkletCard({ worklet, layout, navigate }) {
         {/* Right side panel with latest update */}
         <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center text-center p-[0.4vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out overflow-hidden">
           
-          {/* Performance Badge */}
-          {worklet.quality && (
-            <span
-              className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${getPerformanceColor(worklet.quality)}`}>
-              {worklet.quality}
-            </span>
-          )}
-          
           {/* Risk Status Badge */}
           {worklet.riskStatus && worklet.riskStatus !== 'Not Applicable' && (
             <span
-              className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${getRiskStatusColor(worklet.riskStatus)} ${worklet.quality ? 'mt-[0.3vw]' : ''}`}>
+              className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${getRiskStatusColor(worklet.riskStatus)}`}>
               Risk: {worklet.riskStatus}
+            </span>
+          )}
+          
+          {/* Performance Badge */}
+          {worklet.quality && (
+            <span
+              className={`px-[0.4vw] py-[0.2vw] rounded-md text-[clamp(0.5rem,0.7vw,0.65rem)] font-bold text-white ${getPerformanceColor(worklet.quality)} ${worklet.riskStatus && worklet.riskStatus !== 'Not Applicable' ? 'mt-[0.3vw]' : ''}`}>
+              {worklet.quality}
             </span>
           )}
           

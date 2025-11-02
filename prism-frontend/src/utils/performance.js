@@ -80,14 +80,14 @@ export const getPerformanceColor = (performance) => {
 
 /**
  * Risk Status Utility Functions
- * Risk levels: 3=Green (Low Risk), 2=Amber (Medium Risk), 1=Red (High Risk), 0=Not Applicable
+ * Risk levels: 3=Safe (Green), 2=Medium (Amber), 1=High (Red), 0=Not Applicable
  */
 
 // Risk status mapping
 const RISK_STATUS_MAP = {
-  3: 'Green',
-  2: 'Amber', 
-  1: 'Red',
+  3: 'Safe',
+  2: 'Medium', 
+  1: 'High',
   0: 'Not Applicable'
 };
 
@@ -132,15 +132,18 @@ export const getRiskStatusColor = (riskStatus) => {
 
   const riskLower = riskStatus.toLowerCase();
   
-  if (riskLower === 'green') {
+  // Safe risk = Green
+  if (riskLower === 'safe' || riskLower === 'low' || riskLower === 'green') {
     return 'bg-gradient-to-r from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700';
   }
   
-  if (riskLower === 'amber') {
+  // Medium risk = Amber
+  if (riskLower === 'medium' || riskLower === 'amber') {
     return 'bg-gradient-to-r from-amber-500 to-yellow-600 dark:from-amber-600 dark:to-yellow-700';
   }
   
-  if (riskLower === 'red') {
+  // High risk = Red
+  if (riskLower === 'high' || riskLower === 'red') {
     return 'bg-gradient-to-r from-red-500 to-red-600 dark:from-red-600 dark:to-red-700';
   }
   
@@ -164,15 +167,15 @@ export const getRiskStatusIcon = (riskStatus) => {
 
   const riskLower = riskStatus.toLowerCase();
   
-  if (riskLower === 'green') {
+  if (riskLower === 'safe' || riskLower === 'low' || riskLower === 'green') {
     return '●';
   }
   
-  if (riskLower === 'amber') {
+  if (riskLower === 'medium' || riskLower === 'amber') {
     return '●';
   }
   
-  if (riskLower === 'red') {
+  if (riskLower === 'high' || riskLower === 'red') {
     return '●';
   }
   
