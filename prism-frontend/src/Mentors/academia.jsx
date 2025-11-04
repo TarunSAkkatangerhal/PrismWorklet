@@ -860,28 +860,37 @@ const Colleges = () => {
         const token = localStorage.getItem('access_token')
         const requestConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
 
-        // Build query params for backend filtering (only when no college is selected)
-        const params = new URLSearchParams()
-        if (!collegeSearch && selectedYear && selectedYear !== 'All Years') {
-          params.append('year', selectedYear)
-        }
-        
-        // Fetch colleges with optional year filter (only when no specific college selected)
-        const collegesUrl = `${apiBaseUrl}/colleges${params.toString() ? `?${params.toString()}` : ''}`
+        // ALWAYS fetch ALL colleges and worklets (no filters to backend)
+        // We'll filter by year/team client-side in the filteredColleges useMemo for consistency
+        const collegesUrl = `${apiBaseUrl}/colleges`
+        console.log(`[FETCH COLLEGES] URL: ${collegesUrl} (fetching ALL colleges, will filter client-side)`)
         const collegesResponse = await axios.get(collegesUrl, requestConfig)
 
-        // Build worklets query params
-        const workletsParams = new URLSearchParams()
-        if (!collegeSearch && selectedYear && selectedYear !== 'All Years') {
-          workletsParams.append('year', selectedYear)
-        }
-        
-        // Try to fetch worklets with filters, but don't fail the page if this call errors
+        // ALWAYS fetch ALL worklets (no year filter to backend) for consistency
+        // We'll filter by year client-side in the filteredColleges useMemo
         let workletsDataSafe = []
         try {
-          const workletsUrl = `${apiBaseUrl}/worklets${workletsParams.toString() ? `?${workletsParams.toString()}` : ''}`
+          const workletsUrl = `${apiBaseUrl}/worklets`
+          console.log(`[FETCH WORKLETS] URL: ${workletsUrl} (fetching ALL worklets, will filter client-side)`)
           const workletsResponse = await axios.get(workletsUrl, requestConfig)
           workletsDataSafe = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
+          console.log(`[FETCH WORKLETS] Received ${workletsDataSafe.length} worklets from backend`)
+          
+          // Log year distribution
+          const yearCounts = workletsDataSafe.reduce((acc, w) => {
+            const year = w.year || 'NO_YEAR'
+            acc[year] = (acc[year] || 0) + 1
+            return acc
+          }, {})
+          console.log(`[WORKLETS BY YEAR]:`, yearCounts)
+          
+          // Log status distribution
+          const statusCounts = workletsDataSafe.reduce((acc, w) => {
+            const status = w.status || w.progressStatus || 'NO_STATUS'
+            acc[status] = (acc[status] || 0) + 1
+            return acc
+          }, {})
+          console.log(`[WORKLETS BY STATUS]:`, statusCounts)
         } catch (we) {
           console.warn('Worklets fetch failed; proceeding with colleges only', we)
         }
@@ -1173,78 +1182,35 @@ const Colleges = () => {
         let filteredWorklets = Array.isArray(college.worklets) ? college.worklets : []
         
         if (selectedYear && selectedYear !== 'All Years') {
-          filteredWorklets = filteredWorklets.filter(worklet => String(worklet.year) === selectedYear)
+          const yearToMatch = String(selectedYear).trim()
+          filteredWorklets = filteredWorklets.filter(worklet => {
+            const workletYear = String(worklet.year || '').trim()
+            return workletYear === yearToMatch
+          })
         }
         
         // Apply team filter to worklets
         if (selectedTeam && selectedTeam !== 'Select Team') {
-          filteredWorklets = filteredWorklets.filter(worklet => worklet.team === selectedTeam)
+          const teamToMatch = String(selectedTeam).trim()
+          filteredWorklets = filteredWorklets.filter(worklet => {
+            const workletTeam = String(worklet.team || '').trim()
+            return workletTeam === teamToMatch
+          })
         }
         
-        // Always recalculate counts when any filter is applied
-        const needsRecalculation = (selectedYear && selectedYear !== 'All Years') || 
-                                    (selectedTeam && selectedTeam !== 'Select Team')
-        
-        if (needsRecalculation) {
-          const completedCount = filteredWorklets.filter(w => w.status === 'Completed').length
-          const ongoingCount = filteredWorklets.filter(w => w.status === 'Ongoing').length
-          const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold').length
-          const terminatedCount = filteredWorklets.filter(w => w.status === 'Terminated').length
-          
-          const excellentCount = filteredWorklets.filter(w => w.performanceStatus === 'Excellent').length
-          const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
-          const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
-          
-          const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
-          
-          return {
-            ...college,
-            worklets: filteredWorklets,
-            workletCount: filteredWorklets.length,
-            completedCount,
-            ongoingCount,
-            onHoldCount,
-            terminatedCount,
-            excellentCount,
-            goodCount,
-            needsAttentionCount,
-            totalStudents
-          }
-        }
-        
-        return college
-      }).filter(Boolean)
-    }
-
-    // No college selected - apply year and team filters to ALL colleges
-    return collegesToFilter.map((college) => {
-      let filteredWorklets = Array.isArray(college.worklets) ? college.worklets : []
-      
-      // Apply year filter if selected
-      if (selectedYear && selectedYear !== 'All Years') {
-        filteredWorklets = filteredWorklets.filter(worklet => String(worklet.year) === selectedYear)
-      }
-      
-      // Apply team filter if selected
-      if (selectedTeam && selectedTeam !== 'Select Team') {
-        filteredWorklets = filteredWorklets.filter(worklet => worklet.team === selectedTeam)
-      }
-      
-      // If any filters applied, recalculate counts
-      const needsRecalculation = (selectedYear && selectedYear !== 'All Years') || 
-                                  (selectedTeam && selectedTeam !== 'Select Team')
-      
-      if (needsRecalculation) {
-        const completedCount = filteredWorklets.filter(w => w.status === 'Completed').length
-        const ongoingCount = filteredWorklets.filter(w => w.status === 'Ongoing').length
-        const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold').length
-        const terminatedCount = filteredWorklets.filter(w => w.status === 'Terminated').length
+        // ALWAYS recalculate counts from actual worklets data for accuracy
+        const completedCount = filteredWorklets.filter(w => w.status === 'Completed' || w.progressStatus === 'Completed').length
+        const ongoingCount = filteredWorklets.filter(w => w.status === 'Ongoing' || w.status === 'To Start' || w.progressStatus === 'Ongoing' || w.progressStatus === 'To Start').length
+        const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold' || w.progressStatus === 'On Hold').length
+        const terminatedCount = filteredWorklets.filter(w => w.status === 'Terminated' || w.status === 'Dropped' || w.progressStatus === 'Terminated' || w.progressStatus === 'Dropped').length
         
         const excellentCount = filteredWorklets.filter(w => w.performanceStatus === 'Excellent').length
         const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
         const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
         
         const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
+        
+        console.log(`[Single-College] ${college.name}: Total=${filteredWorklets.length}, Ongoing=${ongoingCount}, Completed=${completedCount}, OnHold=${onHoldCount}, Terminated=${terminatedCount}, Students=${totalStudents}`)
         
         return {
           ...college,
@@ -1259,11 +1225,98 @@ const Colleges = () => {
           needsAttentionCount,
           totalStudents
         }
+      }).filter(Boolean)
+    }
+
+    // No college selected - apply year and team filters to ALL colleges
+    return collegesToFilter.map((college) => {
+      let filteredWorklets = Array.isArray(college.worklets) ? college.worklets : []
+      
+      // Apply year filter if selected
+      if (selectedYear && selectedYear !== 'All Years') {
+        const yearToMatch = String(selectedYear).trim()
+        filteredWorklets = filteredWorklets.filter(worklet => {
+          const workletYear = String(worklet.year || '').trim()
+          return workletYear === yearToMatch
+        })
+        console.log(`[Year Filter Applied: ${yearToMatch}] Remaining worklets for ${college.name}:`, filteredWorklets.length)
       }
       
-      return college
+      // Apply team filter if selected
+      if (selectedTeam && selectedTeam !== 'Select Team') {
+        const teamToMatch = String(selectedTeam).trim()
+        filteredWorklets = filteredWorklets.filter(worklet => {
+          const workletTeam = String(worklet.team || '').trim()
+          return workletTeam === teamToMatch
+        })
+        console.log(`[Team Filter Applied: ${teamToMatch}] Remaining worklets for ${college.name}:`, filteredWorklets.length)
+      }
+      
+      // Determine if recalculation is needed (MUST be before using it)
+      const needsRecalculation = (selectedYear && selectedYear !== 'All Years') || 
+                                  (selectedTeam && selectedTeam !== 'Select Team')
+      
+      // Log the status fields to see what we're working with
+      if (needsRecalculation && filteredWorklets.length > 0) {
+        console.log(`[Status Check] ${college.name} - Sample worklet:`, {
+          status: filteredWorklets[0]?.status,
+          progressStatus: filteredWorklets[0]?.progressStatus,
+          year: filteredWorklets[0]?.year,
+          team: filteredWorklets[0]?.team
+        })
+        
+        // Count worklets by status to debug
+        const statusBreakdown = filteredWorklets.reduce((acc, w) => {
+          const key = `status=${w.status}, progressStatus=${w.progressStatus}`
+          acc[key] = (acc[key] || 0) + 1
+          return acc
+        }, {})
+        console.log(`[Status Breakdown] ${college.name}:`, statusBreakdown)
+      }
+      
+      // ALWAYS recalculate counts from actual worklets data for accuracy
+      const completedCount = filteredWorklets.filter(w => w.status === 'Completed' || w.progressStatus === 'Completed').length
+      const ongoingCount = filteredWorklets.filter(w => w.status === 'Ongoing' || w.status === 'To Start' || w.progressStatus === 'Ongoing' || w.progressStatus === 'To Start').length
+      const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold' || w.progressStatus === 'On Hold').length
+      const terminatedCount = filteredWorklets.filter(w => w.status === 'Terminated' || w.status === 'Dropped' || w.progressStatus === 'Terminated' || w.progressStatus === 'Dropped').length
+      
+      const excellentCount = filteredWorklets.filter(w => w.performanceStatus === 'Excellent').length
+      const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
+      const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
+      
+      const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
+      
+      console.log(`[Multi-College] ${college.name}: Total=${filteredWorklets.length}, Ongoing=${ongoingCount}, Completed=${completedCount}, OnHold=${onHoldCount}, Terminated=${terminatedCount}, Students=${totalStudents}`)
+      
+      return {
+        ...college,
+        worklets: filteredWorklets,
+        workletCount: filteredWorklets.length,
+        completedCount,
+        ongoingCount,
+        onHoldCount,
+        terminatedCount,
+        excellentCount,
+        goodCount,
+        needsAttentionCount,
+        totalStudents
+      }
     })
   }, [allCollegeData, collegeSearch, selectedTeam, selectedYear])
+
+  // Log aggregated stats from filteredColleges
+  useEffect(() => {
+    if (filteredColleges.length > 0) {
+      const totalWorklets = filteredColleges.reduce((acc, c) => acc + getWorkletCount(c), 0)
+      const totalOngoing = filteredColleges.reduce((acc, c) => acc + (c.ongoingCount || 0), 0)
+      const totalCompleted = filteredColleges.reduce((acc, c) => acc + (c.completedCount || 0), 0)
+      const totalOnHold = filteredColleges.reduce((acc, c) => acc + (c.onHoldCount || 0), 0)
+      const totalTerminated = filteredColleges.reduce((acc, c) => acc + (c.terminatedCount || 0), 0)
+      const totalStudents = filteredColleges.reduce((acc, c) => acc + (c.totalStudents || 0), 0)
+      
+      console.log(`[AGGREGATED STATS] Colleges: ${filteredColleges.length}, Total Worklets: ${totalWorklets}, Ongoing: ${totalOngoing}, Completed: ${totalCompleted}, OnHold: ${totalOnHold}, Terminated: ${totalTerminated}, Students: ${totalStudents}`)
+    }
+  }, [filteredColleges])
 
   // College Overview list sorted by worklet counts (must be after filteredColleges)
   const overviewColleges = useMemo(() => {
@@ -1347,32 +1400,32 @@ const Colleges = () => {
       let count = 0
 
       if (targetCollege === 'All Colleges') {
-        // Handle multi-college aggregated counts
+        // Handle multi-college aggregated counts - USE FILTERED COLLEGES to respect year/team filters
         switch (filter) {
           case 'total':
-            count = allCollegeData.reduce((acc, curr) => acc + getWorkletCount(curr), 0) || workletsTotalCount
+            count = filteredColleges.reduce((acc, curr) => acc + getWorkletCount(curr), 0) || workletsTotalCount
             break
           case 'ongoing':
-            count = allCollegeData.reduce((acc, curr) => acc + curr.ongoingCount, 0)
+            count = filteredColleges.reduce((acc, curr) => acc + curr.ongoingCount, 0)
             break
           case 'completed':
-            count = allCollegeData.reduce((acc, curr) => acc + curr.completedCount, 0)
+            count = filteredColleges.reduce((acc, curr) => acc + curr.completedCount, 0)
             break
           case 'onhold':
-            count = allCollegeData.reduce((acc, curr) => acc + curr.onHoldCount, 0)
+            count = filteredColleges.reduce((acc, curr) => acc + curr.onHoldCount, 0)
             break
           case 'terminated':
-            count = allCollegeData.reduce((acc, curr) => acc + curr.terminatedCount, 0)
+            count = filteredColleges.reduce((acc, curr) => acc + curr.terminatedCount, 0)
             break
           case 'students':
-            count = allCollegeData.reduce((acc, curr) => acc + curr.totalStudents, 0)
+            count = filteredColleges.reduce((acc, curr) => acc + curr.totalStudents, 0)
             break
           default:
-            count = allCollegeData.reduce((acc, curr) => acc + curr.workletCount, 0)
+            count = filteredColleges.reduce((acc, curr) => acc + curr.workletCount, 0)
         }
       } else {
-        // Handle single college counts
-  const selectedCollege = allCollegeData.find(college => (college.college_name || college.name) === targetCollege)
+        // Handle single college counts - USE FILTERED COLLEGES to respect year/team filters
+  const selectedCollege = filteredColleges.find(college => (college.college_name || college.name) === targetCollege)
         if (selectedCollege) {
           switch (filter) {
             case 'total':
@@ -1404,8 +1457,8 @@ const Colleges = () => {
           filter,
           collegeName: targetCollege === 'All Colleges' ? '' : targetCollege,
           count,
-          year: selectedYear,
-          team: selectedTeam
+          year: selectedYear !== 'All Years' ? selectedYear : '',
+          team: selectedTeam !== 'Select Team' ? selectedTeam : ''
         }
       })
     } else {
