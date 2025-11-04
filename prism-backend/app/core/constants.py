@@ -45,6 +45,23 @@ PERFORMANCE_REVERSE_MAP = {
     "Very Good": 4
 }
 
+# Risk Status Mapping (Database Integer to Display Text)
+# 0=Grey(NA), 1=Red(High), 2=Amber(Medium), 3=Green(Safe)
+RISK_STATUS_MAP = {
+    0: "NA",
+    1: "High",
+    2: "Medium",
+    3: "Safe"
+}
+
+# Reverse mapping for risk status text to ID
+RISK_STATUS_REVERSE_MAP = {
+    "NA": 0,
+    "High": 1,
+    "Medium": 2,
+    "Safe": 3
+}
+
 # Priority levels
 PRIORITY_LEVELS = ["low", "medium", "high"]
 
@@ -108,4 +125,27 @@ def normalize_performance(performance_input: str | int | None) -> str | None:
         # If it's a non-numeric string, return it directly
         if isinstance(performance_input, str):
             return performance_input
+        return None
+
+def normalize_risk_status(risk_input: str | int | None) -> str | None:
+    """
+    Normalize risk status to display text
+    
+    Args:
+        risk_input: Risk status as ID (int) or text (str)
+        
+    Returns:
+        Risk status text (NA, High, Medium, Safe)
+    """
+    if risk_input is None:
+        return None
+    
+    # Try to parse as int first (handles both int and numeric strings)
+    try:
+        num_risk = int(risk_input)
+        return RISK_STATUS_MAP.get(num_risk, None)
+    except (ValueError, TypeError):
+        # If it's a non-numeric string, return it directly
+        if isinstance(risk_input, str):
+            return risk_input
         return None

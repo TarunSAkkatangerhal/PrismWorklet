@@ -83,17 +83,6 @@ const generateColorFromName = (name) => {
   return colors[Math.abs(hash) % colors.length]
 }
 
-// Helper function to generate static risk status values for demo purposes
-const generateStaticRiskStatus = (workletId) => {
-  // Generate consistent risk status based on worklet ID for demo
-  const riskValues = [3, 2, 1, 0]; // Green, Amber, Red, Not Applicable
-  const hash = workletId ? String(workletId).split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0);
-    return a & a;
-  }, 0) : 0;
-  return riskValues[Math.abs(hash) % riskValues.length];
-}
-
 export default function Dashboard() {
   useDocumentTitle('PRISM-home');
   
@@ -174,9 +163,8 @@ export default function Dashboard() {
           // Use centralized performance normalization
           const quality = normalizePerformance(worklet.performance)
           
-          // Generate static risk status for demo (will be replaced with backend data later)
-          const staticRiskValue = generateStaticRiskStatus(worklet.id)
-          const riskStatus = normalizeRiskStatus(staticRiskValue)
+          // Use backend risk status if available, otherwise null
+          const riskStatus = normalizeRiskStatus(worklet.riskStatus)
           
           // Extract student names (fallback to email if name missing)
           const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : []
@@ -238,7 +226,7 @@ export default function Dashboard() {
   // Filter for ongoing worklets
   // Derived view subset: actively ongoing & not fully complete (guards against stale 100% items)
   const workletsData = worklets.filter(
-    (worklet) => worklet.status?.toLowerCase() === 'ongoing' && worklet.progress < 100
+    (worklet) => worklet.status?.toLowerCase() === 'ongoing'
   )
 
 

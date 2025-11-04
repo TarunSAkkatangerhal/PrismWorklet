@@ -226,6 +226,9 @@ class WorkletResponse(BaseModel):
     expectation: Optional[str] = None
     prerequisites: Optional[str] = None
     performance: Optional[str] = None
+    riskStatus: Optional[str] = None
+    current_stage: Optional[str] = None
+    stage_id: Optional[int] = None
     github_repo: Optional[str] = None
     github_repo_url: Optional[str] = None
     

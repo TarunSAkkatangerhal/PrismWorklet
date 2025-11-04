@@ -12,7 +12,7 @@ from app.routers.helpers.worklet_helpers import (
     get_worklet_students,
     map_status_text
 )
-from app.core.constants import WORKLET_STATUS_MAP, normalize_performance
+from app.core.constants import WORKLET_STATUS_MAP, normalize_performance, normalize_risk_status
 import re
 
 
@@ -218,6 +218,7 @@ class WorkletService:
             "college": worklet.college_rel.college_name if getattr(worklet, 'college_rel', None) else None,
             "github_repo_url": github_url,
             "github_repo": repo_name,
+            "riskStatus": normalize_risk_status(getattr(worklet, 'RiskStatus', None)),
         }
         
         # Add performance if requested
@@ -416,6 +417,7 @@ class WorkletService:
                 "worklet_progress": getattr(worklet, "worklet_progress", None),
                 "percentage_completion": percentage_completion,
                 "performance": performance,
+                "riskStatus": normalize_risk_status(getattr(worklet, 'RiskStatus', None)),
                 "students": [
                     {
                         "id": s.id, 
@@ -515,6 +517,7 @@ class WorkletService:
                 'worklet_progress': progress,
                 'college_id': college_id,
                 'college': college_name,
+                'riskStatus': normalize_risk_status(getattr(w, 'RiskStatus', None)),
             })
         
         return response

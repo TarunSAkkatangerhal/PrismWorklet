@@ -16,7 +16,7 @@ from app.routers.helpers.worklet_helpers import (
 )
 from app.routers.milestones import check_and_auto_increment_progress
 from app.services.worklet_service import WorkletService
-from app.core.constants import get_status_id, WORKLET_STATUS_MAP, normalize_performance
+from app.core.constants import get_status_id, WORKLET_STATUS_MAP, normalize_performance, normalize_risk_status
 import logging
 logger = logging.getLogger(__name__)
 
@@ -219,7 +219,8 @@ def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
             'team': team_name,
             'github_repo_url': github_url,
             'github_repo': repo_name,
-            'performance': normalize_performance(getattr(w, 'Performance', None))
+            'performance': normalize_performance(getattr(w, 'Performance', None)),
+            'riskStatus': normalize_risk_status(getattr(w, 'RiskStatus', None))
         })
     return response
 

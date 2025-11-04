@@ -25,7 +25,7 @@ from app.routers.helpers.worklet_helpers import (
     get_worklet_students,
     format_worklet_response,
 )
-from app.core.constants import normalize_status_text, normalize_performance
+from app.core.constants import normalize_status_text, normalize_performance, normalize_risk_status
 from app.services.worklet_service import WorkletService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -104,8 +104,12 @@ def get_worklet_with_users(
 ):
     """Get worklet with all associated users (mentors, students, collaborators)"""
     
-    # Get worklet
-    worklet = db.query(Worklet).filter(Worklet.id == worklet_id).first()
+    # Get worklet with eager loading for relationships
+    from sqlalchemy.orm import joinedload
+    worklet = db.query(Worklet).options(
+        joinedload(Worklet.stage_rel),
+        joinedload(Worklet.college_rel)
+    ).filter(Worklet.id == worklet_id).first()
     if not worklet:
         raise HTTPException(status_code=404, detail="Worklet not found")
     
@@ -197,6 +201,11 @@ def get_worklet_with_users(
     # Get GitHub info
     github_url = getattr(worklet, 'github_url', None)
     repo_name = WorkletService.extract_github_repo_name(github_url)
+    
+    # Get stage info
+    stage_name = None
+    if worklet.stage_rel:
+        stage_name = worklet.stage_rel.stage
 
     # Convert worklet to dict and add associations
     worklet_dict = {
@@ -219,6 +228,9 @@ def get_worklet_with_users(
         "expectation": getattr(worklet, "expectation", None),
         "prerequisites": getattr(worklet, "prerequisites", None),
         "performance": normalize_performance(getattr(worklet, 'Performance', None)),
+        "riskStatus": normalize_risk_status(getattr(worklet, 'RiskStatus', None)),
+        "current_stage": stage_name,
+        "stage_id": getattr(worklet, 'stage_id', None),
         "github_repo_url": github_url,
         "github_repo": repo_name,
         "mentors": mentors,

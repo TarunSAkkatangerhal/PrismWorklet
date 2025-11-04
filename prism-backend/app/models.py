@@ -166,6 +166,8 @@ class Worklet(Base):
     is_active = Column("IsActive", Integer, nullable=False)
     # Performance column for quality/performance tracking
     Performance = Column("Performance", String(45), nullable=True)
+    # Risk status column (0=NA/Grey, 1=High/Red, 2=Medium/Amber, 3=Safe/Green)
+    RiskStatus = Column("RiskStatus", Integer, nullable=True)
     # New FK to colleges
     college_id = Column("CollegeID", Integer, ForeignKey("colleges.college_id", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
 
