@@ -327,9 +327,12 @@ const NavColl = () => {
   }
 
   const handleGoBack = () => {
-    // Preserve selected college when navigating back
-    const collegeNameToKeep = selectedCollege || searchTerm || ''
-    navigate('/academia', { state: { collegeName: collegeNameToKeep } })
+    // Navigate back to academia with a clean state (no filters restored)
+    // Clear URL and use replace to prevent back button issues
+    navigate('/academia', { 
+      state: { fromDetails: true }, // Flag to indicate coming from details page
+      replace: true
+    })
   }
 
   const getFilterStats = () => {

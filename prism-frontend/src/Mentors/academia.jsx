@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import axios from 'axios'
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import secureAPI from '../services/secureAPI'
 import {
@@ -703,27 +703,11 @@ const Colleges = () => {
   useDocumentTitle('College Analytics');
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams] = useSearchParams()
   
-  // Initialize state from URL params, then fallback to location.state, then defaults
-  const [collegeSearch, setCollegeSearch] = useState(() => {
-    const urlCollege = searchParams.get('college')
-    if (urlCollege) return urlCollege
-    if (typeof location.state?.collegeName === 'string') return location.state.collegeName
-    return ''
-  })
-  
-  const [selectedYear, setSelectedYear] = useState(() => {
-    const urlYear = searchParams.get('year')
-    if (urlYear) return urlYear
-    return 'All Years'
-  })
-  
-  const [selectedTeam, setSelectedTeam] = useState(() => {
-    const urlTeam = searchParams.get('team')
-    if (urlTeam) return urlTeam
-    return 'Select Team'
-  })
+  // Initialize all filters to default (no restoration from URL or navigation state)
+  const [collegeSearch, setCollegeSearch] = useState('')
+  const [selectedYear, setSelectedYear] = useState('All Years')
+  const [selectedTeam, setSelectedTeam] = useState('Select Team')
   
   const [allCollegeData, setAllCollegeData] = useState([])
   const [allYears, setAllYears] = useState([]) // Store all available years
@@ -733,6 +717,7 @@ const Colleges = () => {
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000'
   const [collegeDetailStatus, setCollegeDetailStatus] = useState({}) // tracks detailed fetch status per college
   const allCollegeDataRef = useRef(allCollegeData)
+  const originalCollegeDataRef = useRef([]) // Store ORIGINAL unfiltered data, never updated after initial fetch
   // Worklet count sort for College Overview table
   const [overviewSortOrder, setOverviewSortOrder] = useState('desc') // 'desc' (Highest→Lowest) | 'asc' (Lowest→Highest)
   // Total worklets available from global worklets list (fallback for statistics)
@@ -751,6 +736,18 @@ const Colleges = () => {
     }
   }
   
+  // Clear URL params if coming from academia_details (fresh page)
+  useEffect(() => {
+    if (location.state?.fromDetails) {
+      // Clear all filters
+      setCollegeSearch('')
+      setSelectedYear('All Years')
+      setSelectedTeam('Select Team')
+      // Clear URL params
+      navigate({ search: '' }, { replace: true, state: null })
+    }
+  }, [location.state?.fromDetails, navigate])
+
   // Update URL params whenever filters change
   useEffect(() => {
     const params = new URLSearchParams()
@@ -758,44 +755,57 @@ const Colleges = () => {
     if (selectedYear && selectedYear !== 'All Years') params.set('year', selectedYear)
     if (selectedTeam && selectedTeam !== 'Select Team') params.set('team', selectedTeam)
     
-    // Replace history to avoid back-button clutter
-    navigate({ search: params.toString() }, { replace: true })
-  }, [collegeSearch, selectedYear, selectedTeam, navigate])
-  
-  // When college is selected, clear year and team filters (nested filtering)
-  useEffect(() => {
-    if (collegeSearch) {
-      setSelectedYear('All Years')
-      setSelectedTeam('Select Team')
+    const currentSearch = window.location.search.slice(1) // Remove leading '?'
+    const newSearch = params.toString()
+    
+    // Only update if the URL actually changed to avoid unnecessary navigation
+    if (currentSearch !== newSearch) {
+      navigate({ search: newSearch }, { replace: true })
     }
-  }, [collegeSearch])
-  
-  // When year changes, reset team filter (nested filtering)
-  useEffect(() => {
-    setSelectedTeam('Select Team')
-  }, [selectedYear])
+  }, [collegeSearch, selectedYear, selectedTeam, navigate])
 
   // Extract unique years and areas from backend data (after allCollegeData is declared)
   const uniqueYears = useMemo(() => {
-    // If no college is selected, use the stored allYears
-    if (!collegeSearch && allYears.length > 0) {
-      return allYears
-    }
+    // Use ORIGINAL unfiltered data ref to ensure we always have complete worklets with year fields
+    const sourceData = originalCollegeDataRef.current.length > 0 
+      ? originalCollegeDataRef.current 
+      : (allCollegeDataRef.current.length > 0 ? allCollegeDataRef.current : allCollegeData)
     
     // If a college is selected, only show years for that college's worklets
-    let collegesToConsider = allCollegeData || []
+    let collegesToConsider = sourceData || []
     
     if (collegeSearch) {
       collegesToConsider = collegesToConsider.filter(
         (c) => typeof c?.name === 'string' && c.name.toLowerCase() === collegeSearch.toLowerCase()
       )
+      
+      // Extract years from worklets
+      const allWorklets = collegesToConsider.flatMap((college) => college.worklets || [])
+      const years = allWorklets
+        .map((worklet) => worklet?.year)
+        .filter((year) => year != null && year !== '' && !isNaN(Number(year)))
+      
+      const unique = Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))
+      
+      // If college is selected but no years found, fall back to allYears
+      if (unique.length === 0 && allYears.length > 0) {
+        return allYears
+      }
+      
+      return unique
+    }
+    
+    // If no college is selected, use the stored allYears
+    if (!collegeSearch && allYears.length > 0) {
+      return allYears
     }
     
     // Extract years from worklets, not college establishment
-    const years = collegesToConsider
-      .flatMap((college) => college.worklets || [])
-      .map((worklet) => worklet.year)
-      .filter((year) => year && !isNaN(Number(year)))
+    const worklets = collegesToConsider.flatMap((college) => college.worklets || [])
+    
+    const years = worklets
+      .map((worklet) => worklet?.year)
+      .filter((year) => year != null && year !== '' && !isNaN(Number(year)))
     
     const unique = Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))
     return unique
@@ -817,29 +827,104 @@ const Colleges = () => {
 
 
 
-  // Fetch available teams based on selected year (nested filtering)
+  // Fetch available teams based on selected college and year (nested filtering)
+  // Only show teams that have at least 1 worklet matching current filters
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        const teamsParams = new URLSearchParams()
-        if (selectedYear && selectedYear !== 'All Years') {
-          teamsParams.set('year', selectedYear)
+        // Use ORIGINAL unfiltered data ref to ensure we always have complete worklets with year fields
+        const sourceData = originalCollegeDataRef.current.length > 0 
+          ? originalCollegeDataRef.current 
+          : (allCollegeDataRef.current.length > 0 ? allCollegeDataRef.current : allCollegeData)
+        
+        // If a specific college is selected, filter teams from that college's worklets
+        if (collegeSearch && sourceData.length > 0) {
+          const selectedCollege = sourceData.find(
+            (c) => c.name.toLowerCase() === collegeSearch.toLowerCase()
+          )
+          
+          if (selectedCollege && Array.isArray(selectedCollege.worklets)) {
+            let worklets = selectedCollege.worklets
+            
+            // Further filter by year if selected
+            if (selectedYear && selectedYear !== 'All Years') {
+              const yearToMatch = String(selectedYear).trim()
+              worklets = worklets.filter((w) => String(w.year || '').trim() === yearToMatch)
+            }
+            
+            // Extract unique teams that have worklets (check all possible team field names)
+            const teams = [...new Set(
+              worklets
+                .map((w) => w.team || w.technical_domain || w.technicalDomain)
+                .filter(Boolean)
+                .map(t => String(t).trim())
+            )].sort()
+            
+            setAvailableTeams(teams.length > 0 ? teams : [])
+            return
+          }
         }
         
-        const teamsRes = await secureAPI.get(
-          `/api/dashboard/teams${teamsParams.toString() ? `?${teamsParams.toString()}` : ''}`
-        )
-        const teams = teamsRes?.data?.teams || []
-        setAvailableTeams(teams)
+        // If no college selected, fetch teams globally filtered by year
+        // Only show teams that have worklets
+        if (sourceData.length > 0) {
+          let allWorklets = sourceData.flatMap((college) => college.worklets || [])
+          
+          // Filter by year if selected
+          if (selectedYear && selectedYear !== 'All Years') {
+            const yearToMatch = String(selectedYear).trim()
+            allWorklets = allWorklets.filter((w) => String(w.year || '').trim() === yearToMatch)
+          }
+          
+          // Extract unique teams that have worklets
+          const teams = [...new Set(
+            allWorklets
+              .map((w) => w.team || w.technical_domain || w.technicalDomain)
+              .filter(Boolean)
+              .map(t => String(t).trim())
+          )].sort()
+          
+          setAvailableTeams(teams.length > 0 ? teams : [])
+        } else {
+          // Try fetching from API if local data not available
+          const teamsParams = new URLSearchParams()
+          if (selectedYear && selectedYear !== 'All Years') {
+            teamsParams.set('year', selectedYear)
+          }
+          
+          const teamsRes = await secureAPI.get(
+            `/api/dashboard/teams${teamsParams.toString() ? `?${teamsParams.toString()}` : ''}`
+          )
+          const teams = teamsRes?.data?.teams || []
+          setAvailableTeams(teams)
+        }
       } catch (error) {
-        console.error('Failed to fetch teams:', error)
-        // Fallback to default teams if API fails
-        setAvailableTeams(['Vision', 'Innovation', 'Research', 'Development', 'Analytics', 'Design'])
+        // Fallback: extract teams from originalCollegeDataRef if available
+        const sourceData = originalCollegeDataRef.current.length > 0 
+          ? originalCollegeDataRef.current 
+          : (allCollegeDataRef.current.length > 0 ? allCollegeDataRef.current : allCollegeData)
+        if (sourceData.length > 0) {
+          const allTeams = [...new Set(
+            sourceData
+              .flatMap((college) => college.worklets || [])
+              .filter((w) => {
+                if (selectedYear && selectedYear !== 'All Years') {
+                  return String(w.year) === String(selectedYear)
+                }
+                return true
+              })
+              .map((w) => w.team || w.technical_domain || w.technicalDomain)
+              .filter(Boolean)
+          )].sort()
+          setAvailableTeams(allTeams)
+        } else {
+          setAvailableTeams([])
+        }
       }
     }
     
     fetchTeams()
-  }, [selectedYear])
+  }, [selectedYear, collegeSearch, allCollegeData])
 
   // Extract unique college names for dropdown
   const uniqueColleges = useMemo(() => {
@@ -863,7 +948,6 @@ const Colleges = () => {
         // ALWAYS fetch ALL colleges and worklets (no filters to backend)
         // We'll filter by year/team client-side in the filteredColleges useMemo for consistency
         const collegesUrl = `${apiBaseUrl}/colleges`
-        console.log(`[FETCH COLLEGES] URL: ${collegesUrl} (fetching ALL colleges, will filter client-side)`)
         const collegesResponse = await axios.get(collegesUrl, requestConfig)
 
         // ALWAYS fetch ALL worklets (no year filter to backend) for consistency
@@ -871,28 +955,10 @@ const Colleges = () => {
         let workletsDataSafe = []
         try {
           const workletsUrl = `${apiBaseUrl}/worklets`
-          console.log(`[FETCH WORKLETS] URL: ${workletsUrl} (fetching ALL worklets, will filter client-side)`)
           const workletsResponse = await axios.get(workletsUrl, requestConfig)
           workletsDataSafe = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
-          console.log(`[FETCH WORKLETS] Received ${workletsDataSafe.length} worklets from backend`)
-          
-          // Log year distribution
-          const yearCounts = workletsDataSafe.reduce((acc, w) => {
-            const year = w.year || 'NO_YEAR'
-            acc[year] = (acc[year] || 0) + 1
-            return acc
-          }, {})
-          console.log(`[WORKLETS BY YEAR]:`, yearCounts)
-          
-          // Log status distribution
-          const statusCounts = workletsDataSafe.reduce((acc, w) => {
-            const status = w.status || w.progressStatus || 'NO_STATUS'
-            acc[status] = (acc[status] || 0) + 1
-            return acc
-          }, {})
-          console.log(`[WORKLETS BY STATUS]:`, statusCounts)
         } catch (we) {
-          console.warn('Worklets fetch failed; proceeding with colleges only', we)
+          // Worklets fetch failed; proceeding with colleges only
         }
 
         const workletsByCollege = workletsDataSafe.reduce((acc, worklet) => {
@@ -978,26 +1044,24 @@ const Colleges = () => {
 
         setAllCollegeData(processedData)
         
-        // Store all available years from the initial fetch (before filters are applied)
-        if (!collegeSearch && (!selectedYear || selectedYear === 'All Years')) {
-          const allAvailableYears = processedData
-            .flatMap((college) => college.worklets || [])
-            .map((worklet) => worklet.year)
-            .filter((year) => year && !isNaN(Number(year)))
-          const uniqueAvailableYears = Array.from(new Set(allAvailableYears)).sort((a, b) => Number(b) - Number(a))
+        // Store ORIGINAL unfiltered data in a ref that's NEVER updated
+        // This ensures we always have access to the complete worklets with all fields
+        if (originalCollegeDataRef.current.length === 0) {
+          originalCollegeDataRef.current = processedData
+        }
+        
+        // ALWAYS store all available years from the initial fetch (needed for fallback)
+        // This ensures allYears is populated even when navigating back with filters
+        const allAvailableYears = processedData
+          .flatMap((college) => college.worklets || [])
+          .map((worklet) => worklet.year)
+          .filter((year) => year && !isNaN(Number(year)))
+        const uniqueAvailableYears = Array.from(new Set(allAvailableYears)).sort((a, b) => Number(b) - Number(a))
+        if (uniqueAvailableYears.length > 0) {
           setAllYears(uniqueAvailableYears)
         }
       } catch (err) {
-        console.error('Failed to fetch colleges overview:', err)
-        console.error('Error details:', {
-          message: err.message,
-          status: err.response?.status,
-          statusText: err.response?.statusText,
-          url: err.config?.url
-        })
-
         if (err.response?.status === 401) {
-          console.error('Authentication required. Please log in again.')
           // Clear auth tokens
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
@@ -1005,10 +1069,6 @@ const Colleges = () => {
           localStorage.removeItem('user_email')
           // Redirect to login
           window.location.href = '/'
-        } else if (err.response?.status === 404) {
-          console.error('Colleges endpoint not found. Please check if the backend is running.')
-        } else {
-          console.error(`Failed to fetch colleges: ${err.message}`)
         }
         setAllCollegeData([])
       } finally {
@@ -1019,13 +1079,6 @@ const Colleges = () => {
     fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBaseUrl, collegeSearch ? '' : selectedYear]) // Only re-fetch on year change when no college is selected
-
-  // Restore selected college if provided via navigation state later
-  useEffect(() => {
-    if (typeof location.state?.collegeName === 'string' && !searchParams.get('college')) {
-      setCollegeSearch(location.state.collegeName)
-    }
-  }, [location.state?.collegeName, searchParams])
 
   useEffect(() => {
     allCollegeDataRef.current = allCollegeData
@@ -1151,16 +1204,7 @@ const Colleges = () => {
 
         setCollegeDetailStatus((prev) => ({ ...prev, [collegeId]: 'loaded' }))
       } catch (detailError) {
-        console.error(`Failed to fetch detailed worklets for college ${collegeId}`, detailError)
-        console.error('College detail error:', {
-          message: detailError.message,
-          status: detailError.response?.status,
-          statusText: detailError.response?.statusText,
-          url: detailError.config?.url
-        })
-
         if (detailError.response?.status === 401) {
-          console.warn('Authentication failed for college details')
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
           window.location.href = '/'
@@ -1202,7 +1246,7 @@ const Colleges = () => {
         if (selectedTeam && selectedTeam !== 'Select Team') {
           const teamToMatch = String(selectedTeam).trim()
           filteredWorklets = filteredWorklets.filter(worklet => {
-            const workletTeam = String(worklet.team || '').trim()
+            const workletTeam = String(worklet.team || worklet.technical_domain || worklet.technicalDomain || '').trim()
             return workletTeam === teamToMatch
           })
         }
@@ -1219,8 +1263,6 @@ const Colleges = () => {
         
         // Count total students from studentCount field (summing up, may include duplicates across worklets)
         const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
-        
-        console.log(`[Single-College] ${college.name}: Total=${filteredWorklets.length}, Ongoing=${ongoingCount}, Completed=${completedCount}, OnHold=${onHoldCount}, Terminated=${terminatedCount}, Students=${totalStudents}`)
         
         return {
           ...college,
@@ -1249,39 +1291,15 @@ const Colleges = () => {
           const workletYear = String(worklet.year || '').trim()
           return workletYear === yearToMatch
         })
-        console.log(`[Year Filter Applied: ${yearToMatch}] Remaining worklets for ${college.name}:`, filteredWorklets.length)
       }
       
       // Apply team filter if selected
       if (selectedTeam && selectedTeam !== 'Select Team') {
         const teamToMatch = String(selectedTeam).trim()
         filteredWorklets = filteredWorklets.filter(worklet => {
-          const workletTeam = String(worklet.team || '').trim()
+          const workletTeam = String(worklet.team || worklet.technical_domain || worklet.technicalDomain || '').trim()
           return workletTeam === teamToMatch
         })
-        console.log(`[Team Filter Applied: ${teamToMatch}] Remaining worklets for ${college.name}:`, filteredWorklets.length)
-      }
-      
-      // Determine if recalculation is needed (MUST be before using it)
-      const needsRecalculation = (selectedYear && selectedYear !== 'All Years') || 
-                                  (selectedTeam && selectedTeam !== 'Select Team')
-      
-      // Log the status fields to see what we're working with
-      if (needsRecalculation && filteredWorklets.length > 0) {
-        console.log(`[Status Check] ${college.name} - Sample worklet:`, {
-          status: filteredWorklets[0]?.status,
-          progressStatus: filteredWorklets[0]?.progressStatus,
-          year: filteredWorklets[0]?.year,
-          team: filteredWorklets[0]?.team
-        })
-        
-        // Count worklets by status to debug
-        const statusBreakdown = filteredWorklets.reduce((acc, w) => {
-          const key = `status=${w.status}, progressStatus=${w.progressStatus}`
-          acc[key] = (acc[key] || 0) + 1
-          return acc
-        }, {})
-        console.log(`[Status Breakdown] ${college.name}:`, statusBreakdown)
       }
       
       // ALWAYS recalculate counts from actual worklets data for accuracy
@@ -1296,8 +1314,6 @@ const Colleges = () => {
       
       // Count total students from studentCount field (summing up, may include duplicates across worklets)
       const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
-      
-      console.log(`[Multi-College] ${college.name}: Total=${filteredWorklets.length}, Ongoing=${ongoingCount}, Completed=${completedCount}, OnHold=${onHoldCount}, Terminated=${terminatedCount}, Students=${totalStudents}`)
       
       return {
         ...college,
@@ -1314,20 +1330,6 @@ const Colleges = () => {
       }
     })
   }, [allCollegeData, collegeSearch, selectedTeam, selectedYear])
-
-  // Log aggregated stats from filteredColleges
-  useEffect(() => {
-    if (filteredColleges.length > 0) {
-      const totalWorklets = filteredColleges.reduce((acc, c) => acc + getWorkletCount(c), 0)
-      const totalOngoing = filteredColleges.reduce((acc, c) => acc + (c.ongoingCount || 0), 0)
-      const totalCompleted = filteredColleges.reduce((acc, c) => acc + (c.completedCount || 0), 0)
-      const totalOnHold = filteredColleges.reduce((acc, c) => acc + (c.onHoldCount || 0), 0)
-      const totalTerminated = filteredColleges.reduce((acc, c) => acc + (c.terminatedCount || 0), 0)
-      const totalStudents = filteredColleges.reduce((acc, c) => acc + (c.totalStudents || 0), 0)
-      
-      console.log(`[AGGREGATED STATS] Colleges: ${filteredColleges.length}, Total Worklets: ${totalWorklets}, Ongoing: ${totalOngoing}, Completed: ${totalCompleted}, OnHold: ${totalOnHold}, Terminated: ${totalTerminated}, Students: ${totalStudents}`)
-    }
-  }, [filteredColleges])
 
   // College Overview list sorted by worklet counts (must be after filteredColleges)
   const overviewColleges = useMemo(() => {
@@ -1463,6 +1465,7 @@ const Colleges = () => {
         }
       }
 
+      // Navigate to academia_details with filter info (no return filters needed)
       navigate('/academia_details', {
         state: {
           filter,
@@ -1470,7 +1473,8 @@ const Colleges = () => {
           count,
           year: selectedYear !== 'All Years' ? selectedYear : '',
           team: selectedTeam !== 'Select Team' ? selectedTeam : ''
-        }
+        },
+        replace: false
       })
     } else {
       alert('Please select a college first')
@@ -1904,7 +1908,11 @@ const Colleges = () => {
                 <div className="relative">
                   <select
                     value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedYear(e.target.value)
+                      // Reset team when year changes (nested filtering)
+                      setSelectedTeam('Select Team')
+                    }}
                     className="appearance-none bg-green-50 dark:bg-slate-700 border border-green-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200">
                     <option>All Years</option>
                     {uniqueYears.map((year) => (
@@ -1920,8 +1928,12 @@ const Colleges = () => {
                   <select
                     value={selectedTeam}
                     onChange={(e) => setSelectedTeam(e.target.value)}
-                    className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
+                    disabled={availableTeams.length === 0}
+                    className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                     <option>Select Team</option>
+                    {availableTeams.length === 0 && (
+                      <option disabled>No teams available</option>
+                    )}
                     {availableTeams.map((team) => (
                       <option key={team} value={team}>{team}</option>
                     ))}
