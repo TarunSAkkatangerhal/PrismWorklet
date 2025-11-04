@@ -949,7 +949,13 @@ const Colleges = () => {
         const processedData = (collegesResponse.data || []).map((college) => {
           const name = college.college_name || college.name
           const worklets = workletsByCollege[name] || []
-          const derivedTotalStudents = worklets.reduce((sum, worklet) => sum + (worklet.studentCount || 0), 0)
+          
+          // Count total students from studentCount field (not from assignedStudents array)
+          // assignedStudents might be empty or incomplete, but studentCount has the accurate count
+          const derivedTotalStudents = worklets.reduce((sum, worklet) => {
+            return sum + (worklet.studentCount || 0)
+          }, 0)
+          
           return {
             id: college.college_id ?? college.id,
             name,
@@ -1120,10 +1126,12 @@ const Colleges = () => {
           })
           .filter((worklet) => worklet && worklet.title)
 
-        const derivedTotalStudents = mergedWorklets.reduce(
-          (sum, worklet) => sum + (typeof worklet.studentCount === 'number' ? worklet.studentCount : 0),
-          0
-        )
+        const derivedTotalStudents = (() => {
+          // Count total students from studentCount field (not from assignedStudents array)
+          return mergedWorklets.reduce((sum, worklet) => {
+            return sum + (worklet.studentCount || 0)
+          }, 0)
+        })()
 
         setAllCollegeData((prev) =>
           prev.map((entry) =>
@@ -1208,6 +1216,7 @@ const Colleges = () => {
         const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
         const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
         
+        // Count total students from studentCount field (summing up, may include duplicates across worklets)
         const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
         
         console.log(`[Single-College] ${college.name}: Total=${filteredWorklets.length}, Ongoing=${ongoingCount}, Completed=${completedCount}, OnHold=${onHoldCount}, Terminated=${terminatedCount}, Students=${totalStudents}`)
@@ -1284,6 +1293,7 @@ const Colleges = () => {
       const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
       const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
       
+      // Count total students from studentCount field (summing up, may include duplicates across worklets)
       const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
       
       console.log(`[Multi-College] ${college.name}: Total=${filteredWorklets.length}, Ongoing=${ongoingCount}, Completed=${completedCount}, OnHold=${onHoldCount}, Terminated=${terminatedCount}, Students=${totalStudents}`)
