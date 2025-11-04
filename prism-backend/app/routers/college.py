@@ -70,6 +70,7 @@ def get_college_stats(college: College, db: Session):
     stats["totalStudents"] = total_students
     return stats
 
+@router.get("", response_model=List[CollegeOut])
 @router.get("/", response_model=List[CollegeOut])
 def get_colleges(db: Session = Depends(get_db)):
     colleges = db.query(College).all()
@@ -122,7 +123,7 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
     students_by_worklet = {}
     if worklet_id_set:
         student_rows = (
-            db.query(UserWorkletAssociation.worklet_id, User.name, User.email)
+            db.query(UserWorkletAssociation.worklet_id, User.name, User.email, User.college, User.college_id)
             .join(User, User.id == UserWorkletAssociation.user_id)
             .filter(
                 UserWorkletAssociation.worklet_id.in_(worklet_id_set),
@@ -130,11 +131,16 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
             )
             .all()
         )
-        for worklet_id, name, email in student_rows:
+        for worklet_id, name, email, college, college_id in student_rows:
             if worklet_id not in students_by_worklet:
                 students_by_worklet[worklet_id] = []
             if email:
-                students_by_worklet[worklet_id].append({"name": name, "email": email})
+                students_by_worklet[worklet_id].append({
+                    "name": name, 
+                    "email": email,
+                    "college": college,
+                    "college_id": college_id
+                })
 
     response = []
     for worklet in worklets:

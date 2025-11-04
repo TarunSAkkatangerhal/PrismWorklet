@@ -47,10 +47,10 @@ class WorkletService:
             worklet_id: Worklet ID
             
         Returns:
-            List of student dictionaries with name and email
+            List of student dictionaries with name, email, college, and college_id
         """
         students = (
-            db.query(User.name, User.email)
+            db.query(User.name, User.email, User.college, User.college_id)
             .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
             .filter(
                 UserWorkletAssociation.worklet_id == worklet_id,
@@ -58,7 +58,14 @@ class WorkletService:
             )
             .all()
         )
-        return [{"name": s.name, "email": s.email} for s in students if s.email]
+        return [
+            {
+                "name": s.name, 
+                "email": s.email,
+                "college": s.college,
+                "college_id": s.college_id
+            } for s in students if s.email
+        ]
     
     @staticmethod
     def get_mentors_for_worklet(db: Session, worklet_id: int) -> List[User]:
@@ -234,7 +241,15 @@ class WorkletService:
         # Add students if requested
         if include_students:
             students = get_worklet_students(db, worklet.id)
-            response["students"] = [{"id": s.id, "name": s.name, "email": s.email} for s in students]
+            response["students"] = [
+                {
+                    "id": s.id, 
+                    "name": s.name, 
+                    "email": s.email,
+                    "college": s.college,
+                    "college_id": s.college_id
+                } for s in students
+            ]
             response["student_count"] = len(students)
         
         # Add mentors if requested
@@ -401,7 +416,15 @@ class WorkletService:
                 "worklet_progress": getattr(worklet, "worklet_progress", None),
                 "percentage_completion": percentage_completion,
                 "performance": performance,
-                "students": [{"id": s.id, "name": s.name, "email": s.email} for s in students],
+                "students": [
+                    {
+                        "id": s.id, 
+                        "name": s.name, 
+                        "email": s.email,
+                        "college": s.college,
+                        "college_id": s.college_id
+                    } for s in students
+                ],
                 "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
                 "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
                 "github_repo_url": github_url,
