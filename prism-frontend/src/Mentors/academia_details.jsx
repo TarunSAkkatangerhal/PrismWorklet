@@ -29,6 +29,10 @@ const NavColl = () => {
   
   const initialCollegeName = location.state?.collegeName || ''
   
+  // Get year and team filters from navigation state
+  const yearFilter = location.state?.year || ''
+  const teamFilter = location.state?.team || ''
+  
   const [activeFilter, setActiveFilter] = useState(initialFilter)
   const [colleges, setColleges] = useState([])
   const [filtered, setFiltered] = useState([])
@@ -94,59 +98,60 @@ const NavColl = () => {
       const token = localStorage.getItem('access_token')
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
 
-      // Fetch colleges first to ensure page loads even if worklets call fails
+      // Fetch colleges
       const collegesResponse = await axios.get(`${base}/colleges`, { headers, timeout: 10000 })
       const collegesData = Array.isArray(collegesResponse.data) ? collegesResponse.data : []
 
-      // Try to fetch all worklets; proceed with empty list on failure
+      // Fetch all worklets (no filters - we'll filter on frontend)
       let workletsData = []
       try {
         const workletsResponse = await axios.get(`${base}/worklets`, { headers, timeout: 15000 })
         workletsData = Array.isArray(workletsResponse.data) ? workletsResponse.data : []
+        console.log(`[NavColl] Fetched ${workletsData.length} total worklets from backend`)
+        
+        // Fetch assigned students for each worklet
+        const workletStudentsPromises = workletsData.map(async (worklet) => {
+          try {
+            const studentsResponse = await axios.get(`${base}/worklets/${worklet.id}/students`, { headers, timeout: 10000 })
+            return {
+              workletId: worklet.id,
+              students: Array.isArray(studentsResponse.data) ? studentsResponse.data : []
+            }
+          } catch (e) {
+            console.warn(`Failed to fetch students for worklet ${worklet.id}:`, e)
+            return { workletId: worklet.id, students: [] }
+          }
+        })
+        
+        const workletStudentsResults = await Promise.all(workletStudentsPromises)
+        const studentsByWorklet = new Map()
+        workletStudentsResults.forEach(result => {
+          studentsByWorklet.set(result.workletId, result.students)
+        })
+        
+        // Attach students to worklets
+        workletsData = workletsData.map(worklet => ({
+          ...worklet,
+          assignedStudents: studentsByWorklet.get(worklet.id) || []
+        }))
+        
+        console.log(`[NavColl] Attached students to ${workletsData.length} worklets`)
       } catch (e) {
         console.warn('Worklets fetch failed in navColl; proceeding with colleges only', e)
       }
 
-      // Fetch real students per college (best effort per college)
-      const studentsByCollege = new Map()
-      await Promise.all(
-        collegesData.map(async (c) => {
-          const cid = c.college_id ?? c.id
-          try {
-            const resp = await axios.get(`${base}/colleges/${cid}/students`, { headers, timeout: 15000 })
-            const arr = Array.isArray(resp.data) ? resp.data : []
-            studentsByCollege.set(cid, arr)
-          } catch (e) {
-            studentsByCollege.set(cid, [])
-          }
-        })
-      )
-
-      // Merge colleges with worklets and attach real students
+      // Merge colleges with worklets
       const enrichedColleges = collegesData.map((college) => {
         const cid = college.college_id ?? college.id
         const cname = college.college_name ?? college.name
 
-        // Normalize students (prefer provided name, fallback to email username)
-        const rawStudents = studentsByCollege.get(cid) || []
-        const normalizedStudents = rawStudents.map((s) => {
-          const name = (s.name && String(s.name).trim()) || (s.email ? String(s.email).split('@')[0] : 'Unknown')
-          return {
-            userId: s.user_id ?? s.id,
-            name,
-            email: s.email || '',
-            collegeName: cname,
-          }
-        })
-
         const collegeWorklets = workletsData
           .filter((worklet) => {
-            // Match ONLY by college_id to align with backend logic
-            // Backend counts worklets only where Worklet.college_id matches
+            // Match by college_id
             if (worklet.college_id !== undefined && worklet.college_id !== null) {
               return Number(worklet.college_id) === Number(cid)
             }
-            // Fallback: if college_id is not set, try matching by name
+            // Fallback: match by name
             if (worklet.college && cname) {
               return String(worklet.college).trim().toLowerCase() === String(cname).trim().toLowerCase()
             }
@@ -156,9 +161,8 @@ const NavColl = () => {
             ...worklet,
             progressStatus: worklet.status,
             status: worklet.status,
-            studentCount: worklet.student_count || 0,
-            // Do not generate placeholder names here
-            assignedStudents: [],
+            studentCount: worklet.student_count || (worklet.assignedStudents ? worklet.assignedStudents.length : 0),
+            assignedStudents: worklet.assignedStudents || [],
             collegeName: worklet.college || cname,
           }))
 
@@ -166,7 +170,6 @@ const NavColl = () => {
           ...college,
           id: cid,
           name: cname,
-          students: normalizedStudents,
           worklets: collegeWorklets,
         }
       })
@@ -190,38 +193,38 @@ const NavColl = () => {
     if (!colleges || colleges.length === 0) return result
 
     if (activeFilter === 'students') {
-      // Build unique student list across all colleges (prefer real students array)
+      // Simply collect students from filtered worklets
       const studentMap = new Map()
+      
       colleges.forEach((college) => {
         if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
-        if (Array.isArray(college.students) && college.students.length) {
-          college.students.forEach((s) => {
-            const key = s.email || String(s.userId) || s.name || `student-${Math.random()}`
+        
+        // Filter worklets by year/team
+        const filteredWorklets = college.worklets.filter((worklet) => {
+          if (yearFilter && worklet.year && String(worklet.year) !== String(yearFilter)) return false
+          if (teamFilter && worklet.team && String(worklet.team) !== String(teamFilter)) return false
+          return true
+        })
+        
+        // Collect students from filtered worklets
+        filteredWorklets.forEach((worklet) => {
+          (worklet.assignedStudents || []).forEach((student) => {
+            const key = student.email || student.name || `student-${Math.random()}`
             if (!studentMap.has(key)) {
               studentMap.set(key, { 
-                ...s, 
-                id: s.userId || s.email || s.name || key, // Ensure each student has an id
+                ...student, 
+                id: student.user_id || student.userId || student.email || student.name || key,
+                name: student.name || student.email?.split('@')[0] || 'Unknown',
                 collegeName: college.name 
               })
             }
           })
-        } else {
-          // Fallback: derive from worklet.assignedStudents if any (may be empty)
-          college.worklets.forEach((worklet) => {
-            (worklet.assignedStudents || []).forEach((student) => {
-              const key = student.email || student.name || `student-${Math.random()}`
-              if (!studentMap.has(key)) {
-                studentMap.set(key, { 
-                  ...student, 
-                  id: student.userId || student.email || student.name || key, // Ensure each student has an id
-                  collegeName: college.name 
-                })
-              }
-            })
-          })
-        }
+        })
       })
+      
       result = Array.from(studentMap.values())
+      console.log(`[NavColl] Showing ${result.length} students from filtered worklets (year: ${yearFilter || 'all'}, team: ${teamFilter || 'all'})`)
+      
       // Apply search filter
       if (searchTerm) {
         result = result.filter((s) =>
@@ -248,6 +251,20 @@ const NavColl = () => {
         // Map 'Dropped' to 'Terminated' for UI consistency
         const statusForUi = worklet.status === 'Dropped' ? 'Terminated' : (worklet.status || worklet.progressStatus)
         if (allowedStatuses.includes(worklet.status) || allowedStatuses.includes(worklet.progressStatus) || (worklet.status === 'Dropped' && allowedStatuses.includes('Terminated'))) {
+          // Apply year filter ONLY if yearFilter is provided AND worklet has a year
+          if (yearFilter && worklet.year) {
+            if (String(worklet.year) !== String(yearFilter)) {
+              return
+            }
+          }
+          
+          // Apply team filter ONLY if teamFilter is provided AND worklet has a team
+          if (teamFilter && worklet.team) {
+            if (String(worklet.team) !== String(teamFilter)) {
+              return
+            }
+          }
+          
           result.push({
             id: `${college.id}-${worklet.id}`,
             workletId: worklet.id, // Add the actual worklet ID for navigation
@@ -278,7 +295,7 @@ const NavColl = () => {
     }
 
     return result
-  }, [colleges, activeFilter, searchTerm, selectedCollege])
+  }, [colleges, activeFilter, searchTerm, selectedCollege, yearFilter, teamFilter])
 
 
   useEffect(() => {
@@ -316,57 +333,46 @@ const NavColl = () => {
   }
 
   const getFilterStats = () => {
-    // Use backend worklet counts if available, otherwise derive from worklets data
-    if (colleges.length > 0 && colleges[0].workletCount !== undefined) {
-      // Use backend calculated counts
-      let total = 0, ongoing = 0, completed = 0, onhold = 0, terminated = 0, students = 0
-      colleges.forEach((college) => {
-        if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
-        total += college.workletCount || 0
-        ongoing += college.ongoingCount || 0
-        completed += college.completedCount || 0
-        onhold += college.onHoldCount || 0
-        terminated += college.terminatedCount || 0
-        // Prefer real students count when available
-        if (Array.isArray(college.students) && college.students.length) {
-          students += college.students.length
-        } else {
-          students += college.totalStudents || 0
-        }
+    // Calculate stats from FILTERED data to respect year/team filters
+    let total = 0, ongoing = 0, completed = 0, onhold = 0, terminated = 0, students = 0
+    
+    console.log(`[getFilterStats] Starting with ${colleges.length} colleges, yearFilter=${yearFilter}, teamFilter=${teamFilter}`)
+    
+    colleges.forEach((college) => {
+      if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
+      
+      const worklets = college.worklets || []
+      console.log(`[getFilterStats] ${college.name}: ${worklets.length} total worklets`)
+      
+      // Apply year/team filters to worklets before counting
+      const filteredWorklets = worklets.filter((worklet) => {
+        if (yearFilter && worklet.year && String(worklet.year) !== String(yearFilter)) return false
+        if (teamFilter && worklet.team && String(worklet.team) !== String(teamFilter)) return false
+        return true
       })
-      return { total, ongoing, completed, onhold, terminated, students }
-    } else {
-      // Fallback: derive from worklets data
-      let ongoing = 0, completed = 0, onhold = 0, terminated = 0
-      const studentMap = new Map()
-      let total = 0
-      colleges.forEach((college) => {
-        if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
-        const worklets = college.worklets || []
-        total += worklets.length
-        ongoing += worklets.filter(w => w.progressStatus === 'Ongoing').length
-        completed += worklets.filter(w => w.progressStatus === 'Completed').length
-        onhold += worklets.filter(w => w.progressStatus === 'On Hold').length
-        terminated += worklets.filter(w => w.progressStatus === 'Terminated').length
-        if (Array.isArray(college.students) && college.students.length) {
-          college.students.forEach((s) => {
-            const key = s.email || String(s.userId)
-            if (!studentMap.has(key)) studentMap.set(key, s)
-          })
-        } else {
-          worklets.forEach((w) => {
-            if (w.assignedStudents) {
-              w.assignedStudents.forEach((s) => {
-                const key = s.email || s.name
-                if (!studentMap.has(key)) studentMap.set(key, s)
-              })
-            }
-          })
-        }
-      })
-      const students = studentMap.size
-      return { total, ongoing, completed, onhold, terminated, students }
-    }
+      
+      console.log(`[getFilterStats] ${college.name}: ${filteredWorklets.length} worklets after filters`)
+      
+      // Count worklets by status from filtered worklets
+      total += filteredWorklets.length
+      ongoing += filteredWorklets.filter(w => (w.status === 'Ongoing' || w.status === 'To Start' || w.progressStatus === 'Ongoing')).length
+      completed += filteredWorklets.filter(w => (w.status === 'Completed' || w.progressStatus === 'Completed')).length
+      onhold += filteredWorklets.filter(w => (w.status === 'On Hold' || w.progressStatus === 'On Hold')).length
+      terminated += filteredWorklets.filter(w => (w.status === 'Terminated' || w.status === 'Dropped' || w.progressStatus === 'Terminated')).length
+      
+      // Count students from studentCount field (may include duplicates across worklets)
+      const workletStudents = filteredWorklets.reduce((sum, worklet) => {
+        const count = worklet.studentCount || worklet.student_count || 0
+        console.log(`[getFilterStats] Worklet "${worklet.title}": studentCount=${count}`)
+        return sum + count
+      }, 0)
+      
+      students += workletStudents
+      console.log(`[getFilterStats] ${college.name}: ${workletStudents} students from filtered worklets`)
+    })
+    
+    console.log(`[getFilterStats] FINAL - Total: ${total}, Ongoing: ${ongoing}, Completed: ${completed}, OnHold: ${onhold}, Terminated: ${terminated}, Students: ${students}`)
+    return { total, ongoing, completed, onhold, terminated, students }
   }
 
   const stats = getFilterStats()
