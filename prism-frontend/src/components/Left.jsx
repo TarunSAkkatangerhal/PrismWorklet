@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award } from 'lucide-react';
+import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { ThemeContext } from '../context/ThemeContext';
@@ -134,18 +134,18 @@ const LeftSidebar = () => {
                 {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/student-dashboard')} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/student-chat')} />
                         <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
                     </>
                 ) : userData && userData.role ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
-                      
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/mentor-chat')} />
                         <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} />
                         <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                                                                         {/* Top separator for Dashboard/Academia group */}
                                                                         <div className="w-[75%] mx-auto my-[1.2vh]">
                                                                             <hr
-                                                                                role="separator"
                                                                                 className="h-1 rounded-full border-0 bg-gradient-to-r from-indigo-500 via-purple-400 to-blue-400 dark:from-indigo-700 dark:via-purple-800 dark:to-blue-700 shadow-md opacity-95"
                                                                             />
                                                                         </div>
@@ -156,7 +156,6 @@ const LeftSidebar = () => {
                                                                         {/* Bottom separator for Dashboard/Academia group */}
                                                                         <div className="w-[75%] mx-auto my-[1.2vh]">
                                                                             <hr
-                                                                                role="separator"
                                                                                 className="h-1 rounded-full border-0 bg-gradient-to-r from-indigo-500 via-purple-400 to-blue-400 dark:from-indigo-700 dark:via-purple-800 dark:to-blue-700 shadow-md opacity-95"
                                                                             />
                                                                         </div>
