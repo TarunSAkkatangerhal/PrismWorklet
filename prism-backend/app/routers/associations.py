@@ -8,7 +8,7 @@ from sqlalchemy import and_, or_
 from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
-from app.models import UserWorkletAssociation, User, Worklet
+from app.models import UserWorkletAssociation, User, Worklet, GroupChat, GroupChatMember
 from app.schemas import (
     UserWorkletAssociationCreate,
     UserWorkletAssociationUpdate,
@@ -93,6 +93,73 @@ def create_association(
     db.add(db_association)
     db.commit()
     db.refresh(db_association)
+    
+    # Auto-create group chat for worklet if it doesn't exist
+    try:
+        existing_group = db.query(GroupChat).filter(
+            GroupChat.worklet_id == association.worklet_id
+        ).first()
+        
+        if not existing_group:
+            # Get worklet details for group name
+            worklet = db.query(Worklet).filter(Worklet.id == association.worklet_id).first()
+            group_name = worklet.cert_id if worklet and worklet.cert_id else f"Worklet-{association.worklet_id}"
+            
+            # Create group chat
+            new_group = GroupChat(
+                worklet_id=association.worklet_id,
+                group_name=group_name,
+                created_by=current_user.id
+            )
+            db.add(new_group)
+            db.commit()
+            db.refresh(new_group)
+            
+            # Add all users associated with this worklet to the group
+            worklet_users = db.query(UserWorkletAssociation).filter(
+                UserWorkletAssociation.worklet_id == association.worklet_id
+            ).all()
+            
+            for user_assoc in worklet_users:
+                # Check if member already exists
+                existing_member = db.query(GroupChatMember).filter(
+                    and_(
+                        GroupChatMember.group_id == new_group.group_id,
+                        GroupChatMember.user_id == user_assoc.user_id
+                    )
+                ).first()
+                
+                if not existing_member:
+                    is_admin = user_assoc.role_in_worklet == "Mentor"
+                    member = GroupChatMember(
+                        group_id=new_group.group_id,
+                        user_id=user_assoc.user_id,
+                        is_admin=is_admin
+                    )
+                    db.add(member)
+            
+            db.commit()
+        else:
+            # Add new user to existing group
+            existing_member = db.query(GroupChatMember).filter(
+                and_(
+                    GroupChatMember.group_id == existing_group.group_id,
+                    GroupChatMember.user_id == association.user_id
+                )
+            ).first()
+            
+            if not existing_member:
+                is_admin = association.role_in_worklet == "Mentor"
+                member = GroupChatMember(
+                    group_id=existing_group.group_id,
+                    user_id=association.user_id,
+                    is_admin=is_admin
+                )
+                db.add(member)
+                db.commit()
+    except Exception as e:
+        # Log error but don't fail the association creation
+        print(f"Error creating group chat: {str(e)}")
     
     return db_association
 
