@@ -481,3 +481,131 @@ class MeetingRecurrence(Base):
 
     def __repr__(self):
         return f"<MeetingRecurrence(recurrence_id={self.recurrence_id}, parent_meeting_id={self.parent_meeting_id}, occurrence={self.occurrence_datetime})>"
+
+
+# ============= CHAT MODELS =============
+
+# Chat Room table (for individual 1-on-1 chats)
+class ChatRoom(Base):
+    __tablename__ = "chat_rooms"
+
+    room_id = Column(Integer, primary_key=True, autoincrement=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=True)
+    user1_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    user2_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    worklet = relationship("Worklet", foreign_keys=[worklet_id])
+    user1 = relationship("User", foreign_keys=[user1_id])
+    user2 = relationship("User", foreign_keys=[user2_id])
+    messages = relationship("ChatMessage", back_populates="room", cascade="all, delete-orphan")
+
+    # Ensure unique combination
+    __table_args__ = (
+        UniqueConstraint('user1_id', 'user2_id', 'WorkletID', name='unique_chat_room'),
+        Index('idx_chat_room_users', 'user1_id', 'user2_id'),
+    )
+
+    def __repr__(self):
+        return f"<ChatRoom(room_id={self.room_id}, user1_id={self.user1_id}, user2_id={self.user2_id})>"
+
+
+# Chat Message table (for individual chats)
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    message_id = Column(Integer, primary_key=True, autoincrement=True)
+    room_id = Column(Integer, ForeignKey("chat_rooms.room_id", ondelete="CASCADE"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    message_text = Column(Text, nullable=False)
+    sent_at = Column(DateTime, server_default=func.now(), nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False)
+    is_edited = Column(Boolean, default=False, nullable=False)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+    # Relationships
+    room = relationship("ChatRoom", back_populates="messages")
+    sender = relationship("User", foreign_keys=[sender_id])
+
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_chat_message_room', 'room_id', 'sent_at'),
+        Index('idx_chat_message_sender', 'sender_id'),
+    )
+
+    def __repr__(self):
+        return f"<ChatMessage(message_id={self.message_id}, room_id={self.room_id}, sender_id={self.sender_id})>"
+
+
+# Group Chat table (for worklet groups)
+class GroupChat(Base):
+    __tablename__ = "group_chats"
+
+    group_id = Column(Integer, primary_key=True, autoincrement=True)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=False, unique=True)
+    group_name = Column(String(255), nullable=False)
+    created_by = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Relationships
+    worklet = relationship("Worklet", foreign_keys=[worklet_id])
+    creator = relationship("User", foreign_keys=[created_by])
+    members = relationship("GroupChatMember", back_populates="group", cascade="all, delete-orphan")
+    messages = relationship("GroupChatMessage", back_populates="group", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<GroupChat(group_id={self.group_id}, worklet_id={self.worklet_id}, group_name='{self.group_name}')>"
+
+
+# Group Chat Member table
+class GroupChatMember(Base):
+    __tablename__ = "group_chat_members"
+
+    member_id = Column(Integer, primary_key=True, autoincrement=True)
+    group_id = Column(Integer, ForeignKey("group_chats.group_id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    joined_at = Column(DateTime, server_default=func.now(), nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
+
+    # Relationships
+    group = relationship("GroupChat", back_populates="members")
+    user = relationship("User")
+
+    # Ensure unique user per group
+    __table_args__ = (
+        UniqueConstraint('group_id', 'user_id', name='unique_group_member'),
+        Index('idx_group_member_user', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<GroupChatMember(member_id={self.member_id}, group_id={self.group_id}, user_id={self.user_id})>"
+
+
+# Group Chat Message table
+class GroupChatMessage(Base):
+    __tablename__ = "group_chat_messages"
+
+    message_id = Column(Integer, primary_key=True, autoincrement=True)
+    group_id = Column(Integer, ForeignKey("group_chats.group_id", ondelete="CASCADE"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    message_text = Column(Text, nullable=False)
+    sent_at = Column(DateTime, server_default=func.now(), nullable=False)
+    is_edited = Column(Boolean, default=False, nullable=False)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+    # Relationships
+    group = relationship("GroupChat", back_populates="messages")
+    sender = relationship("User", foreign_keys=[sender_id])
+
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_group_message_group', 'group_id', 'sent_at'),
+        Index('idx_group_message_sender', 'sender_id'),
+    )
+
+    def __repr__(self):
+        return f"<GroupChatMessage(message_id={self.message_id}, group_id={self.group_id}, sender_id={self.sender_id})>"
