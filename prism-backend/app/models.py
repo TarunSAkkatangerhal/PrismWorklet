@@ -481,3 +481,46 @@ class MeetingRecurrence(Base):
 
     def __repr__(self):
         return f"<MeetingRecurrence(recurrence_id={self.recurrence_id}, parent_meeting_id={self.parent_meeting_id}, occurrence={self.occurrence_datetime})>"
+
+
+# Messages table for real-time chat
+class Message(Base):
+    __tablename__ = "messages"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sender_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    receiver_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=True)  # Nullable for group messages
+    content = Column(Text, nullable=False)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="SET NULL"), nullable=True)
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    
+    # Relationships
+    sender = relationship("User", foreign_keys=[sender_id])
+    receiver = relationship("User", foreign_keys=[receiver_id])
+    worklet = relationship("Worklet", foreign_keys=[worklet_id])
+    
+    def __repr__(self):
+        return f"<Message(id={self.id}, from={self.sender_id}, worklet={self.worklet_id})>"
+
+
+class MessageRead(Base):
+    __tablename__ = "message_reads"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    message_id = Column(Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    read_at = Column(DateTime, server_default=func.now(), nullable=False)
+    
+    # Relationships
+    message = relationship("Message")
+    user = relationship("User")
+    
+    # Unique constraint to prevent duplicate reads
+    __table_args__ = (
+        UniqueConstraint('message_id', 'user_id', name='unique_message_user_read'),
+    )
+    
+    def __repr__(self):
+        return f"<MessageRead(message_id={self.message_id}, user_id={self.user_id})>"
+

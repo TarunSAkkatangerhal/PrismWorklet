@@ -177,15 +177,32 @@ export default function FeedbackForm({
       }
       const userResp = await apiClient.get('/auth/profile');
       const userId = userResp?.data?.id;
+      const userRole = userResp?.data?.role;
       if (!userId) {
         setError("Unable to determine user ID. Please re-login.");
         setLoading(false);
         return;
       }
-      const response = await apiClient.get(`/api/associations/mentor/${userId}/worklets?status_filter=ongoing`);
-      const data = response?.data?.ongoing_worklets || [];
+      
+      // Fetch worklets based on user role
+      let response;
+      let data = [];
+      
+      if (userRole && userRole.toLowerCase() === 'student') {
+        // For students, use the student worklets endpoint
+        response = await apiClient.get('/worklets/student/me');
+        data = Array.isArray(response?.data) ? response.data : [];
+      } else {
+        // For mentors, use the mentor worklets endpoint
+        response = await apiClient.get(`/api/associations/mentor/${userId}/worklets?status_filter=ongoing`);
+        data = response?.data?.ongoing_worklets || [];
+      }
+      
       setWorklets(Array.isArray(data) ? data : []);
-      if ((data || []).length === 0) setError("No worklets found for this mentor");
+      if ((data || []).length === 0) {
+        const roleText = userRole && userRole.toLowerCase() === 'student' ? 'student' : 'mentor';
+        setError(`No worklets found for this ${roleText}`);
+      }
     } catch (error) {
       setError("Failed to load worklets. Please try again.");
     } finally {

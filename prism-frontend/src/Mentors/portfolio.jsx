@@ -1067,78 +1067,86 @@ const Portfolio = () => {
             </div>
           )}
 
-          {/* Statistics Cards */}
-          <div className={`grid grid-cols-1 md:grid-cols-2 ${isStudent ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6 mb-8`}>
+          {/* Statistics Cards - Professional Design */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${isStudent ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-5 mb-8`}>
             <div 
-              className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105"
+              className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300"
               onClick={() => setActiveTab('papers')}
             >
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm font-medium">Total Papers</p>
-                  <p className="text-3xl font-bold mt-2">{filteredPapers.length}</p>
+                <div className="flex-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium uppercase tracking-wide mb-3">Total Papers</p>
+                  <p className="text-4xl font-bold text-slate-900 dark:text-white">{filteredPapers.length}</p>
                 </div>
-                <FileText className="h-12 w-12 text-blue-200" />
+                <div className="ml-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                  <FileText className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                </div>
               </div>
             </div>
 
             <div 
-              className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:from-purple-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105"
+              className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-purple-400 dark:hover:border-purple-600 transition-all duration-300"
               onClick={() => setActiveTab('patents')}
             >
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm font-medium">Total Patents</p>
-                  <p className="text-3xl font-bold mt-2">{filteredPatents.length}</p>
+                <div className="flex-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium uppercase tracking-wide mb-3">Total Patents</p>
+                  <p className="text-4xl font-bold text-slate-900 dark:text-white">{filteredPatents.length}</p>
                 </div>
-                <Shield className="h-12 w-12 text-purple-200" />
+                <div className="ml-4 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30 transition-colors">
+                  <Shield className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                </div>
               </div>
             </div>
 
             {!isStudent && (
               <div 
-                className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105"
+                className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-600 transition-all duration-300"
                 onClick={() => setActiveTab('commercializations')}
               >
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-green-100 text-sm font-medium">Commercializations</p>
-                    <p className="text-3xl font-bold mt-2">{portfolioData.commercializations.length}</p>
+                  <div className="flex-1">
+                    <p className="text-slate-600 dark:text-slate-400 text-sm font-medium uppercase tracking-wide mb-3">Commercializations</p>
+                    <p className="text-4xl font-bold text-slate-900 dark:text-white">{portfolioData.commercializations.length}</p>
                   </div>
-                  <Target className="h-12 w-12 text-green-200" />
+                  <div className="ml-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/30 transition-colors">
+                    <Target className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                  </div>
                 </div>
               </div>
             )}
 
             <div 
-              className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:from-yellow-600 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105"
+              className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-600 transition-all duration-300"
               onClick={() => setActiveTab('achievements')}
             >
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-100 text-sm font-medium">Achievements</p>
-                  <p className="text-3xl font-bold mt-2">{portfolioData.achievements.length}</p>
+                <div className="flex-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium uppercase tracking-wide mb-3">Achievements</p>
+                  <p className="text-4xl font-bold text-slate-900 dark:text-white">{portfolioData.achievements.length}</p>
                 </div>
-                <Trophy className="h-12 w-12 text-yellow-200" />
+                <div className="ml-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30 transition-colors">
+                  <Trophy className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                </div>
               </div>
             </div>
           </div>
 
           <div className="mb-8">
-            <div className="flex justify-center border-b border-gray-200 dark:border-gray-700">
+            <div className="flex justify-center border-b-2 border-slate-200 dark:border-slate-700">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex items-center space-x-2 px-4 py-3 text-sm font-medium transition-colors duration-300 ${
+                  className={`relative flex items-center space-x-2 px-6 py-3 text-sm font-semibold transition-all duration-200 ${
                     activeTab === tab.id
                       ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}>
-                  <tab.icon size={18} />
+                  <tab.icon size={20} />
                   <span>{tab.label}</span>
                   {activeTab === tab.id && (
-                    <div className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
+                    <div className="absolute bottom-[-2px] left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-t-full" />
                   )}
                 </button>
               ))}
@@ -1149,35 +1157,35 @@ const Portfolio = () => {
             {activeTab === 'achievements' && (
               <div>
                 <div className="mb-6">
-                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">Awards & Recognitions</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Awards & Recognitions</h2>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {portfolioData.achievements.map((achievement) => {
                     const Icon = achievementIcon(achievement.type)
                     return (
                       <div
                         key={achievement.id}
-                        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-100 dark:border-gray-700">
+                        className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 p-6">
                         <div className="flex items-start justify-between mb-4">
-                          <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 p-3 rounded-lg">
-                            <Icon className="h-6 w-6 text-white" />
+                          <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                            <Icon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                           </div>
-                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-md">
                             {achievement.year}
                           </span>
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 line-clamp-2">
                           {achievement.title}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 line-clamp-3">
                           {achievement.description}
                         </p>
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
                           <span
-                            className={`text-xs font-medium px-3 py-1 rounded-full ${
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-md ${
                               achievement.type === 'Award'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
                             }`}>
                             {achievement.type}
                           </span>
@@ -1187,9 +1195,11 @@ const Portfolio = () => {
                   })}
                 </div>
                 {portfolioData.achievements.length === 0 && (
-                  <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl">
-                    <Trophy className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-4 text-gray-600 dark:text-gray-400">
+                  <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="inline-flex p-4 rounded-full bg-slate-100 dark:bg-slate-700 mb-4">
+                      <Trophy className="h-10 w-10 text-slate-400" />
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400 font-medium">
                       No achievements added yet.
                     </p>
                   </div>

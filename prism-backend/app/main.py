@@ -80,7 +80,7 @@ async def rate_limit_auth(request: Request, call_next: Callable):
 
 
 # Routers
-from app.routers import college
+from app.routers import college, messages
 app.include_router(health.router)
 app.include_router(auth.router)
 # Mentors router temporarily disabled due to schema refactor; re-enable after migration
@@ -93,6 +93,7 @@ app.include_router(suggestions.router)
 app.include_router(milestones.router)
 app.include_router(college.router)
 app.include_router(meetings.router, prefix="/api/meetings", tags=["meetings"])
+app.include_router(messages.router, tags=["messages"])
 
 # Backwards-compatible alias for student worklets under /api
 from fastapi import Depends

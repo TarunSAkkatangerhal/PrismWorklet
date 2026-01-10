@@ -32,13 +32,17 @@ const useChatWebSocket = (onMessage) => {
   const connect = () => {
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) return;
+      if (!token) {
+        console.error('No access token found');
+        return;
+      }
 
-      const wsUrl = `ws://localhost:8000/api/chat/ws?token=${token}`;
+      const wsUrl = `ws://localhost:8000/api/messages/ws/${token}`;
+      console.log('Connecting to WebSocket:', wsUrl);
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('✅ WebSocket connected successfully');
         setIsConnected(true);
         const pingInterval = setInterval(() => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -49,6 +53,7 @@ const useChatWebSocket = (onMessage) => {
       };
 
       wsRef.current.onmessage = (event) => {
+        console.log('📩 WebSocket message received:', event.data);
         const data = JSON.parse(event.data);
         if (data.type !== 'pong') {
           onMessage(data);
@@ -56,21 +61,23 @@ const useChatWebSocket = (onMessage) => {
       };
 
       wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected');
+        console.log('❌ WebSocket disconnected');
         setIsConnected(false);
         if (wsRef.current?.pingInterval) {
           clearInterval(wsRef.current.pingInterval);
         }
         reconnectTimeoutRef.current = setTimeout(() => {
+          console.log('🔄 Attempting to reconnect...');
           connect();
         }, 3000);
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('⚠️ WebSocket error:', error);
+        console.error('WebSocket state:', wsRef.current?.readyState);
       };
     } catch (error) {
-      console.error('Error connecting to WebSocket:', error);
+      console.error('❌ Error connecting to WebSocket:', error);
     }
   };
 
@@ -110,7 +117,7 @@ const MessageBubble = ({ message, isOwnMessage }) => {
       <div className={`max-w-[70%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
         {!isOwnMessage && (
           <p className="text-xs text-gray-600 dark:text-gray-400 mb-1 ml-2">
-            {message.sender_name}
+            {message.sender_name} {message.sender_role && <span className="text-gray-500">({message.sender_role})</span>}
           </p>
         )}
         <div
@@ -142,10 +149,29 @@ export default function MentorChatPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserId, setCurrentUserId] = useState(null);
   const messagesEndRef = useRef(null);
+  const isUserScrollingRef = useRef(false);
+  const messagesContainerRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!isUserScrollingRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
+
+  // Track if user is scrolling
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+      isUserScrollingRef.current = !isAtBottom;
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [selectedRoom]);
 
   useEffect(() => {
     scrollToBottom();
@@ -155,80 +181,165 @@ export default function MentorChatPage() {
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
+        console.log('Fetching current user...');
         const userResponse = await secureAPI.get('/auth/me');
+        console.log('User response:', userResponse.data);
         if (userResponse.data && userResponse.data.id) {
+          console.log('Setting current user ID:', userResponse.data.id);
           setCurrentUserId(userResponse.data.id);
+        } else {
+          console.error('User data missing ID:', userResponse.data);
         }
       } catch (error) {
         console.error('Error fetching current user:', error);
+        console.error('Error response:', error.response?.data);
       }
     };
     fetchCurrentUser();
   }, []);
 
-  // WebSocket message handler
+  // WebSocket message handler for worklet group messages
   const handleWebSocketMessage = (data) => {
+    console.log('Received WebSocket message:', data);
+    
     if (data.type === 'new_message') {
-      const message = data.data;
+      const message = data.message;
       
-      if (selectedRoom && message.room_id === selectedRoom.room_id) {
-        setMessages((prev) => [...prev, message]);
-        
-        if (message.sender_id !== currentUserId) {
-          secureAPI.patch(`/chat/messages/${message.message_id}/read`).catch(console.error);
-        }
+      // If we're viewing this worklet, add message to the chat (check for duplicates)
+      if (selectedUser && message.worklet_id === selectedUser.worklet_id) {
+        setMessages((prev) => {
+          // Check if message already exists (by ID or temp ID)
+          const isDuplicate = prev.some(m => 
+            m.message_id === message.id || 
+            (m.sender_id === message.sender_id && 
+             m.message_text === message.content &&
+             Math.abs(new Date(m.sent_at) - new Date(message.created_at)) < 2000) // Within 2 seconds
+          );
+          
+          if (isDuplicate) {
+            console.log('Duplicate message detected, skipping WebSocket add');
+            return prev;
+          }
+          
+          const newMsg = {
+            message_id: message.id,
+            sender_id: message.sender_id,
+            sender_name: message.sender_name,
+            sender_role: message.sender_role,
+            message_text: message.content,
+            sent_at: message.created_at,
+            is_read: false
+          };
+          
+          return [...prev, newMsg];
+        });
       }
       
-      fetchRooms();
+      // Refresh conversations immediately to update last message and unread count
+      fetchConversations();
     }
   };
 
   const { isConnected, sendMessage: sendWsMessage } = useChatWebSocket(handleWebSocketMessage);
 
-  // Fetch chat rooms
-  const fetchRooms = async () => {
+  // Fetch conversations
+  const fetchConversations = async () => {
     try {
-      const response = await secureAPI.get('/chat/rooms');
+      console.log('Fetching conversations...');
+      const response = await secureAPI.get('/api/messages/conversations');
+      console.log('Conversations response:', response.data);
       setRooms(response.data);
+      
+      if (response.data.length === 0) {
+        console.log('No conversations found - user may not be associated with any worklets');
+      }
     } catch (error) {
-      console.error('Error fetching chat rooms:', error);
+      console.error('Error fetching conversations:', error);
+      console.error('Error details:', error.response?.data);
     }
   };
+  
+  const fetchRooms = fetchConversations;
 
-  // Fetch messages for a room
-  const fetchMessages = async (roomId) => {
+  const fetchMessages = async (workletId, isInitialLoad = false) => {
     try {
-      setLoading(true);
-      const response = await secureAPI.get(`/chat/rooms/${roomId}/messages?limit=100`);
-      setMessages(response.data);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+      const response = await secureAPI.get(`/api/messages/chat/worklet/${workletId}?limit=100`);
+      const transformedMessages = response.data.map(msg => ({
+        message_id: msg.id,
+        sender_id: msg.sender_id,
+        sender_name: msg.sender_name,
+        sender_role: msg.sender_role,
+        message_text: msg.content,
+        sent_at: msg.created_at,
+        is_read: msg.is_read
+      }));
+      
+      if (isInitialLoad) {
+        // Initial load: set all messages
+        setMessages(transformedMessages);
+      } else {
+        // Auto-refresh: merge with existing messages
+        setMessages((prevMessages) => {
+          // Remove temp messages and get existing real message IDs
+          const realMessages = prevMessages.filter(m => !String(m.message_id).startsWith('temp-'));
+          const existingIds = new Set(realMessages.map(m => m.message_id));
+          const newMessages = transformedMessages.filter(m => !existingIds.has(m.message_id));
+          
+          if (newMessages.length > 0) {
+            return [...realMessages, ...newMessages];
+          }
+          return realMessages.length === prevMessages.length ? prevMessages : realMessages;
+        });
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
 
-  // Select a room
+  const [selectedUser, setSelectedUser] = useState(null);
+  
   const handleSelectRoom = (room) => {
     setSelectedRoom(room);
-    fetchMessages(room.room_id);
+    setSelectedUser(room);
+    fetchMessages(room.worklet_id, true); // Initial load
   };
 
-  // Send a message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedRoom) return;
+    if (!newMessage.trim() || !selectedUser) return;
+
+    const messageText = newMessage.trim();
+    setNewMessage('');
+    
+    const tempMessage = {
+      message_id: `temp-${Date.now()}`,
+      sender_id: currentUserId,
+      sender_name: 'You',
+      message_text: messageText,
+      sent_at: new Date().toISOString(),
+      is_read: false
+    };
+    setMessages((prev) => [...prev, tempMessage]);
 
     try {
-      const response = await secureAPI.post('/chat/messages', {
-        room_id: selectedRoom.room_id,
-        message_text: newMessage.trim(),
+      await secureAPI.post('/api/messages/send', {
+        receiver_id: 0,
+        content: messageText,
+        worklet_id: selectedUser.worklet_id
       });
-
-      setMessages((prev) => [...prev, response.data]);
-      setNewMessage('');
-      fetchRooms();
+      
+      // Let auto-refresh or WebSocket handle updating the message
+      // Don't manually fetch to avoid race conditions
+      fetchConversations();
     } catch (error) {
       console.error('Error sending message:', error);
+      setMessages((prev) => prev.filter(m => m.message_id !== tempMessage.message_id));
     }
   };
 
@@ -239,19 +350,54 @@ export default function MentorChatPage() {
     }
   }, [currentUserId]);
 
-  // Polling for updates
+  // Polling for conversation updates
   useEffect(() => {
     if (currentUserId) {
-      const interval = setInterval(fetchRooms, 10000);
+      const interval = setInterval(fetchRooms, 5000); // Refresh every 5 seconds
       return () => clearInterval(interval);
     }
   }, [currentUserId]);
 
-  // Filter rooms by search
-  const filteredRooms = rooms.filter(room => 
-    room.worklet_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    room.other_user_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Auto-refresh messages in active chat
+  useEffect(() => {
+    if (selectedUser && selectedUser.worklet_id) {
+      const interval = setInterval(() => {
+        fetchMessages(selectedUser.worklet_id);
+      }, 3000); // Refresh messages every 3 seconds
+      return () => clearInterval(interval);
+    }
+  }, [selectedUser]);
+
+  // Filter and sort rooms by search (worklets)
+  const filteredRooms = rooms
+    .filter(room => 
+      room.worklet_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      room.worklet_cert_id?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Prioritize rooms with messages
+      if (a.last_message && !b.last_message) return -1;
+      if (!a.last_message && b.last_message) return 1;
+      
+      // Then by unread count
+      if (a.unread_count !== b.unread_count) {
+        return b.unread_count - a.unread_count;
+      }
+      
+      // Finally by last message time
+      if (a.last_message_time && b.last_message_time) {
+        return new Date(b.last_message_time) - new Date(a.last_message_time);
+      }
+      
+      return 0;
+    });
+
+  // Debug: Log to console
+  useEffect(() => {
+    console.log('Worklet rooms loaded:', rooms);
+    console.log('Current user ID:', currentUserId);
+    console.log('Is WebSocket connected:', isConnected);
+  }, [rooms, currentUserId, isConnected]);
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
@@ -299,40 +445,44 @@ export default function MentorChatPage() {
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredRooms.map((room) => (
                   <motion.div
-                    key={room.room_id}
+                    key={room.user_id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     onClick={() => handleSelectRoom(room)}
                     className={`p-4 cursor-pointer transition-colors ${
-                      selectedRoom?.room_id === room.room_id
+                      selectedUser?.worklet_id === room.worklet_id
                         ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
                         : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                          {room.other_user_name}
+                        <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 truncate">
+                          {room.worklet_cert_id}
+                        </p>
+                        <h3 className="font-semibold text-gray-900 dark:text-white truncate mt-0.5">
+                          {room.worklet_title || 'Worklet'}
                         </h3>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                          {room.worklet_title}
+                        <p className="text-xs text-gray-500 dark:text-gray-500 truncate mt-0.5">
+                          {room.member_count} members
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 ml-2">
-                        {room.last_message_at && (
+                        {room.last_message_time && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatTime(room.last_message_at)}
+                            {formatTime(room.last_message_time)}
                           </span>
                         )}
                         {room.unread_count > 0 && (
-                          <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-0.5 font-medium">
+                          <div className="flex items-center justify-center bg-blue-500 text-white text-xs rounded-full min-w-[22px] h-[22px] px-1.5 font-semibold shadow-sm">
                             {room.unread_count}
-                          </span>
+                          </div>
                         )}
                       </div>
                     </div>
                     {room.last_message && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                        <span className="font-medium">{room.last_sender_name}: </span>
                         {room.last_message}
                       </p>
                     )}
@@ -351,11 +501,14 @@ export default function MentorChatPage() {
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <div className="flex items-center justify-between">
                   <div>
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                      {selectedUser?.worklet_cert_id}
+                    </p>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                      {selectedRoom.other_user_name}
+                      {selectedUser?.worklet_title || 'Worklet'}
                     </h2>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {selectedRoom.worklet_title}
+                      {selectedUser?.member_count} members
                     </p>
                   </div>
                   <button
@@ -368,7 +521,7 @@ export default function MentorChatPage() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
                 {loading ? (
                   <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                     Loading messages...

@@ -429,3 +429,44 @@ CREATE INDEX idx_meeting_status ON meetings(status);
 CREATE INDEX idx_eval_user ON evaluations(user_id);
 CREATE INDEX idx_eval_worklet ON evaluations(WorkletID);
 CREATE INDEX idx_eval_date ON evaluations(evaluated_at);
+
+-- ========================
+-- 14. Messages System
+-- ========================
+
+-- Create messages table for chat functionality
+CREATE TABLE IF NOT EXISTS messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT NOT NULL,
+    receiver_id INT NULL,  -- NULL for group messages
+    worklet_id INT NULL,   -- For worklet group messages
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (worklet_id) REFERENCES prism_worklet(worklet_id) ON DELETE CASCADE,
+    INDEX idx_sender (sender_id),
+    INDEX idx_receiver (receiver_id),
+    INDEX idx_worklet (worklet_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create message_reads table to track which users have read which messages
+CREATE TABLE IF NOT EXISTS message_reads (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    message_id INT NOT NULL,
+    user_id INT NOT NULL,
+    read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Foreign keys
+    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    
+    -- Unique constraint to prevent duplicate reads
+    UNIQUE KEY unique_message_user_read (message_id, user_id),
+    
+    -- Indexes for performance
+    INDEX idx_message_reads_message_id (message_id),
+    INDEX idx_message_reads_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tracks which users have read which messages for per-user unread status';
