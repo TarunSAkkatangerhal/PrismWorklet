@@ -5,6 +5,8 @@ import { MentorRoute, StudentRoute, ProtectedRoute } from "./components/RoleBase
 import RoleRedirect from "./components/RoleRedirect";
 import Login from "./Shared Components/login";
 import ForgotPassword from "./Shared Components/ForgotPassword";
+import StudentChatPage from "./Students/StudentChatPage";
+import MentorChatPage from "./Mentors/MentorChatPage";
 import Home from "./Mentors/Home";
 import Dashboard from "./Mentors/dashboard";
 import Portfolio from "./Mentors/portfolio";
@@ -47,12 +49,14 @@ export default function App() {
         <Route path="/meeting" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
         <Route path="/portfolio" element={<ProtectedRoute><Portfolio/></ProtectedRoute>}/>
         <Route path="/academia" element={<ProtectedRoute><Colleges /></ProtectedRoute>} />
+        <Route path="/mentor-chat" element={<ProtectedRoute><MentorRoute><MentorChatPage /></MentorRoute></ProtectedRoute>} />
         {/*-------------------------------- Mentor Routing End-------------------------------- */}
 
 
 
         {/* -------------------------------- Student Routing Start -------------------------------- */}
           <Route path="/student-dashboard" element={<ProtectedRoute><StudentRoute><StudentDashboard /></StudentRoute></ProtectedRoute>} />
+          <Route path="/student-chat" element={<ProtectedRoute><StudentRoute><StudentChatPage /></StudentRoute></ProtectedRoute>} />
         {/* -------------------------------- Student Routing End -------------------------------- */}
 
 
