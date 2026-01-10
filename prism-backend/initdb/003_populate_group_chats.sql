@@ -3,7 +3,7 @@
 
 -- Step 1: Create group chats for all worklets that don't have one yet
 INSERT INTO group_chats (worklet_id, group_name, created_by, created_at)
-SELECT 
+SELECT
     w.id,
     CONCAT('Worklet-', w.id),
     COALESCE(
