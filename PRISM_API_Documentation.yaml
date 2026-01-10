@@ -1,0 +1,2169 @@
+openapi: 3.0.3
+info:
+  title: Samsung PRISM Worklet Management System API
+  description: |
+    Comprehensive API documentation for the Samsung PRISM Worklet Management System.
+    
+    ## Overview
+    A full-stack platform for managing academic worklets, facilitating mentor-student collaboration,
+    and tracking research outcomes including publications, patents, and commercializations.
+    
+    ## Authentication
+    All protected endpoints require JWT Bearer token authentication.
+    - Access Token: 30 minutes validity
+    - Refresh Token: 7 days validity
+    
+    ## Base URL
+    - Development: http://localhost:8000
+    - Production: TBD
+    
+    ## Rate Limiting
+    - Auth endpoints: 30 requests per minute per IP
+    
+    ## Features
+    - Multi-role access control (Admin, Mentor, Professor, Student)
+    - OTP-based email verification
+    - Worklet lifecycle management
+    - Milestone tracking with dual feedback (mentor + professor)
+    - Suggestions and feedback system
+    - Portfolio management (papers, patents, achievements, commercializations)
+    - Meeting scheduling and management
+    - Dashboard analytics
+    
+  version: 1.0.0
+  contact:
+    name: Samsung PRISM Team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: http://localhost:8000/api
+    description: API versioned endpoint (future)
+
+tags:
+  - name: Auth
+    description: Authentication and authorization endpoints
+  - name: Health
+    description: Health check and system status
+  - name: Worklets
+    description: Worklet management and CRUD operations
+  - name: Dashboard
+    description: Analytics and statistics
+  - name: Evaluations
+    description: Mentor evaluations and performance tracking
+  - name: Associations
+    description: User-worklet associations and relationships
+  - name: Portfolio
+    description: Publications, patents, achievements, commercializations
+  - name: Suggestions
+    description: Mentor-student feedback and suggestions
+  - name: Milestones
+    description: Student milestone tracking and reviews
+  - name: Meetings
+    description: Meeting scheduling and management
+  - name: Colleges
+    description: College management and statistics
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  schemas:
+    # ==================== Auth Schemas ====================
+    RequestOTP:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: student@example.com
+    
+    VerifyOTP:
+      type: object
+      required:
+        - email
+        - otp_code
+      properties:
+        email:
+          type: string
+          format: email
+        otp_code:
+          type: string
+          pattern: '^\d{6}$'
+          example: "123456"
+    
+    SetPassword:
+      type: object
+      required:
+        - email
+        - name
+        - role
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 2
+        role:
+          type: string
+          enum: [Admin, Mentor, Professor, Student]
+        password:
+          type: string
+          minLength: 8
+          description: Must be at least 8 characters
+    
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          format: email
+        password:
+          type: string
+        role:
+          type: string
+          enum: [Admin, Mentor, Professor, Student]
+          description: Optional role filter
+    
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+        user:
+          $ref: '#/components/schemas/UserResponse'
+    
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+    
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - new_password
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+
+    # ==================== User Schemas ====================
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [Admin, Mentor, Professor, Student]
+        team:
+          type: string
+          nullable: true
+        college:
+          type: string
+          nullable: true
+        is_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    # ==================== Worklet Schemas ====================
+    WorkletCreate:
+      type: object
+      required:
+        - title
+        - start_date
+        - end_date
+      properties:
+        title:
+          type: string
+          minLength: 3
+        cert_id:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        problem_statement:
+          type: string
+          nullable: true
+        expectation:
+          type: string
+          nullable: true
+        prerequisites:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [To Start, Ongoing, Completed, On Hold, Dropped]
+          default: Ongoing
+        domain:
+          type: integer
+          description: TechDomain ID
+          nullable: true
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        college_id:
+          type: integer
+          nullable: true
+    
+    WorkletUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [To Start, Ongoing, Completed, On Hold, Dropped]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        github_url:
+          type: string
+          format: uri
+        performance:
+          type: string
+          enum: [Very Good, Good, Average, Poor, NA]
+        risk_status:
+          type: integer
+          enum: [0, 1, 2, 3]
+          description: 0=NA/Grey, 1=High/Red, 2=Medium/Amber, 3=Safe/Green
+    
+    WorkletResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        cert_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        github_url:
+          type: string
+        domain:
+          type: string
+        team:
+          type: string
+        college_name:
+          type: string
+        student_count:
+          type: integer
+        students:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              email:
+                type: string
+        created_at:
+          type: string
+          format: date-time
+        performance:
+          type: string
+        risk_status:
+          type: integer
+
+    # ==================== Association Schemas ====================
+    UserWorkletAssociationCreate:
+      type: object
+      required:
+        - user_id
+        - worklet_id
+        - role_in_worklet
+      properties:
+        user_id:
+          type: integer
+        worklet_id:
+          type: integer
+        role_in_worklet:
+          type: string
+          enum: [Mentor, Student, Professor]
+    
+    WorkletWithAssociations:
+      type: object
+      properties:
+        worklet:
+          $ref: '#/components/schemas/WorkletResponse'
+        mentors:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        professors:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+
+    # ==================== Evaluation Schemas ====================
+    EvaluationSubmit:
+      type: object
+      required:
+        - worklet_id
+      properties:
+        worklet_id:
+          type: integer
+        performance_rating:
+          type: string
+          enum: [poor, average, good, very_good, excellent, outstanding]
+        completion_quality:
+          type: string
+          enum: [poor, average, good, very_good, excellent]
+        innovation_score:
+          type: integer
+          minimum: 1
+          maximum: 10
+        teamwork_rating:
+          type: string
+          enum: [needs_improvement, average, good, excellent]
+        perks:
+          type: object
+          properties:
+            points_awarded:
+              type: integer
+              default: 0
+            certificate_type:
+              type: string
+            recommendation_letter:
+              type: boolean
+              default: false
+            internship_opportunity:
+              type: boolean
+              default: false
+            bonus_credits:
+              type: integer
+              default: 0
+            special_recognition:
+              type: string
+            mentorship_extension:
+              type: boolean
+              default: false
+        comments:
+          type: string
+        feedback:
+          type: string
+        evaluated_by:
+          type: string
+          format: email
+        evaluation_date:
+          type: string
+          format: date-time
+
+    # ==================== Portfolio Schemas ====================
+    AchievementCreate:
+      type: object
+      required:
+        - title
+        - type
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        year:
+          type: integer
+        type:
+          type: string
+          enum: [Award, Recognition, Other]
+        link:
+          type: string
+        worklet_id:
+          type: integer
+          nullable: true
+    
+    PaperCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        publication_year:
+          type: integer
+        journal:
+          type: string
+        doi:
+          type: string
+        link:
+          type: string
+        worklet_id:
+          type: integer
+          nullable: true
+    
+    PatentCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        application_number:
+          type: string
+        filing_year:
+          type: integer
+        status:
+          type: string
+          enum: [Filed, Granted, Pending]
+        link:
+          type: string
+        worklet_id:
+          type: integer
+          nullable: true
+    
+    CommercializationCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        year:
+          type: integer
+        revenue:
+          type: number
+          format: decimal
+        company:
+          type: string
+        link:
+          type: string
+        worklet_id:
+          type: integer
+          nullable: true
+
+    # ==================== Suggestion Schemas ====================
+    SuggestionCreate:
+      type: object
+      required:
+        - worklet_id
+        - suggestion_title
+        - suggestion_content
+      properties:
+        worklet_id:
+          type: integer
+        suggestion_title:
+          type: string
+        suggestion_content:
+          type: string
+        category:
+          type: string
+          default: General
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+    
+    SuggestionUpdate:
+      type: object
+      properties:
+        is_read:
+          type: boolean
+        is_helpful:
+          type: boolean
+        student_response:
+          type: string
+    
+    SuggestionOut:
+      type: object
+      properties:
+        suggestion_id:
+          type: integer
+        worklet_id:
+          type: integer
+        mentor_id:
+          type: integer
+        mentor_name:
+          type: string
+        mentor_email:
+          type: string
+        suggestion_title:
+          type: string
+        suggestion_content:
+          type: string
+        category:
+          type: string
+        priority:
+          type: string
+        is_read:
+          type: boolean
+        is_helpful:
+          type: boolean
+        student_response:
+          type: string
+        response_date:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    # ==================== Milestone Schemas ====================
+    MilestoneCreate:
+      type: object
+      required:
+        - worklet_id
+        - milestone_type
+      properties:
+        worklet_id:
+          type: integer
+        milestone_type:
+          type: string
+          example: First Review
+        date_created:
+          type: string
+          format: date-time
+        field1_label:
+          type: string
+        field1_value:
+          type: string
+        field2_label:
+          type: string
+        field2_value:
+          type: string
+        toggle_label:
+          type: string
+        toggle_value:
+          type: boolean
+        attachment_name:
+          type: string
+        attachment_size:
+          type: integer
+        attachment_type:
+          type: string
+        attachment_url:
+          type: string
+    
+    MilestoneFeedbackCreate:
+      type: object
+      required:
+        - milestone_id
+        - reviewer_role
+        - feedback_content
+      properties:
+        milestone_id:
+          type: integer
+        reviewer_role:
+          type: string
+          enum: [Mentor, Professor]
+        feedback_content:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+    
+    MilestoneOut:
+      type: object
+      properties:
+        milestone_id:
+          type: integer
+        worklet_id:
+          type: integer
+        student_id:
+          type: integer
+        student_name:
+          type: string
+        student_email:
+          type: string
+        milestone_type:
+          type: string
+        date_created:
+          type: string
+          format: date-time
+        field1_label:
+          type: string
+        field1_value:
+          type: string
+        field2_label:
+          type: string
+        field2_value:
+          type: string
+        toggle_label:
+          type: string
+        toggle_value:
+          type: boolean
+        attachment_name:
+          type: string
+        attachment_url:
+          type: string
+        feedbacks:
+          type: array
+          items:
+            $ref: '#/components/schemas/MilestoneFeedbackOut'
+    
+    MilestoneFeedbackOut:
+      type: object
+      properties:
+        feedback_id:
+          type: integer
+        milestone_id:
+          type: integer
+        reviewer_id:
+          type: integer
+        reviewer_name:
+          type: string
+        reviewer_email:
+          type: string
+        reviewer_role:
+          type: string
+        feedback_content:
+          type: string
+        rating:
+          type: integer
+        feedback_date:
+          type: string
+          format: date-time
+
+    # ==================== Meeting Schemas ====================
+    MeetingCreate:
+      type: object
+      required:
+        - title
+        - scheduled_date
+        - start_time
+        - duration_minutes
+        - worklet_ids
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        scheduled_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+          example: "14:30"
+        duration_minutes:
+          type: integer
+          minimum: 15
+          maximum: 480
+        meeting_link:
+          type: string
+          format: uri
+        worklet_ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+        is_recurring:
+          type: boolean
+          default: false
+        recurrence:
+          type: object
+          properties:
+            frequency:
+              type: string
+              enum: [daily, weekly, monthly]
+            interval:
+              type: integer
+              minimum: 1
+            end_date:
+              type: string
+              format: date
+    
+    MeetingUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [upcoming, live, completed, cancelled]
+        meeting_link:
+          type: string
+        notes:
+          type: string
+    
+    MeetingOut:
+      type: object
+      properties:
+        meeting_id:
+          type: integer
+        organizer_id:
+          type: integer
+        organizer_name:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        scheduled_datetime:
+          type: string
+          format: date-time
+        duration_minutes:
+          type: integer
+        meeting_link:
+          type: string
+        status:
+          type: string
+        worklets:
+          type: array
+          items:
+            type: object
+            properties:
+              worklet_id:
+                type: integer
+              title:
+                type: string
+              scheduled_start:
+                type: string
+                format: date-time
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        created_at:
+          type: string
+          format: date-time
+
+    # ==================== College Schemas ====================
+    CollegeOut:
+      type: object
+      properties:
+        college_id:
+          type: integer
+        college_name:
+          type: string
+        location:
+          type: string
+        established:
+          type: integer
+        infrastructure:
+          type: string
+        area_of_expertise:
+          type: string
+        workletCount:
+          type: integer
+        veryGoodCount:
+          type: integer
+        goodCount:
+          type: integer
+        averageCount:
+          type: integer
+        poorCount:
+          type: integer
+        completedCount:
+          type: integer
+        ongoingCount:
+          type: integer
+        onHoldCount:
+          type: integer
+        terminatedCount:
+          type: integer
+        totalStudents:
+          type: integer
+
+    # ==================== Dashboard Schemas ====================
+    DashboardStatistics:
+      type: object
+      properties:
+        total_worklets:
+          type: integer
+        completed_worklets:
+          type: integer
+        ongoing_worklets:
+          type: integer
+        total_mentors:
+          type: integer
+        total_students:
+          type: integer
+        total_professors:
+          type: integer
+        publications:
+          type: integer
+        patents:
+          type: integer
+
+    # ==================== Error Response ====================
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        status_code:
+          type: integer
+
+paths:
+  # ==================== Health Check ====================
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API is running
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  service:
+                    type: string
+                    example: Samsung PRISM Backend
+
+  # ==================== Authentication ====================
+  /auth/request-otp:
+    post:
+      tags:
+        - Auth
+      summary: Request OTP for registration
+      description: Send OTP to email for new user registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestOTP'
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: OTP sent successfully to your email.
+        '400':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/verify-otp:
+    post:
+      tags:
+        - Auth
+      summary: Verify OTP
+      description: Verify the OTP sent to email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOTP'
+      responses:
+        '200':
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: OTP verified. Please set your password.
+        '400':
+          description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/set-password:
+    post:
+      tags:
+        - Auth
+      summary: Set password after OTP verification
+      description: Complete registration by setting password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPassword'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: OTP not verified or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: User login
+      description: Login with email and password to get JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      description: Get new access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: New access token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current user
+      description: Get currently authenticated user information
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Request password reset
+      description: Send password reset link to email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Reset email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Reset password
+      description: Reset password using token from email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Worklets ====================
+  /worklets/:
+    get:
+      tags:
+        - Worklets
+      summary: List all worklets
+      description: Get list of all worklets with optional year filtering
+      parameters:
+        - name: year
+          in: query
+          description: Filter by year (checks if worklet was active in this year)
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of worklets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkletResponse'
+    
+    post:
+      tags:
+        - Worklets
+      summary: Create new worklet
+      description: Create a new worklet (Mentor/Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkletCreate'
+      responses:
+        '201':
+          description: Worklet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkletResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /worklets/{worklet_id}:
+    get:
+      tags:
+        - Worklets
+      summary: Get worklet by ID
+      description: Get detailed information about a specific worklet
+      parameters:
+        - name: worklet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Worklet details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkletResponse'
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    put:
+      tags:
+        - Worklets
+      summary: Update worklet
+      description: Update worklet details (Mentor/Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worklet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkletUpdate'
+      responses:
+        '200':
+          description: Worklet updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkletResponse'
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    delete:
+      tags:
+        - Worklets
+      summary: Delete worklet
+      description: Delete a worklet (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worklet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Worklet deleted successfully
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Dashboard ====================
+  /api/dashboard/statistics:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard statistics
+      description: Get platform-wide statistics with optional filters
+      parameters:
+        - name: year
+          in: query
+          description: Filter by year
+          schema:
+            type: integer
+        - name: domain
+          in: query
+          description: Filter by technology domain
+          schema:
+            type: string
+        - name: team
+          in: query
+          description: Filter by team
+          schema:
+            type: string
+        - name: debug
+          in: query
+          description: Include debug information
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStatistics'
+
+  # ==================== Evaluations ====================
+  /evaluations/submit:
+    post:
+      tags:
+        - Evaluations
+      summary: Submit evaluation
+      description: Submit mentor evaluation for a worklet
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationSubmit'
+      responses:
+        '200':
+          description: Evaluation submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  evaluation_id:
+                    type: integer
+                  worklet_id:
+                    type: integer
+                  score:
+                    type: integer
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Associations ====================
+  /api/associations/:
+    post:
+      tags:
+        - Associations
+      summary: Create user-worklet association
+      description: Associate a user with a worklet in a specific role
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserWorkletAssociationCreate'
+      responses:
+        '200':
+          description: Association created successfully
+        '400':
+          description: Association already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User or worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/associations/worklet/{worklet_id}:
+    get:
+      tags:
+        - Associations
+      summary: Get worklet with all associated users
+      description: Get worklet details with mentors, students, and professors
+      parameters:
+        - name: worklet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: include_inactive
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Worklet with associations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkletWithAssociations'
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/associations/user/{user_id}/worklets:
+    get:
+      tags:
+        - Associations
+      summary: Get user's worklets
+      description: Get all worklets associated with a user
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: role_filter
+          in: query
+          description: Filter by role in worklet
+          schema:
+            type: string
+            enum: [Mentor, Student, Professor]
+      responses:
+        '200':
+          description: User's worklets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkletResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Portfolio ====================
+  /api/portfolio/mentor/{mentor_id}:
+    get:
+      tags:
+        - Portfolio
+      summary: Get mentor portfolio
+      description: Get comprehensive portfolio for a mentor
+      parameters:
+        - name: mentor_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: include_worklets
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Mentor portfolio
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mentor:
+                    $ref: '#/components/schemas/UserResponse'
+                  achievements:
+                    type: array
+                    items:
+                      type: object
+                  papers:
+                    type: array
+                    items:
+                      type: object
+                  patents:
+                    type: array
+                    items:
+                      type: object
+                  commercializations:
+                    type: array
+                    items:
+                      type: object
+                  worklets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkletResponse'
+                  stats:
+                    type: object
+        '404':
+          description: Mentor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/portfolio/student/me:
+    get:
+      tags:
+        - Portfolio
+      summary: Get my portfolio (student)
+      description: Get portfolio for authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Student portfolio
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/portfolio/achievements:
+    post:
+      tags:
+        - Portfolio
+      summary: Create achievement
+      description: Add new achievement to portfolio
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AchievementCreate'
+      responses:
+        '201':
+          description: Achievement created
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/portfolio/papers:
+    post:
+      tags:
+        - Portfolio
+      summary: Create paper publication
+      description: Add new paper to portfolio
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaperCreate'
+      responses:
+        '201':
+          description: Paper created
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/portfolio/patents:
+    post:
+      tags:
+        - Portfolio
+      summary: Create patent
+      description: Add new patent to portfolio
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+              schema:
+              $ref: '#/components/schemas/PatentCreate'
+      responses:
+        '201':
+          description: Patent created
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/portfolio/commercializations:
+    post:
+      tags:
+        - Portfolio
+      summary: Create commercialization
+      description: Add new commercialization to portfolio
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommercializationCreate'
+      responses:
+        '201':
+          description: Commercialization created
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Suggestions ====================
+  /suggestions/:
+    post:
+      tags:
+        - Suggestions
+      summary: Create suggestion
+      description: Create new suggestion for a worklet (Mentor only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestionCreate'
+      responses:
+        '201':
+          description: Suggestion created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionOut'
+        '403':
+          description: Only mentors can create suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /suggestions/worklet/{worklet_id}:
+    get:
+      tags:
+        - Suggestions
+      summary: Get worklet suggestions
+      description: Get all suggestions for a worklet
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worklet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuggestionOut'
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /suggestions/{suggestion_id}:
+    patch:
+      tags:
+        - Suggestions
+      summary: Update suggestion
+      description: Mark suggestion as read, helpful, or add response
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: suggestion_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestionUpdate'
+      responses:
+        '200':
+          description: Suggestion updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionOut'
+        '404':
+          description: Suggestion not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    delete:
+      tags:
+        - Suggestions
+      summary: Delete suggestion
+      description: Delete suggestion (creator only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: suggestion_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Suggestion deleted
+        '403':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Suggestion not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /suggestions/mentor/my-suggestions:
+    get:
+      tags:
+        - Suggestions
+      summary: Get my suggestions
+      description: Get all suggestions created by current mentor
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of mentor's suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuggestionOut'
+        '403':
+          description: Only mentors can access this endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Milestones ====================
+  /milestones/:
+    post:
+      tags:
+        - Milestones
+      summary: Create milestone
+      description: Create new milestone for a worklet (Student only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestoneCreate'
+      responses:
+        '201':
+          description: Milestone created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MilestoneOut'
+        '403':
+          description: Only students can create milestones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /milestones/worklet/{worklet_id}:
+    get:
+      tags:
+        - Milestones
+      summary: Get worklet milestones
+      description: Get all milestones for a worklet
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worklet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of milestones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MilestoneOut'
+        '404':
+          description: Worklet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /milestones/{milestone_id}/feedback:
+    post:
+      tags:
+        - Milestones
+      summary: Add milestone feedback
+      description: Add feedback to milestone (Mentor/Professor only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: milestone_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestoneFeedbackCreate'
+      responses:
+        '201':
+          description: Feedback added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MilestoneFeedbackOut'
+        '403':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Milestone not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Meetings ====================
+  /api/meetings/:
+    post:
+      tags:
+        - Meetings
+      summary: Create meeting
+      description: Schedule new meeting with worklets (Mentor only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingCreate'
+      responses:
+        '201':
+          description: Meeting created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingOut'
+        '403':
+          description: Only mentors can create meetings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    get:
+      tags:
+        - Meetings
+      summary: Get user's meetings
+      description: Get all meetings for authenticated user
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by meeting status
+          schema:
+            type: string
+            enum: [upcoming, live, completed, cancelled]
+      responses:
+        '200':
+          description: List of meetings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MeetingOut'
+
+  /api/meetings/{meeting_id}:
+    get:
+      tags:
+        - Meetings
+      summary: Get meeting details
+      description: Get detailed information about a meeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: meeting_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Meeting details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingOut'
+        '404':
+          description: Meeting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    patch:
+      tags:
+        - Meetings
+      summary: Update meeting
+      description: Update meeting details (organizer only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: meeting_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingUpdate'
+      responses:
+        '200':
+          description: Meeting updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingOut'
+        '403':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Meeting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    delete:
+      tags:
+        - Meetings
+      summary: Cancel meeting
+      description: Cancel a meeting (organizer only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: meeting_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Meeting cancelled
+        '403':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Meeting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Colleges ====================
+  /colleges/:
+    get:
+      tags:
+        - Colleges
+      summary: Get all colleges
+      description: Get list of all colleges with statistics
+      responses:
+        '200':
+          description: List of colleges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollegeOut'
+
+  /colleges/{college_id}:
+    get:
+      tags:
+        - Colleges
+      summary: Get college details
+      description: Get detailed information about a college
+      parameters:
+        - name: college_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: College details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollegeOut'
+        '404':
+          description: College not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /colleges/{college_id}/worklets:
+    get:
+      tags:
+        - Colleges
+      summary: Get college worklets
+      description: Get all worklets associated with a college
+      parameters:
+        - name: college_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of worklets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '404':
+          description: College not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ==================== Additional Information ====================
+externalDocs:
+  description: Samsung PRISM GitHub Repository
+  url: https://github.com/samsung/prism
+
+x-api-design-principles:
+  - RESTful architecture
+  - JWT authentication with refresh tokens
+  - Role-based access control
+  - Comprehensive error handling
+  - Rate limiting on authentication endpoints
+  - Database connection pooling
+  - Email notifications for key events
+  - Auto-increment milestone progress after 2 days
+
+x-database-schema:
+  tables:
+    - users (multi-role: Admin, Mentor, Professor, Student)
+    - user_profiles (extended user information)
+    - Prism_Worklet (research projects)
+    - user_worklet_association (many-to-many relationships)
+    - colleges (academic institutions)
+    - evaluations (mentor evaluations)
+    - suggestions (feedback system)
+    - milestones (student milestones)
+    - milestone_feedback (dual-role reviews)
+    - meetings (meeting scheduling)
+    - achievements (awards, recognitions)
+    - papers (publications)
+    - patents (patent filings)
+    - commercializations (product commercializations)
+
+x-technical-stack:
+  backend:
+    - FastAPI 0.104+
+    - Python 3.11+
+    - SQLAlchemy 2.0+
+    - PyMySQL
+    - Redis (OTP caching)
+    - JWT (python-jose)
+    - Passlib (password hashing with Argon2/bcrypt)
+  frontend:
+    - React 18
+    - TypeScript
+    - Tailwind CSS
+    - Axios
+  database:
+    - MySQL 8
+  deployment:
+    - Docker
+    - Docker Compose
+
+x-security-features:
+  - OTP-based registration
+  - JWT access and refresh tokens
+  - Password hashing (Argon2/bcrypt)
+  - Rate limiting
+  - Input sanitization
+  - CORS configuration
+  - Role-based authorization
+
+x-notification-system:
+  - Email notifications for:
+    - OTP verification
+    - Password reset
+    - New milestone submissions
+    - Meeting scheduling
+    - Meeting cancellations
+    - Worklet status updates
