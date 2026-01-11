@@ -31,44 +31,32 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     INDEX idx_chat_message_sender (sender_id)
 );
 
--- Group Chats (one per worklet)
-CREATE TABLE IF NOT EXISTS group_chats (
-    group_id INT AUTO_INCREMENT PRIMARY KEY,
-    worklet_id INT NOT NULL UNIQUE,
-    group_name VARCHAR(255) NOT NULL,
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (worklet_id) REFERENCES Prism_Worklet(WorkletID) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE CASCADE,
-    INDEX idx_group_worklet (worklet_id)
-);
-
--- Group Chat Members
-CREATE TABLE IF NOT EXISTS group_chat_members (
-    member_id INT AUTO_INCREMENT PRIMARY KEY,
-    group_id INT NOT NULL,
-    user_id INT NOT NULL,
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_admin BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (group_id) REFERENCES group_chats(group_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    UNIQUE KEY unique_group_member (group_id, user_id),
-    INDEX idx_group_member_user (user_id)
-);
-
--- Group Chat Messages
+-- Group Chat Messages (Simplified - links directly to worklets)
+-- Group membership is implicit via user_worklet_association table
+-- No separate group_chats or group_chat_members tables needed
 CREATE TABLE IF NOT EXISTS group_chat_messages (
     message_id INT AUTO_INCREMENT PRIMARY KEY,
-    group_id INT NOT NULL,
+    WorkletID INT NOT NULL,
     sender_id INT NOT NULL,
     message_text TEXT NOT NULL,
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_edited BOOLEAN DEFAULT FALSE,
     is_deleted BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (group_id) REFERENCES group_chats(group_id) ON DELETE CASCADE,
+    FOREIGN KEY (WorkletID) REFERENCES Prism_Worklet(WorkletID) ON DELETE CASCADE,
     FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    INDEX idx_group_message_group (group_id, sent_at),
+    INDEX idx_group_message_worklet_sent (WorkletID, sent_at),
     INDEX idx_group_message_sender (sender_id)
+);
+
+-- Group Message Read Receipts (track individual read status per user)
+CREATE TABLE IF NOT EXISTS group_message_read_receipts (
+    receipt_id INT AUTO_INCREMENT PRIMARY KEY,
+    message_id INT NOT NULL,
+    user_id INT NOT NULL,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (message_id) REFERENCES group_chat_messages(message_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_message_user (message_id, user_id),
+    INDEX idx_receipt_message (message_id),
+    INDEX idx_receipt_user (user_id)
 );

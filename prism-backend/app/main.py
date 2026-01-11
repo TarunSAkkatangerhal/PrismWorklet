@@ -114,7 +114,7 @@ def student_worklets_me_alias(token: str = Depends(oauth2_scheme), db: Session =
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
-    """Run migrations and initialize database on startup"""
+    """Initialize database on startup"""
     try:
         # Auto-create tables if not present
         Base.metadata.create_all(bind=engine)
@@ -127,75 +127,11 @@ async def startup_event():
         # Configuration validation warnings
         settings.validate_required_settings()
         
-        # Create group chats for existing worklets
-        print("🔄 Running startup migrations...")
-        from app.models import Worklet, UserWorkletAssociation, GroupChat, GroupChatMember
-        
-        db = SessionLocal()
-        try:
-            # Count existing group chats
-            existing_count = db.query(GroupChat).count()
-            
-            # Get worklets that need group chats
-            worklets_with_users = db.query(Worklet.id).join(
-                UserWorkletAssociation,
-                Worklet.id == UserWorkletAssociation.worklet_id
-            ).distinct().all()
-            
-            created_count = 0
-            
-            for (worklet_id,) in worklets_with_users:
-                # Check if group exists
-                existing_group = db.query(GroupChat).filter(
-                    GroupChat.worklet_id == worklet_id
-                ).first()
-                
-                if not existing_group:
-                    # Get mentor as creator
-                    mentor = db.query(UserWorkletAssociation).filter(
-                        UserWorkletAssociation.worklet_id == worklet_id,
-                        UserWorkletAssociation.role_in_worklet == 'Mentor'
-                    ).first()
-                    
-                    creator_id = mentor.user_id if mentor else 1
-                    
-                    # Create group
-                    new_group = GroupChat(
-                        worklet_id=worklet_id,
-                        group_name=f"Worklet-{worklet_id}",
-                        created_by=creator_id
-                    )
-                    db.add(new_group)
-                    db.flush()
-                    
-                    # Add members
-                    members = db.query(UserWorkletAssociation).filter(
-                        UserWorkletAssociation.worklet_id == worklet_id
-                    ).all()
-                    
-                    for member in members:
-                        group_member = GroupChatMember(
-                            group_id=new_group.group_id,
-                            user_id=member.user_id,
-                            is_admin=(member.role_in_worklet == 'Mentor')
-                        )
-                        db.add(group_member)
-                    
-                    created_count += 1
-            
-            db.commit()
-            
-            if created_count > 0:
-                print(f"✅ Created {created_count} new group chats")
-            else:
-                print(f"✅ All {existing_count} group chats already exist")
-                
-        finally:
-            db.close()
+        print("✅ Database initialized - Group chats are now implicit via worklet membership")
         
     except Exception as e:
         logger.error(f"Startup error: {e}", exc_info=True)
-        print(f"⚠️ Startup migration error: {e}")
+        print(f"⚠️ Startup error: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
