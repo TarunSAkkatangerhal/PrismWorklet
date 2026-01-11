@@ -44,7 +44,7 @@ const useChatWebSocket = (onMessage) => {
         return;
       }
 
-      const wsUrl = `ws://localhost:8000/api/chat/ws?token=${token}`;
+      const wsUrl = `ws://localhost:8000/api/messages/ws?token=${token}`;
       console.log('Connecting to WebSocket:', wsUrl);
       wsRef.current = new WebSocket(wsUrl);
 
@@ -168,12 +168,13 @@ export default function MentorChatPage() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [chatType, setChatType] = useState('all'); // 'all', 'individual', 'group'
+  const [chatType, setChatType] = useState('group'); // 'all', 'individual', 'group'
   const [showGroupProfile, setShowGroupProfile] = useState(false);
   const [groupProfile, setGroupProfile] = useState(null);
   const messagesEndRef = useRef(null);
   const isUserScrollingRef = useRef(false);
   const messagesContainerRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
 
   const scrollToBottom = () => {
     if (!isUserScrollingRef.current) {
@@ -245,13 +246,13 @@ export default function MentorChatPage() {
         });
         
         if (message.sender_id !== currentUserId) {
-          secureAPI.patch(`/api/chat/messages/${message.message_id}/read`).catch(console.error);
+          // Mark as read handled by backend when fetching messages
         }
       } else {
         console.log('Message not for current room or room not selected');
       }
       
-      fetchRooms();
+      fetchConversations();
     } else if (data.type === 'new_group_message') {
       const message = data.data;
       console.log('New group message received:', message);
@@ -290,7 +291,7 @@ export default function MentorChatPage() {
   // Fetch conversations
   const fetchConversations = async () => {
     try {
-      const response = await secureAPI.get('/api/chat/rooms');
+      const response = await secureAPI.get('/api/messages/conversations');
       setRooms(response.data);
       
       if (response.data.length === 0) {
@@ -302,14 +303,10 @@ export default function MentorChatPage() {
     }
   };
 
-  // Fetch group chats
+  // Fetch group chats - integrated with conversations
   const fetchGroupChats = async () => {
-    try {
-      const response = await secureAPI.get('/api/chat/groups');
-      setGroupChats(response.data);
-    } catch (error) {
-      console.error('Error fetching group chats:', error);
-    }
+    // Group chats are now part of conversations endpoint
+    return;
   };
 
   // Fetch messages for a room
@@ -317,15 +314,16 @@ export default function MentorChatPage() {
     try {
       setLoading(true);
       const endpoint = isGroup 
-        ? `/api/chat/groups/${roomId}/messages?limit=100`
-        : `/api/chat/rooms/${roomId}/messages?limit=100`;
+        ? `/api/messages/group/${roomId}`
+        : `/api/messages/conversation/${roomId}/worklet/${selectedRoom.worklet_id || 0}`;
       const response = await secureAPI.get(endpoint);
       setMessages(response.data);
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
-      if (isInitialLoad) {
+      if (isInitialLoadRef.current) {
         setLoading(false);
+        isInitialLoadRef.current = false;
       }
     }
   };
@@ -384,13 +382,14 @@ export default function MentorChatPage() {
     setNewMessage('');
 
     try {
-      const endpoint = selectedRoom.isGroup ? '/api/chat/groups/messages' : '/api/chat/messages';
-      const payload = selectedRoom.isGroup
-        ? { group_id: selectedRoom.group_id, message_text: messageText }
-        : { room_id: selectedRoom.room_id, message_text: messageText };
+      const payload = {
+        content: messageText,
+        worklet_id: selectedRoom.worklet_id || selectedRoom.group_id,
+        receiver_id: selectedRoom.isGroup ? null : selectedRoom.other_user_id
+      };
 
-      console.log('Posting to:', endpoint, 'with payload:', payload);
-      const response = await secureAPI.post(endpoint, payload);
+      console.log('Posting to: /api/messages/send with payload:', payload);
+      const response = await secureAPI.post('/api/messages/send', payload);
       
       console.log('Message sent successfully:', response.data);
 
@@ -399,7 +398,15 @@ export default function MentorChatPage() {
         const updated = prev.map(msg => {
           if (msg.message_id === tempId) {
             console.log('Replacing temp message with real one:', response.data);
-            return { ...response.data, sending: false };
+            return { 
+              message_id: response.data.id,
+              sender_id: response.data.sender_id,
+              sender_name: response.data.sender_name,
+              message_text: response.data.content,
+              sent_at: response.data.created_at,
+              is_read: response.data.is_read,
+              sending: false 
+            };
           }
           return msg;
         });
@@ -409,7 +416,7 @@ export default function MentorChatPage() {
       if (selectedRoom.isGroup) {
         fetchGroupChats();
       } else {
-        fetchRooms();
+        fetchConversations();
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -425,7 +432,7 @@ export default function MentorChatPage() {
   // Load rooms on mount
   useEffect(() => {
     if (currentUserId) {
-      fetchRooms();
+      fetchConversations();
       fetchGroupChats();
     }
   }, [currentUserId]);
@@ -434,7 +441,7 @@ export default function MentorChatPage() {
   useEffect(() => {
     if (currentUserId) {
       const interval = setInterval(() => {
-        fetchRooms();
+        fetchConversations();
         fetchGroupChats();
       }, 10000);
       return () => clearInterval(interval);
@@ -443,13 +450,15 @@ export default function MentorChatPage() {
 
   // Combine and filter rooms by search and type
   const allConversations = [
-    ...rooms.map(r => ({ ...r, isGroup: false, displayName: r.other_user_name, chatId: r.room_id })),
-    ...groupChats.map(g => ({ ...g, isGroup: true, displayName: g.group_name, chatId: g.group_id }))
+    ...rooms.map(r => ({ ...r, isGroup: false, displayName: r.user_name || '', chatId: r.user_id })),
+    ...groupChats.map(g => ({ ...g, isGroup: true, displayName: g.group_name || '', chatId: g.group_id }))
   ];
 
   const filteredRooms = allConversations.filter(conv => {
-    const matchesSearch = conv.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (conv.worklet_title && conv.worklet_title.toLowerCase().includes(searchQuery.toLowerCase()));
+    const displayName = conv.displayName || '';
+    const workletTitle = conv.worklet_title || '';
+    const matchesSearch = displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      workletTitle.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesType = chatType === 'all' || 
       (chatType === 'individual' && !conv.isGroup) ||
@@ -561,6 +570,10 @@ export default function MentorChatPage() {
                           )}
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                          {conv.worklet_certid && (
+                            <span className="font-medium">{conv.worklet_certid}</span>
+                          )}
+                          {conv.worklet_certid && conv.worklet_title && ' - '}
                           {conv.worklet_title || 'Worklet Chat'}
                         </p>
                       </div>

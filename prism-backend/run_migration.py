@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models import Worklet, UserWorkletAssociation, GroupChat, GroupChatMember, User
+from app.models import Worklet, UserWorkletAssociation, GroupChat, User
 
 def create_group_chats_for_existing_worklets():
     """Create group chats for all worklets with user associations"""
@@ -58,58 +58,21 @@ def create_group_chats_for_existing_worklets():
                         created_by=creator.user_id if creator else None
                     )
                     db.add(new_group)
-                    db.flush()
-                    
-                    # Get all users for this worklet
-                    worklet_users = db.query(UserWorkletAssociation).filter(
-                        UserWorkletAssociation.worklet_id == worklet_id
-                    ).all()
-                    
-                    members_count = 0
-                    for user_assoc in worklet_users:
-                        is_admin = user_assoc.role_in_worklet == "Mentor"
-                        member = GroupChatMember(
-                            group_id=new_group.group_id,
-                            user_id=user_assoc.user_id,
-                            is_admin=is_admin
-                        )
-                        db.add(member)
-                        members_count += 1
-                    
                     db.commit()
+                    
+                    # Get member count for logging
+                    members_count = db.query(UserWorkletAssociation).filter(
+                        UserWorkletAssociation.worklet_id == worklet_id
+                    ).count()
+                    
                     created_groups += 1
-                    print(f"✅ Created: {group_name} (Worklet {worklet_id}) - {members_count} members")
+                    print(f"✅ Created: {group_name} (Worklet {worklet_id}) - {members_count} associated users")
                     
                 else:
-                    # Group exists, check if all users are members
-                    existing_members = db.query(GroupChatMember.user_id).filter(
-                        GroupChatMember.group_id == existing_group.group_id
-                    ).all()
-                    existing_member_ids = {m.user_id for m in existing_members}
-                    
-                    worklet_users = db.query(UserWorkletAssociation).filter(
-                        UserWorkletAssociation.worklet_id == worklet_id
-                    ).all()
-                    
-                    members_added = 0
-                    for user_assoc in worklet_users:
-                        if user_assoc.user_id not in existing_member_ids:
-                            is_admin = user_assoc.role_in_worklet == "Mentor"
-                            member = GroupChatMember(
-                                group_id=existing_group.group_id,
-                                user_id=user_assoc.user_id,
-                                is_admin=is_admin
-                            )
-                            db.add(member)
-                            members_added += 1
-                    
-                    if members_added > 0:
-                        db.commit()
-                        updated_groups += 1
-                        print(f"🔄 Updated: {existing_group.group_name} - Added {members_added} new members")
-                    else:
-                        skipped_groups += 1
-                        print(f"⏭️  Skipped: {existing_group.group_name} - Already complete")
+                    # Group exists, no member table to update
+                    # All users with worklet associations can access
+                    skipped_groups += 1
+                    print(f"⏭️  Skipped: {existing_group.group_name} - Already exists")
                         
             except Exception as e:
                 db.rollback()

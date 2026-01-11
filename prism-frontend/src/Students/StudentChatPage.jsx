@@ -44,7 +44,7 @@ const useChatWebSocket = (onMessage) => {
         return;
       }
 
-      const wsUrl = `ws://localhost:8000/api/chat/ws?token=${token}`;
+      const wsUrl = `ws://localhost:8000/api/messages/ws?token=${token}`;
       console.log('Connecting to WebSocket:', wsUrl);
       wsRef.current = new WebSocket(wsUrl);
 
@@ -230,11 +230,11 @@ export default function StudentChatPage() {
         });
         
         if (message.sender_id !== currentUserId) {
-          secureAPI.patch(`/api/chat/messages/${message.message_id}/read`).catch(console.error);
+          // Mark as read handled by backend when fetching messages
         }
       }
       
-      fetchRooms();
+      fetchConversations();
     } else if (data.type === 'new_group_message') {
       const message = data.data;
       
@@ -264,7 +264,7 @@ export default function StudentChatPage() {
   // Fetch worklet conversations
   const fetchConversations = async () => {
     try {
-      const response = await secureAPI.get('/api/chat/rooms');
+      const response = await secureAPI.get('/api/messages/conversations');
       setRooms(response.data);
       
       if (response.data.length === 0) {
@@ -314,7 +314,7 @@ export default function StudentChatPage() {
   const fetchMessages = async (workletId, isInitialLoad = false) => {
     try {
       setLoading(true);
-      const response = await secureAPI.get(`/api/chat/rooms/${roomId}/messages?limit=100`);
+      const response = await secureAPI.get(`/api/messages/group/${workletId}`);
       setMessages(response.data);
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -389,9 +389,10 @@ export default function StudentChatPage() {
         fetchGroupChats();
       } else {
         console.log('Sending individual message to room:', selectedRoom.room_id);
-        const response = await secureAPI.post('/api/chat/messages', {
-          room_id: selectedRoom.room_id,
-          message_text: messageText,
+        const response = await secureAPI.post('/api/messages/send', {
+          content: messageText,
+          worklet_id: selectedRoom.worklet_id,
+          receiver_id: null  // Group message
         });
         console.log('Message sent:', response.data);
         // Replace optimistic message with real one
@@ -405,7 +406,7 @@ export default function StudentChatPage() {
           });
           return updated;
         });
-        fetchRooms();
+        fetchConversations();
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -421,7 +422,7 @@ export default function StudentChatPage() {
   // Load rooms and groups on mount
   useEffect(() => {
     if (currentUserId) {
-      fetchRooms();
+      fetchConversations();
       fetchGroupChats();
     }
   }, [currentUserId]);
@@ -430,7 +431,7 @@ export default function StudentChatPage() {
   useEffect(() => {
     if (currentUserId) {
       const interval = setInterval(() => {
-        fetchRooms();
+        fetchConversations();
         fetchGroupChats();
       }, 10000);
       return () => clearInterval(interval);
@@ -438,10 +439,12 @@ export default function StudentChatPage() {
   }, [currentUserId]);
 
   // Filter rooms by search
-  const filteredRooms = rooms.filter(room => 
-    room.worklet_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    room.other_user_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRooms = rooms.filter(room => {
+    const workletTitle = room.worklet_title || '';
+    const userName = room.user_name || '';
+    return workletTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      userName.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   // Filter groups by search
   const filteredGroups = groupChats.filter(group =>
@@ -525,6 +528,10 @@ export default function StudentChatPage() {
                               </span>
                             </div>
                             <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                              {group.worklet_certid && (
+                                <span className="font-medium">{group.worklet_certid}</span>
+                              )}
+                              {group.worklet_certid && group.worklet_title && ' - '}
                               {group.worklet_title || 'Worklet Team'}
                             </p>
                           </div>
@@ -577,9 +584,13 @@ export default function StudentChatPage() {
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                              {room.other_user_name}
+                              {room.user_name}
                             </h3>
                             <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                              {room.worklet_certid && (
+                                <span className="font-medium">{room.worklet_certid}</span>
+                              )}
+                              {room.worklet_certid && room.worklet_title && ' - '}
                               {room.worklet_title}
                             </p>
                           </div>
@@ -622,12 +633,12 @@ export default function StudentChatPage() {
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
                       selectedRoom.isGroup ? 'bg-teal-600' : 'bg-blue-500'
                     }`}>
-                      {(selectedRoom.displayName || selectedRoom.other_user_name).charAt(0).toUpperCase()}
+                      {(selectedRoom.displayName || selectedRoom.user_name || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h2 className="text-[16px] font-medium text-gray-900 dark:text-white">
-                          {selectedRoom.displayName || selectedRoom.other_user_name}
+                          {selectedRoom.displayName || selectedRoom.user_name}
                         </h2>
                         {selectedRoom.isGroup && (
                           <span className="bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 text-[10px] px-1.5 py-0.5 rounded font-medium">
