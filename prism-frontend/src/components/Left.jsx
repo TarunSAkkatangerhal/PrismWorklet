@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { ThemeContext } from '../context/ThemeContext';
 import profilePic from '../assets/profilePic.jpg';
+import secureAPI from '../services/secureAPI';
 
 // --- PORTAL COMPONENT IS NOW DEFINED INSIDE THIS FILE ---
 const Portal = ({ children }) => {
@@ -50,6 +51,7 @@ const LeftSidebar = () => {
     const [imgError, setImgError] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSettingsIconRotating, setIsSettingsIconRotating] = useState(false);
+    const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
     
     // Get user data from validated JWT token instead of localStorage
     const [userData, setUserData] = useState(null);
@@ -88,6 +90,25 @@ const LeftSidebar = () => {
         
         setUserData(getCurrentUserFromToken());
     }, []);
+
+    // Fetch unread message count
+    useEffect(() => {
+        const fetchUnreadCount = async () => {
+            try {
+                const response = await secureAPI.get('/api/chat/unread-count');
+                setHasUnreadMessages(response.data.unread_count > 0);
+            } catch (error) {
+                console.error('Error fetching unread count:', error);
+            }
+        };
+
+        if (userData) {
+            fetchUnreadCount();
+            // Poll every 30 seconds for unread count
+            const interval = setInterval(fetchUnreadCount, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [userData]);
 
     // Floating UI hook for robust menu positioning
     const { x, y, refs, strategy } = useFloating({
@@ -134,13 +155,13 @@ const LeftSidebar = () => {
                 {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/student-dashboard')} />
-                        <SidebarItem icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/student-chat')} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/student-chat')} hasUnread={hasUnreadMessages} />
                         <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
                     </>
                 ) : userData && userData.role ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
-                        <SidebarItem icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/mentor-chat')} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/mentor-chat')} hasUnread={hasUnreadMessages} />
                         <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} />
                         <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                                                                         {/* Top separator for Dashboard/Academia group */}
