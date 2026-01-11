@@ -230,26 +230,35 @@ export default function StudentDashboard() {
         {/* Profile and Stats Section */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw] mb-[3vh]">
           {/* Profile Card */}
-          <div className="lg:col-span-2 relative overflow-visible rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700">
+          <div 
+            onClick={() => navigate('/student-profile')}
+            className="lg:col-span-2 relative overflow-visible rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700 cursor-pointer hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 group"
+          >
             <div className="flex items-start gap-[1.2vw]">
               {userProfileData?.avatar_url ? (
                 <img
                   src={userProfileData.avatar_url}
                   alt="Student"
-                  className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full object-cover shadow-md"
+                  className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full object-cover shadow-md group-hover:shadow-lg transition-shadow"
                 />
               ) : (
                 <div
-                  className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full flex items-center justify-center text-white font-bold text-[clamp(1.5rem,2.5vw,2rem)] shadow-md flex-shrink-0"
+                  className="w-[clamp(4rem,6vw,5.5rem)] h-[clamp(4rem,6vw,5.5rem)] rounded-full flex items-center justify-center text-white font-bold text-[clamp(1.5rem,2.5vw,2rem)] shadow-md flex-shrink-0 group-hover:shadow-lg transition-shadow"
                   style={{ backgroundColor: generateColorFromName(userProfileData?.name || 'Student') }}
                 >
                   <span>{getInitials(userProfileData?.name || 'Student')}</span>
                 </div>
               )}
               <div className="flex-1">
-                <h2 className="text-[clamp(1.125rem,1.8vw,1.5rem)] font-bold text-slate-900 dark:text-white">
-                  {userProfileData?.name || userName}
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[clamp(1.125rem,1.8vw,1.5rem)] font-bold text-slate-900 dark:text-white">
+                    {userProfileData?.name || userName}
+                  </h2>
+                  <span className="text-sm text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                    View Profile
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                </div>
                 {userProfileData?.email && (
                   <p className="text-[clamp(0.75rem,0.9vw,0.875rem)] text-slate-600 dark:text-slate-300 mt-[0.2vw]">
                     {userProfileData.email}
