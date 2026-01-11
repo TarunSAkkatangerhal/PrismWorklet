@@ -1807,6 +1807,9 @@ export default function WorkletDetailPage() {
     return memberName.toLowerCase().includes(searchTeam.toLowerCase());
   }) || []
 
+  // Calculate total team size including professors, mentors, and students
+  const totalTeamSize = (worklet?.professors?.length || 0) + (worklet?.mentors?.length || 0) + (filteredTeamMembers.length || 0)
+
   // --- RENDER ---
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:bg-slate-900">
@@ -2141,13 +2144,27 @@ export default function WorkletDetailPage() {
                           <h2 className="text-xl font-bold text-gray-900 dark:text-white">TEAM DIRECTORY</h2>
                           <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 
                                           text-sm font-semibold rounded-full">
-                            {filteredTeamMembers.length} members
+                            {totalTeamSize} members
                           </span>
                         </div>
                       </div>
 
                       {/* Team Members Grid */}
                       <div className="grid gap-4">
+                        {/* Mentors Section */}
+                        <div className="mb-4">
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Mentors</h3>
+                          {worklet.mentors && worklet.mentors.length > 0 ? (
+                            <div className="grid gap-3">
+                              {worklet.mentors.map((mentor, idx) => (
+                                <TeamMemberCard key={idx} member={mentor} role="Mentor" />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">No mentors assigned</div>
+                          )}
+                        </div>
+
                         {/* Professors Section */}
                         <div className="mb-4">
                           <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Professors</h3>

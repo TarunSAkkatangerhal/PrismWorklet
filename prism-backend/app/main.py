@@ -11,6 +11,7 @@ from app.database import get_db
 from typing import Callable
 import time
 from app.database import Base, engine, SessionLocal
+from app.database import Base, engine, SessionLocal
 from app import models  # ensure models imported for metadata
 
 app = FastAPI(
@@ -116,6 +117,7 @@ def student_worklets_me_alias(token: str = Depends(oauth2_scheme), db: Session =
 async def startup_event():
     """Initialize database on startup"""
     try:
+        # Auto-create tables if not present
         # Auto-create tables if not present
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables initialized successfully")
