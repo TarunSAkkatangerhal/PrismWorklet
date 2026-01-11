@@ -10,7 +10,8 @@ from app.core.rate_limiter import RateLimiter
 from app.database import get_db
 from typing import Callable
 import time
-from app.database import Base, engine
+from app.database import Base, engine, SessionLocal
+from app.database import Base, engine, SessionLocal
 from app import models  # ensure models imported for metadata
 
 app = FastAPI(
@@ -114,8 +115,10 @@ def student_worklets_me_alias(token: str = Depends(oauth2_scheme), db: Session =
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
-    # Auto-create tables if not present
+    """Initialize database on startup"""
     try:
+        # Auto-create tables if not present
+        # Auto-create tables if not present
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables initialized successfully")
         
@@ -126,8 +129,11 @@ async def startup_event():
         # Configuration validation warnings
         settings.validate_required_settings()
         
+        print("✅ Database initialized - Group chats are now implicit via worklet membership")
+        
     except Exception as e:
-        logger.error(f"DB init error: {e}", exc_info=True)
+        logger.error(f"Startup error: {e}", exc_info=True)
+        print(f"⚠️ Startup error: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():

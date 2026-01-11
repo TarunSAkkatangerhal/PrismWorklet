@@ -233,10 +233,12 @@ export const chatService = {
     }
   },
 
-  // Get all group chats for current user (no filter)
-  async getGroupChats() {
+  // Get all group chats for current user (filtered by status)
+  async getGroupChats(statusId = 1) {
     try {
-      const response = await secureAPI.get('/api/chat/groups');
+      const response = await secureAPI.get('/api/chat/groups', {
+        params: { status_id: statusId }
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching group chats:', error);
@@ -245,9 +247,9 @@ export const chatService = {
   },
 
   // Get group messages
-  async getGroupMessages(groupId, limit = 50) {
+  async getGroupMessages(workletId, limit = 50) {
     try {
-      const response = await secureAPI.get(`/api/chat/groups/${groupId}/messages`, {
+      const response = await secureAPI.get(`/api/chat/groups/${workletId}/messages`, {
         params: { limit },
       });
       return response.data;
@@ -258,10 +260,10 @@ export const chatService = {
   },
 
   // Send group message
-  async sendGroupMessage(groupId, messageText) {
+  async sendGroupMessage(workletId, messageText) {
     try {
       const response = await secureAPI.post('/api/chat/groups/messages', {
-        group_id: groupId,
+        worklet_id: workletId,
         message_text: messageText,
       });
       return response.data;
@@ -283,9 +285,9 @@ export const chatService = {
   },
 
   // Get group profile (detailed info)
-  async getGroupProfile(groupId) {
+  async getGroupProfile(workletId) {
     try {
-      const response = await secureAPI.get(`/api/chat/groups/${groupId}/profile`);
+      const response = await secureAPI.get(`/api/chat/groups/${workletId}/profile`);
       return response.data;
     } catch (error) {
       console.error('Error fetching group profile:', error);

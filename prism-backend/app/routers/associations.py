@@ -8,7 +8,7 @@ from sqlalchemy import and_, or_
 from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
-from app.models import UserWorkletAssociation, User, Worklet, GroupChat
+from app.models import UserWorkletAssociation, User, Worklet
 from app.schemas import (
     UserWorkletAssociationCreate,
     UserWorkletAssociationUpdate,
@@ -94,35 +94,7 @@ def create_association(
     db.commit()
     db.refresh(db_association)
     
-    # Auto-create group chat for worklet if it doesn't exist
-    try:
-        existing_group = db.query(GroupChat).filter(
-            GroupChat.worklet_id == association.worklet_id
-        ).first()
-        
-        if not existing_group:
-            # Get worklet details for group name
-            worklet = db.query(Worklet).filter(Worklet.id == association.worklet_id).first()
-            group_name = worklet.cert_id if worklet and worklet.cert_id else f"Worklet-{association.worklet_id}"
-            
-            # Create group chat
-            new_group = GroupChat(
-                worklet_id=association.worklet_id,
-                group_name=group_name,
-                created_by=current_user.id
-            )
-            db.add(new_group)
-            db.commit()
-            db.refresh(new_group)
-            
-            # Group chat created without members table
-            # All users with worklet associations can access the group
-        else:
-            # Group already exists, no member management needed
-            pass
-    except Exception as e:
-        # Log error but don't fail the association creation
-        print(f"Error creating group chat: {str(e)}")
+    # Group chats are now implicit via worklet membership - no separate creation needed
     
     return db_association
 

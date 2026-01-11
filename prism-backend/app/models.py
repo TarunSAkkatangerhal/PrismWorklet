@@ -595,32 +595,12 @@ class MessageRead(Base):
 
 
 # Group Chat table (for worklet groups)
-class GroupChat(Base):
-    __tablename__ = "group_chats"
-
-    group_id = Column(Integer, primary_key=True, autoincrement=True)
-    worklet_id = Column(Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=False, unique=True)
-    group_name = Column(String(255), nullable=False)
-    created_by = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    is_active = Column(Boolean, default=True, nullable=False)
-
-    # Relationships
-    worklet = relationship("Worklet", foreign_keys=[worklet_id])
-    creator = relationship("User", foreign_keys=[created_by])
-    messages = relationship("GroupChatMessage", back_populates="group", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<GroupChat(group_id={self.group_id}, worklet_id={self.worklet_id}, group_name='{self.group_name}')>"
-
-
-# Group Chat Message table
+# Simplified Group Chat Message table - directly linked to worklets
 class GroupChatMessage(Base):
     __tablename__ = "group_chat_messages"
 
     message_id = Column(Integer, primary_key=True, autoincrement=True)
-    group_id = Column(Integer, ForeignKey("group_chats.group_id", ondelete="CASCADE"), nullable=False)
+    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=False, index=True)
     sender_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     message_text = Column(Text, nullable=False)
     sent_at = Column(DateTime, server_default=func.now(), nullable=False)
@@ -628,14 +608,38 @@ class GroupChatMessage(Base):
     is_deleted = Column(Boolean, default=False, nullable=False)
 
     # Relationships
-    group = relationship("GroupChat", back_populates="messages")
+    worklet = relationship("Worklet", foreign_keys=[worklet_id])
     sender = relationship("User", foreign_keys=[sender_id])
+    read_receipts = relationship("GroupMessageReadReceipt", back_populates="message", cascade="all, delete-orphan")
 
     # Indexes for performance
     __table_args__ = (
-        Index('idx_group_message_group', 'group_id', 'sent_at'),
+        Index('idx_group_message_worklet', 'WorkletID', 'sent_at'),
         Index('idx_group_message_sender', 'sender_id'),
     )
 
     def __repr__(self):
-        return f"<GroupChatMessage(message_id={self.message_id}, group_id={self.group_id}, sender_id={self.sender_id})>"
+        return f"<GroupChatMessage(message_id={self.message_id}, worklet_id={self.worklet_id}, sender_id={self.sender_id})>"
+
+
+class GroupMessageReadReceipt(Base):
+    __tablename__ = "group_message_read_receipts"
+
+    receipt_id = Column(Integer, primary_key=True, autoincrement=True)
+    message_id = Column(Integer, ForeignKey("group_chat_messages.message_id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    read_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # Relationships
+    message = relationship("GroupChatMessage", back_populates="read_receipts")
+    user = relationship("User")
+
+    # Indexes and constraints
+    __table_args__ = (
+        UniqueConstraint('message_id', 'user_id', name='unique_message_user'),
+        Index('idx_receipt_message', 'message_id'),
+        Index('idx_receipt_user', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<GroupMessageReadReceipt(receipt_id={self.receipt_id}, message_id={self.message_id}, user_id={self.user_id})>"
