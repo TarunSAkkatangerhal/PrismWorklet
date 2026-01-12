@@ -118,7 +118,6 @@ async def startup_event():
     """Initialize database on startup"""
     try:
         # Auto-create tables if not present
-        # Auto-create tables if not present
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables initialized successfully")
         
@@ -129,11 +128,66 @@ async def startup_event():
         # Configuration validation warnings
         settings.validate_required_settings()
         
-        print("✅ Database initialized - Group chats are now implicit via worklet membership")
+        # Auto-create group chats for existing worklets
+        auto_create_group_chats()
+        
+        print("✅ Database initialized and group chats auto-created")
         
     except Exception as e:
         logger.error(f"Startup error: {e}", exc_info=True)
         print(f"⚠️ Startup error: {e}")
+
+
+def auto_create_group_chats():
+    """Automatically create group chats for worklets that don't have them"""
+    db = SessionLocal()
+    try:
+        from app.models import Worklet, UserWorkletAssociation, GroupChat
+        
+        # Get worklets with users but no group chat
+        worklets_needing_groups = db.query(Worklet.id, Worklet.cert_id).join(
+            UserWorkletAssociation,
+            Worklet.id == UserWorkletAssociation.worklet_id
+        ).outerjoin(
+            GroupChat,
+            Worklet.id == GroupChat.worklet_id
+        ).filter(
+            GroupChat.id == None
+        ).distinct().all()
+        
+        if not worklets_needing_groups:
+            logger.info("All worklets already have group chats")
+            return
+        
+        created = 0
+        for worklet_id, cert_id in worklets_needing_groups:
+            try:
+                group_name = cert_id if cert_id else f"Worklet-{worklet_id}"
+                creator = db.query(UserWorkletAssociation).filter(
+                    UserWorkletAssociation.worklet_id == worklet_id
+                ).first()
+                
+                new_group = GroupChat(
+                    worklet_id=worklet_id,
+                    group_name=group_name,
+                    created_by=creator.user_id if creator else None
+                )
+                db.add(new_group)
+                created += 1
+            except Exception as e:
+                logger.error(f"Error creating group for worklet {worklet_id}: {e}")
+                continue
+        
+        if created > 0:
+            db.commit()
+            logger.info(f"Auto-created {created} group chats on startup")
+            print(f"📢 Auto-created {created} group chat(s) for worklets")
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error in auto_create_group_chats: {e}")
+    finally:
+        db.close()
 
 @app.on_event("shutdown")
 async def shutdown_event():

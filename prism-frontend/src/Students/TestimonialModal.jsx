@@ -406,22 +406,7 @@ const TestimonialModal = ({ isOpen, onClose, worklet }) => {
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                           bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
                           focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Areas for Improvement */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                What could be improved?
-              </label>
-              <textarea
-                value={feedbackImprovements}
-                onChange={(e) => setFeedbackImprovements(e.target.value)}
-                rows={3}
-                placeholder="Share constructive feedback on areas that need improvement..."
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-                          focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                          
               />
             </div>
 
