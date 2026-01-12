@@ -155,13 +155,13 @@ const LeftSidebar = () => {
                 {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/student-dashboard')} />
-                        <SidebarItem icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/student-chat')} hasUnread={hasUnreadMessages} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/student-chat')} hasUnread={hasUnreadMessages} />
                         <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
                     </>
                 ) : userData && userData.role ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
-                        <SidebarItem icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/mentor-chat')} hasUnread={hasUnreadMessages} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/mentor-chat')} hasUnread={hasUnreadMessages} />
                         <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} />
                         <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                                                                         {/* Top separator for Dashboard/Academia group */}
@@ -241,15 +241,19 @@ const LeftSidebar = () => {
 
 export default LeftSidebar;
 
-function SidebarItem({ icon, label, onClick }) {
+function SidebarItem({ icon, label, onClick, hasUnread }) {
   return (
     <div 
       className="flex flex-col items-center px-[clamp(0.75rem,1.5vw,1rem)] rounded-2xl cursor-pointer 
                  text-gray-600 transition-all duration-200 transform 
                  hover:scale-105 hover:shadow-md hover:bg-white hover:text-purple-700
-                 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-purple-400"
+                 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-purple-400 relative"
       onClick={onClick}
     >
+      {/* Unread indicator - blue dot */}
+      {hasUnread && (
+        <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse shadow-lg"></div>
+      )}
       <div className="p-[clamp(0.5rem,1vw,0.75rem)]">{icon}</div>
       <span className="text-[clamp(0.75rem,1vw,0.875rem)] font-semibold mt-[clamp(0.25rem,0.5vh,0.5rem)] text-center">{label}</span>
     </div>
