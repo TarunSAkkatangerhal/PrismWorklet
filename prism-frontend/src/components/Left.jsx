@@ -242,7 +242,6 @@ const LeftSidebar = () => {
 export default LeftSidebar;
 
 function SidebarItem({ icon, label, onClick, hasUnread }) {
-function SidebarItem({ icon, label, onClick, hasUnread }) {
   return (
     <div 
       className="flex flex-col items-center px-[clamp(0.75rem,1.5vw,1rem)] rounded-2xl cursor-pointer 
