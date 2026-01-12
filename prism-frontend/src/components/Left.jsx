@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award, MessageCircle } from 'lucide-react';
+import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award, MessageCircle, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { ThemeContext } from '../context/ThemeContext';
@@ -241,6 +241,7 @@ const LeftSidebar = () => {
 
 export default LeftSidebar;
 
+function SidebarItem({ icon, label, onClick, hasUnread }) {
 function SidebarItem({ icon, label, onClick, hasUnread }) {
   return (
     <div 
