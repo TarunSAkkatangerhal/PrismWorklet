@@ -24,6 +24,54 @@ const formatTime = (dateString) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+// Format date headers like WhatsApp
+const formatDateHeader = (dateString) => {
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  // Reset time to compare only dates
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+  
+  if (dateOnly.getTime() === todayOnly.getTime()) {
+    return 'Today';
+  } else if (dateOnly.getTime() === yesterdayOnly.getTime()) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+  }
+};
+
+// Group messages by date
+const groupMessagesByDate = (messages) => {
+  const groups = [];
+  let currentDate = null;
+  let currentGroup = [];
+  
+  messages.forEach((message) => {
+    const messageDate = new Date(message.sent_at).toDateString();
+    
+    if (messageDate !== currentDate) {
+      if (currentGroup.length > 0) {
+        groups.push({ date: currentDate, messages: currentGroup });
+      }
+      currentDate = messageDate;
+      currentGroup = [message];
+    } else {
+      currentGroup.push(message);
+    }
+  });
+  
+  if (currentGroup.length > 0) {
+    groups.push({ date: currentDate, messages: currentGroup });
+  }
+  
+  return groups;
+};
+
 // Format message text with support for bold, italic, code, and links
 const formatMessageText = (text) => {
   if (!text) return text;
@@ -136,6 +184,19 @@ const useChatWebSocket = (onMessage) => {
   return { isConnected, sendMessage };
 };
 
+// Date Separator Component
+const DateSeparator = ({ date }) => {
+  return (
+    <div className="flex justify-center my-4">
+      <div className="bg-white dark:bg-[#202C33] px-3 py-1.5 rounded-lg shadow-sm">
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+          {formatDateHeader(date)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 // Message Bubble Component - WhatsApp style
 const MessageBubble = ({ message, isOwnMessage }) => {
   return (
@@ -163,7 +224,7 @@ const MessageBubble = ({ message, isOwnMessage }) => {
           <p className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
           <div className={`flex items-center gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
             <span className={`text-[11px] ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-600 dark:text-gray-400'}`}>
-              {formatTime(message.sent_at)}
+              {new Date(message.sent_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </span>
           </div>
         </div>
@@ -185,6 +246,7 @@ export default function StudentChatPage() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [groupChats, setGroupChats] = useState([]);
   const [statusFilter, setStatusFilter] = useState(1); // Default to Ongoing
+  const [chatType, setChatType] = useState('all'); // 'all', 'individual', 'group'
   const [showGroupProfile, setShowGroupProfile] = useState(false);
   const [groupProfile, setGroupProfile] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(5000); // Start at 5s
@@ -456,29 +518,33 @@ export default function StudentChatPage() {
     }
   }, [currentUserId, isConnected, pollingInterval]);
 
-  // Filter and sort rooms by search and latest message
-  const filteredRooms = rooms
-    .filter(room => 
-      room.worklet_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.other_user_name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .sort((a, b) => {
-      const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-      const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-      return timeB - timeA; // Most recent first
-    });
+  // Filter and sort rooms by search, type, and latest message
+  const filteredRooms = (chatType === 'all' || chatType === 'individual')
+    ? rooms
+        .filter(room => 
+          room.worklet_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          room.other_user_name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .sort((a, b) => {
+          const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+          const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+          return timeB - timeA; // Most recent first
+        })
+    : [];
 
-  // Filter and sort groups by search and latest message
-  const filteredGroups = groupChats
-    .filter(group =>
-      group.group_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      group.worklet_title?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .sort((a, b) => {
-      const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-      const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-      return timeB - timeA; // Most recent first
-    });
+  // Filter and sort groups by search, type, and latest message
+  const filteredGroups = (chatType === 'all' || chatType === 'group')
+    ? groupChats
+        .filter(group =>
+          group.group_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          group.worklet_title?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .sort((a, b) => {
+          const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+          const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+          return timeB - timeA; // Most recent first
+        })
+    : [];
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
@@ -499,6 +565,40 @@ export default function StudentChatPage() {
                   Connecting...
                 </span>
               )}
+            </div>
+
+            {/* Chat Type Filter */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setChatType('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  chatType === 'all'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setChatType('individual')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  chatType === 'individual'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                Individual
+              </button>
+              <button
+                onClick={() => setChatType('group')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  chatType === 'group'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                Groups
+              </button>
             </div>
             
             {/* Status Filter Dropdown */}
@@ -718,12 +818,17 @@ export default function StudentChatPage() {
                     <p className="text-sm mt-1">Start the conversation!</p>
                   </div>
                 ) : (
-                  messages.map((message) => (
-                    <MessageBubble
-                      key={message.message_id || message.group_message_id}
-                      message={message}
-                      isOwnMessage={message.sender_id === currentUserId}
-                    />
+                  groupMessagesByDate(messages).map((group, groupIndex) => (
+                    <div key={groupIndex}>
+                      <DateSeparator date={group.messages[0].sent_at} />
+                      {group.messages.map((message) => (
+                        <MessageBubble
+                          key={message.message_id || message.group_message_id}
+                          message={message}
+                          isOwnMessage={message.sender_id === currentUserId}
+                        />
+                      ))}
+                    </div>
                   ))
                 )}
                 <div ref={messagesEndRef} />

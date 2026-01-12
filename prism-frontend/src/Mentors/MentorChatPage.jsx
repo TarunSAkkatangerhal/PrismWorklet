@@ -24,6 +24,54 @@ const formatTime = (dateString) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+// Format date headers like WhatsApp
+const formatDateHeader = (dateString) => {
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  // Reset time to compare only dates
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+  
+  if (dateOnly.getTime() === todayOnly.getTime()) {
+    return 'Today';
+  } else if (dateOnly.getTime() === yesterdayOnly.getTime()) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+  }
+};
+
+// Group messages by date
+const groupMessagesByDate = (messages) => {
+  const groups = [];
+  let currentDate = null;
+  let currentGroup = [];
+  
+  messages.forEach((message) => {
+    const messageDate = new Date(message.sent_at).toDateString();
+    
+    if (messageDate !== currentDate) {
+      if (currentGroup.length > 0) {
+        groups.push({ date: currentDate, messages: currentGroup });
+      }
+      currentDate = messageDate;
+      currentGroup = [message];
+    } else {
+      currentGroup.push(message);
+    }
+  });
+  
+  if (currentGroup.length > 0) {
+    groups.push({ date: currentDate, messages: currentGroup });
+  }
+  
+  return groups;
+};
+
 // Format message text with support for bold, italic, code, and links
 const formatMessageText = (text) => {
   if (!text) return text;
@@ -136,6 +184,19 @@ const useChatWebSocket = (onMessage) => {
   return { isConnected, sendMessage };
 };
 
+// Date Separator Component
+const DateSeparator = ({ date }) => {
+  return (
+    <div className="flex justify-center my-4">
+      <div className="bg-white dark:bg-[#202C33] px-3 py-1.5 rounded-lg shadow-sm">
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+          {formatDateHeader(date)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 // Message Bubble Component
 const MessageBubble = ({ message, isOwnMessage }) => {
   return (
@@ -164,7 +225,7 @@ const MessageBubble = ({ message, isOwnMessage }) => {
           <p className="text-[14px] leading-5 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
           <div className="flex items-center gap-1 justify-end mt-1">
             <span className={`text-[11px] ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
-              {formatTime(message.sent_at)}
+              {new Date(message.sent_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </span>
           </div>
         </div>
@@ -687,12 +748,17 @@ export default function MentorChatPage() {
                     <p className="text-sm mt-1">Start the conversation!</p>
                   </div>
                 ) : (
-                  messages.map((message) => (
-                    <MessageBubble
-                      key={message.message_id}
-                      message={message}
-                      isOwnMessage={message.sender_id === currentUserId}
-                    />
+                  groupMessagesByDate(messages).map((group, groupIndex) => (
+                    <div key={groupIndex}>
+                      <DateSeparator date={group.messages[0].sent_at} />
+                      {group.messages.map((message) => (
+                        <MessageBubble
+                          key={message.message_id}
+                          message={message}
+                          isOwnMessage={message.sender_id === currentUserId}
+                        />
+                      ))}
+                    </div>
                   ))
                 )}
                 <div ref={messagesEndRef} />

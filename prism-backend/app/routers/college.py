@@ -154,14 +154,25 @@ def get_college_worklets(college_id: int, db: Session = Depends(get_db)):
 
         status_text = normalize_status_text(getattr(worklet, 'status_id', None))
         performance_text = normalize_performance(getattr(worklet, 'Performance', None))
+        
+        # Get year and domain fields
+        year = getattr(worklet, 'year', None)
+        domain = getattr(worklet, 'domain', None) or getattr(worklet, 'technical_domain', None)
+        
         response.append({
             "id": worklet.id,
             "title": worklet.title,
             "description": getattr(worklet, 'problem_statement', None),
             "assignedStudents": assigned_students,
+            "studentCount": len(assigned_students),
             "performanceStatus": performance_text,
             "progressStatus": status_text,
-            "team": team_name,  # Add team name
+            "status": status_text,  # Add both for compatibility
+            "team": team_name,
+            "year": year,
+            "domain": domain,
+            "start_date": getattr(worklet, 'start_date', None),
+            "end_date": getattr(worklet, 'end_date', None),
             "collegeName": (
                 worklet.college_rel.college_name
                 if getattr(worklet, 'college_rel', None) and getattr(worklet.college_rel, 'college_name', None)

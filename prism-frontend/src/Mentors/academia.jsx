@@ -39,6 +39,10 @@ const AnimationStyles = () => (
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
     .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
   `}</style>
 )
@@ -82,7 +86,8 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
     const list = Array.isArray(options) ? options : []
     const q = typeof value === 'string' ? value.toLowerCase() : ''
     return list.filter((option) => {
-      const name = typeof option?.name === 'string' ? option.name.toLowerCase() : ''
+      if (!option || typeof option.name !== 'string') return false
+      const name = option.name.toLowerCase()
       return q === '' ? true : name.includes(q)
     })
   }, [options, value])
@@ -98,53 +103,48 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   }, [])
 
   const handleSelect = (optionName) => {
-    onChange(optionName)
-    setIsOpen(false)
+    if (onChange && typeof onChange === 'function') {
+      onChange(optionName)
+      setIsOpen(false)
+    }
   }
 
   return (
     <div className="relative" ref={dropdownRef}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder || 'Search...'}
+          value={value || ''}
+          onChange={(e) => onChange && onChange(e.target.value)}
           onFocus={() => setIsOpen(true)}
-          className={`w-full pl-10 py-2 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${value ? 'pr-20' : 'pr-10'}`}
+          className="w-full pl-9 pr-9 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
         />
-        {value ? (
+        {value && (
           <button
-            onClick={() => onChange('')}
-            className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
-            <X className="w-4 h-4" />
+            type="button"
+            onClick={() => onChange && onChange('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            <X className="w-3 h-3" />
           </button>
-        ) : null}
-        <button onClick={() => setIsOpen(!isOpen)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1">
-          <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
+        )}
       </div>
 
       {isOpen && (
-        <div
-          className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-fadeInUp"
-          style={{ animationDuration: '0.3s' }}>
-          <ul>
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option, index) => (
-                <li
-                  key={option.id}
-                  onClick={() => handleSelect(option.name)}
-                  className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer animate-fadeInUp"
-                  style={{ animationDelay: `${index * 20}ms` }}>
-                  {option.name}
-                </li>
-              ))
-            ) : (
-              <li className="px-4 py-2 text-sm text-gray-500">No colleges found.</li>
-            )}
-          </ul>
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => (
+              <div
+                key={option.id}
+                onClick={() => handleSelect(option.name)}
+                className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer">
+                {option.name}
+              </div>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-sm text-gray-500 text-center">No colleges found</div>
+          )}
         </div>
       )}
     </div>
@@ -1227,7 +1227,7 @@ const Colleges = () => {
     
     // College search filter (single college selection)
     if (collegeSearch) {
-      collegesToFilter = allCollegeData.filter((c) => c.name.toLowerCase() === collegeSearch.toLowerCase())
+      collegesToFilter = allCollegeData.filter((c) => c && c.name && c.name.toLowerCase() === collegeSearch.toLowerCase())
       
       // When college is selected, apply nested year and team filters to worklets
       return collegesToFilter.map((college) => {
@@ -1244,9 +1244,9 @@ const Colleges = () => {
         
         // Apply team filter to worklets
         if (selectedTeam && selectedTeam !== 'Select Team') {
-          const teamToMatch = String(selectedTeam).trim()
+          const teamToMatch = String(selectedTeam).toLowerCase().trim()
           filteredWorklets = filteredWorklets.filter(worklet => {
-            const workletTeam = String(worklet.team || worklet.technical_domain || worklet.technicalDomain || '').trim()
+            const workletTeam = String(worklet.team || worklet.technical_domain || worklet.technicalDomain || '').toLowerCase().trim()
             return workletTeam === teamToMatch
           })
         }
@@ -1257,9 +1257,23 @@ const Colleges = () => {
         const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold' || w.progressStatus === 'On Hold').length
         const terminatedCount = filteredWorklets.filter(w => w.status === 'Terminated' || w.status === 'Dropped' || w.progressStatus === 'Terminated' || w.progressStatus === 'Dropped').length
         
-        const excellentCount = filteredWorklets.filter(w => w.performanceStatus === 'Excellent').length
-        const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
-        const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
+        // Map performance status to match backend fields (Very Good, Good, Average, Poor)
+        const veryGoodCount = filteredWorklets.filter(w => {
+          const perf = String(w.performanceStatus || '').toLowerCase()
+          return perf.includes('very good') || perf.includes('excellent')
+        }).length
+        const goodCount = filteredWorklets.filter(w => {
+          const perf = String(w.performanceStatus || '').toLowerCase()
+          return perf === 'good' && !perf.includes('very')
+        }).length
+        const averageCount = filteredWorklets.filter(w => {
+          const perf = String(w.performanceStatus || '').toLowerCase()
+          return perf.includes('average') || perf.includes('moderate')
+        }).length
+        const poorCount = filteredWorklets.filter(w => {
+          const perf = String(w.performanceStatus || '').toLowerCase()
+          return perf.includes('poor') || perf.includes('needs attention')
+        }).length
         
         // Count total students from studentCount field (summing up, may include duplicates across worklets)
         const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
@@ -1272,9 +1286,10 @@ const Colleges = () => {
           ongoingCount,
           onHoldCount,
           terminatedCount,
-          excellentCount,
+          veryGoodCount,
           goodCount,
-          needsAttentionCount,
+          averageCount,
+          poorCount,
           totalStudents
         }
       }).filter(Boolean)
@@ -1295,9 +1310,9 @@ const Colleges = () => {
       
       // Apply team filter if selected
       if (selectedTeam && selectedTeam !== 'Select Team') {
-        const teamToMatch = String(selectedTeam).trim()
+        const teamToMatch = String(selectedTeam).toLowerCase().trim()
         filteredWorklets = filteredWorklets.filter(worklet => {
-          const workletTeam = String(worklet.team || worklet.technical_domain || worklet.technicalDomain || '').trim()
+          const workletTeam = String(worklet.team || worklet.technical_domain || worklet.technicalDomain || '').toLowerCase().trim()
           return workletTeam === teamToMatch
         })
       }
@@ -1308,9 +1323,23 @@ const Colleges = () => {
       const onHoldCount = filteredWorklets.filter(w => w.status === 'On Hold' || w.progressStatus === 'On Hold').length
       const terminatedCount = filteredWorklets.filter(w => w.status === 'Terminated' || w.status === 'Dropped' || w.progressStatus === 'Terminated' || w.progressStatus === 'Dropped').length
       
-      const excellentCount = filteredWorklets.filter(w => w.performanceStatus === 'Excellent').length
-      const goodCount = filteredWorklets.filter(w => w.performanceStatus === 'Good').length
-      const needsAttentionCount = filteredWorklets.filter(w => w.performanceStatus === 'Needs Attention').length
+      // Map performance status to match backend fields (Very Good, Good, Average, Poor)
+      const veryGoodCount = filteredWorklets.filter(w => {
+        const perf = String(w.performanceStatus || '').toLowerCase()
+        return perf.includes('very good') || perf.includes('excellent')
+      }).length
+      const goodCount = filteredWorklets.filter(w => {
+        const perf = String(w.performanceStatus || '').toLowerCase()
+        return perf === 'good' && !perf.includes('very')
+      }).length
+      const averageCount = filteredWorklets.filter(w => {
+        const perf = String(w.performanceStatus || '').toLowerCase()
+        return perf.includes('average') || perf.includes('moderate')
+      }).length
+      const poorCount = filteredWorklets.filter(w => {
+        const perf = String(w.performanceStatus || '').toLowerCase()
+        return perf.includes('poor') || perf.includes('needs attention')
+      }).length
       
       // Count total students from studentCount field (summing up, may include duplicates across worklets)
       const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
@@ -1323,9 +1352,10 @@ const Colleges = () => {
         ongoingCount,
         onHoldCount,
         terminatedCount,
-        excellentCount,
+        veryGoodCount,
         goodCount,
-        needsAttentionCount,
+        averageCount,
+        poorCount,
         totalStudents
       }
     })
@@ -1488,7 +1518,7 @@ const Colleges = () => {
       // Robust total worklets using helper (aligns with charts and overview table)
       const totalWorklets = getWorkletCount(college)
       return (
-        <div className="space-y-8">
+        <div className="space-y-8 transition-opacity duration-300 ease-in-out">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20">
             <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">College Overview</h3>
@@ -1534,7 +1564,14 @@ const Colleges = () => {
                       (college.onHoldCount || 0) +
                       (college.terminatedCount || 0)
                     return (
-                      <tr key={college.id} className="animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+                      <tr 
+                        key={college.id} 
+                        className="transition-colors duration-200"
+                        style={{ 
+                          animation: 'fadeIn 0.3s ease-in-out',
+                          animationDelay: '50ms',
+                          animationFillMode: 'both'
+                        }}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg mr-3">
@@ -1568,82 +1605,82 @@ const Colleges = () => {
               </table>
             </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
             <button
               onClick={() => handleNavigateToFilter('total')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalWorklets}</p>
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Total Worklets</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{totalWorklets}</p>
                 </div>
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                  <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-purple-500 to-purple-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <Target className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('ongoing')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ongoing</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.ongoingCount}</p>
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Ongoing</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{college.ongoingCount}</p>
                 </div>
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <Clock className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('completed')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.completedCount}</p>
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{college.completedCount}</p>
                 </div>
-                <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <CheckCircle className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('onhold')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">On Hold</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.onHoldCount}</p>
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">On Hold</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{college.onHoldCount}</p>
                 </div>
-                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                  <PauseCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <PauseCircle className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('terminated')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Terminated</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.terminatedCount}</p>
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Terminated</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{college.terminatedCount}</p>
                 </div>
-                <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
-                  <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-rose-500 to-rose-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <XCircle className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('students')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Students</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{college.totalStudents}</p>
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Students</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{college.totalStudents}</p>
                 </div>
-                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg">
-                  <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <Users className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
@@ -1660,27 +1697,27 @@ const Colleges = () => {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button
               onClick={scrollToCollegeOverview}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Colleges</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{filteredColleges.length}</p>
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Total Colleges</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{filteredColleges.length}</p>
                 </div>
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <Building2 className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('total', collegeSearch ? collegeSearch : 'All Colleges')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-purple-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Worklets</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Total Worklets</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
                     {(() => {
                       const sum = filteredColleges.reduce((acc, c) => acc + getWorkletCount(c), 0)
                       // Fallback to global worklets count if sum is 0 but global count > 0
@@ -1688,83 +1725,83 @@ const Colleges = () => {
                     })()}
                   </p>
                 </div>
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                  <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-purple-500 to-purple-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <Target className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('students', collegeSearch ? collegeSearch : 'All Colleges')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-indigo-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Total Students</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
                     {filteredColleges.reduce((acc, curr) => acc + (curr.totalStudents || 0), 0)}
                   </p>
                 </div>
-                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg">
-                  <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <Users className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('ongoing', collegeSearch ? collegeSearch : 'All Colleges')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-blue-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ongoing</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Ongoing</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
                     {filteredColleges.reduce((acc, curr) => acc + (curr.ongoingCount || 0), 0)}
                   </p>
                 </div>
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <Clock className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('completed', collegeSearch ? collegeSearch : 'All Colleges')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-green-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
                     {filteredColleges.reduce((acc, curr) => acc + (curr.completedCount || 0), 0)}
                   </p>
                 </div>
-                <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <CheckCircle className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('onhold', collegeSearch ? collegeSearch : 'All Colleges')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-yellow-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">On Hold</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">On Hold</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
                     {filteredColleges.reduce((acc, curr) => acc + (curr.onHoldCount || 0), 0)}
                   </p>
                 </div>
-                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                  <PauseCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <PauseCircle className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
             <button
               onClick={() => handleNavigateToFilter('terminated', collegeSearch ? collegeSearch : 'All Colleges')}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg shadow-slate-200/60 dark:shadow-black/20 hover:ring-2 hover:ring-red-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Terminated</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              className="group text-left bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-850 border border-gray-200/80 dark:border-slate-700/80 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700 transition-all duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Terminated</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
                     {filteredColleges.reduce((acc, curr) => acc + (curr.terminatedCount || 0), 0)}
                   </p>
                 </div>
-                <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
-                  <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-gradient-to-br from-rose-500 to-rose-600 shadow-sm group-hover:shadow-md transition-shadow">
+                  <XCircle className="w-5 h-5 text-white" />
                 </div>
               </div>
             </button>
@@ -1818,8 +1855,12 @@ const Colleges = () => {
                       <tr
                         key={college.id}
                         onClick={() => handleCollegeSelect(college.college_name || college.name)}
-                        className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer animate-fadeInUp"
-                        style={{ animationDelay: `${index * 50}ms` }}>
+                        className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors duration-200 cursor-pointer"
+                        style={{ 
+                          animation: 'fadeIn 0.3s ease-in-out',
+                          animationDelay: `${index * 30}ms`,
+                          animationFillMode: 'both'
+                        }}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg mr-3">
@@ -1894,71 +1935,71 @@ const Colleges = () => {
             </div>
           </div>
             </div>
-            <div className="flex flex-col md:flex-row flex-wrap items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-md shadow-slate-200/50 dark:shadow-black/20 mb-8">
+            
+            {/* Simple Filter Section */}
+            <div className="flex flex-wrap items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-lg shadow-sm mb-8">
               <div className="w-full md:w-64">
                 <SearchableDropdown
                   options={uniqueColleges}
                   value={collegeSearch}
                   onChange={handleCollegeSelect}
-                  placeholder="Search or select college..."
+                  placeholder="Search college..."
                 />
               </div>
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Year:</label>
+              
+              <div className="w-full md:w-48">
                 <div className="relative">
                   <select
                     value={selectedYear}
                     onChange={(e) => {
                       setSelectedYear(e.target.value)
-                      // Reset team when year changes (nested filtering)
                       setSelectedTeam('Select Team')
                     }}
-                    className="appearance-none bg-green-50 dark:bg-slate-700 border border-green-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200">
+                    className="w-full appearance-none bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg pl-3 pr-9 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-all">
                     <option>All Years</option>
                     {uniqueYears.map((year) => (
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Team:</label>
+              
+              <div className="w-full md:w-48">
                 <div className="relative">
                   <select
                     value={selectedTeam}
                     onChange={(e) => setSelectedTeam(e.target.value)}
                     disabled={availableTeams.length === 0}
-                    className="appearance-none bg-purple-50 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="w-full appearance-none bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg pl-3 pr-9 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                     <option>Select Team</option>
-                    {availableTeams.length === 0 && (
-                      <option disabled>No teams available</option>
-                    )}
                     {availableTeams.map((team) => (
                       <option key={team} value={team}>{team}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
+              
               <div className="flex-1"></div>
-              <div className="flex items-center space-x-2">
+              
+              <div className="flex items-center gap-2">
                 <button
                   onClick={handleResetFilters}
-                  className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-transform hover:scale-105 active:scale-95"
+                  className="p-2 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
                   title="Reset Filters">
                   <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 </button>
                 <button
                   onClick={handleGetProfessors}
-                  className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-transform hover:scale-105 active:scale-95">
-                  <Users className="w-4 h-4 mr-2" />
-                  Get Professors
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">
+                  <Users className="w-4 h-4" />
+                  Professors
                 </button>
                 <button
                   onClick={handleExport}
-                  className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-transform hover:scale-105 active:scale-95">
-                  <Download className="w-4 h-4 mr-2" />
+                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm">
+                  <Download className="w-4 h-4" />
                   Export
                 </button>
               </div>
