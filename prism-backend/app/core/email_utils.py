@@ -9,6 +9,11 @@ logger = logging.getLogger(__name__)
 def _send_email(to_email: str, subject: str, body_html: str, body_plain: str = None):
     """Helper function to send styled HTML email"""
     try:
+        # Check if email is enabled
+        if not settings.ENABLE_EMAIL:
+            logger.info(f"📧 Email disabled. Would have sent to {to_email}: {subject}")
+            return
+        
         # Validate SMTP configuration
         if not settings.SMTP_USER or not settings.SMTP_PASS:
             logger.error("❌ SMTP credentials not configured. Cannot send email.")

@@ -46,6 +46,7 @@ class MessageResponse(BaseModel):
     room_id: int
     sender_id: int
     sender_name: str
+    sender_role: str
     message_text: str
     sent_at: datetime
     is_read: bool
@@ -298,6 +299,7 @@ async def get_messages(
             room_id=msg.room_id,
             sender_id=msg.sender_id,
             sender_name=sender.name if sender else "Unknown",
+            sender_role=sender.role if sender else "Unknown",
             message_text=msg.message_text,
             sent_at=msg.sent_at,
             is_read=msg.is_read
@@ -336,6 +338,7 @@ async def send_message(
             "room_id": new_message.room_id,
             "sender_id": current_user.id,
             "sender_name": current_user.name,
+            "sender_role": current_user.role,
             "message_text": new_message.message_text,
             "sent_at": new_message.sent_at.isoformat(),
             "is_read": False
@@ -354,6 +357,7 @@ async def send_message(
         room_id=new_message.room_id,
         sender_id=current_user.id,
         sender_name=current_user.name,
+        sender_role=current_user.role,
         message_text=new_message.message_text,
         sent_at=new_message.sent_at,
         is_read=False
@@ -613,6 +617,7 @@ async def get_group_messages(
             room_id=worklet_id,  # Using room_id field for worklet_id
             sender_id=msg.sender_id,
             sender_name=sender.name if sender else "Unknown",
+            sender_role=sender.role if sender else "Unknown",
             message_text=msg.message_text,
             sent_at=msg.sent_at,
             is_read=is_read_by_all
@@ -662,6 +667,7 @@ async def send_group_message(
             "worklet_id": message.worklet_id,
             "sender_id": current_user.id,
             "sender_name": current_user.name,
+            "sender_role": current_user.role,
             "message_text": new_message.message_text,
             "sent_at": new_message.sent_at.isoformat()
         }
@@ -676,6 +682,7 @@ async def send_group_message(
         room_id=message.worklet_id,
         sender_id=current_user.id,
         sender_name=current_user.name,
+        sender_role=current_user.role,
         message_text=new_message.message_text,
         sent_at=new_message.sent_at,
         is_read=True
@@ -710,7 +717,47 @@ async def get_unread_count(
     db: Session = Depends(get_db)
 ):
     """Get total unread message count"""
-    return {"unread_count": 0}
+    # Count unread messages in direct chats
+    direct_unread = db.query(ChatMessage).filter(
+        and_(
+            ChatMessage.sender_id != current_user.id,
+            ChatMessage.is_read == False,
+            ChatMessage.room_id.in_(
+                db.query(ChatRoom.room_id).filter(
+                    or_(
+                        ChatRoom.user1_id == current_user.id,
+                        ChatRoom.user2_id == current_user.id
+                    )
+                )
+            )
+        )
+    ).count()
+    
+    # Count unread group messages
+    user_worklets = db.query(UserWorkletAssociation.worklet_id).filter(
+        UserWorkletAssociation.user_id == current_user.id
+    ).subquery()
+    
+    group_messages = db.query(GroupChatMessage.message_id).filter(
+        and_(
+            GroupChatMessage.worklet_id.in_(user_worklets),
+            GroupChatMessage.sender_id != current_user.id
+        )
+    ).all()
+    
+    group_unread = 0
+    for msg in group_messages:
+        receipt = db.query(GroupMessageReadReceipt).filter(
+            and_(
+                GroupMessageReadReceipt.message_id == msg.message_id,
+                GroupMessageReadReceipt.user_id == current_user.id
+            )
+        ).first()
+        if not receipt:
+            group_unread += 1
+    
+    total_unread = direct_unread + group_unread
+    return {"unread_count": total_unread}
 
 
 # ============= Admin/Utility Endpoints =============

@@ -429,3 +429,116 @@ CREATE INDEX idx_meeting_status ON meetings(status);
 CREATE INDEX idx_eval_user ON evaluations(user_id);
 CREATE INDEX idx_eval_worklet ON evaluations(WorkletID);
 CREATE INDEX idx_eval_date ON evaluations(evaluated_at);
+
+-- ========================
+-- 14. Messaging System
+-- ========================
+
+-- Messages table (supports both 1-on-1 and group messages)
+CREATE TABLE IF NOT EXISTS messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT NOT NULL,
+    receiver_id INT DEFAULT NULL COMMENT 'NULL for group messages',
+    content TEXT NOT NULL,
+    WorkletID INT DEFAULT NULL,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT (NOW()),
+    FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (WorkletID) REFERENCES Prism_Worklet(WorkletID) ON DELETE SET NULL,
+    INDEX idx_sender (sender_id),
+    INDEX idx_receiver (receiver_id),
+    INDEX idx_worklet (WorkletID),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Message reads table (tracks per-user read status)
+CREATE TABLE IF NOT EXISTS message_reads (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    message_id INT NOT NULL,
+    user_id INT NOT NULL,
+    read_at DATETIME NOT NULL DEFAULT (NOW()),
+    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_message_user_read (message_id, user_id),
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+COMMENT='Tracks which users have read which messages for per-user unread status';
+
+-- ========================
+-- 15. Chat System (Legacy - for reference)
+-- ========================
+
+-- Individual Chat Rooms
+CREATE TABLE IF NOT EXISTS chat_rooms (
+    room_id INT AUTO_INCREMENT PRIMARY KEY,
+    WorkletID INT,
+    user1_id INT NOT NULL,
+    user2_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (WorkletID) REFERENCES Prism_Worklet(WorkletID) ON DELETE CASCADE,
+    FOREIGN KEY (user1_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (user2_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_chat_room (user1_id, user2_id, WorkletID),
+    INDEX idx_chat_room_users (user1_id, user2_id),
+    INDEX idx_chat_room_worklet (WorkletID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Chat Messages
+CREATE TABLE IF NOT EXISTS chat_messages (
+    message_id INT AUTO_INCREMENT PRIMARY KEY,
+    room_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message_text TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_read BOOLEAN DEFAULT FALSE,
+    is_edited BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (room_id) REFERENCES chat_rooms(room_id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_chat_message_room (room_id, sent_at),
+    INDEX idx_chat_message_sender (sender_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Group Chats (one per worklet)
+CREATE TABLE IF NOT EXISTS group_chats (
+    group_id INT AUTO_INCREMENT PRIMARY KEY,
+    worklet_id INT NOT NULL UNIQUE,
+    group_name VARCHAR(255) NOT NULL,
+    created_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (worklet_id) REFERENCES Prism_Worklet(WorkletID) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_group_worklet (worklet_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Group Chat Members
+CREATE TABLE IF NOT EXISTS group_chat_members (
+    member_id INT AUTO_INCREMENT PRIMARY KEY,
+    group_id INT NOT NULL,
+    user_id INT NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_admin BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (group_id) REFERENCES group_chats(group_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_group_member (group_id, user_id),
+    INDEX idx_group_member_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Group Chat Messages
+CREATE TABLE IF NOT EXISTS group_chat_messages (
+    message_id INT AUTO_INCREMENT PRIMARY KEY,
+    group_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message_text TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_edited BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (group_id) REFERENCES group_chats(group_id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_group_message_group (group_id, sent_at),
+    INDEX idx_group_message_sender (sender_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
