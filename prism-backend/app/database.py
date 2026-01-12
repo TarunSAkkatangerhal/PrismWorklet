@@ -20,14 +20,17 @@ SQLALCHEMY_DATABASE_URL = db_url
 
 # Added pool_pre_ping to handle stale connections
 # Added pool_recycle to prevent connection timeouts
-# Added pool_size and max_overflow for better connection management
+# Pool size and overflow are configurable via environment variables
+# Added echo_pool for debugging connection issues
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-    pool_size=10,
-    max_overflow=20,
-    connect_args={"connect_timeout": 10}
+    pool_pre_ping=True,          # Check connection health before using
+    pool_recycle=3600,            # Recycle connections after 1 hour
+    pool_size=settings.DB_POOL_SIZE,         # Per worker (default: 20)
+    max_overflow=settings.DB_MAX_OVERFLOW,   # Per worker (default: 30)
+    pool_timeout=settings.DB_POOL_TIMEOUT,   # Wait timeout (default: 60s)
+    connect_args={"connect_timeout": 10},
+    # echo_pool=True,             # Uncomment to debug connection pool issues
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:3000"
     REDIS_URL: str = "redis://localhost:6379/0"
     
+    # Performance & Scaling configuration
+    DB_POOL_SIZE: int = 20  # Connections per worker
+    DB_MAX_OVERFLOW: int = 30  # Additional connections per worker
+    DB_POOL_TIMEOUT: int = 60  # Seconds to wait for connection
+    REDIS_MAX_CONNECTIONS: int = 50  # Redis connection pool size
+    WEB_CONCURRENCY: int = 4  # Number of gunicorn workers (production)
+    
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v):

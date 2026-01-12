@@ -10,9 +10,11 @@ from app.core.rate_limiter import RateLimiter
 from app.database import get_db
 from typing import Callable
 import time
-from app.database import Base, engine, SessionLocal
+import logging
 from app.database import Base, engine, SessionLocal
 from app import models  # ensure models imported for metadata
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -100,8 +102,6 @@ app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 from fastapi import Depends
 from app.auth import oauth2_scheme
 from sqlalchemy.orm import Session
-import logging
-logger = logging.getLogger(__name__)
 
 @app.get("/api/worklets", tags=["worklets"])
 def list_worklets_alias(db: Session = Depends(get_db)):
@@ -128,10 +128,7 @@ async def startup_event():
         # Configuration validation warnings
         settings.validate_required_settings()
         
-        # Auto-create group chats for existing worklets
-        auto_create_group_chats()
-        
-        print("✅ Database initialized and group chats auto-created")
+        print("✅ Database initialized - Group chats are now implicit via worklet membership")
         
     except Exception as e:
         logger.error(f"Startup error: {e}", exc_info=True)
