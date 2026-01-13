@@ -1,18 +1,17 @@
 // Student Profile Page - Comprehensive profile management for students
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
-  User, Mail, Phone, MapPin, Calendar, Award, BookOpen, 
-  Edit2, Save, X, Camera, School, Target, TrendingUp,
-  Clock, CheckCircle, Trophy, Star, Briefcase, Plus, Download,
-  ExternalLink, Upload, FileText, Medal, Shield
+  User, Mail, Award, 
+  Edit2, Save, X, School, Target,
+  Trophy, Plus, 
+  ExternalLink, Medal
 } from 'lucide-react';
+import ProfessionalSelect from '../components/ProfessionalSelect';
 import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
 import { getCurrentUser } from '../services/auth';
 import secureAPI from '../services/secureAPI';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import samsungLogo from '../assets/prism_logo.png';
 
 // Helper to get initials from name
 const getInitials = (name) => {
@@ -34,7 +33,6 @@ const generateColorFromName = (name) => {
 
 export default function StudentProfile() {
   useDocumentTitle('My Profile - PRISM');
-  const navigate = useNavigate();
 
   // State management
   const [loading, setLoading] = useState(true);
@@ -53,7 +51,7 @@ export default function StudentProfile() {
     { id: 1, title: 'JavaScript Fundamentals', issuer: 'FreeCodeCamp', date: '2025-12-15', image: null },
     { id: 2, title: 'React Advanced Concepts', issuer: 'Udemy', date: '2026-01-05', image: null },
   ]);
-  const [badges, setBadges] = useState([
+  const [badges] = useState([
     { id: 1, name: 'Fast Learner', icon: '⚡', color: 'from-yellow-400 to-orange-500' },
     { id: 2, name: 'Team Player', icon: '🤝', color: 'from-blue-400 to-indigo-500' },
     { id: 3, name: 'Perfect Attendance', icon: '✓', color: 'from-green-400 to-teal-500' },
@@ -393,19 +391,19 @@ export default function StudentProfile() {
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Year of Study</label>
                   {editMode ? (
-                    <select
+                    <ProfessionalSelect
                       name="year"
                       value={formData.year}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent text-slate-900 dark:text-white"
-                    >
-                      <option value="">Select Year</option>
-                      <option value="1">1st Year</option>
-                      <option value="2">2nd Year</option>
-                      <option value="3">3rd Year</option>
-                      <option value="4">4th Year</option>
-                      <option value="Graduate">Graduate</option>
-                    </select>
+                      placeholder="Select Year"
+                      options={[
+                        { value: "1", label: "1st Year" },
+                        { value: "2", label: "2nd Year" },
+                        { value: "3", label: "3rd Year" },
+                        { value: "4", label: "4th Year" },
+                        { value: "Graduate", label: "Graduate" }
+                      ]}
+                    />
                   ) : (
                     <p className="text-sm font-medium text-slate-900 dark:text-white">
                       {formData.year ? (formData.year === '1' ? '1st Year' : formData.year === '2' ? '2nd Year' : formData.year === '3' ? '3rd Year' : formData.year === '4' ? '4th Year' : formData.year) : 'Not set'}

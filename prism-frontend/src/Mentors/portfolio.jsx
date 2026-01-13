@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import ProfessionalSelect from '../components/ProfessionalSelect'
 import {
   Award,
   Star,
@@ -411,24 +412,21 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
             <BookUser size={20} className="mr-2 text-blue-500" /> Select Worklet
           </h4>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Associated Worklet <span className="text-red-500">*</span>
-            </label>
-            <select
+            <ProfessionalSelect
               {...register('worklet_id', { required: 'Please select a worklet' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              disabled={loadingWorklets}>
-              <option value="">Select a completed worklet</option>
-              {completedWorklets.map((worklet) => {
+              disabled={loadingWorklets}
+              label="Associated Worklet"
+              required
+              placeholder="Select a completed worklet"
+              options={completedWorklets.map((worklet) => {
                 const description = worklet.description || worklet.title || 'No description'
                 const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
-                return (
-                  <option key={worklet.id} value={worklet.id}>
-                    {worklet.cert_id} - {truncatedDesc}
-                  </option>
-                )
+                return {
+                  value: worklet.id,
+                  label: `${worklet.cert_id} - ${truncatedDesc}`
+                }
               })}
-            </select>
+            />
             {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
             {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
             {completedWorklets.length === 0 && !loadingWorklets && (
@@ -641,24 +639,21 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
         <Lightbulb size={20} className="mr-2 text-yellow-500" /> Select Worklet
       </h4>
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Associated Worklet <span className="text-red-500">*</span>
-        </label>
-        <select
+        <ProfessionalSelect
           {...register('worklet_id', { required: 'Please select a worklet' })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-          disabled={loadingWorklets}>
-          <option value="">Select a completed worklet</option>
-          {completedWorklets.map((worklet) => {
+          disabled={loadingWorklets}
+          label="Associated Worklet"
+          required
+          placeholder="Select a completed worklet"
+          options={completedWorklets.map((worklet) => {
             const description = worklet.description || worklet.title || 'No description'
             const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
-            return (
-              <option key={worklet.id} value={worklet.id}>
-                {worklet.cert_id} - {truncatedDesc}
-              </option>
-            )
+            return {
+              value: worklet.id,
+              label: `${worklet.cert_id} - ${truncatedDesc}`
+            }
           })}
-        </select>
+        />
         {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
         {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
         {completedWorklets.length === 0 && !loadingWorklets && (
@@ -816,24 +811,21 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
       </h4>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Associated Worklet <span className="text-red-500">*</span>
-        </label>
-        <select
+        <ProfessionalSelect
           {...register('worklet_id', { required: 'Please select a worklet' })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-          disabled={loadingWorklets}>
-          <option value="">Select a completed worklet</option>
-          {completedWorklets.map((worklet) => {
+          disabled={loadingWorklets}
+          label="Associated Worklet"
+          required
+          placeholder="Select a completed worklet"
+          options={completedWorklets.map((worklet) => {
             const description = worklet.description || worklet.title || 'No description'
             const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
-            return (
-              <option key={worklet.id} value={worklet.id}>
-                {worklet.cert_id} - {truncatedDesc}
-              </option>
-            )
+            return {
+              value: worklet.id,
+              label: `${worklet.cert_id} - ${truncatedDesc}`
+            }
           })}
-        </select>
+        />
         {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
         {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
         {completedWorklets.length === 0 && !loadingWorklets && (

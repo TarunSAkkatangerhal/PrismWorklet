@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Search, X, Users, Info, SlidersHorizontal, SquarePlus, Edit } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { MessageCircle, Send, Search, X, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
 import chatService from '../services/chat';
@@ -103,7 +102,7 @@ const useChatWebSocket = (onMessage) => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
 
-  const connect = () => {
+  const connect = useCallback(() => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -157,7 +156,7 @@ const useChatWebSocket = (onMessage) => {
     } catch (error) {
       console.error('Error connecting to WebSocket:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     connect();
@@ -173,7 +172,7 @@ const useChatWebSocket = (onMessage) => {
         wsRef.current.close();
       }
     };
-  }, []);
+  }, [connect]);
 
   const sendMessage = (message) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -236,8 +235,6 @@ const MessageBubble = ({ message, isOwnMessage }) => {
 // Student Chat Page Component
 export default function StudentChatPage() {
   useDocumentTitle('Messages - PRISM');
-  const navigate = useNavigate();
-  const [rooms, setRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -245,21 +242,12 @@ export default function StudentChatPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserId, setCurrentUserId] = useState(null);
   const [groupChats, setGroupChats] = useState([]);
-  const [statusFilter, setStatusFilter] = useState(1); // Default to Ongoing
-  const [chatType, setChatType] = useState('all'); // 'all', 'individual', 'group'
+  const [chatType, setChatType] = useState('group'); // 'group' only
   const [showGroupProfile, setShowGroupProfile] = useState(false);
   const [groupProfile, setGroupProfile] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(5000); // Start at 5s
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
-  
-  // Filter and New Chat Panel States
-  const [showFilters, setShowFilters] = useState(false);
-  const [showNewChatPanel, setShowNewChatPanel] = useState(false);
-  const [allMentors, setAllMentors] = useState([]);
-  const [mentorSearchQuery, setMentorSearchQuery] = useState('');
-  const [loadingMentors, setLoadingMentors] = useState(false);
-  const [creatingChat, setCreatingChat] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -268,99 +256,6 @@ export default function StudentChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  // Fetch all mentors from student's worklets
-  const fetchAllMentors = async () => {
-    if (!currentUserId) {
-      console.log('No current user ID, cannot fetch mentors');
-      return;
-    }
-    
-    setLoadingMentors(true);
-    try {
-      // Get student's worklets
-      const workletsResponse = await secureAPI.get('/worklets/student/me');
-      const worklets = workletsResponse.data || [];
-      
-      console.log('Fetched worklets:', worklets);
-      
-      const mentorsMap = new Map();
-      await Promise.all(
-        worklets.map(async (worklet) => {
-          try {
-            // Get mentors for each worklet
-            const response = await secureAPI.get(`/api/associations/worklet/${worklet.id}/users`);
-            const mentors = (response.data?.mentors || []).filter(m => m.user_id !== currentUserId);
-            console.log(`Mentors for worklet ${worklet.id}:`, mentors);
-            mentors.forEach(mentor => {
-              if (!mentorsMap.has(mentor.user_id)) {
-                mentorsMap.set(mentor.user_id, {
-                  ...mentor,
-                  worklets: [{ id: worklet.id, title: worklet.cert_id || worklet.title || `Worklet ${worklet.id}` }]
-                });
-              } else {
-                const existing = mentorsMap.get(mentor.user_id);
-                existing.worklets.push({ id: worklet.id, title: worklet.cert_id || worklet.title || `Worklet ${worklet.id}` });
-              }
-            });
-          } catch (error) {
-            console.error(`Error fetching mentors for worklet ${worklet.id}:`, error);
-          }
-        })
-      );
-      
-      const mentorsList = Array.from(mentorsMap.values());
-      console.log('All mentors mapped:', mentorsList);
-      setAllMentors(mentorsList);
-    } catch (error) {
-      console.error('Error fetching mentors:', error);
-    } finally {
-      setLoadingMentors(false);
-    }
-  };
-
-  // Handle opening new chat panel
-  const handleOpenNewChatPanel = () => {
-    setShowNewChatPanel(true);
-    if (allMentors.length === 0) {
-      fetchAllMentors();
-    }
-  };
-
-  // Handle creating chat with selected mentor
-  const handleStartChatWithMentor = async (mentor, workletId) => {
-    setCreatingChat(true);
-    try {
-      const response = await chatService.createOrGetChatRoom(workletId, mentor.user_id);
-      
-      setShowNewChatPanel(false);
-      setMentorSearchQuery('');
-      
-      await fetchRooms();
-      
-      setTimeout(async () => {
-        const updatedRooms = await chatService.getChatRooms();
-        const newRoom = updatedRooms.find(r => r.room_id === response.room_id);
-        if (newRoom) {
-          handleSelectRoom({ ...newRoom, isGroup: false, displayName: newRoom.other_user_name }, false);
-        }
-      }, 500);
-    } catch (error) {
-      console.error('Error creating chat:', error);
-      alert('Failed to create chat. Please try again.');
-    } finally {
-      setCreatingChat(false);
-    }
-  };
-
-  // Filter mentors based on search
-  const filteredMentors = allMentors.filter(mentor => {
-    const searchLower = mentorSearchQuery.toLowerCase();
-    return (
-      (mentor.name && mentor.name.toLowerCase().includes(searchLower)) ||
-      (mentor.email && mentor.email.toLowerCase().includes(searchLower))
-    );
-  });
 
   // Get current user
   useEffect(() => {
@@ -395,7 +290,6 @@ export default function StudentChatPage() {
         }
       }
       
-      fetchRooms();
     } else if (data.type === 'new_group_message') {
       const message = data.data;
       
@@ -420,22 +314,14 @@ export default function StudentChatPage() {
     }
   };
 
-  const { isConnected, sendMessage: sendWsMessage } = useChatWebSocket(handleWebSocketMessage);
+  const { isConnected } = useChatWebSocket(handleWebSocketMessage);
 
-  // Fetch chat rooms
-  const fetchRooms = async () => {
-    try {
-      const response = await secureAPI.get('/api/chat/rooms');
-      setRooms(response.data);
-    } catch (error) {
-      console.error('Error fetching chat rooms:', error);
-    }
-  };
 
-  // Fetch group chats
+
+  // Fetch group chats - Only Ongoing worklets (status_id = 1)
   const fetchGroupChats = async () => {
     try {
-      const groups = await chatService.getGroupChats(statusFilter);
+      const groups = await chatService.getGroupChats(1);
       setGroupChats(groups);
     } catch (error) {
       console.error('Error fetching group chats:', error);
@@ -500,7 +386,6 @@ export default function StudentChatPage() {
     
     // Mark room as read and refresh to clear unread dot
     setTimeout(() => {
-      fetchRooms();
       if (room.isGroup) {
         fetchGroupChats();
       }
@@ -575,7 +460,6 @@ export default function StudentChatPage() {
           });
           return updated;
         });
-        fetchRooms();
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -591,10 +475,9 @@ export default function StudentChatPage() {
   // Load rooms and groups on mount
   useEffect(() => {
     if (currentUserId) {
-      fetchRooms();
       fetchGroupChats();
     }
-  }, [currentUserId, statusFilter]); // Re-fetch when statusFilter changes
+  }, [currentUserId]); // Only fetch Ongoing worklet chats
 
   // Adaptive polling - only when WebSocket disconnected
   useEffect(() => {
@@ -604,7 +487,6 @@ export default function StudentChatPage() {
     if (!isConnected) {
       const interval = setInterval(() => {
         console.log('⚠️ WebSocket disconnected, polling at', pollingInterval + 'ms');
-        fetchRooms();
         fetchGroupChats();
         
         // Increase interval with exponential backoff: 5s → 10s → 30s → 60s
@@ -619,33 +501,20 @@ export default function StudentChatPage() {
     }
   }, [currentUserId, isConnected, pollingInterval]);
 
-  // Filter and sort rooms by search, type, and latest message
-  const filteredRooms = (chatType === 'all' || chatType === 'individual')
-    ? rooms
-        .filter(room => 
-          room.worklet_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          room.other_user_name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        .sort((a, b) => {
-          const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-          const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-          return timeB - timeA; // Most recent first
-        })
-    : [];
+  // Filter and sort rooms by search, type, and latest message - empty since we only show groups
+  const filteredRooms = [];
 
   // Filter and sort groups by search, type, and latest message
-  const filteredGroups = (chatType === 'all' || chatType === 'group')
-    ? groupChats
-        .filter(group =>
-          group.group_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          group.worklet_title?.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        .sort((a, b) => {
-          const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-          const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-          return timeB - timeA; // Most recent first
-        })
-    : [];
+  const filteredGroups = groupChats
+    .filter(group =>
+      group.group_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.worklet_title?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+      const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+      return timeB - timeA; // Most recent first
+    });
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
@@ -667,43 +536,11 @@ export default function StudentChatPage() {
                     Connecting...
                   </span>
                 )}
-                {/* Filter Icon Button */}
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    showFilters 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                  title="Filter"
-                >
-                  <SlidersHorizontal className="w-5 h-5" />
-                </button>
               </div>
             </div>
 
-            {/* Chat Type Filter */}
+            {/* Chat Type Filter - Showing only Groups (Ongoing worklets) */}
             <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setChatType('all')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  chatType === 'all'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setChatType('individual')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  chatType === 'individual'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                Individual
-              </button>
               <button
                 onClick={() => setChatType('group')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -715,37 +552,6 @@ export default function StudentChatPage() {
                 Groups
               </button>
             </div>
-            
-            {/* Collapsible Filters */}
-            <AnimatePresence>
-              {showFilters && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  {/* Status Filter Dropdown */}
-                  <div className="mb-3">
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
-                      Filter Worklet Status
-                    </label>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#202C33] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
-                    >
-                      <option value={0}>To Start</option>
-                      <option value={1}>Ongoing</option>
-                      <option value={2}>Completed</option>
-                      <option value={3}>On Hold</option>
-                      <option value={4}>Dropped</option>
-                    </select>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
             
             {/* Search */}
             <div className="relative mb-3">
@@ -765,21 +571,8 @@ export default function StudentChatPage() {
             {filteredRooms.length === 0 && filteredGroups.length === 0 ? (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                 <MessageCircle className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No conversations yet</p>
-                <p className="text-sm mt-1">Start chatting with your mentors</p>
-                
-                {/* New Chat Button - Show inline when no conversations and on Individual tab */}
-                {chatType === 'individual' && (
-                  <div className="mt-6 px-8">
-                    <button
-                      onClick={handleOpenNewChatPanel}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium shadow-sm"
-                    >
-                      <SquarePlus className="w-5 h-5" />
-                      <span>New Chat</span>
-                    </button>
-                  </div>
-                )}
+                <p className="font-medium">No group conversations yet</p>
+                <p className="text-sm mt-1">Group chats will appear here</p>
               </div>
             ) : (
               <>
@@ -789,7 +582,7 @@ export default function StudentChatPage() {
                   <>
                     <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/50">
                       <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                        <Users className="w-3 h-3" />
+                        <MessageCircle className="w-3 h-3" />
                         Team Chats ({filteredGroups.length})
                       </p>
                     </div>
@@ -840,75 +633,7 @@ export default function StudentChatPage() {
                     ))}
                   </>
                 )}
-
-                {/* Individual Chats Section */}
-                {filteredRooms.length > 0 && (
-                  <>
-                    {filteredGroups.length > 0 && (
-                      <div className="px-4 py-2 bg-gray-50 dark:bg-[#202C33]">
-                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                          Direct Messages ({filteredRooms.length})
-                        </p>
-                      </div>
-                    )}
-                    {filteredRooms.map((room) => (
-                      <motion.div
-                        key={room.room_id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        onClick={() => handleSelectRoom(room)}
-                        className={`p-4 cursor-pointer transition-colors border-l-4 ${
-                          selectedRoom?.room_id === room.room_id
-                            ? 'bg-blue-50 dark:bg-[#2A3942] border-blue-500 dark:border-blue-400'
-                            : 'border-transparent hover:bg-gray-50 dark:hover:bg-[#202C33] hover:border-blue-200 dark:hover:border-blue-800'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                              {room.other_user_name}
-                            </h3>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                              {room.worklet_title}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 ml-2">
-                            {room.last_message_at && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {formatTime(room.last_message_at)}
-                              </span>
-                            )}
-                            {room.unread_count > 0 && (
-                              <span className="w-3 h-3 bg-blue-500 rounded-full" title="Unread messages"></span>
-                            )}
-                          </div>
-                        </div>
-                        {room.last_message && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                            {room.last_message}
-                          </p>
-                        )}
-                      </motion.div>
-                    ))}
-                  </>
-                )}
               </div>
-              
-              {/* Floating New Chat Button - Only for Individual chats when there are conversations */}
-              {chatType === 'individual' && (
-                <motion.button
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleOpenNewChatPanel}
-                  className="absolute bottom-4 right-4 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-10"
-                  title="New Chat"
-                >
-                  <SquarePlus className="w-6 h-6" />
-                </motion.button>
-              )}
             </>
             )}
           </div>
@@ -1171,145 +896,6 @@ export default function StudentChatPage() {
               </div>
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* New Chat Panel - Sliding from right */}
-      <AnimatePresence>
-        {showNewChatPanel && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowNewChatPanel(false)}
-              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-            />
-            
-            {/* Sliding Panel */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 bottom-0 w-full sm:w-96 bg-white dark:bg-gray-800 shadow-2xl z-50 flex flex-col"
-            >
-              {/* Panel Header */}
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-blue-500 dark:bg-blue-600">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                      <SquarePlus className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-white">New Message</h2>
-                      <p className="text-xs text-blue-100">Select a mentor to chat with</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowNewChatPanel(false)}
-                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-white" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Search Bar */}
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={mentorSearchQuery}
-                    onChange={(e) => setMentorSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              {/* Mentors List */}
-              <div className="flex-1 overflow-y-auto">
-                {loadingMentors ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                      <p className="text-gray-500 dark:text-gray-400">Loading mentors...</p>
-                    </div>
-                  </div>
-                ) : filteredMentors.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center p-6">
-                      <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                      <p className="text-gray-500 dark:text-gray-400 font-medium">
-                        {mentorSearchQuery ? 'No mentors found' : 'No mentors available'}
-                      </p>
-                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                        {mentorSearchQuery ? 'Try a different search' : 'Mentors will appear here'}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredMentors.map((mentor) => (
-                      <div key={mentor.user_id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <div className="flex items-start gap-3">
-                          {/* Avatar */}
-                          <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-bold text-lg">
-                              {(mentor.name || mentor.email || 'M').charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          
-                          {/* Mentor Info */}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                              {mentor.name || 'Mentor'}
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                              {mentor.email}
-                            </p>
-                            
-                            {/* Worklets */}
-                            {mentor.worklets && mentor.worklets.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {mentor.worklets.slice(0, 2).map((worklet) => (
-                                  <button
-                                    key={worklet.id}
-                                    onClick={() => handleStartChatWithMentor(mentor, worklet.id)}
-                                    disabled={creatingChat}
-                                    className="w-full text-left px-2 py-1.5 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded text-xs text-purple-700 dark:text-purple-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                                  >
-                                    <MessageCircle className="w-3 h-3" />
-                                    Chat about: {worklet.title}
-                                  </button>
-                                ))}
-                                {mentor.worklets.length > 2 && (
-                                  <p className="text-xs text-gray-400 dark:text-gray-500 px-2">
-                                    +{mentor.worklets.length - 2} more worklet{mentor.worklets.length - 2 > 1 ? 's' : ''}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer Info */}
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                  {filteredMentors.length} {filteredMentors.length === 1 ? 'mentor' : 'mentors'} available
-                </p>
-              </div>
-            </motion.div>
-          </>
         )}
       </AnimatePresence>
     </div>

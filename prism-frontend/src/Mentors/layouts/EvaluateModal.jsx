@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Award, Star, Trophy, Gift, CheckCircle2 } from 'lucide-react';
+import { X, Award, Star, Trophy, Gift } from 'lucide-react';
 import apiClient from '../../services/secureAPI';
+import ProfessionalSelect from '../../components/ProfessionalSelect';
 
 function EvaluateModal({ isOpen, onClose, onSuccess, onError }) {
   const [completedWorklets, setCompletedWorklets] = useState([]);
@@ -211,26 +212,17 @@ function EvaluateModal({ isOpen, onClose, onSuccess, onError }) {
             )}
             {/* Worklet Selection */}
             <div className="mb-6">
-              <label htmlFor="worklet-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Completed Worklet
-              </label>
-              <select
+              <ProfessionalSelect
                 id="worklet-select"
                 value={selectedWorklet}
                 onChange={(e) => handleWorkletSelect(e.target.value)}
-                className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-              >
-                <option value="">Select Worklet ID</option>
-                {completedWorklets.length > 0 ? (
-                  completedWorklets.map(worklet => (
-                    <option key={worklet.id} value={worklet.id}>
-                      {(worklet.cert_id || worklet.id)} - {worklet.title?.substring(0, 50) || worklet.description?.substring(0, 50) || 'No title'}
-                    </option>
-                  ))
-                ) : (
-                  <option disabled>No completed worklets found</option>
-                )}
-              </select>
+                label="Select Completed Worklet"
+                placeholder="Select Worklet ID"
+                options={completedWorklets.length > 0 ? completedWorklets.map(worklet => ({
+                  value: worklet.id,
+                  label: `${(worklet.cert_id || worklet.id)} - ${worklet.title?.substring(0, 50) || worklet.description?.substring(0, 50) || 'No title'}`
+                })) : [{ value: '', label: 'No completed worklets found', disabled: true }]}
+              />
             </div>
 
             {/* Selected Worklet Details */}
@@ -285,38 +277,34 @@ function EvaluateModal({ isOpen, onClose, onSuccess, onError }) {
                   </h3>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Overall Performance
-                    </label>
-                    <select
+                    <ProfessionalSelect
                       value={evaluationData.performance_rating}
                       onChange={(e) => handleInputChange('performance_rating', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                    >
-                      <option value="">Select Rating</option>
-                      <option value="excellent">Excellent (90-100%)</option>
-                      <option value="very_good">Very Good (80-89%)</option>
-                      <option value="good">Good (70-79%)</option>
-                      <option value="average">Average (60-69%)</option>
-                      <option value="poor">Poor (Below 60%)</option>
-                    </select>
+                      label="Overall Performance"
+                      placeholder="Select Rating"
+                      options={[
+                        { value: "excellent", label: "Excellent (90-100%)" },
+                        { value: "very_good", label: "Very Good (80-89%)" },
+                        { value: "good", label: "Good (70-79%)" },
+                        { value: "average", label: "Average (60-69%)" },
+                        { value: "poor", label: "Poor (Below 60%)" }
+                      ]}
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Completion Quality
-                    </label>
-                    <select
+                    <ProfessionalSelect
                       value={evaluationData.completion_quality}
                       onChange={(e) => handleInputChange('completion_quality', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                    >
-                      <option value="">Select Quality</option>
-                      <option value="outstanding">Outstanding</option>
-                      <option value="high">High Quality</option>
-                      <option value="standard">Standard</option>
-                      <option value="needs_improvement">Needs Improvement</option>
-                    </select>
+                      label="Completion Quality"
+                      placeholder="Select Quality"
+                      options={[
+                        { value: "outstanding", label: "Outstanding" },
+                        { value: "high", label: "High Quality" },
+                        { value: "standard", label: "Standard" },
+                        { value: "needs_improvement", label: "Needs Improvement" }
+                      ]}
+                    />
                   </div>
 
                   <div>
@@ -334,20 +322,18 @@ function EvaluateModal({ isOpen, onClose, onSuccess, onError }) {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Teamwork Rating
-                    </label>
-                    <select
+                    <ProfessionalSelect
                       value={evaluationData.teamwork_rating}
                       onChange={(e) => handleInputChange('teamwork_rating', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                    >
-                      <option value="">Select Rating</option>
-                      <option value="excellent">Excellent Collaboration</option>
-                      <option value="good">Good Teamwork</option>
-                      <option value="average">Average Coordination</option>
-                      <option value="poor">Poor Collaboration</option>
-                    </select>
+                      label="Teamwork Rating"
+                      placeholder="Select Rating"
+                      options={[
+                        { value: "excellent", label: "Excellent Collaboration" },
+                        { value: "good", label: "Good Teamwork" },
+                        { value: "average", label: "Average Coordination" },
+                        { value: "poor", label: "Poor Collaboration" }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -373,20 +359,18 @@ function EvaluateModal({ isOpen, onClose, onSuccess, onError }) {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Certificate Type
-                    </label>
-                    <select
+                    <ProfessionalSelect
                       value={evaluationData.perks.certificate_type}
                       onChange={(e) => handleInputChange('perks.certificate_type', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                    >
-                      <option value="">No Certificate</option>
-                      <option value="participation">Participation Certificate</option>
-                      <option value="completion">Completion Certificate</option>
-                      <option value="excellence">Excellence Certificate</option>
-                      <option value="innovation">Innovation Award</option>
-                    </select>
+                      label="Certificate Type"
+                      placeholder="No Certificate"
+                      options={[
+                        { value: "participation", label: "Participation Certificate" },
+                        { value: "completion", label: "Completion Certificate" },
+                        { value: "excellence", label: "Excellence Certificate" },
+                        { value: "innovation", label: "Innovation Award" }
+                      ]}
+                    />
                   </div>
 
                   <div>

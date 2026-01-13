@@ -168,6 +168,8 @@ export default function Dashboard() {
           
           // Extract student names (fallback to email if name missing)
           const studentNames = Array.isArray(worklet.students) ? worklet.students.map(s => s.name || s.email || 'Student') : []
+          // Extract professor names
+          const professorNames = Array.isArray(worklet.professors) ? worklet.professors : []
           // Keep raw ISO dates for calculations and formatted versions for display
           const startISO = worklet.start_date || null
           const endISO = worklet.end_date || null
@@ -188,6 +190,7 @@ export default function Dashboard() {
             startDate: startDisplay,
             endDate: endDisplay,
             students: studentNames,
+            professors: professorNames,
             notificationCount: 0,
             quality,
             riskStatus,
@@ -465,52 +468,6 @@ export default function Dashboard() {
 
 // --- UPDATED WORKLET CARD COMPONENT ---
 function WorkletCard({ worklet, layout, navigate }) {
-  // Helper function to format suggestion content
-  const formatSuggestionContent = (content, maxWords = 15) => {
-    if (!content) return null
-    const words = content.split(' ')
-    if (words.length <= maxWords) return content
-    return words.slice(0, maxWords).join(' ') + '...'
-  }
-
-  // Helper function to calculate time ago from created_at
-  const getTimeAgo = (createdAt) => {
-    if (!createdAt) return 'recently'
-    
-    try {
-      const created = new Date(createdAt)
-      const now = new Date()
-      const diffMs = now - created
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-      const diffDays = Math.floor(diffHours / 24)
-      
-      if (diffHours < 1) return 'Just now'
-      if (diffHours < 24) return `${diffHours}h ago`
-      if (diffDays < 7) return `${diffDays}d ago`
-      return `${Math.floor(diffDays / 7)}w ago`
-    } catch (e) {
-      return 'recently'
-    }
-  }
-
-  // Get latest suggestion display text
-  const getLatestSuggestionDisplay = () => {
-    if (!worklet.latestSuggestion) {
-      return {
-        text: 'No suggestions yet',
-        timeAgo: null
-      }
-    }
-    
-    const content = worklet.latestSuggestion.content || worklet.latestSuggestion.title || 'Suggestion available'
-    return {
-      text: formatSuggestionContent(content),
-      timeAgo: getTimeAgo(worklet.latestSuggestion.created_at)
-    }
-  }
-
-  const suggestionDisplay = getLatestSuggestionDisplay()
-
   // Container width adapts when in horizontal scroller vs grid mode
   const containerClasses = layout === 'grid' ? 'w-full' : 'w-[clamp(18rem,25vw,22rem)] flex-shrink-0'
 
@@ -673,8 +630,10 @@ function WorkletCard({ worklet, layout, navigate }) {
             {truncateText(worklet.college)}
           </span>
         </div>
-        {/* PROBLEM STATEMENT with comfortable font size */}
+        {/* CERT ID with comfortable font size */}
         <h3 className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold leading-tight">{worklet.title}</h3>
+        {/* PROBLEM STATEMENT below cert_id */}
+        <p className="text-[clamp(0.7rem,0.95vw,0.85rem)] text-gray-200 mt-[0.3vw] leading-snug">{truncateText(worklet.description, 60)}</p>
       </div>
 
       {/* --- PROGRESS BAR AT BOTTOM --- */}
@@ -726,6 +685,21 @@ function WorkletCard({ worklet, layout, navigate }) {
             </span>
           </div>
 
+          {/* Professors Section */}
+          {worklet.professors && worklet.professors.length > 0 && (
+            <div className="mt-[0.75vw]">
+              <div className="flex items-center gap-[0.5vw] font-semibold text-[clamp(0.75rem,1vw,0.875rem)]">
+                <BookOpen size={Math.max(14, Math.min(18, window.innerWidth * 0.014))} />
+                <h4>Professors</h4>
+              </div>
+              <ul className="mt-[0.25vw] list-disc list-inside text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-200 space-y-[0.15vw]">
+                {worklet.professors.map((professor, index) => (
+                  <li key={`${worklet.id}-professor-${index}`}>{professor}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {worklet.students.length > 0 ? (
             <div className="mt-[0.75vw]">
               <div className="flex items-center gap-[0.5vw] font-semibold text-[clamp(0.75rem,1vw,0.875rem)]">
@@ -749,7 +723,7 @@ function WorkletCard({ worklet, layout, navigate }) {
         </div>
 
         {/* Right side panel with latest update */}
-        <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center text-center p-[0.4vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out overflow-hidden">
+        <div className="w-[clamp(6rem,8vw,7.5rem)] flex-shrink-0 bg-black/40 flex flex-col items-center text-center p-[0.4vw] pt-[1.5vw] transform translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-in-out overflow-hidden">
           
           {/* Risk Status Badge */}
           {worklet.riskStatus && worklet.riskStatus !== 'Not Applicable' && (
@@ -767,27 +741,9 @@ function WorkletCard({ worklet, layout, navigate }) {
             </span>
           )}
           
-          <div className={`${(worklet.quality || worklet.riskStatus) ? 'mt-[0.6vw]' : ''} flex-1 flex flex-col justify-center`}>
+          <div className={`${(worklet.quality || worklet.riskStatus) ? 'mt-[0.6vw]' : ''} flex-1 flex flex-col justify-center items-center`}>
             <p className="text-[clamp(1.2rem,2.5vw,2rem)] font-bold">{remaining.days}</p>
             <p className="text-[clamp(0.5rem,0.7vw,0.65rem)] text-gray-300">{remaining.label}</p>
-          </div>
-          
-          {/* Latest Update Section - Compact */}
-          <div className="mt-[0.6vw] pt-[0.6vw] border-t border-white/20 w-full">
-            <div className="flex items-center justify-center gap-[0.2vw] mb-[0.3vw]">
-              <div className={`w-[0.3vw] h-[0.3vw] rounded-full ${worklet.latestSuggestion ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
-              <span className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-gray-300 font-medium uppercase tracking-wide">
-                Latest
-              </span>
-            </div>
-            <div className="text-[clamp(0.5rem,0.65vw,0.6rem)] text-gray-200 leading-tight break-words">
-              {suggestionDisplay.text}
-            </div>
-            {suggestionDisplay.timeAgo && (
-              <div className="text-[clamp(0.4rem,0.55vw,0.5rem)] text-gray-400 mt-[0.2vw]">
-                {suggestionDisplay.timeAgo}
-              </div>
-            )}
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import ProfessionalSelect from '../components/ProfessionalSelect';
 import { 
   Calendar, 
   Users, 
@@ -2153,18 +2154,15 @@ const Meetings = () => {
 
                 {/* Duration Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Duration</label>
-                  <select
+                  <ProfessionalSelect
                     value={rescheduleDuration}
                     onChange={(e) => setRescheduleDuration(Number(e.target.value))}
-                    className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
-                    {[15,30,45,60,90,120].map(d => (
-                      <option key={d} value={d}>
-                        {d === 60 ? '1 hour' : d < 60 ? `${d} minutes` : `${d/60} hours`}
-                      </option>
-                    ))}
-                  </select>
+                    label="Duration"
+                    options={[15,30,45,60,90,120].map(d => ({
+                      value: d,
+                      label: d === 60 ? '1 hour' : d < 60 ? `${d} minutes` : `${d/60} hours`
+                    }))}
+                  />
                 </div>
               </div>
               <div>
@@ -2370,25 +2368,20 @@ const Meetings = () => {
 
               {/* College Selection */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Select College <span className="text-red-500">*</span></label>
-                <select
+                <ProfessionalSelect
                   value={formCollege}
                   onChange={(e) => {
                     setFormCollege(e.target.value);
                     setFormSelectedWorklets([]); // Reset worklet selection when college changes
                   }}
-                  className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  label="Select College"
                   required
-                >
-                  <option value="" className="bg-white dark:bg-slate-800">
-                    {colleges.length === 0 ? 'Loading colleges...' : 'Choose a college...'}
-                  </option>
-                  {getUniqueColleges().map(college => (
-                    <option key={college} value={college} className="bg-white dark:bg-slate-800">
-                      {college}
-                    </option>
-                  ))}
-                </select>
+                  placeholder={colleges.length === 0 ? 'Loading colleges...' : 'Choose a college...'}
+                  options={getUniqueColleges().map(college => ({
+                    value: college,
+                    label: college
+                  }))}
+                />
                 {colleges.length === 0 && !loading && (
                   <p className="text-xs text-red-500 mt-1">No colleges available. Please contact administrator.</p>
                 )}
@@ -2497,18 +2490,15 @@ const Meetings = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Duration</label>
-                  <select
+                  <ProfessionalSelect
                     value={formDuration}
                     onChange={(e) => setFormDuration(Number(e.target.value))}
-                    className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
-                    {durationOptions.map(min => (
-                      <option key={min} value={min} className="bg-white dark:bg-slate-800">
-                        {min === 60 ? '1 hour' : min < 60 ? `${min} minutes` : `${min/60} hours`}
-                      </option>
-                    ))}
-                  </select>
+                    label="Duration"
+                    options={durationOptions.map(min => ({
+                      value: min,
+                      label: min === 60 ? '1 hour' : min < 60 ? `${min} minutes` : `${min/60} hours`
+                    }))}
+                  />
                 </div>
               </div>
 
