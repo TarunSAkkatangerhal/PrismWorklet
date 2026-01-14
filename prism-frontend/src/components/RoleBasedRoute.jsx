@@ -34,14 +34,19 @@ export function MentorRoute({ children }) {
   
   const userRole = role?.toLowerCase();
   
-  // Allow access if user is mentor, admin, or professor
-  if (userRole && ['mentor', 'admin', 'professor'].includes(userRole)) {
+  // Allow access if user is mentor or admin
+  if (userRole && ['mentor', 'admin'].includes(userRole)) {
     return children;
   }
   
-  // Redirect students to student dashboard, others to login
+  // Redirect students to student dashboard
   if (userRole === 'student') {
     return <Navigate to="/student-dashboard" replace />;
+  }
+  
+  // Redirect professors to professor dashboard
+  if (userRole === 'professor') {
+    return <Navigate to="/professor-dashboard" replace />;
   }
   
   return <Navigate to="/" replace />;
@@ -64,8 +69,42 @@ export function StudentRoute({ children }) {
     return children;
   }
   
-  // Redirect mentors to mentor dashboard, others to login
-  if (['mentor', 'admin', 'professor'].includes(userRole)) {
+  // Redirect mentors to mentor dashboard, professors to professor dashboard
+  if (['mentor', 'admin'].includes(userRole)) {
+    return <Navigate to="/home" replace />;
+  }
+  
+  if (userRole === 'professor') {
+    return <Navigate to="/professor-dashboard" replace />;
+  }
+  
+  return <Navigate to="/" replace />;
+}
+
+export function ProfessorRoute({ children }) {
+  // Fallback to localStorage for now to keep app working
+  const token = localStorage.getItem('access_token');
+  const role = localStorage.getItem('user_role');
+  
+  // Check authentication first
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
+  
+  const userRole = role?.toLowerCase();
+  
+  // Allow access if user is professor or admin
+  if (userRole && ['professor', 'admin'].includes(userRole)) {
+    return children;
+  }
+  
+  // Redirect students to student dashboard
+  if (userRole === 'student') {
+    return <Navigate to="/student-dashboard" replace />;
+  }
+  
+  // Redirect mentors to mentor dashboard
+  if (userRole === 'mentor') {
     return <Navigate to="/home" replace />;
   }
   

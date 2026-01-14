@@ -1,62 +1,8 @@
 import secureAPI from './secureAPI';
 
-// Chat service for managing chat rooms and messages
+// Chat service for managing group chat messages
 
 export const chatService = {
-  // Get all chat rooms for current user
-  async getChatRooms() {
-    try {
-      const response = await secureAPI.get('/api/chat/rooms');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching chat rooms:', error);
-      throw error;
-    }
-  },
-
-  // Create or get existing chat room
-  async createOrGetChatRoom(workletId, otherUserId) {
-    try {
-      const response = await secureAPI.post('/api/chat/rooms', null, {
-        params: {
-          worklet_id: workletId,
-          other_user_id: otherUserId,
-        },
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error creating/getting chat room:', error);
-      throw error;
-    }
-  },
-
-  // Get messages from a chat room
-  async getMessages(roomId, skip = 0, limit = 50) {
-    try {
-      const response = await secureAPI.get(`/api/chat/rooms/${roomId}/messages`, {
-        params: { skip, limit },
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      throw error;
-    }
-  },
-
-  // Send a message
-  async sendMessage(roomId, messageText) {
-    try {
-      const response = await secureAPI.post('/api/chat/messages', {
-        room_id: roomId,
-        message_text: messageText,
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-  },
-
   // Mark message as read
   async markAsRead(messageId) {
     try {
@@ -68,17 +14,6 @@ export const chatService = {
     }
   },
 
-  // Mark all messages in a room as read
-  async markRoomAsRead(roomId) {
-    try {
-      const response = await secureAPI.patch(`/api/chat/rooms/${roomId}/read`);
-      return response.data;
-    } catch (error) {
-      console.error('Error marking room as read:', error);
-      throw error;
-    }
-  },
-
   // Get unread message count
   async getUnreadCount() {
     try {
@@ -86,19 +21,6 @@ export const chatService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching unread count:', error);
-      throw error;
-    }
-  },
-
-  // Search messages in a room
-  async searchMessages(roomId, query) {
-    try {
-      const response = await secureAPI.get(`/api/chat/rooms/${roomId}/search`, {
-        params: { query },
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error searching messages:', error);
       throw error;
     }
   },
@@ -127,13 +49,13 @@ export const chatService = {
     }
   },
 
-  // Update room settings (archive/mute)
-  async updateRoomSettings(roomId, settings) {
+  // Toggle star on a message
+  async toggleStarMessage(messageId) {
     try {
-      const response = await secureAPI.patch(`/api/chat/rooms/${roomId}/settings`, settings);
+      const response = await secureAPI.patch(`/api/chat/messages/${messageId}/star`);
       return response.data;
     } catch (error) {
-      console.error('Error updating room settings:', error);
+      console.error('Error toggling star on message:', error);
       throw error;
     }
   },
@@ -341,31 +263,24 @@ export const chatService = {
     }
   },
 
-  // Get all individual chats for mentor with students
-  async getMentorStudentChats(workletId) {
+  // Send starred messages email
+  async sendStarredMessagesEmail(workletId) {
     try {
-      const response = await secureAPI.get('/api/chat/mentor-students', {
-        params: { worklet_id: workletId },
-      });
+      const response = await secureAPI.post(`/api/chat/groups/${workletId}/send-starred-email`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching mentor-student chats:', error);
+      console.error('Error sending starred messages email:', error);
       throw error;
     }
   },
 
-  // Start individual chat with a student (mentor)
-  async startStudentChat(studentId, workletId) {
+  // Check email status for worklet
+  async checkEmailStatus(workletId) {
     try {
-      const response = await secureAPI.post('/api/chat/rooms', null, {
-        params: {
-          worklet_id: workletId,
-          other_user_id: studentId,
-        },
-      });
+      const response = await secureAPI.get(`/api/chat/groups/${workletId}/email-status`);
       return response.data;
     } catch (error) {
-      console.error('Error starting student chat:', error);
+      console.error('Error checking email status:', error);
       throw error;
     }
   },

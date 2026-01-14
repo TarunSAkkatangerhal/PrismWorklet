@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Search, X, Info } from 'lucide-react';
+import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Star, Check, MoreVertical, Mail, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
 import chatService from '../services/chat';
@@ -197,7 +197,60 @@ const DateSeparator = ({ date }) => {
 };
 
 // Message Bubble Component - WhatsApp style
-const MessageBubble = ({ message, isOwnMessage }) => {
+const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete, onStar }) => {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  // Check if message is within 20 minutes of being sent
+  const isWithin20Minutes = () => {
+    const sentTime = new Date(message.sent_at);
+    const currentTime = new Date();
+    const diffInMinutes = (currentTime - sentTime) / (1000 * 60); // Convert milliseconds to minutes
+    return diffInMinutes <= 20;
+  };
+
+  const canEdit = isOwnMessage && isWithin20Minutes();
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleDelete = () => {
+    if (!canEdit) {
+      alert('Messages can only be deleted within 20 minutes of sending');
+      return;
+    }
+    if (window.confirm('Are you sure you want to delete this message? This cannot be undone.')) {
+      onDelete(message.message_id);
+      setShowMenu(false);
+    }
+  };
+
+  const handleStar = () => {
+    if (!canEdit) {
+      alert('Messages can only be starred within 20 minutes of sending');
+      return;
+    }
+    onStar(message.message_id);
+    setShowMenu(false);
+  };
+
+  const handleEdit = () => {
+    if (!canEdit) {
+      alert('Messages can only be edited within 20 minutes of sending');
+      return;
+    }
+    onEdit(message);
+    setShowMenu(false);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -213,19 +266,76 @@ const MessageBubble = ({ message, isOwnMessage }) => {
             </span>
           </p>
         )}
-        <div
-          className={`rounded-lg px-3 py-2 shadow-sm ${
-            isOwnMessage
-              ? 'bg-blue-500 dark:bg-blue-600 text-white rounded-br-sm'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm'
-          }`}
-        >
-          <p className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
-          <div className={`flex items-center gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-            <span className={`text-[11px] ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-600 dark:text-gray-400'}`}>
-              {new Date(message.sent_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-            </span>
+        <div className="relative group">
+          <div
+            className={`rounded-lg px-3 py-2 shadow-sm ${
+              isOwnMessage
+                ? 'bg-blue-500 dark:bg-blue-600 text-white rounded-br-sm'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm'
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              {message.is_starred && (
+                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 flex-shrink-0 mt-1" />
+              )}
+              {message.included_in_email && (
+                <CheckCheck className="w-3 h-3 text-green-500 flex-shrink-0 mt-1" title="Included in email" />
+              )}
+              <p className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words flex-1" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
+            </div>
+            <div className={`flex items-center gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+              {message.is_edited && (
+                <span className={`text-[10px] italic ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-600 dark:text-gray-400'}`}>
+                  edited
+                </span>
+              )}
+              <span className={`text-[11px] ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-600 dark:text-gray-400'}`}>
+                {new Date(message.sent_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+              </span>
+            </div>
           </div>
+          
+          {/* 3-dot menu button - only show for own messages within 20 minutes */}
+          {canEdit && (
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className={`absolute top-1 right-1 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity ${
+                showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Dropdown menu */}
+          {showMenu && canEdit && (
+            <div
+              ref={menuRef}
+              className="absolute top-8 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 min-w-[140px] z-10"
+            >
+              <button
+                onClick={handleStar}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+              >
+                <Star className={`w-4 h-4 ${message.is_starred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                {message.is_starred ? 'Unstar' : 'Star'}
+              </button>
+              <button
+                onClick={handleEdit}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit
+              </button>
+              <button
+                onClick={handleDelete}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-red-600 dark:text-red-400"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -246,6 +356,9 @@ export default function StudentChatPage() {
   const [showGroupProfile, setShowGroupProfile] = useState(false);
   const [groupProfile, setGroupProfile] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(5000); // Start at 5s
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [emailStatus, setEmailStatus] = useState({ can_send: true, starred_messages_available: 0 });
+  const [sendingEmail, setSendingEmail] = useState(false);
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
 
@@ -274,23 +387,7 @@ export default function StudentChatPage() {
 
   // WebSocket message handler
   const handleWebSocketMessage = (data) => {
-    if (data.type === 'new_message') {
-      const message = data.data;
-      
-      // Only add if not already in messages (to avoid duplicates)
-      if (selectedRoom && !selectedRoom.isGroup && message.room_id === selectedRoom.room_id) {
-        setMessages((prev) => {
-          const exists = prev.some(m => m.message_id === message.message_id);
-          if (exists) return prev;
-          return [...prev, message];
-        });
-        
-        if (message.sender_id !== currentUserId) {
-          secureAPI.patch(`/api/chat/messages/${message.message_id}/read`).catch(console.error);
-        }
-      }
-      
-    } else if (data.type === 'new_group_message') {
+    if (data.type === 'new_group_message') {
       const message = data.data;
       
       // Only add if not already in messages (to avoid duplicates)
@@ -311,6 +408,26 @@ export default function StudentChatPage() {
       }
       
       fetchGroupChats();
+    } else if (data.type === 'message_edited' || data.type === 'group_message_edited') {
+      // Update edited message in current view
+      const editData = data.data;
+      setMessages((prev) => prev.map(msg => 
+        msg.message_id === editData.message_id 
+          ? { ...msg, message_text: editData.message_text, is_edited: true }
+          : msg
+      ));
+    } else if (data.type === 'message_deleted' || data.type === 'group_message_deleted') {
+      // Remove deleted message from current view
+      const deleteData = data.data;
+      setMessages((prev) => prev.filter(msg => msg.message_id !== deleteData.message_id));
+    } else if (data.type === 'message_starred' || data.type === 'group_message_starred') {
+      // Update starred status in current view
+      const starData = data.data;
+      setMessages((prev) => prev.map(msg => 
+        msg.message_id === starData.message_id 
+          ? { ...msg, is_starred: starData.is_starred }
+          : msg
+      ));
     }
   };
 
@@ -357,39 +474,56 @@ export default function StudentChatPage() {
     }
   };
 
-  // Fetch messages for a room
-  const fetchMessages = async (roomId) => {
-    try {
-      setLoading(true);
-      const response = await secureAPI.get(`/api/chat/rooms/${roomId}/messages?limit=100`);
-      setMessages(response.data);
-      
-      // Track last message ID for smart syncing
-      if (response.data.length > 0) {
-        lastMessageIdRef.current = response.data[response.data.length - 1].message_id;
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Select a room
+  // Select a room (group chats only)
   const handleSelectRoom = async (room) => {
     setSelectedRoom(room);
-    if (room.isGroup) {
-      await fetchGroupMessages(room.worklet_id);
-    } else {
-      await fetchMessages(room.room_id);
+    await fetchGroupMessages(room.worklet_id);
+    
+    // Check email status for this worklet
+    if (room.worklet_id) {
+      checkEmailStatus(room.worklet_id);
     }
     
     // Mark room as read and refresh to clear unread dot
     setTimeout(() => {
-      if (room.isGroup) {
-        fetchGroupChats();
-      }
+      fetchGroupChats();
     }, 500);
+  };
+
+  // Check if email can be sent for this worklet
+  const checkEmailStatus = async (workletId) => {
+    try {
+      const status = await chatService.checkEmailStatus(workletId);
+      setEmailStatus(status);
+    } catch (error) {
+      console.error('Error checking email status:', error);
+    }
+  };
+
+  // Send starred messages email
+  const handleSendStarredEmail = async () => {
+    if (!selectedRoom?.worklet_id) return;
+    
+    if (!window.confirm(`Send an email with starred messages from the last 5 minutes to all worklet members?`)) {
+      return;
+    }
+    
+    try {
+      setSendingEmail(true);
+      const result = await chatService.sendStarredMessagesEmail(selectedRoom.worklet_id);
+      
+      alert(`Email sent successfully to ${result.recipients_count} members! ${result.messages_included} starred messages included.`);
+      
+      // Refresh email status and messages
+      await checkEmailStatus(selectedRoom.worklet_id);
+      await fetchGroupMessages(selectedRoom.worklet_id);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      const errorMsg = error.response?.data?.detail || 'Failed to send email';
+      alert(`Error: ${errorMsg}`);
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   // Send a message
@@ -400,6 +534,26 @@ export default function StudentChatPage() {
     }
 
     const messageText = newMessage.trim();
+    
+    // Check if we're editing an existing message
+    if (editingMessage) {
+      try {
+        await chatService.editMessage(editingMessage.message_id, messageText);
+        // Update message locally
+        setMessages((prev) => prev.map(msg => 
+          msg.message_id === editingMessage.message_id 
+            ? { ...msg, message_text: messageText, is_edited: true }
+            : msg
+        ));
+        setNewMessage('');
+        setEditingMessage(null);
+      } catch (error) {
+        console.error('Error editing message:', error);
+        alert('Failed to edit message');
+      }
+      return;
+    }
+
     const tempId = `temp-${Date.now()}`;
     
     console.log('Sending message:', messageText);
@@ -408,7 +562,7 @@ export default function StudentChatPage() {
     // Optimistic update - add message immediately
     const optimisticMessage = {
       message_id: tempId,
-      room_id: selectedRoom.isGroup ? selectedRoom.worklet_id : selectedRoom.room_id,
+      room_id: selectedRoom.worklet_id,
       sender_id: currentUserId,
       sender_name: 'You',
       message_text: messageText,
@@ -426,41 +580,21 @@ export default function StudentChatPage() {
     setNewMessage('');
 
     try {
-      if (selectedRoom.isGroup) {
-        console.log('Sending group message to worklet:', selectedRoom.worklet_id);
-        const message = await chatService.sendGroupMessage(selectedRoom.worklet_id, messageText);
+      console.log('Sending group message to worklet:', selectedRoom.worklet_id);
+      const message = await chatService.sendGroupMessage(selectedRoom.worklet_id, messageText);
         console.log('Group message sent:', message);
-        // Replace optimistic message with real one
-        setMessages((prev) => {
-          const updated = prev.map(msg => {
-            if (msg.message_id === tempId) {
-              console.log('Replacing temp message with real one:', message);
-              return { ...message, sending: false };
-            }
-            return msg;
-          });
-          return updated;
+      // Replace optimistic message with real one
+      setMessages((prev) => {
+        const updated = prev.map(msg => {
+          if (msg.message_id === tempId) {
+            console.log('Replacing temp message with real one:', message);
+            return { ...message, sending: false };
+          }
+          return msg;
         });
-        fetchGroupChats();
-      } else {
-        console.log('Sending individual message to room:', selectedRoom.room_id);
-        const response = await secureAPI.post('/api/chat/messages', {
-          room_id: selectedRoom.room_id,
-          message_text: messageText,
-        });
-        console.log('Message sent:', response.data);
-        // Replace optimistic message with real one
-        setMessages((prev) => {
-          const updated = prev.map(msg => {
-            if (msg.message_id === tempId) {
-              console.log('Replacing temp message with real one:', response.data);
-              return { ...response.data, sending: false };
-            }
-            return msg;
-          });
-          return updated;
-        });
-      }
+        return updated;
+      });
+      fetchGroupChats();
     } catch (error) {
       console.error('Error sending message:', error);
       console.error('Error details:', error.response?.data);
@@ -469,6 +603,51 @@ export default function StudentChatPage() {
       // Restore the message text
       setNewMessage(messageText);
       alert('Failed to send message: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  // Edit message handler - populate input field
+  const handleEditMessage = (message) => {
+    setEditingMessage(message);
+    setNewMessage(message.message_text);
+  };
+
+  // Cancel edit
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+    setNewMessage('');
+  };
+
+  // Delete message handler
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await chatService.deleteMessage(messageId);
+      // Remove message locally
+      setMessages((prev) => prev.filter(msg => msg.message_id !== messageId));
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      alert('Failed to delete message');
+    }
+  };
+
+  // Star message handler
+  const handleStarMessage = async (messageId) => {
+    try {
+      const response = await chatService.toggleStarMessage(messageId);
+      // Update message locally
+      setMessages((prev) => prev.map(msg => 
+        msg.message_id === messageId 
+          ? { ...msg, is_starred: response.is_starred }
+          : msg
+      ));
+      
+      // Refresh email status to update starred message count
+      if (selectedRoom?.worklet_id) {
+        checkEmailStatus(selectedRoom.worklet_id);
+      }
+    } catch (error) {
+      console.error('Error starring message:', error);
+      alert('Failed to star message');
     }
   };
 
@@ -671,13 +850,38 @@ export default function StudentChatPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {selectedRoom.isGroup && (
-                      <button
-                        onClick={() => handleViewGroupProfile(selectedRoom.worklet_id)}
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                        title="View group info"
-                      >
-                        <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                      </button>
+                      <>
+                        <button
+                          onClick={handleSendStarredEmail}
+                          disabled={!emailStatus.can_send || sendingEmail || emailStatus.starred_messages_available === 0}
+                          className={`p-2 rounded-full transition-colors relative ${
+                            !emailStatus.can_send || sendingEmail || emailStatus.starred_messages_available === 0
+                              ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800'
+                              : 'hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                          }`}
+                          title={
+                            !emailStatus.can_send 
+                              ? 'Email already sent today' 
+                              : emailStatus.starred_messages_available === 0
+                              ? 'No starred messages in last 5 minutes'
+                              : 'Send starred messages via email'
+                          }
+                        >
+                          <Mail className="w-5 h-5" />
+                          {emailStatus.starred_messages_available > 0 && emailStatus.can_send && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                              {emailStatus.starred_messages_available}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleViewGroupProfile(selectedRoom.worklet_id)}
+                          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                          title="View group info"
+                        >
+                          <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={() => setSelectedRoom(null)}
@@ -710,6 +914,10 @@ export default function StudentChatPage() {
                           key={message.message_id || message.group_message_id}
                           message={message}
                           isOwnMessage={message.sender_id === currentUserId}
+                          currentUserId={currentUserId}
+                          onEdit={handleEditMessage}
+                          onDelete={handleDeleteMessage}
+                          onStar={handleStarMessage}
                         />
                       ))}
                     </div>
@@ -721,6 +929,21 @@ export default function StudentChatPage() {
 
               {/* Input - WhatsApp style */}
               <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-transparent dark:border-gray-800">
+                {/* Editing indicator */}
+                {editingMessage && (
+                  <div className="mb-2 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded">
+                    <div className="flex items-center gap-2">
+                      <Edit2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm text-blue-600 dark:text-blue-400">Editing message</span>
+                    </div>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
                 <div className="flex gap-2 items-center">
                   <input
                     type="text"
@@ -732,7 +955,7 @@ export default function StudentChatPage() {
                         handleSendMessage();
                       }
                     }}
-                    placeholder="Type a message"
+                    placeholder={editingMessage ? "Edit your message" : "Type a message"}
                     className="flex-1 px-4 py-2.5 border-0 rounded-lg bg-white dark:bg-[#2A3942] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-0 text-[15px]"
                   />
                   <button
@@ -740,7 +963,7 @@ export default function StudentChatPage() {
                     disabled={!newMessage.trim()}
                     className="bg-[#25D366] hover:bg-[#20BD5A] disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-full p-3 transition-colors flex items-center justify-center"
                   >
-                    <Send className="w-5 h-5" />
+                    {editingMessage ? <Check className="w-5 h-5" /> : <Send className="w-5 h-5" />}
                   </button>
                 </div>
               </div>

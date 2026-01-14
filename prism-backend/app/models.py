@@ -524,6 +524,7 @@ class ChatMessage(Base):
     is_read = Column(Boolean, default=False, nullable=False)
     is_edited = Column(Boolean, default=False, nullable=False)
     is_deleted = Column(Boolean, default=False, nullable=False)
+    is_starred = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     room = relationship("ChatRoom", back_populates="messages")
@@ -551,6 +552,9 @@ class GroupChatMessage(Base):
     sent_at = Column(DateTime, server_default=func.now(), nullable=False)
     is_edited = Column(Boolean, default=False, nullable=False)
     is_deleted = Column(Boolean, default=False, nullable=False)
+    is_starred = Column(Boolean, default=False, nullable=False)
+    included_in_email = Column(Boolean, default=False, nullable=False)
+    starred_at = Column(DateTime, nullable=True)
 
     # Relationships
     worklet = relationship("Worklet", foreign_keys=[worklet_id])
@@ -588,3 +592,24 @@ class GroupMessageReadReceipt(Base):
 
     def __repr__(self):
         return f"<GroupMessageReadReceipt(receipt_id={self.receipt_id}, message_id={self.message_id}, user_id={self.user_id})>"
+
+
+class EmailTrigger(Base):
+    __tablename__ = "email_triggers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    worklet_id = Column(Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    sent_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # Relationships
+    worklet = relationship("Worklet", foreign_keys=[worklet_id])
+    user = relationship("User", foreign_keys=[user_id])
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_worklet_sent', 'worklet_id', 'sent_at'),
+    )
+
+    def __repr__(self):
+        return f"<EmailTrigger(id={self.id}, worklet_id={self.worklet_id}, user_id={self.user_id})>"

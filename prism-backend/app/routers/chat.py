@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, desc
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.database import get_db
 from app.auth import oauth2_scheme, require_access_token
-from app.models import User, ChatRoom, ChatMessage, GroupChatMessage, Worklet, UserWorkletAssociation, GroupMessageReadReceipt
+from app.models import User, ChatRoom, ChatMessage, GroupChatMessage, Worklet, UserWorkletAssociation, GroupMessageReadReceipt, EmailTrigger
+from app.core.email_utils import _send_email
 from pydantic import BaseModel
 import json
 
@@ -22,25 +23,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 # ============= Pydantic Schemas =============
 
-class ChatRoomResponse(BaseModel):
-    room_id: int
-    worklet_id: Optional[int]
-    other_user_id: int
-    other_user_name: str
-    worklet_title: Optional[str]
-    last_message: Optional[str]
-    last_message_at: Optional[datetime]
-    unread_count: int
-
-    class Config:
-        from_attributes = True
-
-
-class MessageCreate(BaseModel):
-    room_id: int
-    message_text: str
-
-
 class MessageResponse(BaseModel):
     message_id: int
     room_id: int
@@ -50,6 +32,9 @@ class MessageResponse(BaseModel):
     message_text: str
     sent_at: datetime
     is_read: bool
+    is_edited: bool = False
+    is_starred: bool = False
+    included_in_email: bool = False
 
     class Config:
         from_attributes = True
@@ -179,189 +164,6 @@ async def websocket_endpoint(
             await websocket.close()
         except:
             pass
-
-
-# ============= Chat Room Endpoints =============
-
-@router.get("/rooms", response_model=List[ChatRoomResponse])
-async def get_chat_rooms(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get all chat rooms for the current user"""
-    rooms = db.query(ChatRoom).filter(
-        or_(
-            ChatRoom.user1_id == current_user.id,
-            ChatRoom.user2_id == current_user.id
-        )
-    ).all()
-    
-    result = []
-    for room in rooms:
-        # Determine the other user
-        other_user_id = room.user2_id if room.user1_id == current_user.id else room.user1_id
-        other_user = db.query(User).filter(User.id == other_user_id).first()
-        
-        # Get last message
-        last_msg = db.query(ChatMessage).filter(
-            ChatMessage.room_id == room.room_id
-        ).order_by(desc(ChatMessage.sent_at)).first()
-        
-        # Count unread messages
-        unread_count = db.query(ChatMessage).filter(
-            and_(
-                ChatMessage.room_id == room.room_id,
-                ChatMessage.sender_id != current_user.id,
-                ChatMessage.is_read == False
-            )
-        ).count()
-        
-        result.append(ChatRoomResponse(
-            room_id=room.room_id,
-            worklet_id=room.worklet_id,
-            other_user_id=other_user_id,
-            other_user_name=other_user.name if other_user else "Unknown",
-            worklet_title=f"Worklet {room.worklet_id}" if room.worklet_id else "General",
-            last_message=last_msg.message_text if last_msg else None,
-            last_message_at=last_msg.sent_at if last_msg else None,
-            unread_count=unread_count
-        ))
-    
-    return result
-
-
-@router.post("/rooms")
-async def create_or_get_chat_room(
-    worklet_id: int = Query(...),
-    other_user_id: int = Query(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Create or get existing chat room between two users"""
-    # Check if room already exists
-    existing_room = db.query(ChatRoom).filter(
-        or_(
-            and_(ChatRoom.user1_id == current_user.id, ChatRoom.user2_id == other_user_id),
-            and_(ChatRoom.user1_id == other_user_id, ChatRoom.user2_id == current_user.id)
-        )
-    ).first()
-    
-    if existing_room:
-        return {"room_id": existing_room.room_id, "message": "Existing room found"}
-    
-    # Create new room
-    new_room = ChatRoom(
-        worklet_id=worklet_id,
-        user1_id=current_user.id,
-        user2_id=other_user_id
-    )
-    db.add(new_room)
-    db.commit()
-    db.refresh(new_room)
-    
-    return {"room_id": new_room.room_id, "message": "New room created"}
-
-
-@router.get("/rooms/{room_id}/messages", response_model=List[MessageResponse])
-async def get_messages(
-    room_id: int,
-    limit: int = Query(50, le=100),
-    skip: int = Query(0),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get messages from a chat room"""
-    # Verify user has access to this room
-    room = db.query(ChatRoom).filter(ChatRoom.room_id == room_id).first()
-    if not room or (room.user1_id != current_user.id and room.user2_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    messages = db.query(ChatMessage).filter(
-        ChatMessage.room_id == room_id,
-        ChatMessage.is_deleted == False
-    ).order_by(desc(ChatMessage.sent_at)).offset(skip).limit(limit).all()
-    
-    # Mark unread messages from other user as read
-    db.query(ChatMessage).filter(
-        and_(
-            ChatMessage.room_id == room_id,
-            ChatMessage.sender_id != current_user.id,
-            ChatMessage.is_read == False
-        )
-    ).update({"is_read": True})
-    db.commit()
-    
-    result = []
-    for msg in reversed(messages):
-        sender = db.query(User).filter(User.id == msg.sender_id).first()
-        result.append(MessageResponse(
-            message_id=msg.message_id,
-            room_id=msg.room_id,
-            sender_id=msg.sender_id,
-            sender_name=sender.name if sender else "Unknown",
-            sender_role=sender.role if sender else "Unknown",
-            message_text=msg.message_text,
-            sent_at=msg.sent_at,
-            is_read=msg.is_read
-        ))
-    
-    return result
-
-
-@router.post("/messages", response_model=MessageResponse)
-async def send_message(
-    message: MessageCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Send a message to a chat room"""
-    # Verify user has access to this room
-    room = db.query(ChatRoom).filter(ChatRoom.room_id == message.room_id).first()
-    if not room or (room.user1_id != current_user.id and room.user2_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    # Create message
-    new_message = ChatMessage(
-        room_id=message.room_id,
-        sender_id=current_user.id,
-        message_text=message.message_text
-    )
-    db.add(new_message)
-    db.commit()
-    db.refresh(new_message)
-    
-    # Prepare message data
-    message_data = {
-        "type": "new_message",
-        "data": {
-            "message_id": new_message.message_id,
-            "room_id": new_message.room_id,
-            "sender_id": current_user.id,
-            "sender_name": current_user.name,
-            "sender_role": current_user.role,
-            "message_text": new_message.message_text,
-            "sent_at": new_message.sent_at.isoformat(),
-            "is_read": False
-        }
-    }
-    
-    # Send via websocket to other user
-    other_user_id = room.user2_id if room.user1_id == current_user.id else room.user1_id
-    await manager.send_personal_message(message_data, other_user_id)
-    
-    # Also send to sender for confirmation (helps with multi-device scenarios)
-    await manager.send_personal_message(message_data, current_user.id)
-    
-    return MessageResponse(
-        message_id=new_message.message_id,
-        room_id=new_message.room_id,
-        sender_id=current_user.id,
-        sender_name=current_user.name,
-        sender_role=current_user.role,
-        message_text=new_message.message_text,
-        sent_at=new_message.sent_at,
-        is_read=False
-    )
 
 
 # ============= Group Chat Endpoints =============
@@ -620,7 +422,9 @@ async def get_group_messages(
             sender_role=sender.role if sender else "Unknown",
             message_text=msg.message_text,
             sent_at=msg.sent_at,
-            is_read=is_read_by_all
+            is_read=is_read_by_all,
+            is_edited=msg.is_edited,
+            is_starred=msg.is_starred
         ))
     
     return result
@@ -685,7 +489,9 @@ async def send_group_message(
         sender_role=current_user.role,
         message_text=new_message.message_text,
         sent_at=new_message.sent_at,
-        is_read=True
+        is_read=True,
+        is_edited=False,
+        is_starred=False
     )
 
 
@@ -709,6 +515,227 @@ async def mark_message_as_read(
     message.is_read = True
     db.commit()
     return {"status": "success"}
+
+
+@router.put("/messages/{message_id}")
+async def edit_message(
+    message_id: int,
+    message_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Edit a message - only sender can edit their own message"""
+    # Check if it's a direct chat message or group chat message
+    direct_message = db.query(ChatMessage).filter(ChatMessage.message_id == message_id).first()
+    group_message = None
+    
+    if not direct_message:
+        group_message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
+    
+    if not direct_message and not group_message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    message = direct_message if direct_message else group_message
+    
+    # Only sender can edit their own message
+    if message.sender_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own messages")
+    
+    # Check if message is within 20 minutes of being sent
+    time_since_sent = datetime.utcnow() - message.sent_at
+    if time_since_sent.total_seconds() > 1200:  # 20 minutes = 1200 seconds
+        raise HTTPException(status_code=403, detail="Messages can only be edited within 20 minutes of sending")
+    
+    # Update message text and mark as edited
+    new_text = message_data.get("message_text", "").strip()
+    if not new_text:
+        raise HTTPException(status_code=400, detail="Message text cannot be empty")
+    
+    message.message_text = new_text
+    message.is_edited = True
+    db.commit()
+    db.refresh(message)
+    
+    # Notify via websocket
+    if direct_message:
+        room = db.query(ChatRoom).filter(ChatRoom.room_id == message.room_id).first()
+        other_user_id = room.user2_id if room.user1_id == current_user.id else room.user1_id
+        
+        edit_notification = {
+            "type": "message_edited",
+            "data": {
+                "message_id": message.message_id,
+                "room_id": message.room_id,
+                "message_text": message.message_text,
+                "is_edited": True
+            }
+        }
+        await manager.send_personal_message(edit_notification, other_user_id)
+        await manager.send_personal_message(edit_notification, current_user.id)
+    else:
+        # Group message
+        members = db.query(UserWorkletAssociation).filter(
+            UserWorkletAssociation.worklet_id == message.worklet_id
+        ).all()
+        
+        edit_notification = {
+            "type": "group_message_edited",
+            "data": {
+                "message_id": message.message_id,
+                "worklet_id": message.worklet_id,
+                "message_text": message.message_text,
+                "is_edited": True
+            }
+        }
+        
+        for member in members:
+            await manager.send_personal_message(edit_notification, member.user_id)
+    
+    return {"status": "success", "message": "Message edited successfully"}
+
+
+@router.delete("/messages/{message_id}")
+async def delete_message(
+    message_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a message - only sender can delete their own message (hard delete)"""
+    # Check if it's a direct chat message or group chat message
+    direct_message = db.query(ChatMessage).filter(ChatMessage.message_id == message_id).first()
+    group_message = None
+    
+    if not direct_message:
+        group_message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
+    
+    if not direct_message and not group_message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    message = direct_message if direct_message else group_message
+    
+    # Only sender can delete their own message
+    if message.sender_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only delete your own messages")
+    
+    # Check if message is within 20 minutes of being sent
+    time_since_sent = datetime.utcnow() - message.sent_at
+    if time_since_sent.total_seconds() > 1200:  # 20 minutes = 1200 seconds
+        raise HTTPException(status_code=403, detail="Messages can only be deleted within 20 minutes of sending")
+    
+    # Hard delete - remove from database
+    if direct_message:
+        room = db.query(ChatRoom).filter(ChatRoom.room_id == message.room_id).first()
+        other_user_id = room.user2_id if room.user1_id == current_user.id else room.user1_id
+        
+        db.delete(message)
+        db.commit()
+        
+        delete_notification = {
+            "type": "message_deleted",
+            "data": {
+                "message_id": message_id,
+                "room_id": message.room_id
+            }
+        }
+        await manager.send_personal_message(delete_notification, other_user_id)
+        await manager.send_personal_message(delete_notification, current_user.id)
+    else:
+        # Group message
+        worklet_id = message.worklet_id
+        members = db.query(UserWorkletAssociation).filter(
+            UserWorkletAssociation.worklet_id == worklet_id
+        ).all()
+        
+        db.delete(message)
+        db.commit()
+        
+        delete_notification = {
+            "type": "group_message_deleted",
+            "data": {
+                "message_id": message_id,
+                "worklet_id": worklet_id
+            }
+        }
+        
+        for member in members:
+            await manager.send_personal_message(delete_notification, member.user_id)
+    
+    return {"status": "success", "message": "Message deleted successfully"}
+
+
+@router.patch("/messages/{message_id}/star")
+async def toggle_star_message(
+    message_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Toggle star status on a message - only sender can star their own message"""
+    # Check if it's a direct chat message or group chat message
+    direct_message = db.query(ChatMessage).filter(ChatMessage.message_id == message_id).first()
+    group_message = None
+    
+    if not direct_message:
+        group_message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
+    
+    if not direct_message and not group_message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    message = direct_message if direct_message else group_message
+    
+    # Only sender can star their own message
+    if message.sender_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only star your own messages")
+    
+    # Check if message is within 20 minutes of being sent
+    time_since_sent = datetime.utcnow() - message.sent_at
+    if time_since_sent.total_seconds() > 1200:  # 20 minutes = 1200 seconds
+        raise HTTPException(status_code=403, detail="Messages can only be starred within 20 minutes of sending")
+    
+    # Toggle star status
+    message.is_starred = not message.is_starred
+    
+    # Set starred_at timestamp when starring, clear it when unstarring
+    if message.is_starred:
+        message.starred_at = datetime.utcnow()
+    else:
+        message.starred_at = None
+    
+    db.commit()
+    
+    # Notify via websocket
+    if direct_message:
+        room = db.query(ChatRoom).filter(ChatRoom.room_id == message.room_id).first()
+        other_user_id = room.user2_id if room.user1_id == current_user.id else room.user1_id
+        
+        star_notification = {
+            "type": "message_starred",
+            "data": {
+                "message_id": message.message_id,
+                "room_id": message.room_id,
+                "is_starred": message.is_starred
+            }
+        }
+        await manager.send_personal_message(star_notification, other_user_id)
+        await manager.send_personal_message(star_notification, current_user.id)
+    else:
+        # Group message
+        members = db.query(UserWorkletAssociation).filter(
+            UserWorkletAssociation.worklet_id == message.worklet_id
+        ).all()
+        
+        star_notification = {
+            "type": "group_message_starred",
+            "data": {
+                "message_id": message.message_id,
+                "worklet_id": message.worklet_id,
+                "is_starred": message.is_starred
+            }
+        }
+        
+        for member in members:
+            await manager.send_personal_message(star_notification, member.user_id)
+    
+    return {"status": "success", "is_starred": message.is_starred}
 
 
 @router.get("/unread-count")
@@ -781,4 +808,214 @@ async def create_missing_group_chats(
         "status": "success",
         "message": "Group chats are now implicit via worklet membership - no action needed",
         "worklets_with_chat": worklet_count
+    }
+
+
+# ============= Email Trigger Endpoint =============
+
+@router.post("/groups/{worklet_id}/send-starred-email")
+async def send_starred_messages_email(
+    worklet_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Send an email to all worklet members with starred messages from the last 5 minutes.
+    Only one email can be sent per worklet per day.
+    """
+    # Check if worklet exists
+    worklet = db.query(Worklet).filter(Worklet.id == worklet_id).first()
+    if not worklet:
+        raise HTTPException(status_code=404, detail="Worklet not found")
+    
+    # Check if user is a member of this worklet
+    is_member = db.query(UserWorkletAssociation).filter(
+        UserWorkletAssociation.worklet_id == worklet_id,
+        UserWorkletAssociation.user_id == current_user.id
+    ).first()
+    
+    if not is_member:
+        raise HTTPException(status_code=403, detail="You are not a member of this worklet")
+    
+    # Check if email already sent today for this worklet
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    existing_trigger = db.query(EmailTrigger).filter(
+        EmailTrigger.worklet_id == worklet_id,
+        EmailTrigger.sent_at >= today_start
+    ).first()
+    
+    if existing_trigger:
+        raise HTTPException(status_code=400, detail="Email has already been sent for this worklet today")
+    
+    # Get starred messages from the last 5 minutes (based on when they were starred)
+    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+    starred_messages = db.query(GroupChatMessage).filter(
+        GroupChatMessage.worklet_id == worklet_id,
+        GroupChatMessage.is_starred == True,
+        GroupChatMessage.starred_at != None,
+        GroupChatMessage.starred_at >= five_minutes_ago,
+        GroupChatMessage.included_in_email == False
+    ).order_by(GroupChatMessage.sent_at.asc()).all()
+    
+    if not starred_messages:
+        raise HTTPException(status_code=400, detail="No starred messages found in the last 5 minutes")
+    
+    # Get all worklet members except the sender
+    members = db.query(User).join(
+        UserWorkletAssociation,
+        User.id == UserWorkletAssociation.user_id
+    ).filter(
+        UserWorkletAssociation.worklet_id == worklet_id,
+        User.id != current_user.id
+    ).all()
+    
+    if not members:
+        raise HTTPException(status_code=400, detail="No other members to send email to")
+    
+    # Build email content
+    sender_role = current_user.role.capitalize() if current_user.role else "Member"
+    
+    # Prepare message content with character limit
+    messages_html = ""
+    total_chars = 0
+    max_email_chars = 2000  # Reserve space for header/footer
+    included_message_ids = []
+    
+    for msg in starred_messages:
+        # Get sender details
+        sender = db.query(User).filter(User.id == msg.sender_id).first()
+        sender_name = sender.name if sender else "Unknown"
+        
+        # Truncate long messages
+        message_preview = msg.message_text
+        if len(message_preview) > 150:
+            message_preview = message_preview[:150] + "..."
+        
+        # Format timestamp
+        time_str = msg.sent_at.strftime("%b %d, %I:%M %p")
+        
+        # Build message HTML
+        msg_html = f"""
+        <div style="margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-left: 3px solid #4F46E5;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 5px;">
+                <strong>{sender_name}</strong> · {time_str}
+            </div>
+            <div style="color: #333;">{message_preview}</div>
+        </div>
+        """
+        
+        # Check if adding this message would exceed limit
+        if total_chars + len(msg_html) > max_email_chars:
+            break
+        
+        messages_html += msg_html
+        total_chars += len(msg_html)
+        included_message_ids.append(msg.message_id)
+    
+    # Create email body
+    email_html = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+            .content {{ background: white; padding: 20px; border: 1px solid #ddd; }}
+            .footer {{ background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; border-radius: 0 0 8px 8px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2 style="margin: 0;">📩 Starred Messages from {worklet.title}</h2>
+            </div>
+            <div class="content">
+                <p>Hello,</p>
+                <p>You have starred messages from a <strong>{sender_role}</strong> in the worklet <strong>{worklet.title}</strong>:</p>
+                <div style="margin: 20px 0;">
+                    {messages_html}
+                </div>
+                <p style="margin-top: 20px; font-size: 14px; color: #666;">
+                    {len(included_message_ids)} message(s) included · Last 5 minutes
+                </p>
+            </div>
+            <div class="footer">
+                <p style="margin: 5px 0;">PRISM Worklet Platform</p>
+                <p style="margin: 5px 0;">This is an automated notification. Please do not reply to this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    email_subject = f"Starred Messages from {sender_role} - {worklet.title}"
+    
+    # Send emails to all members
+    failed_emails = []
+    for member in members:
+        try:
+            _send_email(
+                to_email=member.email,
+                subject=email_subject,
+                body_html=email_html,
+                body_plain=f"You have starred messages from {sender_role} in {worklet.title}. Please check the worklet chat for details."
+            )
+        except Exception as e:
+            failed_emails.append(member.email)
+            print(f"Failed to send email to {member.email}: {str(e)}")
+    
+    # Mark messages as included in email
+    for msg_id in included_message_ids:
+        msg = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == msg_id).first()
+        if msg:
+            msg.included_in_email = True
+    
+    # Record email trigger
+    email_trigger = EmailTrigger(
+        worklet_id=worklet_id,
+        user_id=current_user.id
+    )
+    db.add(email_trigger)
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Email sent successfully",
+        "recipients_count": len(members) - len(failed_emails),
+        "messages_included": len(included_message_ids),
+        "failed_emails": failed_emails
+    }
+
+
+@router.get("/groups/{worklet_id}/email-status")
+async def check_email_status(
+    worklet_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check if email can be sent for this worklet today.
+    """
+    # Check if email already sent today
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    existing_trigger = db.query(EmailTrigger).filter(
+        EmailTrigger.worklet_id == worklet_id,
+        EmailTrigger.sent_at >= today_start
+    ).first()
+    
+    # Count starred messages from last 5 minutes (based on when they were starred)
+    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+    starred_count = db.query(GroupChatMessage).filter(
+        GroupChatMessage.worklet_id == worklet_id,
+        GroupChatMessage.is_starred == True,
+        GroupChatMessage.starred_at != None,
+        GroupChatMessage.starred_at >= five_minutes_ago,
+        GroupChatMessage.included_in_email == False
+    ).count()
+    
+    return {
+        "can_send": existing_trigger is None,
+        "email_sent_today": existing_trigger is not None,
+        "starred_messages_available": starred_count,
+        "last_sent": existing_trigger.sent_at if existing_trigger else None
     }
