@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Star, Check, MoreVertical, Mail, CheckCheck } from 'lucide-react';
+import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Star, Check, MoreVertical, Mail, CheckCheck, Paperclip, Image as ImageIcon, File, Download, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
 import chatService from '../services/chat';
@@ -281,7 +281,114 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete,
               {message.included_in_email && (
                 <CheckCheck className="w-3 h-3 text-green-500 flex-shrink-0 mt-1" title="Included in email" />
               )}
-              <p className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words flex-1" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
+              <div className="flex-1">
+                {message.message_text && message.message_text !== '(file attachment)' && (
+                  <p className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
+                )}
+                {/* Attachments - WhatsApp Style */}
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="mt-2">
+                    {(() => {
+                      const images = message.attachments.filter(a => a.content_type?.startsWith('image/'));
+                      const files = message.attachments.filter(a => !a.content_type?.startsWith('image/'));
+                      
+                      return (
+                        <>
+                          {/* Images - Grid Layout */}
+                          {images.length > 0 && (
+                            <div className={`grid gap-1 ${
+                              images.length === 1 ? 'grid-cols-1' : 
+                              images.length === 2 ? 'grid-cols-2' : 
+                              images.length === 3 ? 'grid-cols-3' : 
+                              'grid-cols-2'
+                            } mb-2`}>
+                              {images.map((attachment, idx) => {
+                                const imageUrl = `http://localhost:8000${attachment.url}`;
+                                console.log('Loading image:', imageUrl);
+                                return (
+                                  <a 
+                                    key={idx}
+                                    href={imageUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="relative overflow-hidden rounded-lg block bg-gray-200 dark:bg-gray-700"
+                                  >
+                                    <img 
+                                      src={imageUrl} 
+                                      alt={attachment.original_filename}
+                                      className="w-full h-48 object-cover cursor-pointer transition-transform hover:scale-105"
+                                      loading="lazy"
+                                      onLoad={() => console.log('Image loaded:', imageUrl)}
+                                      onError={(e) => {
+                                        console.error('Image failed to load:', imageUrl);
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                        e.target.parentElement.innerHTML = `<div class="w-full h-48 flex items-center justify-center bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400"><div class="text-center"><svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><p class="text-xs">Image not available</p></div></div>`;
+                                      }}
+                                    />
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* Files - Card Layout */}
+                          {files.length > 0 && (
+                            <div className="space-y-1">
+                              {files.map((attachment, idx) => {
+                                const fileSize = attachment.size ? 
+                                  (attachment.size / 1024 / 1024).toFixed(2) + ' MB' : 
+                                  'Unknown size';
+                                const fileExt = attachment.original_filename?.split('.').pop()?.toUpperCase() || 'FILE';
+                                
+                                return (
+                                  <a 
+                                    key={idx}
+                                    href={`http://localhost:8000${attachment.url}`}
+                                    // download={attachment.original_filename}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                                      isOwnMessage 
+                                        ? 'bg-blue-600/30 hover:bg-blue-600/40 border border-blue-400/30' 
+                                        : 'bg-white/50 dark:bg-gray-600/50 hover:bg-white dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-500'
+                                    }`}
+                                  >
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                      isOwnMessage 
+                                        ? 'bg-blue-600 dark:bg-blue-700' 
+                                        : 'bg-gray-300 dark:bg-gray-600'
+                                    }`}>
+                                      <FileText className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-sm font-medium truncate ${
+                                        isOwnMessage ? 'text-white' : 'text-gray-900 dark:text-white'
+                                      }`}>
+                                        {attachment.original_filename}
+                                      </p>
+                                      <p className={`text-xs ${
+                                        isOwnMessage 
+                                          ? 'text-blue-100 dark:text-blue-200' 
+                                          : 'text-gray-500 dark:text-gray-400'
+                                      }`}>
+                                        {fileExt} • {fileSize}
+                                      </p>
+                                    </div>
+                                    <Download className={`w-5 h-5 flex-shrink-0 ${
+                                      isOwnMessage ? 'text-white' : 'text-gray-600 dark:text-gray-400'
+                                    }`} />
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
             <div className={`flex items-center gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
               {message.is_edited && (
@@ -359,8 +466,11 @@ export default function StudentChatPage() {
   const [editingMessage, setEditingMessage] = useState(null);
   const [emailStatus, setEmailStatus] = useState({ can_send: true, starred_messages_available: 0 });
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -397,7 +507,7 @@ export default function StudentChatPage() {
           if (exists) return prev;
           return [...prev, {
             message_id: message.group_message_id,
-            room_id: message.worklet_id,
+            worklet_id: message.worklet_id,
             sender_id: message.sender_id,
             sender_name: message.sender_name,
             message_text: message.message_text,
@@ -474,6 +584,37 @@ export default function StudentChatPage() {
     }
   };
 
+  // Handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploadingFile(true);
+    try {
+      const response = await secureAPI.post('/api/chat/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setAttachments([...attachments, response.data]);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert(error.response?.data?.detail || 'Failed to upload file');
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Remove attachment
+  const handleRemoveAttachment = (index) => {
+    setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
   // Select a room (group chats only)
   const handleSelectRoom = async (room) => {
     setSelectedRoom(room);
@@ -528,12 +669,12 @@ export default function StudentChatPage() {
 
   // Send a message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedRoom) {
+    if ((!newMessage.trim() && attachments.length === 0) || !selectedRoom) {
       console.log('Cannot send: empty message or no room selected');
       return;
     }
 
-    const messageText = newMessage.trim();
+    const messageText = newMessage.trim() || '(file attachment)';
     
     // Check if we're editing an existing message
     if (editingMessage) {
@@ -558,14 +699,16 @@ export default function StudentChatPage() {
     
     console.log('Sending message:', messageText);
     console.log('Selected room:', selectedRoom);
+    console.log('Attachments:', attachments);
     
     // Optimistic update - add message immediately
     const optimisticMessage = {
       message_id: tempId,
-      room_id: selectedRoom.worklet_id,
+      worklet_id: selectedRoom.worklet_id,
       sender_id: currentUserId,
       sender_name: 'You',
       message_text: messageText,
+      attachments: attachments.length > 0 ? attachments : null,
       sent_at: new Date().toISOString(),
       is_read: false,
       sending: true
@@ -578,10 +721,11 @@ export default function StudentChatPage() {
       return newMessages;
     });
     setNewMessage('');
+    setAttachments([]);
 
     try {
       console.log('Sending group message to worklet:', selectedRoom.worklet_id);
-      const message = await chatService.sendGroupMessage(selectedRoom.worklet_id, messageText);
+      const message = await chatService.sendGroupMessage(selectedRoom.worklet_id, messageText, attachments.length > 0 ? attachments : null);
         console.log('Group message sent:', message);
       // Replace optimistic message with real one
       setMessages((prev) => {
@@ -600,8 +744,9 @@ export default function StudentChatPage() {
       console.error('Error details:', error.response?.data);
       // Remove failed message
       setMessages((prev) => prev.filter(msg => msg.message_id !== tempId));
-      // Restore the message text
-      setNewMessage(messageText);
+      // Restore the message text and attachments
+      setNewMessage(messageText === '(file attachment)' ? '' : messageText);
+      setAttachments(attachments);
       alert('Failed to send message: ' + (error.response?.data?.detail || error.message));
     }
   };
@@ -944,7 +1089,46 @@ export default function StudentChatPage() {
                     </button>
                   </div>
                 )}
+                {/* Attachments preview */}
+                {attachments.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {attachments.map((attachment, idx) => {
+                      const isImage = attachment.content_type?.startsWith('image/');
+                      return (
+                        <div key={idx} className="relative bg-white dark:bg-gray-700 rounded-lg p-2 flex items-center gap-2">
+                          {isImage ? <ImageIcon className="w-4 h-4" /> : <File className="w-4 h-4" />}
+                          <span className="text-sm truncate max-w-[150px]">{attachment.original_filename}</span>
+                          <button
+                            onClick={() => handleRemoveAttachment(idx)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="flex gap-2 items-center">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                    className="p-2.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                    title="Attach file"
+                  >
+                    {uploadingFile ? (
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                    ) : (
+                      <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    )}
+                  </button>
                   <input
                     type="text"
                     value={newMessage}
@@ -960,7 +1144,7 @@ export default function StudentChatPage() {
                   />
                   <button
                     onClick={handleSendMessage}
-                    disabled={!newMessage.trim()}
+                    disabled={!newMessage.trim() && attachments.length === 0}
                     className="bg-[#25D366] hover:bg-[#20BD5A] disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-full p-3 transition-colors flex items-center justify-center"
                   >
                     {editingMessage ? <Check className="w-5 h-5" /> : <Send className="w-5 h-5" />}

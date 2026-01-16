@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # Frontend URL (for email links)
     FRONTEND_URL: str = "http://localhost:3000"
     
+    # File Upload Configuration
+    UPLOAD_DIR: str = "uploads"
+    MAX_FILE_SIZE_MB: int = 10
+    ALLOWED_FILE_TYPES: str = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    
     # CORS and Redis
     ALLOWED_ORIGINS: str = "http://localhost:3000"
     REDIS_URL: str = "redis://localhost:6379/0"

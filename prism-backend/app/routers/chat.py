@@ -1,14 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, desc
 from typing import List, Optional
 from datetime import datetime, timedelta
 from app.database import get_db
 from app.auth import oauth2_scheme, require_access_token
-from app.models import User, ChatRoom, ChatMessage, GroupChatMessage, Worklet, UserWorkletAssociation, GroupMessageReadReceipt, EmailTrigger
+from app.models import User, GroupChatMessage, Worklet, UserWorkletAssociation, GroupMessageReadReceipt, EmailTrigger
 from app.core.email_utils import _send_email
+from app.core.config import settings
 from pydantic import BaseModel
+from pathlib import Path
 import json
+import uuid
+import shutil
 
 router = APIRouter(tags=["chat"])
 
@@ -25,11 +30,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 class MessageResponse(BaseModel):
     message_id: int
-    room_id: int
+    worklet_id: int  # Changed from room_id to be more accurate
     sender_id: int
     sender_name: str
     sender_role: str
     message_text: str
+    attachments: Optional[List[dict]] = None
     sent_at: datetime
     is_read: bool
     is_edited: bool = False
@@ -61,6 +67,7 @@ class GroupResponse(BaseModel):
 class GroupMessageCreate(BaseModel):
     worklet_id: int
     message_text: str
+    attachments: Optional[List[dict]] = None
 
 
 class GroupMemberInfo(BaseModel):
@@ -416,11 +423,12 @@ async def get_group_messages(
         
         result.append(MessageResponse(
             message_id=msg.message_id,
-            room_id=worklet_id,  # Using room_id field for worklet_id
+            worklet_id=worklet_id,
             sender_id=msg.sender_id,
             sender_name=sender.name if sender else "Unknown",
             sender_role=sender.role if sender else "Unknown",
             message_text=msg.message_text,
+            attachments=msg.attachments,
             sent_at=msg.sent_at,
             is_read=is_read_by_all,
             is_edited=msg.is_edited,
@@ -452,7 +460,8 @@ async def send_group_message(
     new_message = GroupChatMessage(
         worklet_id=message.worklet_id,
         sender_id=current_user.id,
-        message_text=message.message_text
+        message_text=message.message_text,
+        attachments=message.attachments
     )
     db.add(new_message)
     db.commit()
@@ -473,6 +482,7 @@ async def send_group_message(
             "sender_name": current_user.name,
             "sender_role": current_user.role,
             "message_text": new_message.message_text,
+            "attachments": new_message.attachments,
             "sent_at": new_message.sent_at.isoformat()
         }
     }
@@ -483,11 +493,12 @@ async def send_group_message(
     
     return MessageResponse(
         message_id=new_message.message_id,
-        room_id=message.worklet_id,
+        worklet_id=message.worklet_id,
         sender_id=current_user.id,
         sender_name=current_user.name,
         sender_role=current_user.role,
         message_text=new_message.message_text,
+        attachments=new_message.attachments,
         sent_at=new_message.sent_at,
         is_read=True,
         is_edited=False,
@@ -497,26 +508,6 @@ async def send_group_message(
 
 # ============= Message Actions =============
 
-@router.patch("/messages/{message_id}/read")
-async def mark_message_as_read(
-    message_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Mark a message as read"""
-    message = db.query(ChatMessage).filter(ChatMessage.message_id == message_id).first()
-    if not message:
-        raise HTTPException(status_code=404, detail="Message not found")
-    
-    # Only mark as read if user is the receiver
-    if message.sender_id == current_user.id:
-        return {"status": "success", "message": "Cannot mark own message as read"}
-    
-    message.is_read = True
-    db.commit()
-    return {"status": "success"}
-
-
 @router.put("/messages/{message_id}")
 async def edit_message(
     message_id: int,
@@ -525,17 +516,10 @@ async def edit_message(
     db: Session = Depends(get_db)
 ):
     """Edit a message - only sender can edit their own message"""
-    # Check if it's a direct chat message or group chat message
-    direct_message = db.query(ChatMessage).filter(ChatMessage.message_id == message_id).first()
-    group_message = None
+    message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
     
-    if not direct_message:
-        group_message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
-    
-    if not direct_message and not group_message:
+    if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    
-    message = direct_message if direct_message else group_message
     
     # Only sender can edit their own message
     if message.sender_id != current_user.id:
@@ -556,40 +540,23 @@ async def edit_message(
     db.commit()
     db.refresh(message)
     
-    # Notify via websocket
-    if direct_message:
-        room = db.query(ChatRoom).filter(ChatRoom.room_id == message.room_id).first()
-        other_user_id = room.user2_id if room.user1_id == current_user.id else room.user1_id
-        
-        edit_notification = {
-            "type": "message_edited",
-            "data": {
-                "message_id": message.message_id,
-                "room_id": message.room_id,
-                "message_text": message.message_text,
-                "is_edited": True
-            }
+    # Notify via websocket - group message only
+    members = db.query(UserWorkletAssociation).filter(
+        UserWorkletAssociation.worklet_id == message.worklet_id
+    ).all()
+    
+    edit_notification = {
+        "type": "group_message_edited",
+        "data": {
+            "message_id": message.message_id,
+            "worklet_id": message.worklet_id,
+            "message_text": message.message_text,
+            "is_edited": True
         }
-        await manager.send_personal_message(edit_notification, other_user_id)
-        await manager.send_personal_message(edit_notification, current_user.id)
-    else:
-        # Group message
-        members = db.query(UserWorkletAssociation).filter(
-            UserWorkletAssociation.worklet_id == message.worklet_id
-        ).all()
-        
-        edit_notification = {
-            "type": "group_message_edited",
-            "data": {
-                "message_id": message.message_id,
-                "worklet_id": message.worklet_id,
-                "message_text": message.message_text,
-                "is_edited": True
-            }
-        }
-        
-        for member in members:
-            await manager.send_personal_message(edit_notification, member.user_id)
+    }
+    
+    for member in members:
+        await manager.send_personal_message(edit_notification, member.user_id)
     
     return {"status": "success", "message": "Message edited successfully"}
 
@@ -601,17 +568,10 @@ async def delete_message(
     db: Session = Depends(get_db)
 ):
     """Delete a message - only sender can delete their own message (hard delete)"""
-    # Check if it's a direct chat message or group chat message
-    direct_message = db.query(ChatMessage).filter(ChatMessage.message_id == message_id).first()
-    group_message = None
+    message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
     
-    if not direct_message:
-        group_message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
-    
-    if not direct_message and not group_message:
+    if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    
-    message = direct_message if direct_message else group_message
     
     # Only sender can delete their own message
     if message.sender_id != current_user.id:
@@ -623,42 +583,24 @@ async def delete_message(
         raise HTTPException(status_code=403, detail="Messages can only be deleted within 20 minutes of sending")
     
     # Hard delete - remove from database
-    if direct_message:
-        room = db.query(ChatRoom).filter(ChatRoom.room_id == message.room_id).first()
-        other_user_id = room.user2_id if room.user1_id == current_user.id else room.user1_id
-        
-        db.delete(message)
-        db.commit()
-        
-        delete_notification = {
-            "type": "message_deleted",
-            "data": {
-                "message_id": message_id,
-                "room_id": message.room_id
-            }
+    worklet_id = message.worklet_id
+    members = db.query(UserWorkletAssociation).filter(
+        UserWorkletAssociation.worklet_id == worklet_id
+    ).all()
+    
+    db.delete(message)
+    db.commit()
+    
+    delete_notification = {
+        "type": "group_message_deleted",
+        "data": {
+            "message_id": message_id,
+            "worklet_id": worklet_id
         }
-        await manager.send_personal_message(delete_notification, other_user_id)
-        await manager.send_personal_message(delete_notification, current_user.id)
-    else:
-        # Group message
-        worklet_id = message.worklet_id
-        members = db.query(UserWorkletAssociation).filter(
-            UserWorkletAssociation.worklet_id == worklet_id
-        ).all()
-        
-        db.delete(message)
-        db.commit()
-        
-        delete_notification = {
-            "type": "group_message_deleted",
-            "data": {
-                "message_id": message_id,
-                "worklet_id": worklet_id
-            }
-        }
-        
-        for member in members:
-            await manager.send_personal_message(delete_notification, member.user_id)
+    }
+    
+    for member in members:
+        await manager.send_personal_message(delete_notification, member.user_id)
     
     return {"status": "success", "message": "Message deleted successfully"}
 
@@ -670,17 +612,10 @@ async def toggle_star_message(
     db: Session = Depends(get_db)
 ):
     """Toggle star status on a message - only sender can star their own message"""
-    # Check if it's a direct chat message or group chat message
-    direct_message = db.query(ChatMessage).filter(ChatMessage.message_id == message_id).first()
-    group_message = None
+    message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
     
-    if not direct_message:
-        group_message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
-    
-    if not direct_message and not group_message:
+    if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    
-    message = direct_message if direct_message else group_message
     
     # Only sender can star their own message
     if message.sender_id != current_user.id:
@@ -702,38 +637,22 @@ async def toggle_star_message(
     
     db.commit()
     
-    # Notify via websocket
-    if direct_message:
-        room = db.query(ChatRoom).filter(ChatRoom.room_id == message.room_id).first()
-        other_user_id = room.user2_id if room.user1_id == current_user.id else room.user1_id
-        
-        star_notification = {
-            "type": "message_starred",
-            "data": {
-                "message_id": message.message_id,
-                "room_id": message.room_id,
-                "is_starred": message.is_starred
-            }
+    # Notify via websocket - group message only
+    members = db.query(UserWorkletAssociation).filter(
+        UserWorkletAssociation.worklet_id == message.worklet_id
+    ).all()
+    
+    star_notification = {
+        "type": "group_message_starred",
+        "data": {
+            "message_id": message.message_id,
+            "worklet_id": message.worklet_id,
+            "is_starred": message.is_starred
         }
-        await manager.send_personal_message(star_notification, other_user_id)
-        await manager.send_personal_message(star_notification, current_user.id)
-    else:
-        # Group message
-        members = db.query(UserWorkletAssociation).filter(
-            UserWorkletAssociation.worklet_id == message.worklet_id
-        ).all()
-        
-        star_notification = {
-            "type": "group_message_starred",
-            "data": {
-                "message_id": message.message_id,
-                "worklet_id": message.worklet_id,
-                "is_starred": message.is_starred
-            }
-        }
-        
-        for member in members:
-            await manager.send_personal_message(star_notification, member.user_id)
+    }
+    
+    for member in members:
+        await manager.send_personal_message(star_notification, member.user_id)
     
     return {"status": "success", "is_starred": message.is_starred}
 
@@ -743,23 +662,7 @@ async def get_unread_count(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get total unread message count"""
-    # Count unread messages in direct chats
-    direct_unread = db.query(ChatMessage).filter(
-        and_(
-            ChatMessage.sender_id != current_user.id,
-            ChatMessage.is_read == False,
-            ChatMessage.room_id.in_(
-                db.query(ChatRoom.room_id).filter(
-                    or_(
-                        ChatRoom.user1_id == current_user.id,
-                        ChatRoom.user2_id == current_user.id
-                    )
-                )
-            )
-        )
-    ).count()
-    
+    """Get total unread message count (group messages only)"""
     # Count unread group messages
     user_worklets = db.query(UserWorkletAssociation.worklet_id).filter(
         UserWorkletAssociation.user_id == current_user.id
@@ -772,7 +675,7 @@ async def get_unread_count(
         )
     ).all()
     
-    group_unread = 0
+    unread_count = 0
     for msg in group_messages:
         receipt = db.query(GroupMessageReadReceipt).filter(
             and_(
@@ -781,10 +684,9 @@ async def get_unread_count(
             )
         ).first()
         if not receipt:
-            group_unread += 1
+            unread_count += 1
     
-    total_unread = direct_unread + group_unread
-    return {"unread_count": total_unread}
+    return {"unread_count": unread_count}
 
 
 # ============= Admin/Utility Endpoints =============
@@ -1019,3 +921,75 @@ async def check_email_status(
         "starred_messages_available": starred_count,
         "last_sent": existing_trigger.sent_at if existing_trigger else None
     }
+
+
+# ============= File Upload Endpoints =============
+
+@router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Upload a file for chat"""
+    
+    # Validate file type
+    allowed_types = settings.ALLOWED_FILE_TYPES.split(",")
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File type '{file.content_type}' not allowed. Allowed types: {', '.join(allowed_types)}"
+        )
+    
+    # Validate file size
+    file.file.seek(0, 2)
+    file_size = file.file.tell()
+    file.file.seek(0)
+    
+    max_size_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    if file_size > max_size_bytes:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File too large. Max size: {settings.MAX_FILE_SIZE_MB}MB"
+        )
+    
+    # Generate unique filename
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = Path(settings.UPLOAD_DIR) / unique_filename
+    
+    # Create upload directory if it doesn't exist
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Save file
+    try:
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    return {
+        "filename": unique_filename,
+        "original_filename": file.filename,
+        "url": f"/api/chat/files/{unique_filename}",
+        "content_type": file.content_type,
+        "size": file_size
+    }
+
+
+@router.get("/files/{filename}")
+async def get_file(filename: str):
+    """Serve uploaded files"""
+    
+    file_path = Path(settings.UPLOAD_DIR) / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Security check: ensure file is within upload directory
+    try:
+        file_path.resolve().relative_to(Path(settings.UPLOAD_DIR).resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return FileResponse(file_path)

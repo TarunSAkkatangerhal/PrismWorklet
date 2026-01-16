@@ -182,11 +182,12 @@ export const chatService = {
   },
 
   // Send group message
-  async sendGroupMessage(workletId, messageText) {
+  async sendGroupMessage(workletId, messageText, attachments = null) {
     try {
       const response = await secureAPI.post('/api/chat/groups/messages', {
         worklet_id: workletId,
         message_text: messageText,
+        attachments: attachments,
       });
       return response.data;
     } catch (error) {

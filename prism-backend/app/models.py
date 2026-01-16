@@ -11,6 +11,7 @@
     ForeignKey,
     UniqueConstraint,
     DECIMAL,
+    JSON,
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -485,61 +486,6 @@ class MeetingRecurrence(Base):
 
 # ============= CHAT MODELS =============
 
-# Chat Room table (for individual 1-on-1 chats)
-class ChatRoom(Base):
-    __tablename__ = "chat_rooms"
-
-    room_id = Column(Integer, primary_key=True, autoincrement=True)
-    worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=True)
-    user1_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    user2_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    # Relationships
-    worklet = relationship("Worklet", foreign_keys=[worklet_id])
-    user1 = relationship("User", foreign_keys=[user1_id])
-    user2 = relationship("User", foreign_keys=[user2_id])
-    messages = relationship("ChatMessage", back_populates="room", cascade="all, delete-orphan")
-
-    # Ensure unique combination
-    __table_args__ = (
-        UniqueConstraint('user1_id', 'user2_id', 'WorkletID', name='unique_chat_room'),
-        Index('idx_chat_room_users', 'user1_id', 'user2_id'),
-    )
-
-    def __repr__(self):
-        return f"<ChatRoom(room_id={self.room_id}, user1_id={self.user1_id}, user2_id={self.user2_id})>"
-
-
-# Chat Message table (for individual chats)
-class ChatMessage(Base):
-    __tablename__ = "chat_messages"
-
-    message_id = Column(Integer, primary_key=True, autoincrement=True)
-    room_id = Column(Integer, ForeignKey("chat_rooms.room_id", ondelete="CASCADE"), nullable=False)
-    sender_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    message_text = Column(Text, nullable=False)
-    sent_at = Column(DateTime, server_default=func.now(), nullable=False)
-    is_read = Column(Boolean, default=False, nullable=False)
-    is_edited = Column(Boolean, default=False, nullable=False)
-    is_deleted = Column(Boolean, default=False, nullable=False)
-    is_starred = Column(Boolean, default=False, nullable=False)
-
-    # Relationships
-    room = relationship("ChatRoom", back_populates="messages")
-    sender = relationship("User", foreign_keys=[sender_id])
-
-    # Indexes for performance
-    __table_args__ = (
-        Index('idx_chat_message_room', 'room_id', 'sent_at'),
-        Index('idx_chat_message_sender', 'sender_id'),
-    )
-
-    def __repr__(self):
-        return f"<ChatMessage(message_id={self.message_id}, room_id={self.room_id}, sender_id={self.sender_id})>"
-
-
 # Group Chat table (for worklet groups)
 # Simplified Group Chat Message table - directly linked to worklets
 class GroupChatMessage(Base):
@@ -549,6 +495,7 @@ class GroupChatMessage(Base):
     worklet_id = Column("WorkletID", Integer, ForeignKey("Prism_Worklet.WorkletID", ondelete="CASCADE"), nullable=False, index=True)
     sender_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     message_text = Column(Text, nullable=False)
+    attachments = Column(JSON, nullable=True)
     sent_at = Column(DateTime, server_default=func.now(), nullable=False)
     is_edited = Column(Boolean, default=False, nullable=False)
     is_deleted = Column(Boolean, default=False, nullable=False)

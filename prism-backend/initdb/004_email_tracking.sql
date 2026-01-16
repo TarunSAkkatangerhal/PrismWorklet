@@ -17,9 +17,3 @@ ADD COLUMN included_in_email BOOLEAN DEFAULT FALSE AFTER is_starred;
 ALTER TABLE group_chat_messages 
 ADD COLUMN starred_at TIMESTAMP NULL AFTER included_in_email;
 
--- Add column to chat_messages as well for consistency
-ALTER TABLE chat_messages 
-ADD COLUMN included_in_email BOOLEAN DEFAULT FALSE AFTER is_starred;
-
-ALTER TABLE chat_messages 
-ADD COLUMN starred_at TIMESTAMP NULL AFTER included_in_email;
