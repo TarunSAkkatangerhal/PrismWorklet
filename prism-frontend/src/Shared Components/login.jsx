@@ -8,18 +8,19 @@ import prismLogoPng from "../assets/prism_logo.png";
 import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as apiSetPassword, login as secureLogin, getCurrentUserFromToken } from "../services/auth";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import Footer from "./Footer";
+
+// Dummy OTP for testing (does not affect backend)
+const DUMMY_OTP = "123456";
+
 export default function Login() {
   useDocumentTitle('Prism-Login');
   const navigate = useNavigate();
-  
   // States for interactive character
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-  
   // Auto-login on page load if tokens exist - Secure version
   useEffect(() => {
     const currentUser = getCurrentUserFromToken();
     const currentPath = window.location.pathname;
-    
     if (currentPath === "/home" || currentPath === "/student-dashboard") {
       // If trying to access protected routes directly, validate authentication
       if (!currentUser) {
@@ -27,7 +28,6 @@ export default function Login() {
         return;
       }
     }
-    
     // Auto-login on page load if valid token exists and not already on dashboard
     if (currentUser && currentPath !== "/home" && currentPath !== "/student-dashboard") {
       // Route based on validated user role from token
@@ -336,7 +336,15 @@ export default function Login() {
     setIsVerifyOtpDisabled(true);
     setIsLoading(true);
 
+    // Check if dummy OTP is used (for testing purposes)
+    if (otpString === DUMMY_OTP) {
+      setOtpVerified(true);
+      showMessage("OTP verified successfully! (Using dummy OTP for testing) Please set your password.");
+      setIsLoading(false);
+      return;
+    }
     
+    // Otherwise, verify with backend
     try {
       const response = await apiVerifyOtp(email, otpString);
       setOtpVerified(true);
@@ -649,20 +657,41 @@ const handleSignup = async (e) => {
                   </div>
 
                   {/* Role Selection */}
-                  <ProfessionalSelect
-                    id="role"
-                    value={role}
-                    disabled={isLoading}
-                    onChange={(e) => setRole(e.target.value)}
-                    label="Role"
-                    lightModeOnly={true}
-                    options={[
-                      { value: "admin", label: "Admin" },
-                      { value: "mentor", label: "Mentor" },
-                      { value: "professor", label: "Professor" },
-                      { value: "student", label: "Student" }
-                    ]}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Select Role
+                    </label>
+                    <div className="flex justify-between">
+                      {[
+                        { value: "student", label: "Student" },
+                        { value: "mentor", label: "Mentor" },
+                        { value: "professor", label: "Professor" },
+                        { value: "admin", label: "Admin" }
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className={`flex items-center cursor-pointer transition-all duration-200 ${
+                            isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value={option.value}
+                            checked={role === option.value}
+                            onChange={(e) => setRole(e.target.value)}
+                            disabled={isLoading}
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                          />
+                          <span className={`ml-2 text-sm font-medium ${
+                            role === option.value ? 'text-blue-600' : 'text-slate-600'
+                          }`}>
+                            {option.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Login Button */}
                   <button
@@ -944,18 +973,42 @@ const handleSignup = async (e) => {
                         )}
                       </div>
 
-                      <ProfessionalSelect
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        label="Role"
-                        lightModeOnly={true}
-                        options={[
-                          { value: "admin", label: "Admin" },
-                          { value: "mentor", label: "Mentor" },
-                          { value: "professor", label: "Professor" },
-                          { value: "student", label: "Student" }
-                        ]}
-                      />
+                      {/* Role Selection */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Select Role
+                        </label>
+                        <div className="flex justify-between">
+                          {[
+                            { value: "student", label: "Student" },
+                            { value: "mentor", label: "Mentor" },
+                            { value: "professor", label: "Professor" },
+                            { value: "admin", label: "Admin" }
+                          ].map((option) => (
+                            <label
+                              key={option.value}
+                              className={`flex items-center cursor-pointer transition-all duration-200 ${
+                                isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="role"
+                                value={option.value}
+                                checked={role === option.value}
+                                onChange={(e) => setRole(e.target.value)}
+                                disabled={isLoading}
+                                className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                              />
+                              <span className={`ml-2 text-sm font-medium ${
+                                role === option.value ? 'text-blue-600' : 'text-slate-600'
+                              }`}>
+                                {option.label}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
 
                       <button 
                         type="submit" 
