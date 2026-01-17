@@ -31,21 +31,33 @@ const MeetingUpdatesModal = ({ isOpen, onClose, worklet }) => {
         return;
       }
 
-      const response = await axios.get(
-        `http://localhost:8000/worklets/student/${encodeURIComponent(userEmail)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-          },
-        }
-      );
+      // Decode token to get user role
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const decoded = JSON.parse(jsonPayload);
+      const userRole = decoded.role ? decoded.role.toLowerCase() : 'student';
 
-      if (response.data && response.data.worklets) {
-        setAvailableWorklets(response.data.worklets);
-        if (response.data.worklets.length > 0) {
-          setSelectedWorklet(response.data.worklets[0]);
-        }
+      // Use appropriate endpoint based on role
+      const endpoint = userRole === 'professor' 
+        ? 'http://localhost:8000/worklets/professor/me'
+        : 'http://localhost:8000/worklets/student/me';
+
+      const response = await axios.get(endpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      // Handle both array response (new endpoints) and object with worklets property
+      const workletData = Array.isArray(response.data) ? response.data : response.data.worklets;
+      
+      if (workletData && workletData.length > 0) {
+        setAvailableWorklets(workletData);
+        setSelectedWorklet(workletData[0]);
       }
     } catch (error) {
       console.error('Error fetching worklets:', error);

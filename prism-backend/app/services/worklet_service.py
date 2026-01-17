@@ -541,3 +541,73 @@ class WorkletService:
             })
         
         return response
+
+    @staticmethod
+    def get_worklets_for_professor(
+        db: Session,
+        professor_id: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all worklets for a professor
+        
+        Args:
+            db: Database session
+            professor_id: Professor user ID
+            
+        Returns:
+            List of worklet dictionaries
+        """
+        # Get professor
+        professor = db.query(User).filter(User.id == professor_id).first()
+        if not professor:
+            return []
+        
+        # Get worklets via associations
+        query = (
+            db.query(Worklet)
+            .join(UserWorkletAssociation, Worklet.id == UserWorkletAssociation.worklet_id)
+            .filter(
+                UserWorkletAssociation.user_id == professor_id,
+                UserWorkletAssociation.role_in_worklet == "Professor",
+            )
+        )
+        
+        worklets = query.all()
+        response = []
+        
+        for w in worklets:
+            # Calculate progress
+            progress = calculate_worklet_progress(w)
+            
+            # Get college
+            college_id = getattr(w, 'college_id', None)
+            college_name = w.college_rel.college_name if getattr(w, 'college_rel', None) else None
+            if college_name is None:
+                college_id = getattr(professor, "college_id", None)
+                college_name = getattr(professor, "college", None)
+            
+            # Get status
+            status_text = map_status_text(getattr(w, 'status_id', None))
+            
+            # Derive year
+            derived_year = WorkletService.derive_worklet_year(w)
+            
+            response.append({
+                'id': w.id,
+                'cert_id': w.cert_id,
+                'title': w.title,
+                'description': getattr(w, 'problem_statement', None),
+                'start_date': w.start_date,
+                'end_date': w.end_date,
+                'created_at': w.created_at,
+                'updated_at': w.updated_at,
+                'year': derived_year if derived_year is not None else datetime.utcnow().year,
+                'domain': getattr(w, 'domain', None),
+                'status': status_text,
+                'worklet_progress': progress,
+                'college_id': college_id,
+                'college': college_name,
+                'riskStatus': normalize_risk_status(getattr(w, 'RiskStatus', None)),
+            })
+        
+        return response

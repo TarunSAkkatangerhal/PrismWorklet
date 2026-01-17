@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award, MessageCircle, User } from 'lucide-react';
+import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, Info, LogOut, Award, MessageCircle,User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { ThemeContext } from '../context/ThemeContext';
@@ -156,6 +156,13 @@ const LeftSidebar = () => {
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/student-dashboard')} />
                         <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/student-chat')} hasUnread={hasUnreadMessages} />
+                        <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
+                    </>
+                ) : userData && userData.role && userData.role.toLowerCase() === 'professor' ? (
+                    <>
+                        <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/professor-dashboard')} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/professor-chat')} hasUnread={hasUnreadMessages} />
+                        <SidebarItem icon={<User size={20} />} label="Profile" onClick={() => navigate('/professor-profile')} />
                         <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
                     </>
                 ) : userData && userData.role ? (

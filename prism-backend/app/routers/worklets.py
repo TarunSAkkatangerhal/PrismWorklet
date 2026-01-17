@@ -1,5 +1,5 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models import Worklet, User, UserWorkletAssociation
 from app.schemas import WorkletCreate, WorkletUpdate, WorkletResponse
 from app.database import get_db
@@ -250,6 +250,33 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
         raise
     except Exception as e:
         logger.error(f"Error fetching student worklets for user: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/professor/me", tags=["worklets"])
+def get_professor_worklets_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    Return worklets associated to the authenticated user as a Professor.
+    Response shape mirrors list_worklets for frontend compatibility.
+    
+    Now uses centralized WorkletService for consistent data formatting.
+    """
+    try:
+        payload = require_access_token(token)
+        user_email = payload.get("sub")
+        if not user_email:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        professor = db.query(User).filter(User.email == user_email).first()
+        if not professor:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Use service to get worklets for professor
+        return WorkletService.get_worklets_for_professor(db, professor.id)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching professor worklets for user: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{worklet_identifier}")
