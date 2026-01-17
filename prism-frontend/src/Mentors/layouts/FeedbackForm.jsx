@@ -193,6 +193,10 @@ export default function FeedbackForm({
         // For students, use the student worklets endpoint
         response = await apiClient.get('/worklets/student/me');
         data = Array.isArray(response?.data) ? response.data : [];
+      } else if (userRole && userRole.toLowerCase() === 'professor') {
+        // For professors, use the professor worklets endpoint
+        response = await apiClient.get('/worklets/professor/me');
+        data = Array.isArray(response?.data) ? response.data : [];
       } else {
         // For mentors, use the mentor worklets endpoint
         response = await apiClient.get(`/api/associations/mentor/${userId}/worklets?status_filter=ongoing`);
@@ -201,7 +205,7 @@ export default function FeedbackForm({
       
       setWorklets(Array.isArray(data) ? data : []);
       if ((data || []).length === 0) {
-        const roleText = userRole && userRole.toLowerCase() === 'student' ? 'student' : 'mentor';
+        const roleText = userRole ? userRole.toLowerCase() : 'user';
         setError(`No worklets found for this ${roleText}`);
       }
     } catch (error) {

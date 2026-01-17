@@ -167,8 +167,8 @@ const RightSidebar = () => {
       
       <div>
         {/* Role-based content - Using validated token data */}
-        {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
-          // Student-specific content
+        {userData && userData.role && (userData.role.toLowerCase() === 'student' || userData.role.toLowerCase() === 'professor') ? (
+          // Student/Professor-specific content
           <>
             <h2 className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold mb-[2vh] text-blue-900 dark:text-white">Activities</h2>
             <div className="space-y-[1.5vh]">

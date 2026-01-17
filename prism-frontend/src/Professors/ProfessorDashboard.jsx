@@ -108,14 +108,11 @@ export default function ProfessorDashboard() {
     setLoading(true);
     setError(null);
     try {
-      // Get current user first to get their ID
-      const currentUser = await getCurrentUser();
-      
-      // Use the associations endpoint to get professor's worklets
-      const response = await secureAPI.get(`/associations/user/${currentUser.id}/worklets?role_filter=professor`);
+      // Use secure API with authentication - same pattern as students
+      const response = await secureAPI.get('/worklets/professor/me');
       
       const payload = response.data;
-      const items = Array.isArray(payload?.active_worklets) ? payload.active_worklets : [];
+      const items = Array.isArray(payload) ? payload : (Array.isArray(payload?.worklets) ? payload.worklets : []);
 
       if (items.length > 0) {
         const processedWorklets = items.map(worklet => ({
@@ -133,15 +130,43 @@ export default function ProfessorDashboard() {
       }
     } catch (error) {
       console.error("Error fetching worklets:", error);
+      console.error("Error response:", error.response);
+      
+      let errorMessage = "Failed to load worklets. Please try again.";
+      
       if (error.response?.status === 401) {
-        setError("Your session has expired. Please log in again.");
+        errorMessage = "Your session has expired. Please log in again.";
         // Redirect to login after a delay
         setTimeout(() => navigate('/'), 2000);
       } else if (error.response?.status === 403) {
-        setError("You don't have permission to view worklets.");
-      } else {
-        setError("Failed to load worklets. Please try again.");
+        errorMessage = "You don't have permission to view worklets.";
+      } else if (error.response?.status === 404) {
+        errorMessage = "No worklets found for this professor.";
+      } else if (error.response?.data) {
+        // Handle different error response formats
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          // If detail is a string
+          if (typeof error.response.data.detail === 'string') {
+            errorMessage = error.response.data.detail;
+          } 
+          // If detail is an array of validation errors
+          else if (Array.isArray(error.response.data.detail)) {
+            errorMessage = error.response.data.detail.map(err => err.msg || JSON.stringify(err)).join(', ');
+          }
+          // If detail is an object
+          else {
+            errorMessage = JSON.stringify(error.response.data.detail);
+          }
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
       }
+      
+      setError(errorMessage);
       setWorkletsData([]);
     } finally {
       setLoading(false);

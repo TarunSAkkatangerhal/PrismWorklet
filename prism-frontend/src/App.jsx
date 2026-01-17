@@ -22,6 +22,8 @@ import WorkletDetailPage from './Mentors/components/WorkletDetailsPage';
 import StudentDashboard from "./Students/StudentDashboard";
 import StudentProfile from "./Students/StudentProfile";
 import ProfessorDashboard from "./Professors/ProfessorDashboard";
+import ProfessorChatPage from "./Professors/ProfessorChatPage";
+import ProfessorProfile from "./Professors/ProfessorProfile";
 
 
 
@@ -65,6 +67,8 @@ export default function App() {
 
         {/*--------------------------------  Professor Routing Start-------------------------------- */}
         <Route path="/professor-dashboard" element={<ProtectedRoute><ProfessorRoute><ProfessorDashboard /></ProfessorRoute></ProtectedRoute>} />
+        <Route path="/professor-chat" element={<ProtectedRoute><ProfessorRoute><ProfessorChatPage /></ProfessorRoute></ProtectedRoute>} />
+        <Route path="/professor-profile" element={<ProtectedRoute><ProfessorRoute><ProfessorProfile /></ProfessorRoute></ProtectedRoute>} />
         {/*--------------------------------  Professor Routing End-------------------------------- */}
 
 
