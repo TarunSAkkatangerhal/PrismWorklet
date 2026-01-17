@@ -1,7 +1,7 @@
 import { Routes, Route} from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
-import { MentorRoute, StudentRoute, ProtectedRoute } from "./components/RoleBasedRoute";
+import { MentorRoute, StudentRoute, ProfessorRoute, ProtectedRoute } from "./components/RoleBasedRoute";
 import RoleRedirect from "./components/RoleRedirect";
 import Login from "./Shared Components/login";
 import ForgotPassword from "./Shared Components/ForgotPassword";
@@ -21,6 +21,7 @@ import WorkletDetailPage from './Mentors/components/WorkletDetailsPage';
 
 import StudentDashboard from "./Students/StudentDashboard";
 import StudentProfile from "./Students/StudentProfile";
+import ProfessorDashboard from "./Professors/ProfessorDashboard";
 
 
 
@@ -63,8 +64,7 @@ export default function App() {
 
 
         {/*--------------------------------  Professor Routing Start-------------------------------- */}
-
-
+        <Route path="/professor-dashboard" element={<ProtectedRoute><ProfessorRoute><ProfessorDashboard /></ProfessorRoute></ProtectedRoute>} />
         {/*--------------------------------  Professor Routing End-------------------------------- */}
 
 

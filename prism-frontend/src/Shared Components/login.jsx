@@ -2,23 +2,25 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 // Removed unused Routes/Route/Navigate imports
 import { useNavigate } from "react-router-dom";
+import ProfessionalSelect from "../components/ProfessionalSelect";
 import prismLogo from "../assets/logo.jpeg";
 import prismLogoPng from "../assets/prism_logo.png";
 import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as apiSetPassword, login as secureLogin, getCurrentUserFromToken } from "../services/auth";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import Footer from "./Footer";
+
+// Dummy OTP for testing (does not affect backend)
+const DUMMY_OTP = "123456";
+
 export default function Login() {
   useDocumentTitle('Prism-Login');
   const navigate = useNavigate();
-  
   // States for interactive character
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-  
   // Auto-login on page load if tokens exist - Secure version
   useEffect(() => {
     const currentUser = getCurrentUserFromToken();
     const currentPath = window.location.pathname;
-    
     if (currentPath === "/home" || currentPath === "/student-dashboard") {
       // If trying to access protected routes directly, validate authentication
       if (!currentUser) {
@@ -26,7 +28,6 @@ export default function Login() {
         return;
       }
     }
-    
     // Auto-login on page load if valid token exists and not already on dashboard
     if (currentUser && currentPath !== "/home" && currentPath !== "/student-dashboard") {
       // Route based on validated user role from token
@@ -335,7 +336,15 @@ export default function Login() {
     setIsVerifyOtpDisabled(true);
     setIsLoading(true);
 
+    // Check if dummy OTP is used (for testing purposes)
+    if (otpString === DUMMY_OTP) {
+      setOtpVerified(true);
+      showMessage("OTP verified successfully! (Using dummy OTP for testing) Please set your password.");
+      setIsLoading(false);
+      return;
+    }
     
+    // Otherwise, verify with backend
     try {
       const response = await apiVerifyOtp(email, otpString);
       setOtpVerified(true);
@@ -423,7 +432,7 @@ const handleSignup = async (e) => {
     switch (page) {
       case "login":
         return (
-          <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex">
+          <div className="min-h-screen bg-slate-100 flex">
             {/* Left Side - Logo with Content Overlay */}
             <div className="hidden lg:flex lg:w-3/5 relative overflow-hidden">
               {/* Background Image */}
@@ -500,7 +509,7 @@ const handleSignup = async (e) => {
             </div>
 
             {/* Right Side - Login Form */}
-            <div className="w-full lg:w-2/5 flex items-center justify-center p-6 bg-white dark:bg-slate-800 relative">
+            <div className="w-full lg:w-2/5 flex items-center justify-center p-6 bg-white relative">
               {/* Top Right Logo */}
               <div className="absolute top-4 right-4 z-10">
                 <img
@@ -516,8 +525,8 @@ const handleSignup = async (e) => {
                   <div className="w-16 h-16 mx-auto mb-4 bg-blue-600 rounded-full flex items-center justify-center">
                     <span className="text-2xl font-bold text-white">P</span>
                   </div>
-                  <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Samsung PRISM</h1>
-                  <p className="text-slate-600 dark:text-slate-400">Welcome back!</p>
+                  <h1 className="text-2xl font-bold text-slate-800 mb-2">Samsung PRISM</h1>
+                  <p className="text-slate-600">Welcome back!</p>
                 </div>
 
                 <div className="text-center mb-8">
@@ -526,8 +535,8 @@ const handleSignup = async (e) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                     </svg>
                   </div>
-                  <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Welcome Back</h2>
-                  <p className="text-slate-600 dark:text-slate-400">
+                  <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome Back</h2>
+                  <p className="text-slate-600">
                     Sign in to your Samsung PRISM account
                   </p>
                 </div>
@@ -554,7 +563,7 @@ const handleSignup = async (e) => {
                   <div>
                     <label 
                       htmlFor="email" 
-                      className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                      className="block text-sm font-medium text-slate-700 mb-2"
                     >
                       Email Address
                     </label>
@@ -575,14 +584,14 @@ const handleSignup = async (e) => {
                           const error = validateEmail(email);
                           setEmailError(error);
                         }}
-                        className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        className={`w-full px-4 py-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                           isLoading ? 'opacity-50 cursor-not-allowed' : ''
                         } ${
                           emailError 
                             ? 'border-red-500 focus:ring-red-500' 
                             : email && !emailError 
                               ? 'border-green-500 focus:ring-green-500' 
-                              : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                              : 'border-slate-200 focus:ring-blue-500'
                         }`}
                         placeholder="Enter your email"
                         required
@@ -609,7 +618,7 @@ const handleSignup = async (e) => {
                   <div>
                     <label 
                       htmlFor="password" 
-                      className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                      className="block text-sm font-medium text-slate-700 mb-2"
                     >
                       Password
                     </label>
@@ -626,12 +635,12 @@ const handleSignup = async (e) => {
                         }}
                         onFocus={() => setIsPasswordFocused(true)}
                         onBlur={() => setIsPasswordFocused(false)}
-                        className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        className={`w-full px-4 py-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                           isLoading ? 'opacity-50 cursor-not-allowed' : ''
                         } ${
                           passwordError 
                             ? 'border-red-500 focus:ring-red-500' 
-                            : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                            : 'border-slate-200 focus:ring-blue-500'
                         }`}
                         placeholder="Enter your password"
                         required
@@ -649,28 +658,39 @@ const handleSignup = async (e) => {
 
                   {/* Role Selection */}
                   <div>
-                    <label 
-                      htmlFor="role" 
-                      className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-                    >
-                      Role
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Select Role
                     </label>
-                    <select
-                      id="role"
-                      value={role}
-                      disabled={isLoading}
-                      onChange={(e) => setRole(e.target.value)}
-                      className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                        isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {/* Values are lowercase for API scope; labels are capitalized */}
-                      <option value="admin">Admin</option>
-                      <option value="mentor">Mentor</option>
-                      <option value="professor">Professor</option>
-                      <option value="student">Student</option>
-                      
-                    </select>
+                    <div className="flex justify-between">
+                      {[
+                        { value: "student", label: "Student" },
+                        { value: "mentor", label: "Mentor" },
+                        { value: "professor", label: "Professor" },
+                        { value: "admin", label: "Admin" }
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className={`flex items-center cursor-pointer transition-all duration-200 ${
+                            isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value={option.value}
+                            checked={role === option.value}
+                            onChange={(e) => setRole(e.target.value)}
+                            disabled={isLoading}
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                          />
+                          <span className={`ml-2 text-sm font-medium ${
+                            role === option.value ? 'text-blue-600' : 'text-slate-600'
+                          }`}>
+                            {option.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Login Button */}
@@ -702,7 +722,7 @@ const handleSignup = async (e) => {
                   <div className="mt-4 text-center">
                     <button
                       onClick={() => navigate("/forgot-password")}
-                      className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-200"
+                      className="text-blue-600 hover:text-blue-500 text-sm font-medium transition-colors duration-200"
                     >
                       Forgot your password?
                     </button>
@@ -710,11 +730,11 @@ const handleSignup = async (e) => {
                 )}
 
                 <div className="mt-8 text-center">
-                  <p className="text-slate-600 dark:text-slate-400">
+                  <p className="text-slate-600">
                     Don't have an account?{' '}
                     <button
                       onClick={() => setPage("signup")}
-                      className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors duration-200"
+                      className="text-blue-600 hover:text-blue-500 font-medium transition-colors duration-200"
                     >
                       Sign up here
                     </button>
@@ -760,7 +780,7 @@ const handleSignup = async (e) => {
       case "signup":
         
         return (
-          <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex">
+          <div className="min-h-screen bg-slate-100 flex">
             {/* Left Side - Logo with Content Overlay */}
             <div className="hidden lg:flex lg:w-3/5 relative overflow-hidden">
               {/* Background Image */}
@@ -829,7 +849,7 @@ const handleSignup = async (e) => {
             </div>
 
             {/* Right Side - Signup Form */}
-            <div className="w-full lg:w-2/5 flex items-center justify-center p-6 bg-white dark:bg-slate-800 relative">
+            <div className="w-full lg:w-2/5 flex items-center justify-center p-6 bg-white relative">
               {/* Top Right Logo */}
               <div className="absolute top-4 right-4 z-10">
                 <img
@@ -844,8 +864,8 @@ const handleSignup = async (e) => {
                   <div className="w-16 h-16 mx-auto mb-4 bg-blue-600 rounded-full flex items-center justify-center">
                     <span className="text-2xl font-bold text-white">P</span>
                   </div>
-                  <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Samsung PRISM</h1>
-                  <p className="text-slate-600 dark:text-slate-400">Create your account</p>
+                  <h1 className="text-2xl font-bold text-slate-800 mb-2">Samsung PRISM</h1>
+                  <p className="text-slate-600">Create your account</p>
                 </div>
 
                 <div className="text-center mb-8">
@@ -854,8 +874,8 @@ const handleSignup = async (e) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                     </svg>
                   </div>
-                  <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Create Account</h2>
-                  <p className="text-slate-600 dark:text-slate-400">Join Samsung PRISM to start your journey</p>
+                  <h2 className="text-3xl font-bold text-slate-800 mb-2">Create Account</h2>
+                  <p className="text-slate-600">Join Samsung PRISM to start your journey</p>
                   
                   {/* Progress Steps */}
                   <div className="flex justify-center mt-6 mb-2">
@@ -908,19 +928,19 @@ const handleSignup = async (e) => {
                   {!otpSent && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Full Name</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
                         <input
                           type="text"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
-                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                           placeholder="Your full name"
                           required
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Email Address</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
                         <input
                           type="email"
                           value={email}
@@ -929,12 +949,12 @@ const handleSignup = async (e) => {
                             setEmailError(validateEmail(e.target.value));
                           }}
                           onBlur={(e) => setEmailError(validateEmail(e.target.value))}
-                          className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                          className={`w-full px-4 py-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
                             emailError 
                               ? 'border-red-500 focus:ring-red-500' 
                               : email && !emailError
                                 ? 'border-green-500 focus:ring-green-500' 
-                                : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                                : 'border-slate-200 focus:ring-blue-500'
                           }`}
                           placeholder="Enter your email"
                           required
@@ -953,19 +973,41 @@ const handleSignup = async (e) => {
                         )}
                       </div>
 
+                      {/* Role Selection */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Role</label>
-                        <select
-                          value={role}
-                          onChange={(e) => setRole(e.target.value)}
-                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                        >
-                          {/* Values are lowercase for API scope; labels are capitalized */}
-                          <option value="admin">Admin</option>
-                          <option value="mentor">Mentor</option>
-                          <option value="professor">Professor</option>
-                          <option value="student">Student</option>
-                        </select>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Select Role
+                        </label>
+                        <div className="flex justify-between">
+                          {[
+                            { value: "student", label: "Student" },
+                            { value: "mentor", label: "Mentor" },
+                            { value: "professor", label: "Professor" },
+                            { value: "admin", label: "Admin" }
+                          ].map((option) => (
+                            <label
+                              key={option.value}
+                              className={`flex items-center cursor-pointer transition-all duration-200 ${
+                                isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="role"
+                                value={option.value}
+                                checked={role === option.value}
+                                onChange={(e) => setRole(e.target.value)}
+                                disabled={isLoading}
+                                className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                              />
+                              <span className={`ml-2 text-sm font-medium ${
+                                role === option.value ? 'text-blue-600' : 'text-slate-600'
+                              }`}>
+                                {option.label}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
 
                       <button 
@@ -1003,12 +1045,12 @@ const handleSignup = async (e) => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                           </svg>
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">Check Your Email</h3>
-                        <p className="text-slate-600 dark:text-slate-400">
+                        <h3 className="text-lg font-semibold text-slate-800 mb-2">Check Your Email</h3>
+                        <p className="text-slate-600">
                           We sent a 6-digit code to<br />
                           <span className="font-medium text-blue-600">{email}</span>
                         </p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                        <p className="text-sm text-slate-500 mt-2">
                           Enter the code below or paste it from your email
                         </p>
                       </div>
@@ -1093,7 +1135,7 @@ const handleSignup = async (e) => {
                   {otpVerified && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Choose Password</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Choose Password</label>
                         <input 
                           type="password" 
                           value={password} 
@@ -1104,12 +1146,12 @@ const handleSignup = async (e) => {
                           }}
                           onFocus={() => setIsPasswordFocused(true)} 
                           onBlur={() => setIsPasswordFocused(false)} 
-                          className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                          className={`w-full px-4 py-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
                             passwordError 
                               ? 'border-red-500 focus:ring-red-500' 
                               : password && passwordValidation.isValid
                                 ? 'border-green-500 focus:ring-green-500' 
-                                : 'border-slate-200 dark:border-slate-600 focus:ring-blue-500'
+                                : 'border-slate-200 focus:ring-blue-500'
                           }`}
                           placeholder="Create your password (8-12 chars)" 
                           required 
@@ -1140,8 +1182,8 @@ const handleSignup = async (e) => {
                 </form>
 
                 <div className="mt-6 text-center">
-                  <p className="text-slate-600 dark:text-slate-400">Already have an account?{' '}
-                    <button onClick={() => { setPage('login'); setOtpSent(false); setOtp(['', '', '', '', '', '']); setOtpVerified(false); setMessage(''); }} className="text-blue-600 hover:text-blue-500 dark:text-blue-400">Login</button>
+                  <p className="text-slate-600">Already have an account?{' '}
+                    <button onClick={() => { setPage('login'); setOtpSent(false); setOtp(['', '', '', '', '', '']); setOtpVerified(false); setMessage(''); }} className="text-blue-600 hover:text-blue-500">Login</button>
                   </p>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import axios from 'axios';
 import apiClient from '../../services/secureAPI';
 import { RefreshCcw } from 'lucide-react';
+import ProfessionalSelect from '../../components/ProfessionalSelect';
 
 // Define all possible stages outside component to avoid dependency issues
 const allStages = [
@@ -424,68 +425,48 @@ export default function FeedbackForm({
                 </div>
               ) : (
                 // Dropdown for worklet selection
-                <select
+                <ProfessionalSelect
                   value={selectedWorklet}
                   onChange={(e) => setSelectedWorklet(e.target.value)}
-                  className="w-full p-[clamp(0.5rem,1.2vw,0.75rem)] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[clamp(0.875rem,1.2vw,1rem)] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  style={{
-                    maxWidth: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  <option value="">Choose a worklet...</option>
-                  {worklets.map((worklet) => {
+                  placeholder="Choose a worklet..."
+                  options={worklets.map((worklet) => {
                     const displayText = `${worklet.cert_id} - ${worklet.description || worklet.title || ''}`;
                     const truncatedText = displayText.length > 60 
                       ? displayText.substring(0, 60) + '...' 
                       : displayText;
-                    return (
-                      <option 
-                        key={worklet.id} 
-                        value={worklet.id}
-                        title={displayText}
-                      >
-                        {truncatedText}
-                      </option>
-                    );
+                    return {
+                      value: worklet.id,
+                      label: truncatedText
+                    };
                   })}
-                </select>
+                />
               )}
             </div>
 
             {/* Stage Selection */}
             <div>
-              <label className="block text-[clamp(0.75rem,1vw,0.875rem)] font-medium text-gray-700 dark:text-gray-300 mb-[clamp(0.5rem,1vh,0.75rem)]">
-                Feedback Stage *
-              </label>
-              <select
+              <ProfessionalSelect
+                label="Feedback Stage"
+                required
                 value={selectedStage}
                 onChange={(e) => setSelectedStage(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 disabled={!selectedWorklet || availableStages.length === 0}
-              >
-                <option value="">
-                  {!selectedWorklet 
+                placeholder={
+                  !selectedWorklet 
                     ? "Select a worklet first..." 
                     : availableStages.length === 0 
                       ? "No milestones available" 
-                      : "Select a stage..."}
-                </option>
-                {allStages.map((stageOption) => {
+                      : "Select a stage..."
+                }
+                options={allStages.map((stageOption) => {
                   const isAvailable = availableStages.some(s => s.value === stageOption.value);
-                  return (
-                    <option 
-                      key={stageOption.value} 
-                      value={stageOption.value}
-                      disabled={!isAvailable}
-                    >
-                      {stageOption.label} {!isAvailable ? "(No milestone)" : ""}
-                    </option>
-                  );
+                  return {
+                    value: stageOption.value,
+                    label: `${stageOption.label}${!isAvailable ? " (No milestone)" : ""}`,
+                    disabled: !isAvailable
+                  };
                 })}
-              </select>
+              />
               {selectedWorklet && availableStages.length === 0 && (
                 <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                   ⚠️ Student hasn't added any milestones yet
@@ -495,21 +476,20 @@ export default function FeedbackForm({
 
             {/* Performance Indicator */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Performance Indicator *
-              </label>
-              <select
+              <ProfessionalSelect
+                label="Performance Indicator"
+                required
                 value={performanceIndicator}
                 onChange={(e) => setPerformanceIndicator(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 disabled={loading}
-              >
-                <option value="">Select performance level...</option>
-                <option value="Very Good">Very Good</option>
-                <option value="Good">Good</option>
-                <option value="Average">Average</option>
-                <option value="Poor">Poor</option>
-              </select>
+                placeholder="Select performance level..."
+                options={[
+                  { value: "Very Good", label: "Very Good" },
+                  { value: "Good", label: "Good" },
+                  { value: "Average", label: "Average" },
+                  { value: "Poor", label: "Poor" }
+                ]}
+              />
             </div>
 
             {/* Progress Completion */}

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Search, X, Users, Info, SlidersHorizontal, SquarePlus, Edit } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Star, Check, MoreVertical, Mail, CheckCheck, Paperclip, Image as ImageIcon, File, Download, FileText } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
 import { chatService } from '../services/chat';
@@ -103,7 +103,7 @@ const useChatWebSocket = (onMessage) => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
 
-  const connect = () => {
+  const connect = useCallback(() => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -157,7 +157,7 @@ const useChatWebSocket = (onMessage) => {
     } catch (error) {
       console.error('Error connecting to WebSocket:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     connect();
@@ -173,7 +173,7 @@ const useChatWebSocket = (onMessage) => {
         wsRef.current.close();
       }
     };
-  }, []);
+  }, [connect]);
 
   const sendMessage = (message) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -198,7 +198,60 @@ const DateSeparator = ({ date }) => {
 };
 
 // Message Bubble Component
-const MessageBubble = ({ message, isOwnMessage }) => {
+const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete, onStar }) => {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  // Check if message is within 20 minutes of being sent
+  const isWithin20Minutes = () => {
+    const sentTime = new Date(message.sent_at);
+    const currentTime = new Date();
+    const diffInMinutes = (currentTime - sentTime) / (1000 * 60); // Convert milliseconds to minutes
+    return diffInMinutes <= 20;
+  };
+
+  const canEdit = isOwnMessage && isWithin20Minutes();
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleDelete = () => {
+    if (!canEdit) {
+      alert('Messages can only be deleted within 20 minutes of sending');
+      return;
+    }
+    if (window.confirm('Are you sure you want to delete this message? This cannot be undone.')) {
+      onDelete(message.message_id);
+      setShowMenu(false);
+    }
+  };
+
+  const handleStar = () => {
+    if (!canEdit) {
+      alert('Messages can only be starred within 20 minutes of sending');
+      return;
+    }
+    onStar(message.message_id);
+    setShowMenu(false);
+  };
+
+  const handleEdit = () => {
+    if (!canEdit) {
+      alert('Messages can only be edited within 20 minutes of sending');
+      return;
+    }
+    onEdit(message);
+    setShowMenu(false);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -215,19 +268,183 @@ const MessageBubble = ({ message, isOwnMessage }) => {
             </span>
           </p>
         )}
-        <div
-          className={`rounded-lg px-3 py-2 shadow-sm ${
-            isOwnMessage
-              ? 'bg-blue-500 dark:bg-blue-600 text-white rounded-tr-none'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-tl-none'
-          }`}
-        >
-          <p className="text-[14px] leading-5 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
-          <div className="flex items-center gap-1 justify-end mt-1">
-            <span className={`text-[11px] ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
-              {new Date(message.sent_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-            </span>
+        <div className="relative group">
+          <div
+            className={`rounded-lg px-3 py-2 shadow-sm ${
+              isOwnMessage
+                ? 'bg-blue-500 dark:bg-blue-600 text-white rounded-tr-none'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-tl-none'
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              {message.is_starred && (
+                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 flex-shrink-0 mt-1" />
+              )}
+              {message.included_in_email && (
+                <CheckCheck className="w-3 h-3 text-green-500 flex-shrink-0 mt-1" title="Included in email" />
+              )}
+              <div className="flex-1">
+                {message.message_text && message.message_text !== '(file attachment)' && (
+                  <p className="text-[14px] leading-5 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
+                )}
+                {/* Attachments - WhatsApp Style */}
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="mt-2">
+                    {/* Images - Grid Layout */}
+                    {(() => {
+                      const images = message.attachments.filter(a => a.content_type?.startsWith('image/'));
+                      const files = message.attachments.filter(a => !a.content_type?.startsWith('image/'));
+                      
+                      return (
+                        <>
+                          {images.length > 0 && (
+                            <div className={`grid gap-1 ${
+                              images.length === 1 ? 'grid-cols-1' : 
+                              images.length === 2 ? 'grid-cols-2' : 
+                              images.length === 3 ? 'grid-cols-3' : 
+                              'grid-cols-2'
+                            } mb-2`}>
+                              {images.map((attachment, idx) => {
+                                const imageUrl = `http://localhost:8000${attachment.url}`;
+                                console.log('Loading image:', imageUrl);
+                                return (
+                                  <a 
+                                    key={idx}
+                                    href={imageUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="relative overflow-hidden rounded-lg block bg-gray-200 dark:bg-gray-700"
+                                  >
+                                    <img 
+                                      src={imageUrl} 
+                                      alt={attachment.original_filename}
+                                      className="w-full h-48 object-cover cursor-pointer transition-transform hover:scale-105"
+                                      loading="lazy"
+                                      onLoad={() => console.log('Image loaded:', imageUrl)}
+                                      onError={(e) => {
+                                        console.error('Image failed to load:', imageUrl);
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                        e.target.parentElement.innerHTML = `<div class="w-full h-48 flex items-center justify-center bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400"><div class="text-center"><svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><p class="text-xs">Image not available</p></div></div>`;
+                                      }}
+                                    />
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* Files - Card Layout */}
+                          {files.length > 0 && (
+                            <div className="space-y-1">
+                              {files.map((attachment, idx) => {
+                                const fileSize = attachment.size ? 
+                                  (attachment.size / 1024 / 1024).toFixed(2) + ' MB' : 
+                                  'Unknown size';
+                                const fileExt = attachment.original_filename?.split('.').pop()?.toUpperCase() || 'FILE';
+                                
+                                return (
+                                  <a 
+                                    key={idx}
+                                    href={`http://localhost:8000${attachment.url}`}
+                                    // download={attachment.original_filename}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                                      isOwnMessage 
+                                        ? 'bg-blue-600/30 hover:bg-blue-600/40 border border-blue-400/30' 
+                                        : 'bg-white/50 dark:bg-gray-600/50 hover:bg-white dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-500'
+                                    }`}
+                                  >
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                      isOwnMessage 
+                                        ? 'bg-blue-600 dark:bg-blue-700' 
+                                        : 'bg-gray-300 dark:bg-gray-600'
+                                    }`}>
+                                      <FileText className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-sm font-medium truncate ${
+                                        isOwnMessage ? 'text-white' : 'text-gray-900 dark:text-white'
+                                      }`}>
+                                        {attachment.original_filename}
+                                      </p>
+                                      <p className={`text-xs ${
+                                        isOwnMessage 
+                                          ? 'text-blue-100 dark:text-blue-200' 
+                                          : 'text-gray-500 dark:text-gray-400'
+                                      }`}>
+                                        {fileExt} • {fileSize}
+                                      </p>
+                                    </div>
+                                    <Download className={`w-5 h-5 flex-shrink-0 ${
+                                      isOwnMessage ? 'text-white' : 'text-gray-600 dark:text-gray-400'
+                                    }`} />
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 justify-end mt-1">
+              {message.is_edited && (
+                <span className={`text-[10px] italic ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                  edited
+                </span>
+              )}
+              <span className={`text-[11px] ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                {new Date(message.sent_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+              </span>
+            </div>
           </div>
+          
+          {/* 3-dot menu button - only show for own messages within 20 minutes */}
+          {canEdit && (
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className={`absolute top-1 right-1 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity ${
+                showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Dropdown menu */}
+          {showMenu && canEdit && (
+            <div
+              ref={menuRef}
+              className="absolute top-8 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 min-w-[140px] z-10"
+            >
+              <button
+                onClick={handleStar}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+              >
+                <Star className={`w-4 h-4 ${message.is_starred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                {message.is_starred ? 'Unstar' : 'Star'}
+              </button>
+              <button
+                onClick={handleEdit}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit
+              </button>
+              <button
+                onClick={handleDelete}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-red-600 dark:text-red-400"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -238,29 +455,26 @@ const MessageBubble = ({ message, isOwnMessage }) => {
 export default function MentorChatPage() {
   useDocumentTitle('Messages - PRISM');
   const navigate = useNavigate();
-  const [rooms, setRooms] = useState([]);
+  const location = useLocation();
   const [groupChats, setGroupChats] = useState([]);
-  const [statusFilter, setStatusFilter] = useState(1); // Default to Ongoing
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [chatType, setChatType] = useState('individual'); // 'individual', 'group'
+  const [chatType, setChatType] = useState('group'); // 'group' only
   const [showGroupProfile, setShowGroupProfile] = useState(false);
   const [groupProfile, setGroupProfile] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(5000); // Start at 5s
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [emailStatus, setEmailStatus] = useState({ can_send: true, starred_messages_available: 0 });
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
-  
-  // Filter and New Chat Panel States
-  const [showFilters, setShowFilters] = useState(false);
-  const [showNewChatPanel, setShowNewChatPanel] = useState(false);
-  const [allStudents, setAllStudents] = useState([]);
-  const [studentSearchQuery, setStudentSearchQuery] = useState('');
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [creatingChat, setCreatingChat] = useState(false);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -269,98 +483,6 @@ export default function MentorChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  // Fetch all students from all mentor's worklets
-  const fetchAllStudents = async () => {
-    if (!currentUserId) {
-      console.log('No current user ID, cannot fetch students');
-      return;
-    }
-    
-    setLoadingStudents(true);
-    try {
-      // Use the correct API endpoint with current user ID
-      const workletsResponse = await secureAPI.get(`/api/associations/mentor/${currentUserId}/worklets`);
-      const worklets = workletsResponse.data?.ongoing_worklets || [];
-      
-      console.log('Fetched worklets:', worklets);
-      
-      const studentsMap = new Map();
-      await Promise.all(
-        worklets.map(async (worklet) => {
-          try {
-            const response = await secureAPI.get(`/worklets/${worklet.id}/students`);
-            const students = response.data || [];
-            console.log(`Students for worklet ${worklet.id}:`, students);
-            students.forEach(student => {
-              if (!studentsMap.has(student.user_id)) {
-                studentsMap.set(student.user_id, {
-                  ...student,
-                  worklets: [{ id: worklet.id, title: worklet.cert_id || worklet.title || `Worklet ${worklet.id}` }]
-                });
-              } else {
-                const existing = studentsMap.get(student.user_id);
-                existing.worklets.push({ id: worklet.id, title: worklet.cert_id || worklet.title || `Worklet ${worklet.id}` });
-              }
-            });
-          } catch (error) {
-            console.error(`Error fetching students for worklet ${worklet.id}:`, error);
-          }
-        })
-      );
-      
-      const studentsList = Array.from(studentsMap.values());
-      console.log('All students mapped:', studentsList);
-      setAllStudents(studentsList);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-    } finally {
-      setLoadingStudents(false);
-    }
-  };
-
-  // Handle opening new chat panel
-  const handleOpenNewChatPanel = () => {
-    setShowNewChatPanel(true);
-    if (allStudents.length === 0) {
-      fetchAllStudents();
-    }
-  };
-
-  // Handle creating chat with selected student
-  const handleStartChatWithStudent = async (student, workletId) => {
-    setCreatingChat(true);
-    try {
-      const response = await chatService.createOrGetChatRoom(workletId, student.user_id);
-      
-      setShowNewChatPanel(false);
-      setStudentSearchQuery('');
-      
-      await fetchRooms();
-      
-      setTimeout(async () => {
-        const updatedRooms = await chatService.getChatRooms();
-        const newRoom = updatedRooms.find(r => r.room_id === response.room_id);
-        if (newRoom) {
-          handleSelectRoom({ ...newRoom, chatId: newRoom.room_id }, false);
-        }
-      }, 500);
-    } catch (error) {
-      console.error('Error creating chat:', error);
-      alert('Failed to create chat. Please try again.');
-    } finally {
-      setCreatingChat(false);
-    }
-  };
-
-  // Filter students based on search
-  const filteredStudents = allStudents.filter(student => {
-    const searchLower = studentSearchQuery.toLowerCase();
-    return (
-      (student.name && student.name.toLowerCase().includes(searchLower)) ||
-      (student.email && student.email.toLowerCase().includes(searchLower))
-    );
-  });
 
   // Get current user
   useEffect(() => {
@@ -381,35 +503,7 @@ export default function MentorChatPage() {
   const handleWebSocketMessage = (data) => {
     console.log('WebSocket message received:', data);
     
-    if (data.type === 'new_message') {
-      const message = data.data;
-      console.log('New message received:', message);
-      console.log('Current room:', selectedRoom);
-      console.log('Current user ID:', currentUserId);
-      
-      // Only add if not already in messages (to avoid duplicates)
-      if (selectedRoom && !selectedRoom.isGroup && message.room_id === selectedRoom.room_id) {
-        console.log('Adding message to current room');
-        setMessages((prev) => {
-          const exists = prev.some(m => m.message_id === message.message_id || m.sending);
-          if (exists) {
-            console.log('Message already exists, skipping');
-            return prev;
-          }
-          console.log('Adding new message to messages array');
-          return [...prev, message];
-        });
-        
-        if (message.sender_id !== currentUserId) {
-          secureAPI.patch(`/api/chat/messages/${message.message_id}/read`).catch(console.error);
-        }
-      } else {
-        console.log('Message not for current room or room not selected');
-      }
-      
-      // Always refresh room list to update unread counts and last message
-      fetchRooms();
-    } else if (data.type === 'new_group_message') {
+    if (data.type === 'new_group_message') {
       const message = data.data;
       console.log('New group message received:', message);
       console.log('Current room:', selectedRoom);
@@ -426,7 +520,7 @@ export default function MentorChatPage() {
           console.log('Adding new group message to messages array');
           return [...prev, {
             message_id: message.group_message_id,
-            room_id: message.worklet_id,
+            worklet_id: message.worklet_id,
             sender_id: message.sender_id,
             sender_name: message.sender_name,
             message_text: message.message_text,
@@ -439,38 +533,46 @@ export default function MentorChatPage() {
       }
       
       fetchGroupChats();
+    } else if (data.type === 'message_edited' || data.type === 'group_message_edited') {
+      // Update edited message in current view
+      const editData = data.data;
+      setMessages((prev) => prev.map(msg => 
+        msg.message_id === editData.message_id 
+          ? { ...msg, message_text: editData.message_text, is_edited: true }
+          : msg
+      ));
+    } else if (data.type === 'message_deleted' || data.type === 'group_message_deleted') {
+      // Remove deleted message from current view
+      const deleteData = data.data;
+      setMessages((prev) => prev.filter(msg => msg.message_id !== deleteData.message_id));
+    } else if (data.type === 'message_starred' || data.type === 'group_message_starred') {
+      // Update starred status in current view
+      const starData = data.data;
+      setMessages((prev) => prev.map(msg => 
+        msg.message_id === starData.message_id 
+          ? { ...msg, is_starred: starData.is_starred }
+          : msg
+      ));
     }
   };
 
-  const { isConnected, sendMessage: sendWsMessage } = useChatWebSocket(handleWebSocketMessage);
+  const { isConnected } = useChatWebSocket(handleWebSocketMessage);
 
-  // Fetch chat rooms
-  const fetchRooms = async () => {
-    try {
-      const response = await secureAPI.get('/api/chat/rooms');
-      setRooms(response.data);
-    } catch (error) {
-      console.error('Error fetching chat rooms:', error);
-    }
-  };
-
-  // Fetch group chats
+  // Fetch group chats - Only Ongoing worklets (status_id = 1)
   const fetchGroupChats = async () => {
     try {
-      const groups = await chatService.getGroupChats(statusFilter);
+      const groups = await chatService.getGroupChats(1);
       setGroupChats(groups);
     } catch (error) {
       console.error('Error fetching group chats:', error);
     }
   };
 
-  // Fetch messages for a room
-  const fetchMessages = async (roomId, isGroup = false) => {
+  // Fetch messages for a group
+  const fetchMessages = async (roomId, isGroup = true) => {
     try {
       setLoading(true);
-      const endpoint = isGroup 
-        ? `/api/chat/groups/${roomId}/messages?limit=100`
-        : `/api/chat/rooms/${roomId}/messages?limit=100`;
+      const endpoint = `/api/chat/groups/${roomId}/messages?limit=100`;
       const response = await secureAPI.get(endpoint);
       setMessages(response.data);
       
@@ -486,19 +588,57 @@ export default function MentorChatPage() {
   };
 
   // Select a room
-  const handleSelectRoom = async (room, isGroup = false) => {
+  const handleSelectRoom = async (room, isGroup = true) => {
     setSelectedRoom({ ...room, isGroup });
     setShowGroupProfile(false);
     setGroupProfile(null);
-    await fetchMessages(isGroup ? room.worklet_id : room.room_id, isGroup);
+    await fetchMessages(room.worklet_id, isGroup);
+    
+    // Check email status for this worklet
+    if (isGroup && room.worklet_id) {
+      checkEmailStatus(room.worklet_id);
+    }
     
     // Mark room as read and refresh to clear unread dot
     setTimeout(() => {
-      fetchRooms();
-      if (isGroup) {
-        fetchGroupChats();
-      }
+      fetchGroupChats();
     }, 500);
+  };
+
+  // Check if email can be sent for this worklet
+  const checkEmailStatus = async (workletId) => {
+    try {
+      const status = await chatService.checkEmailStatus(workletId);
+      setEmailStatus(status);
+    } catch (error) {
+      console.error('Error checking email status:', error);
+    }
+  };
+
+  // Send starred messages email
+  const handleSendStarredEmail = async () => {
+    if (!selectedRoom?.worklet_id) return;
+    
+    if (!window.confirm(`Send an email with starred messages from the last 5 minutes to all worklet members?`)) {
+      return;
+    }
+    
+    try {
+      setSendingEmail(true);
+      const result = await chatService.sendStarredMessagesEmail(selectedRoom.worklet_id);
+      
+      alert(`Email sent successfully to ${result.recipients_count} members! ${result.messages_included} starred messages included.`);
+      
+      // Refresh email status and messages
+      await checkEmailStatus(selectedRoom.worklet_id);
+      await fetchMessages(selectedRoom.worklet_id, true);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      const errorMsg = error.response?.data?.detail || 'Failed to send email';
+      alert(`Error: ${errorMsg}`);
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   // View group profile
@@ -514,26 +654,79 @@ export default function MentorChatPage() {
     }
   };
 
+  // Handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploadingFile(true);
+    try {
+      const response = await secureAPI.post('/api/chat/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setAttachments([...attachments, response.data]);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert(error.response?.data?.detail || 'Failed to upload file');
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Remove attachment
+  const handleRemoveAttachment = (index) => {
+    setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
   // Send a message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedRoom) {
+    if ((!newMessage.trim() && attachments.length === 0) || !selectedRoom) {
       console.log('Cannot send: empty message or no room selected');
       return;
     }
 
-    const messageText = newMessage.trim();
+    const messageText = newMessage.trim() || '(file attachment)';
+    
+    // Check if we're editing an existing message
+    if (editingMessage) {
+      try {
+        await chatService.editMessage(editingMessage.message_id, messageText);
+        // Update message locally
+        setMessages((prev) => prev.map(msg => 
+          msg.message_id === editingMessage.message_id 
+            ? { ...msg, message_text: messageText, is_edited: true }
+            : msg
+        ));
+        setNewMessage('');
+        setEditingMessage(null);
+      } catch (error) {
+        console.error('Error editing message:', error);
+        alert('Failed to edit message');
+      }
+      return;
+    }
+
     const tempId = `temp-${Date.now()}`;
     
     console.log('Sending message:', messageText);
     console.log('Selected room:', selectedRoom);
+    console.log('Attachments:', attachments);
     
     // Optimistic update - add message immediately
     const optimisticMessage = {
       message_id: tempId,
-      room_id: selectedRoom.isGroup ? selectedRoom.worklet_id : selectedRoom.room_id,
+      worklet_id: selectedRoom.worklet_id,
       sender_id: currentUserId,
       sender_name: 'You',
       message_text: messageText,
+      attachments: attachments.length > 0 ? attachments : null,
       sent_at: new Date().toISOString(),
       is_read: false,
       sending: true
@@ -546,12 +739,15 @@ export default function MentorChatPage() {
       return newMessages;
     });
     setNewMessage('');
+    setAttachments([]);
 
     try {
-      const endpoint = selectedRoom.isGroup ? '/api/chat/groups/messages' : '/api/chat/messages';
-      const payload = selectedRoom.isGroup
-        ? { worklet_id: selectedRoom.worklet_id, message_text: messageText }
-        : { room_id: selectedRoom.room_id, message_text: messageText };
+      const endpoint = '/api/chat/groups/messages';
+      const payload = { 
+        worklet_id: selectedRoom.worklet_id, 
+        message_text: messageText,
+        attachments: attachments.length > 0 ? attachments : null
+      };
 
       console.log('Posting to:', endpoint, 'with payload:', payload);
       const response = await secureAPI.post(endpoint, payload);
@@ -570,29 +766,88 @@ export default function MentorChatPage() {
         return updated;
       });
       
-      if (selectedRoom.isGroup) {
-        fetchGroupChats();
-      } else {
-        fetchRooms();
-      }
+      fetchGroupChats();
     } catch (error) {
       console.error('Error sending message:', error);
       console.error('Error details:', error.response?.data);
       // Remove failed message
       setMessages((prev) => prev.filter(msg => msg.message_id !== tempId));
       // Restore the message text
-      setNewMessage(messageText);
+      setNewMessage(messageText === '(file attachment)' ? '' : messageText);
+      setAttachments(attachments);
       alert('Failed to send message: ' + (error.response?.data?.detail || error.message));
     }
   };
 
-  // Load rooms on mount
+  // Edit message handler - populate input field
+  const handleEditMessage = (message) => {
+    setEditingMessage(message);
+    setNewMessage(message.message_text);
+  };
+
+  // Cancel edit handler
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+    setNewMessage('');
+  };
+
+  // Delete message handler
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await chatService.deleteMessage(messageId);
+      // Remove message locally
+      setMessages((prev) => prev.filter(msg => msg.message_id !== messageId));
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      alert('Failed to delete message');
+    }
+  };
+
+  // Star message handler
+  const handleStarMessage = async (messageId) => {
+    try {
+      const response = await chatService.toggleStarMessage(messageId);
+      // Update message locally
+      setMessages((prev) => prev.map(msg => 
+        msg.message_id === messageId 
+          ? { ...msg, is_starred: response.is_starred }
+          : msg
+      ));
+      
+      // Refresh email status to update starred message count
+      if (selectedRoom?.worklet_id) {
+        checkEmailStatus(selectedRoom.worklet_id);
+      }
+    } catch (error) {
+      console.error('Error starring message:', error);
+      alert('Failed to star message');
+    }
+  };
+
+  // Load group chats on mount
   useEffect(() => {
     if (currentUserId) {
-      fetchRooms();
       fetchGroupChats();
     }
-  }, [currentUserId, statusFilter]); // Re-fetch when statusFilter changes
+  }, [currentUserId]); // Only fetch Ongoing worklet chats
+
+  // Auto-select worklet chat room when navigating from worklet details page
+  useEffect(() => {
+    if (location.state?.workletId && groupChats.length > 0 && !selectedRoom) {
+      const targetChat = groupChats.find(chat => chat.worklet_id === location.state.workletId);
+      if (targetChat) {
+        // Add displayName property for UI rendering
+        const chatWithDisplayName = {
+          ...targetChat,
+          displayName: targetChat.group_name
+        };
+        handleSelectRoom(chatWithDisplayName, true);
+        // Clear navigation state after selection
+        navigate('/mentor-chat', { replace: true, state: {} });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, groupChats, selectedRoom]);
 
   // Adaptive polling - only when WebSocket disconnected
   useEffect(() => {
@@ -602,7 +857,6 @@ export default function MentorChatPage() {
     if (!isConnected) {
       const interval = setInterval(() => {
         console.log('⚠️ WebSocket disconnected, polling at', pollingInterval + 'ms');
-        fetchRooms();
         fetchGroupChats();
         
         // Increase interval with exponential backoff: 5s → 10s → 30s → 60s
@@ -617,9 +871,8 @@ export default function MentorChatPage() {
     }
   }, [currentUserId, isConnected, pollingInterval]);
 
-  // Combine, filter, and sort rooms by search, type, and latest message
+  // Filter and sort group chats by search and latest message
   const allConversations = [
-    ...rooms.map(r => ({ ...r, isGroup: false, displayName: r.other_user_name, chatId: r.room_id })),
     ...groupChats.map(g => ({ ...g, isGroup: true, displayName: g.group_name, chatId: g.worklet_id }))
   ].sort((a, b) => {
     const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
@@ -631,9 +884,8 @@ export default function MentorChatPage() {
     const matchesSearch = conv.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (conv.worklet_title && conv.worklet_title.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const matchesType = chatType === 'all' || 
-      (chatType === 'individual' && !conv.isGroup) ||
-      (chatType === 'group' && conv.isGroup);
+    // Only show group chats
+    const matchesType = conv.isGroup;
     
     return matchesSearch && matchesType;
   });
@@ -658,22 +910,10 @@ export default function MentorChatPage() {
                     Connecting...
                   </span>
                 )}
-                {/* Filter Icon Button */}
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    showFilters 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                  title="Filter"
-                >
-                  <SlidersHorizontal className="w-5 h-5" />
-                </button>
               </div>
             </div>
 
-            {/* Chat Type Filter */}
+            {/* Chat Type Filter - Showing only Groups (Ongoing worklets) */}
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setChatType('group')}
@@ -685,48 +925,7 @@ export default function MentorChatPage() {
               >
                 Groups
               </button>
-              <button
-                onClick={() => setChatType('individual')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  chatType === 'individual'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                Individual
-              </button>
             </div>
-            
-            {/* Collapsible Filters */}
-            <AnimatePresence>
-              {showFilters && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  {/* Status Filter Dropdown */}
-                  <div className="mb-3">
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
-                      Filter Worklet Status
-                    </label>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#202C33] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
-                    >
-                      <option value={0}>To Start</option>
-                      <option value={1}>Ongoing</option>
-                      <option value={2}>Completed</option>
-                      <option value={3}>On Hold</option>
-                      <option value={4}>Dropped</option>
-                    </select>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
             
             {/* Search */}
             <div className="relative mb-3">
@@ -746,21 +945,8 @@ export default function MentorChatPage() {
             {filteredRooms.length === 0 ? (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                 <MessageCircle className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No conversations yet</p>
-                <p className="text-sm mt-1">Start chatting with your students</p>
-                
-                {/* New Chat Button - Show inline when no conversations and on Individual tab */}
-                {chatType === 'individual' && (
-                  <div className="mt-6 px-8">
-                    <button
-                      onClick={handleOpenNewChatPanel}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium shadow-sm"
-                    >
-                      <SquarePlus className="w-5 h-5" />
-                      <span>New Chat</span>
-                    </button>
-                  </div>
-                )}
+                <p className="font-medium">No group conversations yet</p>
+                <p className="text-sm mt-1">Group chats will appear here</p>
               </div>
             ) : (
               <>
@@ -812,22 +998,6 @@ export default function MentorChatPage() {
                   </motion.div>
                 ))}
               </div>
-              
-              {/* Floating New Chat Button - Only for Individual chats when there are conversations */}
-              {chatType === 'individual' && (
-                <motion.button
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleOpenNewChatPanel}
-                  className="absolute bottom-4 right-4 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-10"
-                  title="New Chat"
-                >
-                  <SquarePlus className="w-6 h-6" />
-                </motion.button>
-              )}
             </>
             )}
           </div>
@@ -865,13 +1035,38 @@ export default function MentorChatPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {selectedRoom.isGroup && (
-                      <button
-                        onClick={() => handleViewGroupProfile(selectedRoom.group_id)}
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                        title="View group info"
-                      >
-                        <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                      </button>
+                      <>
+                        <button
+                          onClick={handleSendStarredEmail}
+                          disabled={!emailStatus.can_send || sendingEmail || emailStatus.starred_messages_available === 0}
+                          className={`p-2 rounded-full transition-colors relative ${
+                            !emailStatus.can_send || sendingEmail || emailStatus.starred_messages_available === 0
+                              ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800'
+                              : 'hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                          }`}
+                          title={
+                            !emailStatus.can_send 
+                              ? 'Email already sent today' 
+                              : emailStatus.starred_messages_available === 0
+                              ? 'No starred messages in last 5 minutes'
+                              : 'Send starred messages via email'
+                          }
+                        >
+                          <Mail className="w-5 h-5" />
+                          {emailStatus.starred_messages_available > 0 && emailStatus.can_send && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                              {emailStatus.starred_messages_available}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleViewGroupProfile(selectedRoom.group_id)}
+                          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                          title="View group info"
+                        >
+                          <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={() => setSelectedRoom(null)}
@@ -904,6 +1099,10 @@ export default function MentorChatPage() {
                           key={message.message_id}
                           message={message}
                           isOwnMessage={message.sender_id === currentUserId}
+                          currentUserId={currentUserId}
+                          onEdit={handleEditMessage}
+                          onDelete={handleDeleteMessage}
+                          onStar={handleStarMessage}
                         />
                       ))}
                     </div>
@@ -915,7 +1114,61 @@ export default function MentorChatPage() {
 
               {/* Input - WhatsApp style */}
               <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-transparent dark:border-gray-800">
+                {/* Editing indicator */}
+                {editingMessage && (
+                  <div className="mb-2 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded">
+                    <div className="flex items-center gap-2">
+                      <Edit2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm text-blue-600 dark:text-blue-400">Editing message</span>
+                    </div>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                {/* Attachments preview */}
+                {attachments.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {attachments.map((attachment, idx) => {
+                      const isImage = attachment.content_type?.startsWith('image/');
+                      return (
+                        <div key={idx} className="relative bg-white dark:bg-gray-700 rounded-lg p-2 flex items-center gap-2">
+                          {isImage ? <ImageIcon className="w-4 h-4" /> : <File className="w-4 h-4" />}
+                          <span className="text-sm truncate max-w-[150px]">{attachment.original_filename}</span>
+                          <button
+                            onClick={() => handleRemoveAttachment(idx)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="flex gap-2 items-center">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                    className="p-2.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                    title="Attach file"
+                  >
+                    {uploadingFile ? (
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                    ) : (
+                      <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    )}
+                  </button>
                   <input
                     type="text"
                     value={newMessage}
@@ -926,15 +1179,15 @@ export default function MentorChatPage() {
                         handleSendMessage();
                       }
                     }}
-                    placeholder="Type a message"
+                    placeholder={editingMessage ? "Edit your message" : "Type a message"}
                     className="flex-1 px-4 py-2.5 border-0 rounded-lg bg-white dark:bg-[#2A3942] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-0 text-[15px]"
                   />
                   <button
                     onClick={handleSendMessage}
-                    disabled={!newMessage.trim()}
+                    disabled={!newMessage.trim() && attachments.length === 0}
                     className="bg-[#25D366] hover:bg-[#20BD5A] disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-full p-3 transition-colors flex items-center justify-center"
                   >
-                    <Send className="w-5 h-5" />
+                    {editingMessage ? <Check className="w-5 h-5" /> : <Send className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
@@ -1090,145 +1343,6 @@ export default function MentorChatPage() {
               </div>
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* New Chat Panel - Sliding from right */}
-      <AnimatePresence>
-        {showNewChatPanel && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowNewChatPanel(false)}
-              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-            />
-            
-            {/* Sliding Panel */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 bottom-0 w-full sm:w-96 bg-white dark:bg-gray-800 shadow-2xl z-50 flex flex-col"
-            >
-              {/* Panel Header */}
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-blue-500 dark:bg-blue-600">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                      <SquarePlus className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-white">New Message</h2>
-                      <p className="text-xs text-blue-100">Select a student to chat with</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowNewChatPanel(false)}
-                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-white" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Search Bar */}
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={studentSearchQuery}
-                    onChange={(e) => setStudentSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              {/* Students List */}
-              <div className="flex-1 overflow-y-auto">
-                {loadingStudents ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                      <p className="text-gray-500 dark:text-gray-400">Loading students...</p>
-                    </div>
-                  </div>
-                ) : filteredStudents.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center p-6">
-                      <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                      <p className="text-gray-500 dark:text-gray-400 font-medium">
-                        {studentSearchQuery ? 'No students found' : 'No students available'}
-                      </p>
-                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                        {studentSearchQuery ? 'Try a different search' : 'Students will appear here'}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredStudents.map((student) => (
-                      <div key={student.user_id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <div className="flex items-start gap-3">
-                          {/* Avatar */}
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-bold text-lg">
-                              {(student.name || student.email || 'S').charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          
-                          {/* Student Info */}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                              {student.name || 'Student'}
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                              {student.email}
-                            </p>
-                            
-                            {/* Worklets */}
-                            {student.worklets && student.worklets.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {student.worklets.slice(0, 2).map((worklet) => (
-                                  <button
-                                    key={worklet.id}
-                                    onClick={() => handleStartChatWithStudent(student, worklet.id)}
-                                    disabled={creatingChat}
-                                    className="w-full text-left px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-xs text-blue-700 dark:text-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                                  >
-                                    <MessageCircle className="w-3 h-3" />
-                                    Chat about: {worklet.title}
-                                  </button>
-                                ))}
-                                {student.worklets.length > 2 && (
-                                  <p className="text-xs text-gray-400 dark:text-gray-500 px-2">
-                                    +{student.worklets.length - 2} more worklet{student.worklets.length - 2 > 1 ? 's' : ''}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer Info */}
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                  {filteredStudents.length} {filteredStudents.length === 1 ? 'student' : 'students'} available
-                </p>
-              </div>
-            </motion.div>
-          </>
         )}
       </AnimatePresence>
     </div>

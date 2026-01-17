@@ -337,6 +337,22 @@ class WorkletService:
             if assoc.user and assoc.user.id:
                 all_student_ids.add(assoc.user.id)
         
+        # OPTIMIZATION: Bulk fetch all professor associations for all worklets in one query
+        professor_associations = db.query(UserWorkletAssociation).options(
+            joinedload(UserWorkletAssociation.user)  # Eager load users
+        ).filter(
+            UserWorkletAssociation.worklet_id.in_(worklet_ids),
+            UserWorkletAssociation.role_in_worklet.in_(["Professor", "professor"])
+        ).all()
+        
+        # Build a map: worklet_id -> list of professors
+        professors_by_worklet = {}
+        for assoc in professor_associations:
+            if assoc.worklet_id not in professors_by_worklet:
+                professors_by_worklet[assoc.worklet_id] = []
+            if assoc.user and assoc.user.name:
+                professors_by_worklet[assoc.worklet_id].append(assoc.user.name)
+        
         # OPTIMIZATION: Bulk fetch latest suggestions for all worklets in one query
         suggestions = db.query(Suggestion).filter(
             Suggestion.worklet_id.in_(worklet_ids)
@@ -369,6 +385,9 @@ class WorkletService:
             
             # Get students for this worklet (from pre-fetched map)
             students = students_by_worklet.get(worklet.id, [])
+            
+            # Get professors for this worklet (from pre-fetched map)
+            professors = professors_by_worklet.get(worklet.id, [])
             
             # Get college info
             worklet_college, college_id = get_worklet_college(worklet, students, mentor)
@@ -427,6 +446,7 @@ class WorkletService:
                         "college_id": s.college_id
                     } for s in students
                 ],
+                "professors": professors,
                 "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
                 "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
                 "github_repo_url": github_url,

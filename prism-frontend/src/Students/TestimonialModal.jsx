@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X } from 'lucide-react';
 import axios from 'axios';
+import ProfessionalSelect from '../components/ProfessionalSelect';
 
 const TestimonialModal = ({ isOpen, onClose, worklet }) => {
   const [feedbackScore, setFeedbackScore] = useState(null);
@@ -186,27 +187,16 @@ const TestimonialModal = ({ isOpen, onClose, worklet }) => {
                   </div>
                 ) : availableWorklets.length > 0 ? (
                   <>
-                    <div className="relative">
-                      <select
-                        value={selectedWorklet?.id || ''}
-                        onChange={handleWorkletChange}
-                        required
-                        className="w-full px-4 py-3 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg 
-                                  bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-                                  focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                                  appearance-none cursor-pointer"
-                      >
-                        {availableWorklets.map((w) => (
-                          <option key={w.id} value={w.id}>
-                            {w.cert_id} - {w.title}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown 
-                        size={20} 
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
-                      />
-                    </div>
+                    <ProfessionalSelect
+                      value={selectedWorklet?.id || ''}
+                      onChange={handleWorkletChange}
+                      required
+                      options={availableWorklets.map((w) => ({
+                        value: w.id,
+                        label: `${w.cert_id} - ${w.title}`
+                      }))}
+                      placeholder="Select a worklet"
+                    />
                     {selectedWorklet && (
                       <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                         <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">SELECTED WORKLET</div>

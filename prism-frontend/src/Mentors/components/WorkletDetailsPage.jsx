@@ -15,6 +15,7 @@ import ProvideUpdateModal from '../components/ProvideUpdateModal'
 import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
 import TestimonialModal from '../../Students/TestimonialModal'
 import { getCurrentUser } from '../../services/auth'
+import ProfessionalSelect from '../../components/ProfessionalSelect'
 
 // --- Import required icons from lucide-react ---
 import {
@@ -1309,16 +1310,12 @@ export default function WorkletDetailPage() {
 
             {/* Milestone Type Dropdown */}
             <div>
-              <select
+              <ProfessionalSelect
                 value={milestoneType}
                 onChange={(e) => setMilestoneType(e.target.value)}
-                className="w-full px-3 py-3 text-sm border border-gray-300 rounded-xl bg-white text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all"
-              >
-                <option value="">Select Type</option>
-                {milestoneTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+                placeholder="Select Type"
+                options={milestoneTypes}
+              />
             </div>
 
             {/* Dynamic Fields Based on Type */}
@@ -1984,6 +1981,19 @@ export default function WorkletDetailPage() {
 
             {/* Action Buttons - Now separate section below status and info */}
             {/* Removed Export and Edit Project buttons as requested */}
+            
+            {/* Chat Button for quick access to worklet chat room - Only for Ongoing worklets */}
+            {worklet.status === 'Ongoing' && (
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => navigate('/mentor-chat', { state: { workletId: worklet.id } })}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                >
+                  <MessageCircle size={20} />
+                  <span>Team Chat</span>
+                </button>
+              </div>
+            )}
 
             {/* Progress Bar now appears here for improved visual balance */}
             <div className="mt-6">
@@ -2689,8 +2699,9 @@ export default function WorkletDetailPage() {
                       <ActivityButton
                         icon={<MessageSquare size={18} />}
                         label="Submit Feedback"
-                        status="Share your feedback"
+                        status={milestones.length === 0 ? "No milestones available" : "Share your feedback"}
                         onClick={() => setIsFeedbackOpen(true)}
+                        disabled={milestones.length === 0}
                       />
                       <ActivityButton
                         icon={<Star size={18} />}
@@ -2719,9 +2730,9 @@ export default function WorkletDetailPage() {
                       <ActivityButton
                         icon={<MessageSquare size={18} />}
                         label="Provide Feedback"
-                        status="Give project feedback"
+                        status={milestones.length === 0 ? "No milestones available" : "Give project feedback"}
                         onClick={() => setIsFeedbackOpen(true)}
-                        disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100}
+                        disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100 || milestones.length === 0}
                       />
                       <ActivityButton
                         icon={<Users size={18} />}

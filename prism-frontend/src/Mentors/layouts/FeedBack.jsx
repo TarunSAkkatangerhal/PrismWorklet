@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import ProfessionalSelect from '../../components/ProfessionalSelect';
 
 const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => {
   const [workletId, setWorkletId] = useState(
@@ -187,20 +188,17 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
         {/* Worklet ID */}
         {!autoMode && (
           <div className="mb-3">
-            <label className="text-sm font-medium dark:text-slate-300">Select Worklet ID</label>
-            <select
-              className="w-full border rounded-lg p-2 mb-4 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+            <ProfessionalSelect
               value={workletId}
               onChange={(e) => setWorkletId(e.target.value)}
               disabled={loading}
-            >
-              <option value="">-- Select --</option>
-              {worklets.map((worklet) => (
-                <option key={worklet.id} value={worklet.id}>
-                  {worklet.cert_id}
-                </option>
-              ))}
-            </select>
+              label="Select Worklet ID"
+              placeholder="-- Select --"
+              options={worklets.map((worklet) => ({
+                value: worklet.id,
+                label: worklet.cert_id
+              }))}
+            />
           </div>
         )}
         {autoMode && (
@@ -212,33 +210,27 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
 
         {/* Stage */}
         <div className="mb-3">
-          <label className="text-sm font-medium dark:text-slate-300">Select Stage</label>
-          <select
+          <ProfessionalSelect
             value={stage}
             onChange={(e) => setStage(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:focus:ring-blue-500"
             disabled={!workletId || availableStages.length === 0}
-          >
-            <option value="">
-              {!workletId 
+            label="Select Stage"
+            placeholder={
+              !workletId 
                 ? "Select a worklet first" 
                 : availableStages.length === 0 
                   ? "No milestones available" 
-                  : "Select a stage"}
-            </option>
-            {allStages.map((stageOption) => {
+                  : "Select a stage"
+            }
+            options={allStages.map((stageOption) => {
               const isAvailable = availableStages.some(s => s.value === stageOption.value);
-              return (
-                <option 
-                  key={stageOption.value} 
-                  value={stageOption.value}
-                  disabled={!isAvailable}
-                >
-                  {stageOption.label} {!isAvailable ? "(No milestone)" : ""}
-                </option>
-              );
+              return {
+                value: stageOption.value,
+                label: `${stageOption.label}${!isAvailable ? " (No milestone)" : ""}`,
+                disabled: !isAvailable
+              };
             })}
-          </select>
+          />
           {workletId && availableStages.length === 0 && (
             <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
               Student hasn't added any milestones yet

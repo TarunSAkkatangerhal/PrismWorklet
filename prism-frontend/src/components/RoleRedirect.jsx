@@ -24,7 +24,9 @@ export default function RoleRedirect() {
         // Avoid infinite redirects by checking current path
         if (user.role.toLowerCase() === 'student' && currentPath !== '/student-dashboard') {
           navigate('/student-dashboard', { replace: true });
-        } else if (user.role.toLowerCase() !== 'student' && currentPath !== '/home') {
+        } else if (user.role.toLowerCase() === 'professor' && currentPath !== '/professor-dashboard') {
+          navigate('/professor-dashboard', { replace: true });
+        } else if (['mentor', 'admin'].includes(user.role.toLowerCase()) && currentPath !== '/home') {
           navigate('/home', { replace: true });
         }
       } catch (error) {
