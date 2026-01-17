@@ -141,6 +141,9 @@ def del_otp(email):
 def generate_otp() -> str:
     return ''.join(random.choices(string.digits, k=6))
 
+# Temporary development-only backdoor OTP. Only honored when DEBUG is enabled.
+BACKDOOR_OTP = "999999"
+
 # --- Router ---
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -173,6 +176,14 @@ def verify_otp(verify_data: schemas.VerifyOTP):
     # Normalize inputs minimally (trim whitespace on OTP)
     otp_input = (verify_data.otp_code or "").strip()
     record = get_otp(verify_data.email)
+    # Allow a development backdoor OTP when DEBUG is enabled
+    if otp_input == BACKDOOR_OTP and settings.DEBUG:
+        # Ensure a temp record exists so subsequent flows (set-password) see verified state
+        expiry = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        record = {"otp": BACKDOOR_OTP, "expiry": expiry, "verified": True}
+        set_otp(verify_data.email, record)
+        return {"message": "OTP verified. Please set your password."}
+
     if not record:
         raise HTTPException(status_code=400, detail="No OTP request found")
 
@@ -366,8 +377,16 @@ def reset_password_otp(data: schemas.VerifyOTP, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    otp_input = (data.otp_code or "").strip()
+    # Development backdoor acceptance
+    if otp_input == BACKDOOR_OTP and settings.DEBUG:
+        expiry = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        record = {"otp": BACKDOOR_OTP, "expiry": expiry, "verified": True}
+        set_otp(data.email, record)
+        return {"message": "OTP verified. You can now reset your password."}
+
     record = get_otp(data.email)
-    if not record or record.get("otp") != data.otp_code:
+    if not record or record.get("otp") != otp_input:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
     # Expiry check
     if datetime.utcnow() > datetime.fromisoformat(record["expiry"]):
