@@ -117,7 +117,10 @@ def _norm_email_key(email: str) -> str:
 def set_otp(email, otp_data):
     key = _norm_email_key(email)
     try:
-        redis_cache.set(f"otp:{key}", json.dumps(otp_data), ex=600)
+        result = redis_cache.set(f"otp:{key}", json.dumps(otp_data), ex=600)
+        # If Redis returns False (connection unavailable), fall back to in-memory
+        if not result:
+            temp_otps[key] = otp_data
     except Exception:
         temp_otps[key] = otp_data
 
