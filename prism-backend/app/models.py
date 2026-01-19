@@ -99,6 +99,8 @@ class UserProfile(Base):
     location = Column(String(255), nullable=True)
     date_of_birth = Column(Date, nullable=True)
     website = Column(String(255), nullable=True)
+    extra = Column(JSON, nullable=True)
+    profile_completed = Column(Boolean, default=False, nullable=False)
 
 
     user = relationship("User", back_populates="profile")

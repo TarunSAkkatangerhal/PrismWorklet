@@ -216,7 +216,25 @@ export default function Login() {
       // Route based on validated user role from token
       const userRole = loginData.user.role || "";
       if (userRole.toLowerCase() === "student") {
-        navigate("/student-dashboard");
+        // Check if student profile is completed
+        try {
+          const profileResponse = await axios.get("http://localhost:8000/auth/profile", {
+            headers: { Authorization: `Bearer ${loginData.access_token}` }
+          });
+          const profileCompleted = profileResponse.data?.profile?.profile_completed;
+          
+          // If profile_completed is explicitly false or undefined (not completed)
+          if (profileCompleted !== true) {
+            // Redirect to registration page if profile not completed
+            navigate("/student-registration");
+          } else {
+            navigate("/student-dashboard");
+          }
+        } catch (error) {
+          console.error("Failed to check profile completion:", error);
+          // For new students, default to registration page if profile check fails
+          navigate("/student-registration");
+        }
       } else {
         navigate("/home");
       }
@@ -414,7 +432,25 @@ const handleSignup = async (e) => {
       // Route based on user role
       const userRole = serverUser.role || normalizedRole;
       if (userRole.toLowerCase() === "student") {
-        navigate("/student-dashboard");
+        // Check if student profile is completed
+        try {
+          const profileResponse = await axios.get("http://localhost:8000/auth/profile", {
+            headers: { Authorization: `Bearer ${loginResponse.data.access_token}` }
+          });
+          const profileCompleted = profileResponse.data?.profile?.profile_completed;
+          
+          // If profile_completed is explicitly false or undefined (not completed)
+          if (profileCompleted !== true) {
+            // Redirect to registration page if profile not completed
+            navigate("/student-registration");
+          } else {
+            navigate("/student-dashboard");
+          }
+        } catch (error) {
+          console.error("Failed to check profile completion:", error);
+          // For new students, default to registration page if profile check fails
+          navigate("/student-registration");
+        }
       } else {
         navigate("/home"); // Default to mentor/admin dashboard
       }

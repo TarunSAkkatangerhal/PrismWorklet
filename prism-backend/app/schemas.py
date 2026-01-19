@@ -130,6 +130,12 @@ class UserProfileUpdate(BaseModel):
     organization: Optional[str] = None
     github: Optional[str] = None
 
+class StudentProfileComplete(BaseModel):
+    extra: dict  # Contains: full_name, phone, college_roll_no, qualification, branch, batch_from, batch_to
+    college_id: int
+    contact_number: Optional[str] = None
+    qualification: Optional[str] = None
+
 # Mentor & Worklet Schemas
 class MentorBase(BaseModel):
     name: str
