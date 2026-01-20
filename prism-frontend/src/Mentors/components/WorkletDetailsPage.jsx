@@ -14,7 +14,6 @@ import LeftSidebar from '../../components/Left'
 import ProvideUpdateModal from '../components/ProvideUpdateModal'
 import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
 import TestimonialModal from '../../Students/TestimonialModal'
-import ProfileModal from '../../Shared Components/ProfileModal'
 import { getCurrentUser } from '../../services/auth'
 import ProfessionalSelect from '../../components/ProfessionalSelect'
 
@@ -169,22 +168,19 @@ const CollapsibleSection = ({ title, children, isExpanded, onToggle, icon }) => 
 }
 
 // --- Team Member Card Component ---
-const TeamMemberCard = ({ member, role = "Team Member", avatar, onClick }) => {
+const TeamMemberCard = ({ member, role = "Team Member", avatar }) => {
   // Handle both string format (legacy) and object format (new)
   const memberName = typeof member === 'string' ? member : (member?.name || member?.email || 'Unknown');
-  const memberEmail = typeof member === 'object' ? member?.email : null;
   
   const getInitials = (name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase()
   }
 
   return (
-    <button
-      onClick={() => onClick && onClick(memberName, memberEmail)}
+    <div
       className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-white/80 to-gray-50/80 
                     dark:from-gray-800/80 dark:to-gray-900/80 backdrop-blur-sm border border-white/20 
-                    dark:border-gray-600/20 p-4 hover:shadow-lg hover:scale-105 transition-all duration-300 
-                    hover:border-indigo-300 dark:hover:border-indigo-700 cursor-pointer w-full text-left"
+                    dark:border-gray-600/20 p-4 w-full"
     >
       <div className="flex items-center gap-3">
         <div className="relative">
@@ -198,10 +194,10 @@ const TeamMemberCard = ({ member, role = "Team Member", avatar, onClick }) => {
           )}
         </div>
         <div className="flex-grow">
-          <h4 className="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{memberName}</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{memberName}</h4>
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -275,9 +271,6 @@ export default function WorkletDetailPage() {
   const [isInternModalOpen, setIsInternModalOpen] = useState(false)
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false)
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
-  const [selectedUserName, setSelectedUserName] = useState(null)
-  const [selectedUserEmail, setSelectedUserEmail] = useState(null)
   
   // Notification state for success/error messages
   const [notification, setNotification] = useState({ show: false, message: '', type: '' })
@@ -396,6 +389,21 @@ export default function WorkletDetailPage() {
   const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false)
   const [isReviewMilestoneModalOpen, setIsReviewMilestoneModalOpen] = useState(false)
   const [selectedMilestoneForReview, setSelectedMilestoneForReview] = useState(null)
+  
+  // Check if there are any unreviewed milestones by the current mentor
+  const hasUnreviewedMilestones = useMemo(() => {
+    if (!milestones || milestones.length === 0) return false
+    if (currentUserRole?.toLowerCase() !== 'mentor') return false
+    
+    // Check if any milestone doesn't have a feedback from the current mentor
+    return milestones.some(milestone => {
+      const hasMentorFeedback = milestone.feedbacks?.some(
+        f => f.reviewer_role === 'mentor' && f.reviewer_email === currentUserEmail
+      )
+      return !hasMentorFeedback
+    })
+  }, [milestones, currentUserEmail, currentUserRole])
+  
   const [newMilestone, setNewMilestone] = useState({
     title: '',
     observations: '',
@@ -594,19 +602,6 @@ export default function WorkletDetailPage() {
     } else {
       navigate('/worklets') // Fallback to worklets page
     }
-  }
-
-  // --- PROFILE MODAL HANDLER ---
-  const handleUserClick = (userName, userEmail = null) => {
-    setSelectedUserName(userName)
-    setSelectedUserEmail(userEmail)
-    setIsProfileModalOpen(true)
-  }
-
-  const closeProfileModal = () => {
-    setIsProfileModalOpen(false)
-    setSelectedUserName(null)
-    setSelectedUserEmail(null)
   }
 
   // --- SKELETON LOADER COMPONENT ---
@@ -914,18 +909,17 @@ export default function WorkletDetailPage() {
       {worklet.students.length > 0 ? (
         <div className="grid gap-3">
           {worklet.students.map((student, index) => (
-            <button
+            <div
               key={index}
-              onClick={() => handleUserClick(student)}
-              className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all cursor-pointer group border border-transparent hover:border-indigo-300 dark:hover:border-indigo-700"
+              className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
                 {student.charAt(0).toUpperCase()}
               </div>
-              <span className="text-gray-700 dark:text-gray-300 font-medium group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+              <span className="text-gray-700 dark:text-gray-300 font-medium">
                 {student}
               </span>
-            </button>
+            </div>
           ))}
         </div>
       ) : (
@@ -959,13 +953,8 @@ export default function WorkletDetailPage() {
               {worklet.professors && worklet.professors.length > 0 ? (
                 <ul className="space-y-1">
                   {worklet.professors.map((p,i) => (
-                    <li key={i}>
-                      <button
-                        onClick={() => handleUserClick(p)}
-                        className="text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 hover:underline text-sm transition-colors cursor-pointer"
-                      >
-                        • {p}
-                      </button>
+                    <li key={i} className="text-green-700 dark:text-green-400 text-sm">
+                      • {p}
                     </li>
                   ))}
                 </ul>
@@ -987,21 +976,21 @@ export default function WorkletDetailPage() {
             <h4 className="font-medium text-gray-900 dark:text-gray-300 mb-3">Students</h4>
             <div className="space-y-2">
               {worklet.students.map((student, index) => (
-                <button
+                <div
                   key={index}
-                  onClick={() => handleUserClick(student)}
-                  className="w-full flex items-center gap-3 p-2 bg-white dark:bg-gray-600/50 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all cursor-pointer group border border-transparent hover:border-indigo-300 dark:hover:border-indigo-700"
+                  className="w-full flex items-center gap-3 p-2 bg-white dark:bg-gray-600/50 rounded"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold group-hover:scale-110 transition-transform">
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
                     {student.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-grow text-left">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {student}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 block">Team Member</span>
                   </div>
-                </button>
+                </div>
+               
               ))}
             </div>
           </div>
@@ -2303,7 +2292,7 @@ export default function WorkletDetailPage() {
                           {worklet.mentors && worklet.mentors.length > 0 ? (
                             <div className="grid gap-3">
                               {worklet.mentors.map((mentor, idx) => (
-                                <TeamMemberCard key={idx} member={mentor} role="Mentor" onClick={handleUserClick} />
+                                <TeamMemberCard key={idx} member={mentor} role="Mentor" />
                               ))}
                             </div>
                           ) : (
@@ -2317,7 +2306,7 @@ export default function WorkletDetailPage() {
                           {worklet.professors && worklet.professors.length > 0 ? (
                             <div className="grid gap-3">
                               {worklet.professors.map((prof, idx) => (
-                                <TeamMemberCard key={idx} member={prof} role="Professor" onClick={handleUserClick} />
+                                <TeamMemberCard key={idx} member={prof} role="Professor" />
                               ))}
                             </div>
                           ) : (
@@ -2332,8 +2321,7 @@ export default function WorkletDetailPage() {
                               filteredTeamMembers.map((member, index) => (
                                 <TeamMemberCard 
                                   key={index} 
-                                  member={member} 
-                                  onClick={handleUserClick}
+                                  member={member}
                                 />
                               ))
                             ) : (
@@ -2866,9 +2854,9 @@ export default function WorkletDetailPage() {
                       <ActivityButton
                         icon={<MessageSquare size={18} />}
                         label="Provide Feedback"
-                        status={milestones.length === 0 ? "No milestones available" : "Give project feedback"}
+                        status={milestones.length === 0 ? "No milestones available" : hasUnreviewedMilestones ? "Unreviewed milestones available" : "Give project feedback"}
                         onClick={() => setIsFeedbackOpen(true)}
-                        disabled={!isCurrentUserMentor || worklet.status === 'Completed' || worklet.progress === 100 || milestones.length === 0}
+                        disabled={!isCurrentUserMentor || worklet.status === 'Completed' || !hasUnreviewedMilestones}
                       />
                       <ActivityButton
                         icon={<Users size={18} />}
@@ -2944,13 +2932,6 @@ export default function WorkletDetailPage() {
         isOpen={isTestimonialModalOpen}
         onClose={() => setIsTestimonialModalOpen(false)}
         worklet={worklet}
-      />
-
-      <ProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={closeProfileModal}
-        userName={selectedUserName}
-        userEmail={selectedUserEmail}
       />
       
       {isFeedbackOpen && worklet && (

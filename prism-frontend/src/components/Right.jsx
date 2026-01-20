@@ -35,8 +35,8 @@ const RightSidebar = () => {
   // Get user data from validated JWT token
   const [userData, setUserData] = useState(null);
   
-  // State to track if any worklet has milestones (for mentors only)
-  const [hasMilestones, setHasMilestones] = useState(true);
+  // State to track if any worklet has unreviewed milestones (for mentors only)
+  const [hasUnreviewedMilestones, setHasUnreviewedMilestones] = useState(true);
   const [checkingMilestones, setCheckingMilestones] = useState(false);
 
   // Notification handlers
@@ -85,9 +85,9 @@ const RightSidebar = () => {
     setUserData(getCurrentUserFromToken());
   }, []);
 
-  // Check if any worklet has milestones (for mentors only)
+  // Check if any worklet has unreviewed milestones (for mentors only)
   useEffect(() => {
-    const checkForMilestones = async () => {
+    const checkForUnreviewedMilestones = async () => {
       // Only check for mentors
       if (!userData || !userData.role || userData.role.toLowerCase() !== 'mentor') {
         return;
@@ -98,20 +98,26 @@ const RightSidebar = () => {
         const token = localStorage.getItem("access_token");
         if (!token) return;
 
-        // Get user profile to get mentor ID
+        // Get user profile to get mentor ID and email
         const userResp = await apiClient.get('/auth/profile');
         const userId = userResp?.data?.id;
+        const userEmail = userResp?.data?.email;
         
-        if (!userId) return;
+        if (!userId || !userEmail) return;
 
         // Fetch mentor's worklets
         const response = await apiClient.get(`/api/associations/mentor/${userId}/worklets?status_filter=ongoing`);
         const worklets = response?.data?.ongoing_worklets || [];
 
-        // Check if any worklet has milestones
-        let foundMilestones = false;
+        // Check if any worklet has unreviewed milestones
+        let foundUnreviewedMilestones = false;
         
         for (const worklet of worklets) {
+          // Skip completed worklets or those at 100%
+          if (worklet.status === 'Completed' || worklet.progress === 100) {
+            continue;
+          }
+          
           try {
             const milestonesResponse = await axios.get(
               `http://localhost:8000/milestones/worklet/${worklet.id}`,
@@ -124,8 +130,17 @@ const RightSidebar = () => {
             );
             
             const milestones = milestonesResponse.data || [];
-            if (milestones.length > 0) {
-              foundMilestones = true;
+            
+            // Check if any milestone doesn't have feedback from current mentor
+            const hasUnreviewed = milestones.some(milestone => {
+              const hasMentorFeedback = milestone.feedbacks?.some(
+                f => f.reviewer_role === 'mentor' && f.reviewer_email === userEmail
+              );
+              return !hasMentorFeedback;
+            });
+            
+            if (hasUnreviewed) {
+              foundUnreviewedMilestones = true;
               break;
             }
           } catch (error) {
@@ -134,17 +149,17 @@ const RightSidebar = () => {
           }
         }
 
-        setHasMilestones(foundMilestones);
+        setHasUnreviewedMilestones(foundUnreviewedMilestones);
       } catch (error) {
-        console.error('Error checking for milestones:', error);
+        console.error('Error checking for unreviewed milestones:', error);
         // Default to enabled on error
-        setHasMilestones(true);
+        setHasUnreviewedMilestones(true);
       } finally {
         setCheckingMilestones(false);
       }
     };
 
-    checkForMilestones();
+    checkForUnreviewedMilestones();
   }, [userData]);
 
   const handleNavigation = (path) => {
@@ -155,9 +170,9 @@ const RightSidebar = () => {
     } else if (path === "/internship-referral") {
       setIsInternModalOpen(true);
     } else if (path === "/submit-feedback") {
-      // Check if milestones exist before opening feedback form
-      if (!hasMilestones && userData?.role?.toLowerCase() === 'mentor') {
-        showErrorNotification("No milestones available. Students must add milestones before you can submit feedback.");
+      // Check if unreviewed milestones exist before opening feedback form
+      if (!hasUnreviewedMilestones && userData?.role?.toLowerCase() === 'mentor') {
+        showErrorNotification("No unreviewed milestones available. All milestones have been reviewed or worklets are completed.");
         return;
       }
       setIsFeedbackFormOpen(true);
@@ -292,7 +307,7 @@ const RightSidebar = () => {
                 icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
                 label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
                 onClick={() => handleNavigation("/submit-feedback")}
-                disabled={!hasMilestones || checkingMilestones}
+                disabled={!hasUnreviewedMilestones || checkingMilestones}
               />
               <ActivityButton
                 icon={<Briefcase className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-purple-600" />}

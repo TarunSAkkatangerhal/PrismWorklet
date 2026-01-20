@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, Phone, MapPin, Calendar, Briefcase, GraduationCap, Github, Linkedin, ExternalLink, Globe, User as UserIcon, Loader } from 'lucide-react';
 import apiClient from '../services/secureAPI';
 
-const ProfileModal = ({ isOpen, onClose, userName, userEmail }) => {
+const ProfileModal = ({ isOpen, onClose, userName, userEmail, userId }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isOpen && (userName || userEmail)) {
+    if (isOpen && (userId || userName || userEmail)) {
       fetchUserProfile();
     }
-  }, [isOpen, userName, userEmail]);
+  }, [isOpen, userId, userName, userEmail]);
 
   const fetchUserProfile = async () => {
     try {
@@ -19,14 +19,22 @@ const ProfileModal = ({ isOpen, onClose, userName, userEmail }) => {
       setError(null);
       
       const params = new URLSearchParams();
-      if (userEmail) params.append('email', userEmail);
+      if (userId) params.append('user_id', userId);
+      else if (userEmail) params.append('email', userEmail);
       else if (userName) params.append('name', userName);
       
       const response = await apiClient.get(`/api/students/profile/search?${params.toString()}`);
       setProfile(response.data);
     } catch (err) {
       console.error('Error fetching user profile:', err);
-      setError(err.response?.data?.detail || 'Failed to load profile');
+      const errorMsg = err.response?.data?.detail || 'Failed to load profile';
+      
+      // Provide more helpful error message
+      if (err.response?.status === 404) {
+        setError(`User profile not found. This user may not have registered yet or their account may have been removed.`);
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
