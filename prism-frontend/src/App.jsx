@@ -2,6 +2,7 @@ import { Routes, Route} from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
 import { MentorRoute, StudentRoute, ProfessorRoute, ProtectedRoute } from "./components/RoleBasedRoute";
+import RequireRegistration from "./components/RequireRegistration";
 import RoleRedirect from "./components/RoleRedirect";
 import Login from "./Shared Components/login";
 import ForgotPassword from "./Shared Components/ForgotPassword";
@@ -21,7 +22,7 @@ import WorkletDetailPage from './Mentors/components/WorkletDetailsPage';
 
 import StudentDashboard from "./Students/StudentDashboard";
 import StudentProfile from "./Students/StudentProfile";
-import StudentRegistration from "./Students/StudentRegistration";
+import StudentRegistrationForm from "./Students/StudentRegistrationForm";
 import ProfessorDashboard from "./Professors/ProfessorDashboard";
 import ProfessorChatPage from "./Professors/ProfessorChatPage";
 import ProfessorProfile from "./Professors/ProfessorProfile";
@@ -60,10 +61,10 @@ export default function App() {
 
 
         {/* -------------------------------- Student Routing Start -------------------------------- */}
-          <Route path="/student-dashboard" element={<ProtectedRoute><StudentRoute><StudentDashboard /></StudentRoute></ProtectedRoute>} />
-          <Route path="/student-chat" element={<ProtectedRoute><StudentRoute><StudentChatPage /></StudentRoute></ProtectedRoute>} />
-          <Route path="/student-profile" element={<ProtectedRoute><StudentRoute><StudentProfile /></StudentRoute></ProtectedRoute>} />
-          <Route path="/student-registration" element={<ProtectedRoute><StudentRoute><StudentRegistration /></StudentRoute></ProtectedRoute>} />
+          <Route path="/student-registration" element={<ProtectedRoute><StudentRoute><StudentRegistrationForm /></StudentRoute></ProtectedRoute>} />
+          <Route path="/student-dashboard" element={<ProtectedRoute><StudentRoute><RequireRegistration><StudentDashboard /></RequireRegistration></StudentRoute></ProtectedRoute>} />
+          <Route path="/student-chat" element={<ProtectedRoute><StudentRoute><RequireRegistration><StudentChatPage /></RequireRegistration></StudentRoute></ProtectedRoute>} />
+          <Route path="/student-profile" element={<ProtectedRoute><StudentRoute><RequireRegistration><StudentProfile /></RequireRegistration></StudentRoute></ProtectedRoute>} />
         {/* -------------------------------- Student Routing End -------------------------------- */}
 
 

@@ -8,6 +8,7 @@ import prismLogoPng from "../assets/prism_logo.png";
 import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, setPassword as apiSetPassword, login as secureLogin, getCurrentUserFromToken } from "../services/auth";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import Footer from "./Footer";
+import secureAPI from "../services/secureAPI";
 
 // Dummy OTP for testing (does not affect backend)
 const DUMMY_OTP = "123456";
@@ -41,6 +42,8 @@ export default function Login() {
 
   // Global axios refresh logic is configured in src/index.tsx; no local interceptor here
   const [page, setPage] = useState("login"); // 'login', 'signup', 'home'
+  const [showRegistration, setShowRegistration] = useState(false); // Show registration form after signup
+  const [userToken, setUserToken] = useState(null); // Store token after signup
   const [email, setEmail] = useState("");
   const [name, setName] = useState(""); // New state for name
   const [otpSent, setOtpSent] = useState(false);
@@ -61,6 +64,35 @@ export default function Login() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordValidation, setPasswordValidation] = useState({ isValid: false, text: "", color: "", feedback: "" });
+
+  // Registration form states
+  const [colleges, setColleges] = useState([]);
+  const [registrationData, setRegistrationData] = useState({
+    phone: '',
+    college_name: '',
+    college_roll_no: '',
+    qualification: '',
+    branch: '',
+    batch_from: '',
+    batch_to: ''
+  });
+  const [registrationError, setRegistrationError] = useState('');
+
+  // Fetch colleges when registration form is shown
+  useEffect(() => {
+    if (showRegistration) {
+      fetchColleges();
+    }
+  }, [showRegistration]);
+
+  const fetchColleges = async () => {
+    try {
+      const response = await secureAPI.get('/colleges');
+      setColleges(response.data || []);
+    } catch (error) {
+      console.error('Error fetching colleges:', error);
+    }
+  };
 
   // Email validation function
   const validateEmail = (email) => {
@@ -221,19 +253,26 @@ export default function Login() {
           const profileResponse = await axios.get("http://localhost:8000/auth/profile", {
             headers: { Authorization: `Bearer ${loginData.access_token}` }
           });
-          const profileCompleted = profileResponse.data?.profile?.profile_completed;
+          // Check profile_completed from user level (primary) or profile level (fallback)
+          const profileCompleted = profileResponse.data?.profile_completed || profileResponse.data?.profile?.profile_completed;
           
           // If profile_completed is explicitly false or undefined (not completed)
           if (profileCompleted !== true) {
-            // Redirect to registration page if profile not completed
-            navigate("/student-registration");
+            // Show inline registration form instead of navigating
+            setPage("signup");
+            setUserToken(loginData.access_token);
+            setShowRegistration(true);
+            setMessage(""); // Clear success message
           } else {
             navigate("/student-dashboard");
           }
         } catch (error) {
           console.error("Failed to check profile completion:", error);
-          // For new students, default to registration page if profile check fails
-          navigate("/student-registration");
+          // For new students, show inline registration form if profile check fails
+          setPage("signup");
+          setUserToken(loginData.access_token);
+          setShowRegistration(true);
+          setMessage(""); // Clear success message
         }
       } else {
         navigate("/home");
@@ -437,19 +476,24 @@ const handleSignup = async (e) => {
           const profileResponse = await axios.get("http://localhost:8000/auth/profile", {
             headers: { Authorization: `Bearer ${loginResponse.data.access_token}` }
           });
-          const profileCompleted = profileResponse.data?.profile?.profile_completed;
+          // Check profile_completed from user level (primary) or profile level (fallback)
+          const profileCompleted = profileResponse.data?.profile_completed || profileResponse.data?.profile?.profile_completed;
           
           // If profile_completed is explicitly false or undefined (not completed)
           if (profileCompleted !== true) {
-            // Redirect to registration page if profile not completed
-            navigate("/student-registration");
+            // Show registration form inline instead of navigating
+            setUserToken(loginResponse.data.access_token);
+            setShowRegistration(true);
+            setMessage(""); // Clear success message
           } else {
             navigate("/student-dashboard");
           }
         } catch (error) {
           console.error("Failed to check profile completion:", error);
-          // For new students, default to registration page if profile check fails
-          navigate("/student-registration");
+          // For new students, show registration form if profile check fails
+          setUserToken(loginResponse.data.access_token);
+          setShowRegistration(true);
+          setMessage(""); // Clear success message
         }
       } else {
         navigate("/home"); // Default to mentor/admin dashboard
@@ -463,6 +507,50 @@ const handleSignup = async (e) => {
     setIsLoading(false);
   }
 };
+
+  // Handle registration form submission
+  const handleRegistrationSubmit = async (e) => {
+    e.preventDefault();
+    setRegistrationError('');
+    
+    // Validate required fields
+    if (!registrationData.phone || !registrationData.college_name || !registrationData.college_roll_no || 
+        !registrationData.qualification || !registrationData.branch || !registrationData.batch_from || !registrationData.batch_to) {
+      setRegistrationError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate batch dates
+    if (new Date(registrationData.batch_from) > new Date(registrationData.batch_to)) {
+      setRegistrationError('Batch From date must be before Batch To date');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const payload = {
+        contact_number: registrationData.phone,
+        college_name: registrationData.college_name,
+        student_id: registrationData.college_roll_no,
+        qualification: registrationData.qualification,
+        program: registrationData.branch,
+        batch_from: registrationData.batch_from,
+        batch_to: registrationData.batch_to
+      };
+      
+      const response = await secureAPI.post('/api/students/complete-registration', payload);
+      
+      if (response.data.profile_completed) {
+        // Registration completed successfully, navigate to dashboard
+        navigate('/student-dashboard');
+      }
+    } catch (err) {
+      console.error('Registration error:', err);
+      setRegistrationError(err.response?.data?.detail || 'Failed to complete registration. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const renderContent = () => {
     switch (page) {
@@ -884,7 +972,7 @@ const handleSignup = async (e) => {
               </div>
             </div>
 
-            {/* Right Side - Signup Form */}
+            {/* Right Side - Signup Form or Registration Form */}
             <div className="w-full lg:w-2/5 flex items-center justify-center p-6 bg-white relative">
               {/* Top Right Logo */}
               <div className="absolute top-4 right-4 z-10">
@@ -895,6 +983,8 @@ const handleSignup = async (e) => {
                 />
               </div>
               
+              {!showRegistration ? (
+                /* Signup Form */
               <div className="w-full max-w-md">
                 <div className="lg:hidden text-center mb-8">
                   <div className="w-16 h-16 mx-auto mb-4 bg-blue-600 rounded-full flex items-center justify-center">
@@ -1223,6 +1313,140 @@ const handleSignup = async (e) => {
                   </p>
                 </div>
               </div>
+              ) : (
+                /* Registration Form */
+                <div className="w-full max-w-md overflow-y-auto max-h-screen px-4">
+                  <div className="text-center mb-6">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl mb-3 shadow-lg">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-1">Complete Your Profile</h2>
+                    <p className="text-sm text-slate-600">Just a few more details to get started</p>
+                  </div>
+
+                  {registrationError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                      {registrationError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleRegistrationSubmit} className="space-y-4">
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number <span className="text-red-500">*</span></label>
+                      <input
+                        type="tel"
+                        value={registrationData.phone}
+                        onChange={(e) => setRegistrationData({...registrationData, phone: e.target.value})}
+                        placeholder="Enter phone number"
+                        required
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* College */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">College <span className="text-red-500">*</span></label>
+                      <select
+                        value={registrationData.college_name}
+                        onChange={(e) => setRegistrationData({...registrationData, college_name: e.target.value})}
+                        required
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      >
+                        <option value="">Select College</option>
+                        {colleges.map((college) => (
+                          <option key={college.college_id} value={college.college_name}>
+                            {college.college_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Roll No */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">College Roll No <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={registrationData.college_roll_no}
+                        onChange={(e) => setRegistrationData({...registrationData, college_roll_no: e.target.value})}
+                        placeholder="Enter roll number"
+                        required
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Qualification */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Qualification <span className="text-red-500">*</span></label>
+                      <select
+                        value={registrationData.qualification}
+                        onChange={(e) => setRegistrationData({...registrationData, qualification: e.target.value})}
+                        required
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      >
+                        <option value="">Select Qualification</option>
+                        <option value="B.Tech">B.Tech</option>
+                        <option value="B.E">B.E</option>
+                        <option value="M.Tech">M.Tech</option>
+                        <option value="MCA">MCA</option>
+                        <option value="MSc">MSc</option>
+                      </select>
+                    </div>
+
+                    {/* Branch */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Branch/Program <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={registrationData.branch}
+                        onChange={(e) => setRegistrationData({...registrationData, branch: e.target.value})}
+                        placeholder="e.g., Computer Science"
+                        required
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Batch Dates */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Batch From <span className="text-red-500">*</span></label>
+                        <input
+                          type="date"
+                          value={registrationData.batch_from}
+                          onChange={(e) => setRegistrationData({...registrationData, batch_from: e.target.value})}
+                          required
+                          className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Batch To <span className="text-red-500">*</span></label>
+                        <input
+                          type="date"
+                          value={registrationData.batch_to}
+                          onChange={(e) => setRegistrationData({...registrationData, batch_to: e.target.value})}
+                          required
+                          className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className={`w-full py-3 rounded-lg font-semibold text-white transition-all mt-6 ${
+                        isLoading 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl'
+                      }`}
+                    >
+                      {isLoading ? 'Completing...' : 'Complete Registration'}
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
           </div>
         );

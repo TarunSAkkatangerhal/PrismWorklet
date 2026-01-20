@@ -23,17 +23,20 @@ export default function StudentRegistrationForm() {
 
   // Load current user and colleges on mount
   useEffect(() => {
+    console.log('🎓 StudentRegistrationForm component mounted');
     const user = getCurrentUser();
+    console.log('👤 Current user:', user);
     setCurrentUser(user);
     fetchColleges();
   }, []);
 
   const fetchColleges = async () => {
     try {
-      const response = await secureAPI.get('/api/colleges');
+      const response = await secureAPI.get('/colleges');
+      console.log('📚 Colleges fetched:', response.data);
       setColleges(response.data || []);
     } catch (error) {
-      console.error('Error fetching colleges:', error);
+      console.error('❌ Error fetching colleges:', error);
     }
   };
 
@@ -47,26 +50,42 @@ export default function StudentRegistrationForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🔵 Submit button clicked - handleSubmit called');
     setError('');
     setIsLoading(true);
+    
+    console.log('📝 Current form data:', formData);
 
     // Validate required fields
     if (!formData.phone || !formData.college_name || !formData.college_roll_no || 
         !formData.qualification || !formData.branch || !formData.batch_from || !formData.batch_to) {
-      setError('Please fill in all required fields');
+      const missingFields = [];
+      if (!formData.phone) missingFields.push('phone');
+      if (!formData.college_name) missingFields.push('college_name');
+      if (!formData.college_roll_no) missingFields.push('college_roll_no');
+      if (!formData.qualification) missingFields.push('qualification');
+      if (!formData.branch) missingFields.push('branch');
+      if (!formData.batch_from) missingFields.push('batch_from');
+      if (!formData.batch_to) missingFields.push('batch_to');
+      
+      console.log('❌ Validation failed - missing fields:', missingFields);
+      setError('Please fill in all required fields: ' + missingFields.join(', '));
       setIsLoading(false);
       return;
     }
 
     // Validate batch dates
     if (new Date(formData.batch_from) > new Date(formData.batch_to)) {
+      console.log('❌ Batch date validation failed');
       setError('Batch From date must be before Batch To date');
       setIsLoading(false);
       return;
     }
+    
+    console.log('✅ All validations passed');
 
     try {
-      const response = await secureAPI.post('/api/students/complete-registration', {
+      const payload = {
         contact_number: formData.phone,
         college_name: formData.college_name,
         student_id: formData.college_roll_no,
@@ -74,17 +93,29 @@ export default function StudentRegistrationForm() {
         program: formData.branch,
         batch_from: formData.batch_from,
         batch_to: formData.batch_to
-      });
+      };
+      
+      console.log('🚀 Sending registration data:', payload);
+      console.log('📋 Form data before sending:', formData);
+      
+      const response = await secureAPI.post('/api/students/complete-registration', payload);
 
+      console.log('✅ Registration response:', response.data);
+      
       if (response.data.profile_completed) {
         // Successfully completed registration, navigate to dashboard
+        console.log('✅ Profile completed - navigating to dashboard');
         navigate('/student-dashboard');
+      } else {
+        console.log('⚠️ Profile not marked as completed in response');
       }
     } catch (err) {
-      console.error('Registration error:', err);
+      console.error('❌ Registration error:', err);
+      console.error('❌ Error response:', err.response?.data);
       setError(err.response?.data?.detail || 'Failed to complete registration. Please try again.');
     } finally {
       setIsLoading(false);
+      console.log('🔵 handleSubmit completed');
     }
   };
 

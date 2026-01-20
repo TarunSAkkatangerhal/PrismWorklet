@@ -5,10 +5,8 @@ import {
   Edit2, Save, X, School,
   ExternalLink
 } from 'lucide-react';
-import ProfessionalSelect from '../components/ProfessionalSelect';
 import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
-import { getCurrentUser } from '../services/auth';
 import secureAPI from '../services/secureAPI';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -54,7 +52,10 @@ export default function StudentProfile() {
     phone: '',
     college: '',
     department: '',
-    year: '',
+    studentId: '',
+    qualification: '',
+    batchFrom: '',
+    batchTo: '',
     bio: '',
     github: '',
     linkedin: '',
@@ -70,22 +71,34 @@ export default function StudentProfile() {
   const loadProfileData = async () => {
     setLoading(true);
     try {
-      const user = await getCurrentUser();
+      // Fetch full profile data from /auth/profile endpoint
+      const response = await secureAPI.get('/auth/profile');
+      const user = response.data;
+      console.log('📊 User profile data received:', user);
+      console.log('📋 User profile object:', user.profile);
       setProfileData(user);
-      setFormData({
+      
+      // Map registration data from user profile
+      const profile = user.profile || {};
+      const mappedData = {
         name: user.name || '',
         email: user.email || '',
-        phone: user.phone || '',
+        phone: profile.contact_number || '',
         college: user.college || '',
-        department: user.department || '',
-        year: user.year || '',
-        bio: user.bio || '',
-        github: user.github || '',
-        linkedin: user.linkedin || '',
-        portfolio: user.portfolio || ''
-      });
+        department: profile.program || profile.organization || '',
+        studentId: profile.student_id || '',
+        qualification: profile.qualification || '',
+        batchFrom: profile.batch_from || '',
+        batchTo: profile.batch_to || '',
+        bio: profile.bio || '',
+        github: profile.github || '',
+        linkedin: profile.linkedin || '',
+        portfolio: profile.portfolio_url || ''
+      };
+      console.log('🎯 Mapped form data:', mappedData);
+      setFormData(mappedData);
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error('❌ Error loading profile:', error);
     } finally {
       setLoading(false);
     }
@@ -122,8 +135,17 @@ export default function StudentProfile() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      await secureAPI.put('/users/profile', formData);
-      setProfileData(prev => ({ ...prev, ...formData }));
+      // Only send editable fields (not registration data)
+      const updateData = {
+        bio: formData.bio,
+        github: formData.github,
+        linkedin: formData.linkedin,
+        portfolio_url: formData.portfolio
+      };
+      
+      await secureAPI.put('/auth/me/profile', updateData);
+      // Reload profile data to get updated values
+      await loadProfileData();
       setEditMode(false);
       // Show success message
       alert('Profile updated successfully!');
@@ -137,17 +159,22 @@ export default function StudentProfile() {
 
   const handleCancelEdit = () => {
     // Reset form data to original profile data
+    const profile = profileData?.profile || {};
     setFormData({
       name: profileData?.name || '',
       email: profileData?.email || '',
-      phone: profileData?.phone || '',
+      phone: profile.contact_number || '',
       college: profileData?.college || '',
-      department: profileData?.department || '',
-      year: profileData?.year || '',
-      bio: profileData?.bio || '',
-      github: profileData?.github || '',
-      linkedin: profileData?.linkedin || '',
-      portfolio: profileData?.portfolio || ''
+      department: profile.program || profile.organization || '',
+      year: profile.year_of_study?.toString() || '',
+      studentId: profile.student_id || '',
+      qualification: profile.qualification || '',
+      batchFrom: profile.batch_from || '',
+      batchTo: profile.batch_to || '',
+      bio: profile.bio || '',
+      github: profile.github || '',
+      linkedin: profile.linkedin || '',
+      portfolio: profile.portfolio_url || ''
     });
     setEditMode(false);
   };
@@ -276,91 +303,70 @@ export default function StudentProfile() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Personal Information Card */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-shadow">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3 pb-3 border-b-2 border-blue-100 dark:border-slate-700">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3 pb-3 border-b-2 border-blue-100 dark:border-slate-700">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                   <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 Personal Information
               </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 italic">
+                ℹ️ Registration details cannot be edited. Contact admin for changes.
+              </p>
               <div className="space-y-4">
-                {/* Full Name */}
+                {/* Full Name - Read Only */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Full Name</label>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.name || 'Not set'}
-                    </p>
-                  )}
+                  <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                    {formData.name || 'Not set'}
+                  </p>
                 </div>
 
-                {/* Phone Number */}
+                {/* Phone Number - Read Only */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Phone Number</label>
-                  {editMode ? (
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="+91 1234567890"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.phone || 'Not set'}
-                    </p>
-                  )}
+                  <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                    {formData.phone || 'Not set'}
+                  </p>
                 </div>
 
-                {/* Department */}
+                {/* Department / Branch - Read Only */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Department</label>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="department"
-                      value={formData.department}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Computer Science"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.department || 'Not set'}
-                    </p>
-                  )}
+                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Department / Branch</label>
+                  <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                    {formData.department || 'Not set'}
+                  </p>
                 </div>
 
-                {/* Year of Study */}
+                {/* Student ID / Roll Number - Read Only */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Year of Study</label>
-                  {editMode ? (
-                    <ProfessionalSelect
-                      name="year"
-                      value={formData.year}
-                      onChange={handleInputChange}
-                      placeholder="Select Year"
-                      options={[
-                        { value: "1", label: "1st Year" },
-                        { value: "2", label: "2nd Year" },
-                        { value: "3", label: "3rd Year" },
-                        { value: "4", label: "4th Year" },
-                        { value: "Graduate", label: "Graduate" }
-                      ]}
-                    />
-                  ) : (
+                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Student ID / Roll No.</label>
+                  <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                    {formData.studentId || 'Not set'}
+                  </p>
+                </div>
+
+                {/* Qualification - Read Only */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Qualification</label>
+                  <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                    {formData.qualification || 'Not set'}
+                  </p>
+                </div>
+
+                {/* Batch Period - Read Only */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Batch From</label>
                     <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.year ? (formData.year === '1' ? '1st Year' : formData.year === '2' ? '2nd Year' : formData.year === '3' ? '3rd Year' : formData.year === '4' ? '4th Year' : formData.year) : 'Not set'}
+                      {formData.batchFrom ? new Date(formData.batchFrom).toLocaleDateString() : 'Not set'}
                     </p>
-                  )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Batch To</label>
+                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                      {formData.batchTo ? new Date(formData.batchTo).toLocaleDateString() : 'Not set'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
