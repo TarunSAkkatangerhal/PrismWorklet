@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Star, Check, MoreVertical, Mail, CheckCheck, Paperclip, Image as ImageIcon, File, Download, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
@@ -448,6 +449,8 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete,
 // Professor Chat Page Component
 export default function ProfessorChatPage() {
   useDocumentTitle('Messages - PRISM');
+  const navigate = useNavigate();
+  const location = useLocation();
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -756,6 +759,24 @@ export default function ProfessorChatPage() {
       fetchGroupChats();
     }
   }, [currentUserId]);
+
+  // Auto-select worklet chat room when navigating from worklet details page
+  useEffect(() => {
+    if (location.state?.workletId && groupChats.length > 0 && !selectedRoom) {
+      const targetChat = groupChats.find(chat => chat.worklet_id === location.state.workletId);
+      if (targetChat) {
+        // Add displayName property for UI rendering
+        const chatWithDisplayName = {
+          ...targetChat,
+          displayName: targetChat.group_name
+        };
+        handleSelectRoom(chatWithDisplayName, true);
+        // Clear navigation state after selection
+        navigate('/professor-chat', { replace: true, state: {} });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, groupChats, selectedRoom]);
 
   // Adaptive polling
   useEffect(() => {
