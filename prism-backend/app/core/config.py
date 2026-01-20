@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
     # Email/SMTP
-    ENABLE_EMAIL: bool = False  # Toggle email notifications on/off
+    ENABLE_EMAIL: bool = True  # Toggle email notifications on/off
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""

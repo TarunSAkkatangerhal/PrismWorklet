@@ -1,4 +1,4 @@
-﻿"""
+"""
 app/auth.py
 
 Authentication & Authorization for Samsung PRISM Worklet Management System.
@@ -464,7 +464,11 @@ async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = De
                 "location": p.location,
                 "date_of_birth": p.date_of_birth.isoformat() if p.date_of_birth else None,
                 "website": p.website,
+                "extra": getattr(p, 'extra', None),
+                "profile_completed": getattr(p, 'profile_completed', False),
             }
+        else:
+            response["profile"] = {"profile_completed": False}
 
         return response
         
@@ -546,4 +550,56 @@ async def update_my_profile(
     except Exception as e:
         logger.error(f"Error in profile update endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
-#push
+
+# 10. Complete Student Profile (Student Registration)
+@router.put("/complete-student-profile")
+async def complete_student_profile(
+    profile_data: schemas.StudentProfileComplete,
+    token: str = Depends(oauth2_scheme), 
+    db: Session = Depends(get_db)
+):
+    """
+    Complete student profile with registration data.
+    Only for students signing up for the first time.
+    """
+    try:
+        payload = require_access_token(token)
+        user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        # Check if user is a student
+        if user.role != "Student":
+            raise HTTPException(status_code=403, detail="This endpoint is only for students")
+        
+        # Update user's college_id
+        user.college_id = profile_data.college_id
+        
+        # Upsert into UserProfile
+        profile = user.profile
+        if not profile:
+            profile = models.UserProfile(user_id=user.id)
+            db.add(profile)
+        
+        # Update profile fields
+        profile.extra = profile_data.extra
+        profile.profile_completed = True
+        
+        if profile_data.contact_number:
+            profile.contact_number = profile_data.contact_number
+        
+        if profile_data.qualification:
+            profile.qualification = profile_data.qualification
+        
+        db.commit()
+        db.refresh(user)
+        db.refresh(profile)
+
+        return {
+            "message": "Student profile completed successfully",
+            "profile_completed": True
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error in complete student profile endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

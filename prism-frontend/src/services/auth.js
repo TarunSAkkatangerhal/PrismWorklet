@@ -92,7 +92,8 @@ export const login = async (email, password, role) => {
   }
   
   const sanitizedEmail = sanitizeInput(email).toLowerCase().trim();
-  const sanitizedRole = role ? sanitizeInput(role) : '';
+  // Normalize role to match backend format (capitalize first letter)
+  const sanitizedRole = role ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase() : '';
   
   // Email format validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
