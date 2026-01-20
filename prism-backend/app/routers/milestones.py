@@ -7,7 +7,8 @@ from app.database import get_db
 from app.models import Milestone, MilestoneFeedback, Worklet, User, UserWorkletAssociation
 from app.schemas import MilestoneCreate, MilestoneOut, MilestoneFeedbackCreate, MilestoneFeedbackOut
 from app.auth import oauth2_scheme, require_access_token
-from app.core.email_utils import send_milestone_notification
+from app.core.email_utils import send_milestone_notification, send_activity_email
+from app.services.worklet_service import WorkletService
 
 router = APIRouter(
     prefix="/milestones",
@@ -51,6 +52,7 @@ def check_and_auto_increment_progress(worklet_id: int, db: Session):
         return False
     
     # Map milestone types to progress values
+    # Note: End review capped at 99% for auto-increment; mentor can manually set to 100%
     review_stages = {
         'first review': 17,
         'weekly meeting': 17,
@@ -60,7 +62,7 @@ def check_and_auto_increment_progress(worklet_id: int, db: Session):
         'mid-review': 50,
         'fourth review': 67,
         'fifth review': 83,
-        'end review': 100
+        'end review': 99  # Auto-increment stops at 99%, mentor feedback can reach 100%
     }
     
     highest_auto_progress = 0
@@ -261,13 +263,14 @@ def get_worklet_milestones(
 @router.post("/feedback", response_model=MilestoneFeedbackOut, status_code=status.HTTP_201_CREATED)
 def add_milestone_feedback(
     feedback: MilestoneFeedbackCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Add feedback to a milestone.
     Only mentors and professors associated with the worklet can provide feedback.
-    """
+    """  
     # Verify user is mentor or professor
     user_role = current_user.role.lower()
     if user_role not in ['mentor', 'professor']:
@@ -318,6 +321,45 @@ def add_milestone_feedback(
     db.add(new_feedback)
     db.commit()
     db.refresh(new_feedback)
+    
+    # Get worklet for progress update and email
+    worklet = db.query(Worklet).filter(Worklet.id == milestone.worklet_id).first()
+    
+    # Update worklet progress if mentor provided it
+    if feedback.progress_completion is not None and worklet:
+        # Mentor feedback overrides any auto-incremented progress
+        worklet.worklet_progress = feedback.progress_completion
+        db.commit()
+        db.refresh(worklet)
+    
+    # Send email notification to students in background
+    if worklet:
+        try:
+            # Get students for this worklet
+            student_records = WorkletService.get_students_for_worklet(db, milestone.worklet_id)
+            student_emails = [s["email"] for s in student_records]
+            
+            if student_emails:
+                email_subject = f"Milestone Feedback for Worklet {worklet.cert_id}"
+                email_message = (
+                    f"Your mentor has provided feedback on your milestone.\n\n"
+                    f"Milestone: {milestone.milestone_type}\n"
+                    f"Feedback: {feedback.feedback_text}"
+                )
+                if feedback.progress_completion is not None:
+                    email_message += f"\nProgress Updated: {feedback.progress_completion}%"
+                
+                # Send email in background
+                background_tasks.add_task(
+                    send_activity_email,
+                    student_emails,
+                    email_subject,
+                    email_message,
+                    "Milestone Feedback"
+                )
+        except Exception as e:
+            # Don't fail the request if email fails
+            print(f"Error queuing email: {str(e)}")
     
     # Add reviewer info to response
     result = MilestoneFeedbackOut.from_orm(new_feedback)
