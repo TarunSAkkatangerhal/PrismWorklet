@@ -1986,7 +1986,17 @@ export default function WorkletDetailPage() {
             {worklet.status === 'Ongoing' && (
               <div className="mt-6 flex justify-end">
                 <button
-                  onClick={() => navigate('/mentor-chat', { state: { workletId: worklet.id } })}
+                  onClick={() => {
+                    // Navigate to appropriate chat page based on user role
+                    const role = userRole || currentUserRole?.toLowerCase() || 'student';
+                    if (role === 'mentor') {
+                      navigate('/mentor-chat', { state: { workletId: worklet.id } });
+                    } else if (role === 'professor') {
+                      navigate('/professor-chat', { state: { workletId: worklet.id } });
+                    } else {
+                      navigate('/student-chat', { state: { workletId: worklet.id } });
+                    }
+                  }}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                 >
                   <MessageCircle size={20} />

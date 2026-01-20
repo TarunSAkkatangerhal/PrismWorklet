@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Star, Check, MoreVertical, Mail, CheckCheck, Paperclip, Image as ImageIcon, File, Download, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
@@ -452,6 +453,7 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete,
 // Student Chat Page Component
 export default function StudentChatPage() {
   useDocumentTitle('Messages - PRISM');
+  const location = useLocation();
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -824,6 +826,16 @@ export default function StudentChatPage() {
       setPollingInterval(5000);
     }
   }, [currentUserId, isConnected, pollingInterval]);
+
+  // Handle initial worklet selection from navigation state
+  useEffect(() => {
+    if (location.state?.workletId && groupChats.length > 0 && !selectedRoom) {
+      const targetWorklet = groupChats.find(group => group.worklet_id === location.state.workletId);
+      if (targetWorklet) {
+        handleSelectRoom({ ...targetWorklet, isGroup: true, displayName: targetWorklet.group_name });
+      }
+    }
+  }, [location.state?.workletId, groupChats, selectedRoom]);
 
   // Filter and sort rooms by search, type, and latest message - empty since we only show groups
   const filteredRooms = [];

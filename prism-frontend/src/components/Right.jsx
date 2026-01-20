@@ -8,6 +8,8 @@ import EvaluateModal from "../Mentors/layouts/EvaluateModal";
 import ProvideUpdateModal from "../Mentors/components/ProvideUpdateModal";
 import MeetingUpdatesModal from "../Mentors/components/MeetingUpdatesModal";
 import TestimonialModal from "../Students/TestimonialModal";
+import axios from 'axios';
+import apiClient from '../services/secureAPI';
 
 import {
   RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot, Calendar, Star
@@ -32,6 +34,10 @@ const RightSidebar = () => {
   
   // Get user data from validated JWT token
   const [userData, setUserData] = useState(null);
+  
+  // State to track if any worklet has milestones (for mentors only)
+  const [hasMilestones, setHasMilestones] = useState(true);
+  const [checkingMilestones, setCheckingMilestones] = useState(false);
 
   // Notification handlers
   const showSuccessNotification = (message) => {
@@ -79,6 +85,68 @@ const RightSidebar = () => {
     setUserData(getCurrentUserFromToken());
   }, []);
 
+  // Check if any worklet has milestones (for mentors only)
+  useEffect(() => {
+    const checkForMilestones = async () => {
+      // Only check for mentors
+      if (!userData || !userData.role || userData.role.toLowerCase() !== 'mentor') {
+        return;
+      }
+
+      setCheckingMilestones(true);
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) return;
+
+        // Get user profile to get mentor ID
+        const userResp = await apiClient.get('/auth/profile');
+        const userId = userResp?.data?.id;
+        
+        if (!userId) return;
+
+        // Fetch mentor's worklets
+        const response = await apiClient.get(`/api/associations/mentor/${userId}/worklets?status_filter=ongoing`);
+        const worklets = response?.data?.ongoing_worklets || [];
+
+        // Check if any worklet has milestones
+        let foundMilestones = false;
+        
+        for (const worklet of worklets) {
+          try {
+            const milestonesResponse = await axios.get(
+              `http://localhost:8000/milestones/worklet/${worklet.id}`,
+              {
+                headers: { 
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/json'
+                }
+              }
+            );
+            
+            const milestones = milestonesResponse.data || [];
+            if (milestones.length > 0) {
+              foundMilestones = true;
+              break;
+            }
+          } catch (error) {
+            // Continue checking other worklets if one fails
+            console.error(`Error checking milestones for worklet ${worklet.id}:`, error);
+          }
+        }
+
+        setHasMilestones(foundMilestones);
+      } catch (error) {
+        console.error('Error checking for milestones:', error);
+        // Default to enabled on error
+        setHasMilestones(true);
+      } finally {
+        setCheckingMilestones(false);
+      }
+    };
+
+    checkForMilestones();
+  }, [userData]);
+
   const handleNavigation = (path) => {
     if (path === "/request-update") {
       setIsRequestUpdateOpen(true);
@@ -87,6 +155,11 @@ const RightSidebar = () => {
     } else if (path === "/internship-referral") {
       setIsInternModalOpen(true);
     } else if (path === "/submit-feedback") {
+      // Check if milestones exist before opening feedback form
+      if (!hasMilestones && userData?.role?.toLowerCase() === 'mentor') {
+        showErrorNotification("No milestones available. Students must add milestones before you can submit feedback.");
+        return;
+      }
       setIsFeedbackFormOpen(true);
     }else if (path === "/evaluate") {
       setISEvaluateModalOpen(true);
@@ -218,7 +291,8 @@ const RightSidebar = () => {
               <ActivityButton
                 icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
                 label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
-                onClick={() => setIsFeedbackFormOpen(true)}
+                onClick={() => handleNavigation("/submit-feedback")}
+                disabled={!hasMilestones || checkingMilestones}
               />
               <ActivityButton
                 icon={<Briefcase className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-purple-600" />}
@@ -327,18 +401,23 @@ const RightSidebar = () => {
 
 export default RightSidebar;
 
-function ActivityButton({ icon, label, primary, onClick }) {
+function ActivityButton({ icon, label, primary, onClick, disabled }) {
   return (
-    <button
-      className={`w-full flex items-center gap-[clamp(0.5rem,1vw,0.75rem)] px-[clamp(0.75rem,1.5vw,1rem)] py-[clamp(0.5rem,1vh,0.75rem)] rounded-xl text-[clamp(0.75rem,1vw,0.875rem)] font-medium shadow-sm transition-all duration-200 transform hover:scale-105 hover:shadow-md ${
-        primary
-          ? "bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
-          : "bg-white hover:bg-purple-100 text-gray-700 border border-gray-200 hover:border-purple-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 dark:hover:border-slate-600"
-      }`}
-      onClick={onClick}
-    >
-      {icon}
-      <span className="whitespace-nowrap">{label}</span>
-    </button>
+    <div className="relative group">
+      <button
+        className={`w-full flex items-center gap-[clamp(0.5rem,1vw,0.75rem)] px-[clamp(0.75rem,1.5vw,1rem)] py-[clamp(0.5rem,1vh,0.75rem)] rounded-xl text-[clamp(0.75rem,1vw,0.875rem)] font-medium shadow-sm transition-all duration-200 transform hover:scale-105 hover:shadow-md ${
+          disabled 
+            ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500 opacity-50" 
+            : primary
+              ? "bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+              : "bg-white hover:bg-purple-100 text-gray-700 border border-gray-200 hover:border-purple-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 dark:hover:border-slate-600"
+        }`}
+        onClick={onClick}
+        disabled={disabled}
+      >
+        {icon}
+        <span className="whitespace-nowrap">{label}</span>
+      </button>
+    </div>
   );
 }
