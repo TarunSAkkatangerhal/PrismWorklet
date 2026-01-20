@@ -49,9 +49,12 @@ class WorkletService:
         Returns:
             List of student dictionaries with name, email, college, and college_id
         """
+        from app.models import College
+        
         students = (
-            db.query(User.name, User.email, User.college, User.college_id)
+            db.query(User.name, User.email, College.college_name, User.college_id)
             .join(UserWorkletAssociation, User.id == UserWorkletAssociation.user_id)
+            .outerjoin(College, User.college_id == College.college_id)
             .filter(
                 UserWorkletAssociation.worklet_id == worklet_id,
                 UserWorkletAssociation.role_in_worklet == "Student",
@@ -62,7 +65,7 @@ class WorkletService:
             {
                 "name": s.name, 
                 "email": s.email,
-                "college": s.college,
+                "college": s.college_name,
                 "college_id": s.college_id
             } for s in students if s.email
         ]

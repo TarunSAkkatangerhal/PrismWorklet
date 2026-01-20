@@ -14,6 +14,7 @@ import LeftSidebar from '../../components/Left'
 import ProvideUpdateModal from '../components/ProvideUpdateModal'
 import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
 import TestimonialModal from '../../Students/TestimonialModal'
+import ProfileModal from '../../Shared Components/ProfileModal'
 import { getCurrentUser } from '../../services/auth'
 import ProfessionalSelect from '../../components/ProfessionalSelect'
 
@@ -168,33 +169,88 @@ const CollapsibleSection = ({ title, children, isExpanded, onToggle, icon }) => 
 }
 
 // --- Team Member Card Component ---
-const TeamMemberCard = ({ member, role = "Team Member", avatar }) => {
+const TeamMemberCard = ({ member, role = "Team Member", avatar, onClick }) => {
   // Handle both string format (legacy) and object format (new)
   const memberName = typeof member === 'string' ? member : (member?.name || member?.email || 'Unknown');
+  const memberEmail = typeof member === 'object' ? member?.email : null;
   
   const getInitials = (name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase()
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-white/80 to-gray-50/80 
+    <button
+      onClick={() => onClick && onClick(memberName, memberEmail)}
+      className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-white/80 to-gray-50/80 
                     dark:from-gray-800/80 dark:to-gray-900/80 backdrop-blur-sm border border-white/20 
-                    dark:border-gray-600/20 p-4 hover:shadow-lg hover:scale-105 transition-all duration-300">
+                    dark:border-gray-600/20 p-4 hover:shadow-lg hover:scale-105 transition-all duration-300 
+                    hover:border-indigo-300 dark:hover:border-indigo-700 cursor-pointer w-full text-left"
+    >
       <div className="flex items-center gap-3">
         <div className="relative">
           {avatar ? (
-            <img src={avatar} alt={memberName} className="w-12 h-12 rounded-full object-cover" />
+            <img src={avatar} alt={memberName} className="w-12 h-12 rounded-full object-cover group-hover:scale-110 transition-transform" />
           ) : (
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-500 
-                           flex items-center justify-center text-white font-bold text-sm">
+                           flex items-center justify-center text-white font-bold text-sm group-hover:scale-110 transition-transform">
               {getInitials(memberName)}
             </div>
           )}
         </div>
         <div className="flex-grow">
-          <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{memberName}</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{memberName}</h4>
         </div>
       </div>
+    </button>
+  )
+}
+
+// --- Read More Text Component ---
+const ReadMoreText = ({ text, maxLines = 3 }) => {
+  const [expanded, setExpanded] = useState(false)
+  const [canExpand, setCanExpand] = useState(false)
+  const textRef = React.useRef(null)
+
+  useEffect(() => {
+    if (!textRef.current) return
+    const el = textRef.current
+    const checkOverflow = () => {
+      setCanExpand(el.scrollHeight > el.clientHeight + 1)
+    }
+    checkOverflow()
+    const id = window.setTimeout(checkOverflow, 0)
+    return () => window.clearTimeout(id)
+  }, [text, expanded])
+
+  if (!text) return null
+
+  return (
+    <div className="space-y-2">
+      <p
+        ref={textRef}
+        className="text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-line"
+        style={
+          expanded
+            ? undefined
+            : {
+                display: '-webkit-box',
+                WebkitLineClamp: maxLines,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }
+        }
+      >
+        {text}
+      </p>
+      {(canExpand || expanded) && (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+        >
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
     </div>
   )
 }
@@ -219,6 +275,9 @@ export default function WorkletDetailPage() {
   const [isInternModalOpen, setIsInternModalOpen] = useState(false)
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [selectedUserName, setSelectedUserName] = useState(null)
+  const [selectedUserEmail, setSelectedUserEmail] = useState(null)
   
   // Notification state for success/error messages
   const [notification, setNotification] = useState({ show: false, message: '', type: '' })
@@ -390,7 +449,7 @@ export default function WorkletDetailPage() {
           const transformedWorklet = {
             id: response.data.id,
             cert_id: response.data.cert_id,
-            title: response.data.cert_id || response.data.title,
+            title: response.data.title || response.data.cert_id,
             status: response.data.status || 'Ongoing',
             progress: (typeof response.data.worklet_progress === 'number' ? response.data.worklet_progress : response.data.percentage_completion) || 0,
             description: response.data.description || 'No description available',
@@ -535,6 +594,19 @@ export default function WorkletDetailPage() {
     } else {
       navigate('/worklets') // Fallback to worklets page
     }
+  }
+
+  // --- PROFILE MODAL HANDLER ---
+  const handleUserClick = (userName, userEmail = null) => {
+    setSelectedUserName(userName)
+    setSelectedUserEmail(userEmail)
+    setIsProfileModalOpen(true)
+  }
+
+  const closeProfileModal = () => {
+    setIsProfileModalOpen(false)
+    setSelectedUserName(null)
+    setSelectedUserEmail(null)
   }
 
   // --- SKELETON LOADER COMPONENT ---
@@ -782,25 +854,52 @@ export default function WorkletDetailPage() {
           <p className="text-gray-600 dark:text-gray-400">{worklet.college}</p>
         </div>
       )}
+      {(worklet.problem_statement || worklet.expectation || worklet.prerequisites) && (
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30">
+              <FileText size={18} className="text-indigo-600 dark:text-indigo-300" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 tracking-wide">Project Overview</h3>
+          </div>
 
-      {worklet.problem_statement && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Problem Statement</h3>
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{worklet.problem_statement}</p>
-        </div>
-      )}
+          <div className="space-y-4">
+            {worklet.problem_statement && (
+              <div className="rounded-xl border border-gray-200/70 dark:border-gray-600/60 bg-gray-50/80 dark:bg-gray-900/30 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle size={16} className="text-indigo-500" />
+                  <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">
+                    Problem Statement
+                  </h4>
+                </div>
+                <ReadMoreText text={worklet.problem_statement} maxChars={320} />
+              </div>
+            )}
 
-      {worklet.expectation && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Expectations</h3>
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{worklet.expectation}</p>
-        </div>
-      )}
+            {worklet.expectation && (
+              <div className="rounded-xl border border-gray-200/70 dark:border-gray-600/60 bg-gray-50/80 dark:bg-gray-900/30 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Target size={16} className="text-indigo-500" />
+                  <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">
+                    Expectations
+                  </h4>
+                </div>
+                <ReadMoreText text={worklet.expectation} maxChars={280} />
+              </div>
+            )}
 
-      {worklet.prerequisites && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Prerequisites</h3>
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{worklet.prerequisites}</p>
+            {worklet.prerequisites && (
+              <div className="rounded-xl border border-gray-200/70 dark:border-gray-600/60 bg-gray-50/80 dark:bg-gray-900/30 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen size={16} className="text-indigo-500" />
+                  <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">
+                    Prerequisites
+                  </h4>
+                </div>
+                <ReadMoreText text={worklet.prerequisites} maxChars={220} />
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -815,12 +914,18 @@ export default function WorkletDetailPage() {
       {worklet.students.length > 0 ? (
         <div className="grid gap-3">
           {worklet.students.map((student, index) => (
-            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+            <button
+              key={index}
+              onClick={() => handleUserClick(student)}
+              className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all cursor-pointer group border border-transparent hover:border-indigo-300 dark:hover:border-indigo-700"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold group-hover:scale-110 transition-transform">
                 {student.charAt(0).toUpperCase()}
               </div>
-              <span className="text-gray-700 dark:text-gray-300 font-medium">{student}</span>
-            </div>
+              <span className="text-gray-700 dark:text-gray-300 font-medium group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                {student}
+              </span>
+            </button>
           ))}
         </div>
       ) : (
@@ -852,9 +957,16 @@ export default function WorkletDetailPage() {
                 Professors
               </h4>
               {worklet.professors && worklet.professors.length > 0 ? (
-                <ul className="list-disc list-inside text-green-700 dark:text-green-400 text-sm space-y-1">
+                <ul className="space-y-1">
                   {worklet.professors.map((p,i) => (
-                    <li key={i}>{p}</li>
+                    <li key={i}>
+                      <button
+                        onClick={() => handleUserClick(p)}
+                        className="text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 hover:underline text-sm transition-colors cursor-pointer"
+                      >
+                        • {p}
+                      </button>
+                    </li>
                   ))}
                 </ul>
               ) : (
@@ -875,15 +987,21 @@ export default function WorkletDetailPage() {
             <h4 className="font-medium text-gray-900 dark:text-gray-300 mb-3">Students</h4>
             <div className="space-y-2">
               {worklet.students.map((student, index) => (
-                <div key={index} className="flex items-center gap-3 p-2 bg-white dark:bg-gray-600/50 rounded">
-                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                <button
+                  key={index}
+                  onClick={() => handleUserClick(student)}
+                  className="w-full flex items-center gap-3 p-2 bg-white dark:bg-gray-600/50 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all cursor-pointer group border border-transparent hover:border-indigo-300 dark:hover:border-indigo-700"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold group-hover:scale-110 transition-transform">
                     {student.charAt(0).toUpperCase()}
                   </div>
-                  <div className="flex-grow">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{student}</span>
+                  <div className="flex-grow text-left">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                      {student}
+                    </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 block">Team Member</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -1921,13 +2039,18 @@ export default function WorkletDetailPage() {
                 
                 {/* Project Title with Gradient */}
                 <h1 className="text-3xl lg:text-4xl font-bold text-black dark:text-white leading-tight">
-                  {worklet.title}
+                  {worklet.cert_id || worklet.title}
                 </h1>
                 
-                {/* Enhanced Description */}
-                <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed max-w-4xl">
-                  {worklet.description}
-                </p>
+                {/* Title under cert_id */}
+                <div className="max-w-4xl">
+                  <div className="text-xs font-semibold uppercase tracking-widest text-indigo-600/80 dark:text-indigo-300/80">
+                    Title
+                  </div>
+                  <div className="mt-1 text-lg md:text-xl font-semibold text-gray-800 dark:text-gray-200">
+                    {worklet.title || worklet.description}
+                  </div>
+                </div>
               </div>
               
               {/* Right: Status & Progress - Now appears above buttons on smaller screens */}
@@ -2118,9 +2241,10 @@ export default function WorkletDetailPage() {
                           isExpanded={expandedSections.problemStatement}
                           onToggle={() => toggleSection('problemStatement')}
                         >
-                        <p style={{ whiteSpace: 'pre-line' }}>
-                        {worklet.problem_statement || 'No problem statement specified.'}
-                        </p>
+                        <ReadMoreText
+                          text={worklet.problem_statement || 'No problem statement specified.'}
+                          maxChars={320}
+                        />
                       </CollapsibleSection>
 
 
@@ -2130,9 +2254,10 @@ export default function WorkletDetailPage() {
   isExpanded={expandedSections.expectations}
   onToggle={() => toggleSection('expectations')}
 >
-  <p style={{ whiteSpace: 'pre-line' }}>
-    {worklet.expectation || 'No expectations specified.'}
-  </p>
+  <ReadMoreText
+    text={worklet.expectation || 'No expectations specified.'}
+    maxChars={260}
+  />
 </CollapsibleSection>
 
 <CollapsibleSection
@@ -2141,9 +2266,10 @@ export default function WorkletDetailPage() {
   isExpanded={expandedSections.prerequisites}
   onToggle={() => toggleSection('prerequisites')}
 >
-  <p style={{ whiteSpace: 'pre-line' }}>
-                        {worklet.prerequisites || 'No prerequisites specified.'}
-                        </p>
+  <ReadMoreText
+    text={worklet.prerequisites || 'No prerequisites specified.'}
+    maxChars={220}
+  />
                        </CollapsibleSection>
 
 
@@ -2177,7 +2303,7 @@ export default function WorkletDetailPage() {
                           {worklet.mentors && worklet.mentors.length > 0 ? (
                             <div className="grid gap-3">
                               {worklet.mentors.map((mentor, idx) => (
-                                <TeamMemberCard key={idx} member={mentor} role="Mentor" />
+                                <TeamMemberCard key={idx} member={mentor} role="Mentor" onClick={handleUserClick} />
                               ))}
                             </div>
                           ) : (
@@ -2191,7 +2317,7 @@ export default function WorkletDetailPage() {
                           {worklet.professors && worklet.professors.length > 0 ? (
                             <div className="grid gap-3">
                               {worklet.professors.map((prof, idx) => (
-                                <TeamMemberCard key={idx} member={prof} role="Professor" />
+                                <TeamMemberCard key={idx} member={prof} role="Professor" onClick={handleUserClick} />
                               ))}
                             </div>
                           ) : (
@@ -2207,7 +2333,7 @@ export default function WorkletDetailPage() {
                                 <TeamMemberCard 
                                   key={index} 
                                   member={member} 
-                                  
+                                  onClick={handleUserClick}
                                 />
                               ))
                             ) : (
@@ -2818,6 +2944,13 @@ export default function WorkletDetailPage() {
         isOpen={isTestimonialModalOpen}
         onClose={() => setIsTestimonialModalOpen(false)}
         worklet={worklet}
+      />
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={closeProfileModal}
+        userName={selectedUserName}
+        userEmail={selectedUserEmail}
       />
       
       {isFeedbackOpen && worklet && (

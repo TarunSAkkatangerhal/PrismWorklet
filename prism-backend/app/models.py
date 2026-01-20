@@ -99,6 +99,8 @@ class UserProfile(Base):
     location = Column(String(255), nullable=True)
     date_of_birth = Column(Date, nullable=True)
     website = Column(String(255), nullable=True)
+    extra = Column(JSON, nullable=True)
+    profile_completed = Column(Boolean, default=False, nullable=False)
 
 
     user = relationship("User", back_populates="profile")
@@ -399,6 +401,9 @@ class Milestone(Base):
 # Milestone Feedback table
 class MilestoneFeedback(Base):
     __tablename__ = "Prism_Milestone_Feedback"
+    __table_args__ = (
+        UniqueConstraint('milestone_id', 'reviewer_id', name='uq_milestone_reviewer'),
+    )
 
     feedback_id = Column(Integer, primary_key=True, autoincrement=True)
     milestone_id = Column(Integer, ForeignKey("Prism_Milestone.milestone_id", ondelete="CASCADE"), nullable=False)

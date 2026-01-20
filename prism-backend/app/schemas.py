@@ -75,6 +75,7 @@ class UserResponse(UserBase):
     id: int
     is_verified: bool
     created_at: datetime
+    profile: Optional[dict] = None
     
     class Config:
         from_attributes = True
@@ -129,6 +130,12 @@ class UserProfileUpdate(BaseModel):
     contact_number: Optional[str] = None
     organization: Optional[str] = None
     github: Optional[str] = None
+
+class StudentProfileComplete(BaseModel):
+    extra: dict  # Contains: full_name, phone, college_roll_no, qualification, branch, batch_from, batch_to
+    college_id: int
+    contact_number: Optional[str] = None
+    qualification: Optional[str] = None
 
 # Mentor & Worklet Schemas
 class MentorBase(BaseModel):
@@ -412,6 +419,7 @@ class MilestoneFeedbackCreate(BaseModel):
     milestone_id: int
     reviewer_role: str = Field(..., pattern="^(mentor|professor)$")
     feedback_text: str
+    progress_completion: Optional[int] = Field(None, ge=0, le=100, description="Progress percentage (0-100)")
 
 class MilestoneFeedbackOut(BaseModel):
     feedback_id: int

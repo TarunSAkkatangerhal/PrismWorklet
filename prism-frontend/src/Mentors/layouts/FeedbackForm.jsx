@@ -306,19 +306,40 @@ export default function FeedbackForm({
       setLoading(true);
       const token = localStorage.getItem("access_token");
 
-      const feedbackData = {
-        worklet_id: parseInt(selectedWorklet, 10),
-        stage: selectedStage,
-        performance_indicator: performanceIndicator,
-        feedback_content: feedbackContent.trim()
+      // Get user profile to determine role
+      const profileResponse = await apiClient.get('/auth/profile');
+      const userRole = profileResponse.data.role?.toLowerCase() || "mentor";
+
+      // Find the matching milestone for the selected stage
+      const stageMapping = {
+        'first_review': ['first review', 'weekly meeting'],
+        'second_review': ['second review', 'monthly meeting'],
+        'mid_review': ['mid review', 'mid-review'],
+        'fourth_review': ['fourth review'],
+        'fifth_review': ['fifth review'],
+        'end_review': ['end review'],
+        'extended': ['extended'],
+        'ad_hoc': ['ad-hoc', 'ad hoc', 'others']
       };
 
-      // Only add progress if it was provided
-      if (progress !== null) {
-        feedbackData.progress_completion = progress;
+      const matchingTitles = stageMapping[selectedStage] || [];
+      const milestone = milestones.find(m => {
+        const milestoneType = (m.milestone_type || '').toLowerCase();
+        return matchingTitles.some(title => milestoneType.includes(title));
+      });
+
+      if (!milestone) {
+        throw new Error("No matching milestone found for selected stage");
       }
 
-      const response = await apiClient.post('/worklets/submit-feedback', feedbackData);
+      const feedbackData = {
+        milestone_id: milestone.milestone_id,
+        reviewer_role: userRole,
+        feedback_text: feedbackContent.trim(),
+        progress_completion: progress
+      };
+
+      const response = await apiClient.post('/milestones/feedback', feedbackData);
 
       
       // Reset form
@@ -342,7 +363,8 @@ export default function FeedbackForm({
       // Close modal and show error message on parent page
       onClose();
       if (onError) {
-        onError("Failed to submit feedback. Please try again.");
+        const errorMsg = error.response?.data?.detail || error.message || "Failed to submit feedback. Please try again.";
+        onError(errorMsg);
       }
     } finally {
       setLoading(false);

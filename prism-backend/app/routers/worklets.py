@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status
+﻿from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from app.models import Worklet, User, UserWorkletAssociation
 from app.schemas import WorkletCreate, WorkletUpdate, WorkletResponse
@@ -427,86 +427,6 @@ def request_worklet_update_flexible(worklet_identifier: str, request_data: Reque
     }
 
 # ----------------- Submit Feedback -----------------
-class FeedbackSchema(BaseModel):
-    worklet_id: int
-    feedback_content: str
-    stage: Optional[str] = None
-    performance_indicator: Optional[str] = None
-    progress_completion: Optional[int] = None
-    month: Optional[str] = None
-    rating: Optional[int] = None
-
-@router.post("/submit-feedback")
-def submit_feedback(feedback_data: FeedbackSchema, db: Session = Depends(get_db)):
-    # Check if worklet exists
-    worklet = db.query(Worklet).filter(Worklet.id == feedback_data.worklet_id).first()
-    if not worklet:
-        raise HTTPException(status_code=404, detail="Worklet not found")
-    
-    # Update progress if mentor provided it
-    if feedback_data.progress_completion is not None:
-        if not (0 <= feedback_data.progress_completion <= 100):
-            raise HTTPException(status_code=400, detail="Progress must be between 0 and 100")
-        
-        # Validate progress range based on stage
-        if feedback_data.stage:
-            review_stages = ['first_review', 'second_review', 'mid_review', 'fourth_review', 'fifth_review', 'end_review']
-            if feedback_data.stage in review_stages:
-                stage_index = review_stages.index(feedback_data.stage)
-                segment_size = 100 / 6
-                max_progress = round((stage_index + 1) * segment_size)
-                
-                # Always allow from 0, only restrict the maximum based on stage
-                if not (0 <= feedback_data.progress_completion <= max_progress):
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Progress must be between 0% and {max_progress}% for {feedback_data.stage}"
-                    )
-        
-        # Update worklet progress with mentor's value
-        worklet.worklet_progress = feedback_data.progress_completion
-        db.commit()
-        db.refresh(worklet)
-    
-    # Update performance indicator if provided
-    if feedback_data.performance_indicator:
-        worklet.Performance = feedback_data.performance_indicator
-        db.commit()
-        db.refresh(worklet)
-    
-    # Fetch dynamic students
-    student_records = _get_students_for_worklet(db, worklet.id)
-    student_emails = [s["email"] for s in student_records]
-
-    email_sent = False
-    if student_emails:
-        email_subject = f"Feedback for Worklet {worklet.cert_id}"
-        email_message = (
-            f"Your mentor has provided feedback for your worklet.\n\n"
-            f"Feedback: {feedback_data.feedback_content}"
-        )
-        if feedback_data.stage:
-            email_message += f"\nStage: {feedback_data.stage.replace('_', ' ').title()}"
-        if feedback_data.performance_indicator:
-            email_message += f"\nPerformance: {feedback_data.performance_indicator}"
-        if feedback_data.progress_completion is not None:
-            email_message += f"\nProgress: {feedback_data.progress_completion}%"
-        if feedback_data.month:
-            email_message += f"\nMonth: {feedback_data.month}"
-        if feedback_data.rating:
-            email_message += f"\nRating: {feedback_data.rating}/5"
-        email_sent = send_activity_email(student_emails, email_subject, email_message, "Submit Feedback")
-
-    return {
-        "message": "Feedback submitted successfully",
-        "feedback_data": feedback_data.dict(),
-        "worklet_progress": worklet.worklet_progress,
-        "email_sent": email_sent,
-        "students_notified": len(student_emails),
-        "student_emails": student_emails,
-        "timestamp": datetime.now().isoformat(),
-    }
-
-# Note: Use /suggestions/ POST endpoint for persisted suggestions instead of the deprecated
-# /worklets/submit-suggestion endpoint which only sent emails without database persistence.
+# Note: Use /milestones/feedback endpoint for milestone feedback with database persistence.
+# Use /suggestions/ POST endpoint for persisted suggestions.
 

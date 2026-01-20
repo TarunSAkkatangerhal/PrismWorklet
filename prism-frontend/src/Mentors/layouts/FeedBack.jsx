@@ -8,9 +8,12 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
   );
   const [stage, setStage] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [progress, setProgress] = useState("");
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [availableStages, setAvailableStages] = useState([]);
+  const [milestones, setMilestones] = useState([]);
+  const [selectedMilestone, setSelectedMilestone] = useState(null);
 
   const autoMode = !!preSelectedWorklet;
 
@@ -120,6 +123,9 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
 
         const fetchedMilestones = response.data || [];
 
+        // Store full milestones data for later use
+        setMilestones(fetchedMilestones);
+
         // Extract milestone types/stages that have been added by students
         const milestoneTitles = fetchedMilestones.map(m => (m.milestone_type || m.title || '').toLowerCase());
         
@@ -157,14 +163,89 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workletId]);  // allStages is static and doesn't need to be in dependencies
 
-  const handleSubmit = () => {
-    const data = {
-      workletId,
-      stage,
-      feedback,
-    };
-    console.log("Feedback Submitted:", data);
-    onClose(); // close popup after submission
+  // Update selected milestone when stage changes
+  useEffect(() => {
+    if (stage && milestones.length > 0) {
+      // Find the milestone that matches the selected stage
+      const stageMapping = {
+        'first_review': ['first review', 'weekly meeting'],
+        'second_review': ['second review', 'monthly meeting'],
+        'mid_review': ['mid review', 'mid-review'],
+        'fourth_review': ['fourth review'],
+        'fifth_review': ['fifth review'],
+        'end_review': ['end review'],
+        'extended': ['extended'],
+        'ad_hoc': ['ad-hoc', 'ad hoc', 'others']
+      };
+
+      const matchingTitles = stageMapping[stage] || [];
+      const milestone = milestones.find(m => {
+        const milestoneType = (m.milestone_type || '').toLowerCase();
+        return matchingTitles.some(title => milestoneType.includes(title));
+      });
+
+      setSelectedMilestone(milestone);
+    } else {
+      setSelectedMilestone(null);
+    }
+  }, [stage, milestones]);
+
+  const handleSubmit = async () => {
+    if (!selectedMilestone) {
+      alert("Please select a valid stage with a milestone");
+      return;
+    }
+
+    if (!feedback.trim()) {
+      alert("Please enter feedback");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("access_token");
+      
+      if (!token) {
+        alert("Authentication token not found. Please log in again.");
+        return;
+      }
+
+      // Get user profile to determine role
+      const profileResponse = await axios.get(
+        'http://localhost:8000/auth/profile',
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      const userRole = profileResponse.data.role?.toLowerCase() || "mentor";
+
+      const payload = {
+        milestone_id: selectedMilestone.milestone_id,
+        reviewer_role: userRole, // Use actual user role from profile
+        feedback_text: feedback,
+        progress_completion: progress ? parseInt(progress) : null
+      };
+
+      const response = await axios.post(
+        'http://localhost:8000/milestones/feedback',
+        payload,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      alert("Feedback submitted successfully!");
+      onClose();
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || error.message || "Failed to submit feedback. Please try again.";
+      alert(`Error: ${errorMsg}`);
+    }
   };
 
   return (
@@ -246,6 +327,25 @@ const Feedback = ({ onClose, workletId: propWorkletId, preSelectedWorklet }) => 
             onChange={(e) => setFeedback(e.target.value)}
             className="w-full border rounded-lg px-3 py-2 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:placeholder-slate-400 dark:focus:ring-blue-500"
           />
+        </div>
+
+        {/* Progress (Optional) */}
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Update Progress (Optional)
+          </label>
+          <input
+            type="number"
+            placeholder="0-100"
+            min="0"
+            max="100"
+            value={progress}
+            onChange={(e) => setProgress(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:placeholder-slate-400 dark:focus:ring-blue-500"
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Leave empty to keep current progress
+          </p>
         </div>
 
         <button
