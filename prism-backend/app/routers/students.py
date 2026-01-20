@@ -110,3 +110,67 @@ def get_current_student(
         )
     
     return current_user
+
+
+@router.get("/profile/search", response_model=UserResponse)
+def get_user_profile_by_identifier(
+    name: Optional[str] = None,
+    email: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get user profile by name or email.
+    Returns full user profile including UserProfile data.
+    """
+    if not name and not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either name or email must be provided"
+        )
+    
+    # Search by email first (more unique), then by name
+    user = None
+    if email:
+        user = db.query(User).filter(User.email == email).first()
+    elif name:
+        user = db.query(User).filter(User.name == name).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User not found with {'email: ' + email if email else 'name: ' + name}"
+        )
+    
+    # Build response with full profile
+    response = {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "college": user.college,
+        "is_verified": user.is_verified,
+        "created_at": user.created_at,
+    }
+
+    # Attach profile data if available
+    if user.profile:
+        p = user.profile
+        response["profile"] = {
+            "avatar_url": p.avatar_url,
+            "bio": p.bio,
+            "linkedin": p.linkedin,
+            "portfolio_url": p.portfolio_url,
+            "expertise": p.expertise,
+            "qualification": p.qualification,
+            "experience_years": p.experience_years,
+            "contact_number": p.contact_number,
+            "organization": p.organization,
+            "github": p.github,
+            "handle": p.handle,
+            "location": p.location,
+            "date_of_birth": p.date_of_birth.isoformat() if p.date_of_birth else None,
+            "website": p.website,
+        }
+    
+    return response

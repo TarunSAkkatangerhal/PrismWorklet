@@ -75,6 +75,7 @@ class UserResponse(UserBase):
     id: int
     is_verified: bool
     created_at: datetime
+    profile: Optional[dict] = None
     
     class Config:
         from_attributes = True

@@ -399,6 +399,9 @@ class Milestone(Base):
 # Milestone Feedback table
 class MilestoneFeedback(Base):
     __tablename__ = "Prism_Milestone_Feedback"
+    __table_args__ = (
+        UniqueConstraint('milestone_id', 'reviewer_id', name='uq_milestone_reviewer'),
+    )
 
     feedback_id = Column(Integer, primary_key=True, autoincrement=True)
     milestone_id = Column(Integer, ForeignKey("Prism_Milestone.milestone_id", ondelete="CASCADE"), nullable=False)

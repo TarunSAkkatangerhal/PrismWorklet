@@ -176,7 +176,7 @@ def create_milestone(
                 student_name=current_user.name,
                 student_email=current_user.email,
                 milestone_type=milestone.milestone_type,
-                worklet_title=worklet.worklet_title,
+                worklet_title=worklet.title,
                 field1_label=milestone.field1_label,
                 field1_value=milestone.field1_value,
                 field2_label=milestone.field2_label,
@@ -308,6 +308,18 @@ def add_milestone_feedback(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Reviewer role must match your role in the worklet: {association.role_in_worklet}"
+        )
+    
+    # Check if mentor/professor already provided feedback for this milestone
+    existing_feedback = db.query(MilestoneFeedback).filter(
+        MilestoneFeedback.milestone_id == feedback.milestone_id,
+        MilestoneFeedback.reviewer_id == current_user.id
+    ).first()
+    
+    if existing_feedback:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You have already provided feedback for this milestone. Each mentor/professor can only provide feedback once per milestone."
         )
     
     # Create feedback

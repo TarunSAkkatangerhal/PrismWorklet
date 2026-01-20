@@ -14,6 +14,7 @@ import LeftSidebar from '../../components/Left'
 import ProvideUpdateModal from '../components/ProvideUpdateModal'
 import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
 import TestimonialModal from '../../Students/TestimonialModal'
+import ProfileModal from '../../Shared Components/ProfileModal'
 import { getCurrentUser } from '../../services/auth'
 import ProfessionalSelect from '../../components/ProfessionalSelect'
 
@@ -168,34 +169,39 @@ const CollapsibleSection = ({ title, children, isExpanded, onToggle, icon }) => 
 }
 
 // --- Team Member Card Component ---
-const TeamMemberCard = ({ member, role = "Team Member", avatar }) => {
+const TeamMemberCard = ({ member, role = "Team Member", avatar, onClick }) => {
   // Handle both string format (legacy) and object format (new)
   const memberName = typeof member === 'string' ? member : (member?.name || member?.email || 'Unknown');
+  const memberEmail = typeof member === 'object' ? member?.email : null;
   
   const getInitials = (name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase()
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-white/80 to-gray-50/80 
+    <button
+      onClick={() => onClick && onClick(memberName, memberEmail)}
+      className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-white/80 to-gray-50/80 
                     dark:from-gray-800/80 dark:to-gray-900/80 backdrop-blur-sm border border-white/20 
-                    dark:border-gray-600/20 p-4 hover:shadow-lg hover:scale-105 transition-all duration-300">
+                    dark:border-gray-600/20 p-4 hover:shadow-lg hover:scale-105 transition-all duration-300 
+                    hover:border-indigo-300 dark:hover:border-indigo-700 cursor-pointer w-full text-left"
+    >
       <div className="flex items-center gap-3">
         <div className="relative">
           {avatar ? (
-            <img src={avatar} alt={memberName} className="w-12 h-12 rounded-full object-cover" />
+            <img src={avatar} alt={memberName} className="w-12 h-12 rounded-full object-cover group-hover:scale-110 transition-transform" />
           ) : (
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-500 
-                           flex items-center justify-center text-white font-bold text-sm">
+                           flex items-center justify-center text-white font-bold text-sm group-hover:scale-110 transition-transform">
               {getInitials(memberName)}
             </div>
           )}
         </div>
         <div className="flex-grow">
-          <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{memberName}</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{memberName}</h4>
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -219,6 +225,9 @@ export default function WorkletDetailPage() {
   const [isInternModalOpen, setIsInternModalOpen] = useState(false)
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [selectedUserName, setSelectedUserName] = useState(null)
+  const [selectedUserEmail, setSelectedUserEmail] = useState(null)
   
   // Notification state for success/error messages
   const [notification, setNotification] = useState({ show: false, message: '', type: '' })
@@ -537,6 +546,19 @@ export default function WorkletDetailPage() {
     }
   }
 
+  // --- PROFILE MODAL HANDLER ---
+  const handleUserClick = (userName, userEmail = null) => {
+    setSelectedUserName(userName)
+    setSelectedUserEmail(userEmail)
+    setIsProfileModalOpen(true)
+  }
+
+  const closeProfileModal = () => {
+    setIsProfileModalOpen(false)
+    setSelectedUserName(null)
+    setSelectedUserEmail(null)
+  }
+
   // --- SKELETON LOADER COMPONENT ---
   const SkeletonLoader = () => (
     <div className="flex h-screen bg-slate-50 dark:bg-gray-900">
@@ -815,12 +837,18 @@ export default function WorkletDetailPage() {
       {worklet.students.length > 0 ? (
         <div className="grid gap-3">
           {worklet.students.map((student, index) => (
-            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+            <button
+              key={index}
+              onClick={() => handleUserClick(student)}
+              className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all cursor-pointer group border border-transparent hover:border-indigo-300 dark:hover:border-indigo-700"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold group-hover:scale-110 transition-transform">
                 {student.charAt(0).toUpperCase()}
               </div>
-              <span className="text-gray-700 dark:text-gray-300 font-medium">{student}</span>
-            </div>
+              <span className="text-gray-700 dark:text-gray-300 font-medium group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                {student}
+              </span>
+            </button>
           ))}
         </div>
       ) : (
@@ -852,9 +880,16 @@ export default function WorkletDetailPage() {
                 Professors
               </h4>
               {worklet.professors && worklet.professors.length > 0 ? (
-                <ul className="list-disc list-inside text-green-700 dark:text-green-400 text-sm space-y-1">
+                <ul className="space-y-1">
                   {worklet.professors.map((p,i) => (
-                    <li key={i}>{p}</li>
+                    <li key={i}>
+                      <button
+                        onClick={() => handleUserClick(p)}
+                        className="text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 hover:underline text-sm transition-colors cursor-pointer"
+                      >
+                        • {p}
+                      </button>
+                    </li>
                   ))}
                 </ul>
               ) : (
@@ -875,15 +910,21 @@ export default function WorkletDetailPage() {
             <h4 className="font-medium text-gray-900 dark:text-gray-300 mb-3">Students</h4>
             <div className="space-y-2">
               {worklet.students.map((student, index) => (
-                <div key={index} className="flex items-center gap-3 p-2 bg-white dark:bg-gray-600/50 rounded">
-                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                <button
+                  key={index}
+                  onClick={() => handleUserClick(student)}
+                  className="w-full flex items-center gap-3 p-2 bg-white dark:bg-gray-600/50 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all cursor-pointer group border border-transparent hover:border-indigo-300 dark:hover:border-indigo-700"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold group-hover:scale-110 transition-transform">
                     {student.charAt(0).toUpperCase()}
                   </div>
-                  <div className="flex-grow">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{student}</span>
+                  <div className="flex-grow text-left">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                      {student}
+                    </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 block">Team Member</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -2177,7 +2218,7 @@ export default function WorkletDetailPage() {
                           {worklet.mentors && worklet.mentors.length > 0 ? (
                             <div className="grid gap-3">
                               {worklet.mentors.map((mentor, idx) => (
-                                <TeamMemberCard key={idx} member={mentor} role="Mentor" />
+                                <TeamMemberCard key={idx} member={mentor} role="Mentor" onClick={handleUserClick} />
                               ))}
                             </div>
                           ) : (
@@ -2191,7 +2232,7 @@ export default function WorkletDetailPage() {
                           {worklet.professors && worklet.professors.length > 0 ? (
                             <div className="grid gap-3">
                               {worklet.professors.map((prof, idx) => (
-                                <TeamMemberCard key={idx} member={prof} role="Professor" />
+                                <TeamMemberCard key={idx} member={prof} role="Professor" onClick={handleUserClick} />
                               ))}
                             </div>
                           ) : (
@@ -2207,7 +2248,7 @@ export default function WorkletDetailPage() {
                                 <TeamMemberCard 
                                   key={index} 
                                   member={member} 
-                                  
+                                  onClick={handleUserClick}
                                 />
                               ))
                             ) : (
@@ -2818,6 +2859,13 @@ export default function WorkletDetailPage() {
         isOpen={isTestimonialModalOpen}
         onClose={() => setIsTestimonialModalOpen(false)}
         worklet={worklet}
+      />
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={closeProfileModal}
+        userName={selectedUserName}
+        userEmail={selectedUserEmail}
       />
       
       {isFeedbackOpen && worklet && (
