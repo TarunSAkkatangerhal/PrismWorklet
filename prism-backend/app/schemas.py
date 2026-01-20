@@ -137,6 +137,20 @@ class StudentProfileComplete(BaseModel):
     contact_number: Optional[str] = None
     qualification: Optional[str] = None
 
+# Student Registration Schemas
+class StudentRegistrationCreate(BaseModel):
+    contact_number: str
+    college_name: str
+    student_id: str  # college roll number
+    qualification: str
+    program: str  # branch/program
+    batch_from: date
+    batch_to: date
+
+class StudentRegistrationResponse(BaseModel):
+    message: str
+    profile_completed: bool
+
 # Mentor & Worklet Schemas
 class MentorBase(BaseModel):
     name: str

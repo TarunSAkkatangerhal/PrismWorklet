@@ -444,6 +444,7 @@ async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = De
             "college": user.college,
             "is_verified": user.is_verified,
             "created_at": user.created_at,
+            "profile_completed": getattr(user, 'profile_completed', False),  # Add profile_completed at user level
         }
 
         # Attach unified profile (from user_profiles)
@@ -459,10 +460,17 @@ async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = De
                 "experience_years": p.experience_years,
                 "contact_number": p.contact_number,
                 "organization": p.organization,
+                "program": p.program,
                 "github": p.github,
                 "handle": p.handle,
                 "location": p.location,
                 "date_of_birth": p.date_of_birth.isoformat() if p.date_of_birth else None,
+                "year_of_study": p.year_of_study,
+                "student_id": p.student_id,
+                "skills": p.skills,
+                "interests": p.interests,
+                "batch_from": p.batch_from.isoformat() if p.batch_from else None,
+                "batch_to": p.batch_to.isoformat() if p.batch_to else None,
                 "website": p.website,
                 "extra": getattr(p, 'extra', None),
                 "profile_completed": getattr(p, 'profile_completed', False),
@@ -509,8 +517,9 @@ async def update_my_profile(
         # Map allowable profile fields
         profile_fields = [
             "avatar_url", "bio", "linkedin", "portfolio_url", "expertise", "qualification",
-            "experience_years", "contact_number", "organization", "github", "handle", "location",
-            "date_of_birth", "website"
+            "experience_years", "contact_number", "organization", "program", "github", "handle", "location",
+            "date_of_birth", "website", "year_of_study", "student_id", "skills", "interests",
+            "batch_from", "batch_to"
         ]
 
         for f in profile_fields:

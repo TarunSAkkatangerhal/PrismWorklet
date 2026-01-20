@@ -50,6 +50,7 @@ class User(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     active_till = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    profile_completed = Column(Boolean, default=False, nullable=False)
 
 
     # Relationships
@@ -98,6 +99,13 @@ class UserProfile(Base):
     handle = Column(String(50), nullable=True)
     location = Column(String(255), nullable=True)
     date_of_birth = Column(Date, nullable=True)
+    year_of_study = Column(Integer, nullable=True)
+    program = Column(String(100), nullable=True)
+    student_id = Column(String(50), nullable=True)
+    skills = Column(Text, nullable=True)
+    interests = Column(Text, nullable=True)
+    batch_from = Column(Date, nullable=True)
+    batch_to = Column(Date, nullable=True)
     website = Column(String(255), nullable=True)
     extra = Column(JSON, nullable=True)
     profile_completed = Column(Boolean, default=False, nullable=False)

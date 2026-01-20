@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app import auth
-from app.routers import worklets, health, dashboard, evaluations, associations, portfolio, suggestions, milestones, meetings
+from app.routers import worklets, health, dashboard, evaluations, associations, portfolio, suggestions, milestones, meetings, students
 from app.core.config import settings
 from app.core.rate_limiter import RateLimiter
 from app.database import get_db
@@ -86,6 +86,7 @@ async def rate_limit_auth(request: Request, call_next: Callable):
 from app.routers import college, chat
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(students.router, prefix="/api/students", tags=["students"])
 # Mentors router temporarily disabled due to schema refactor; re-enable after migration
 app.include_router(worklets.router, prefix="/worklets", tags=["worklets"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
