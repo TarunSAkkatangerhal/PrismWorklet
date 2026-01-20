@@ -412,6 +412,7 @@ class MilestoneFeedbackCreate(BaseModel):
     milestone_id: int
     reviewer_role: str = Field(..., pattern="^(mentor|professor)$")
     feedback_text: str
+    progress_completion: Optional[int] = Field(None, ge=0, le=100, description="Progress percentage (0-100)")
 
 class MilestoneFeedbackOut(BaseModel):
     feedback_id: int
