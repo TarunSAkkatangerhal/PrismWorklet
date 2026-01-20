@@ -390,12 +390,25 @@ class RequestUpdateSchema(BaseModel):
     priority: Optional[str] = "medium"
 
 @router.post("/{worklet_identifier}/request-update")
-def request_worklet_update_flexible(worklet_identifier: str, request_data: RequestUpdateSchema, db: Session = Depends(get_db)):
+def request_worklet_update_flexible(
+    worklet_identifier: str, 
+    request_data: RequestUpdateSchema, 
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
     """
     Request update for worklet by either integer ID or cert_id string
     Examples: POST /worklets/6/request-update or POST /worklets/25TST04WT/request-update
     Now uses centralized WorkletService for identifier resolution.
     """
+    # Get current user from token
+    current_user_email = None
+    try:
+        payload = require_access_token(token)
+        current_user_email = payload.get("sub")
+    except Exception:
+        pass
+    
     # Use service to resolve identifier
     worklet = WorkletService.get_worklet_by_identifier(db, worklet_identifier)
     
@@ -404,7 +417,8 @@ def request_worklet_update_flexible(worklet_identifier: str, request_data: Reque
     
     # Fetch dynamic students
     student_records = _get_students_for_worklet(db, worklet.id)
-    student_emails = [s["email"] for s in student_records]
+    # Exclude the current user (requester) from receiving the notification
+    student_emails = [s["email"] for s in student_records if s["email"] != current_user_email]
 
     email_sent = False
     if student_emails:

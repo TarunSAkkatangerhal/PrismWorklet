@@ -166,9 +166,10 @@ def create_milestone(
     ).all()
     
     # Send email notifications to all mentors/professors in background
+    # Exclude the current user (student who uploaded) from receiving the notification
     for mentor_assoc in mentor_associations:
         mentor_user = db.query(User).filter(User.id == mentor_assoc.user_id).first()
-        if mentor_user and mentor_user.email:
+        if mentor_user and mentor_user.email and mentor_user.id != current_user.id:
             background_tasks.add_task(
                 send_milestone_notification,
                 mentor_email=mentor_user.email,
@@ -349,7 +350,8 @@ def add_milestone_feedback(
         try:
             # Get students for this worklet
             student_records = WorkletService.get_students_for_worklet(db, milestone.worklet_id)
-            student_emails = [s["email"] for s in student_records]
+            # Exclude the current user (mentor who gave feedback) if they're also a student in this worklet
+            student_emails = [s["email"] for s in student_records if s["email"] != current_user.email]
             
             if student_emails:
                 email_subject = f"Milestone Feedback for Worklet {worklet.cert_id}"
