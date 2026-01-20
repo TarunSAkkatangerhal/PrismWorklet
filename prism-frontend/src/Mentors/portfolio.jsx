@@ -24,7 +24,7 @@ import {
   BookUser,
   Lightbulb,
 } from 'lucide-react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import LeftSidebar from '../components/Left'
 import apiClient from '../services/secureWorkletsAPI' // reuse configured axios instance for auth headers
 import { useAuth } from '../hooks/useAuth' // Import useAuth hook to detect user role
@@ -412,20 +412,29 @@ const AddPaperForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
             <BookUser size={20} className="mr-2 text-blue-500" /> Select Worklet
           </h4>
           <div>
-            <ProfessionalSelect
-              {...register('worklet_id', { required: 'Please select a worklet' })}
-              disabled={loadingWorklets}
-              label="Associated Worklet"
-              required
-              placeholder="Select a completed worklet"
-              options={completedWorklets.map((worklet) => {
-                const description = worklet.description || worklet.title || 'No description'
-                const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
-                return {
-                  value: worklet.id,
-                  label: `${worklet.cert_id} - ${truncatedDesc}`
-                }
-              })}
+            <Controller
+              name="worklet_id"
+              control={control}
+              rules={{ required: 'Please select a worklet' }}
+              render={({ field }) => (
+                <ProfessionalSelect
+                  {...field}
+                  value={field.value || ''}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  disabled={loadingWorklets}
+                  label="Associated Worklet"
+                  required
+                  placeholder="Select a completed worklet"
+                  options={completedWorklets.map((worklet) => {
+                    const description = worklet.description || worklet.title || 'No description'
+                    const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
+                    return {
+                      value: worklet.id,
+                      label: `${worklet.cert_id} - ${truncatedDesc}`
+                    }
+                  })}
+                />
+              )}
             />
             {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
             {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
@@ -639,20 +648,29 @@ const AddPatentForm = ({ onAdd, onCancel, completedWorklets, isStudent }) => {
         <Lightbulb size={20} className="mr-2 text-yellow-500" /> Select Worklet
       </h4>
       <div>
-        <ProfessionalSelect
-          {...register('worklet_id', { required: 'Please select a worklet' })}
-          disabled={loadingWorklets}
-          label="Associated Worklet"
-          required
-          placeholder="Select a completed worklet"
-          options={completedWorklets.map((worklet) => {
-            const description = worklet.description || worklet.title || 'No description'
-            const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
-            return {
-              value: worklet.id,
-              label: `${worklet.cert_id} - ${truncatedDesc}`
-            }
-          })}
+        <Controller
+          name="worklet_id"
+          control={control}
+          rules={{ required: 'Please select a worklet' }}
+          render={({ field }) => (
+            <ProfessionalSelect
+              {...field}
+              value={field.value || ''}
+              onChange={(e) => field.onChange(e.target.value)}
+              disabled={loadingWorklets}
+              label="Associated Worklet"
+              required
+              placeholder="Select a completed worklet"
+              options={completedWorklets.map((worklet) => {
+                const description = worklet.description || worklet.title || 'No description'
+                const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
+                return {
+                  value: worklet.id,
+                  label: `${worklet.cert_id} - ${truncatedDesc}`
+                }
+              })}
+            />
+          )}
         />
         {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
         {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
@@ -754,6 +772,7 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
   const loadingWorklets = false
   const {
     register,
+    control,
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
@@ -811,20 +830,29 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
       </h4>
 
       <div>
-        <ProfessionalSelect
-          {...register('worklet_id', { required: 'Please select a worklet' })}
-          disabled={loadingWorklets}
-          label="Associated Worklet"
-          required
-          placeholder="Select a completed worklet"
-          options={completedWorklets.map((worklet) => {
-            const description = worklet.description || worklet.title || 'No description'
-            const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
-            return {
-              value: worklet.id,
-              label: `${worklet.cert_id} - ${truncatedDesc}`
-            }
-          })}
+        <Controller
+          name="worklet_id"
+          control={control}
+          rules={{ required: 'Please select a worklet' }}
+          render={({ field }) => (
+            <ProfessionalSelect
+              {...field}
+              value={field.value || ''}
+              onChange={(e) => field.onChange(e.target.value)}
+              disabled={loadingWorklets}
+              label="Associated Worklet"
+              required
+              placeholder="Select a completed worklet"
+              options={completedWorklets.map((worklet) => {
+                const description = worklet.description || worklet.title || 'No description'
+                const truncatedDesc = description.length > 50 ? description.substring(0, 50) + '...' : description
+                return {
+                  value: worklet.id,
+                  label: `${worklet.cert_id} - ${truncatedDesc}`
+                }
+              })}
+            />
+          )}
         />
         {loadingWorklets && <p className="text-xs text-gray-500 mt-1">Loading worklets...</p>}
         {errors.worklet_id && <p className="text-xs text-red-500 mt-1">{errors.worklet_id.message}</p>}
@@ -1062,6 +1090,21 @@ const Portfolio = () => {
           {/* Statistics Cards - Professional Design */}
           <div className={`grid grid-cols-1 md:grid-cols-2 ${isStudent ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-5 mb-8`}>
             <div 
+              className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-600 transition-all duration-300"
+              onClick={() => setActiveTab('achievements')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium uppercase tracking-wide mb-3">Achievements</p>
+                  <p className="text-4xl font-bold text-slate-900 dark:text-white">{portfolioData.achievements.length}</p>
+                </div>
+                <div className="ml-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30 transition-colors">
+                  <Trophy className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                </div>
+              </div>
+            </div>
+
+            <div 
               className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300"
               onClick={() => setActiveTab('papers')}
             >
@@ -1108,20 +1151,6 @@ const Portfolio = () => {
               </div>
             )}
 
-            <div 
-              className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-600 transition-all duration-300"
-              onClick={() => setActiveTab('achievements')}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium uppercase tracking-wide mb-3">Achievements</p>
-                  <p className="text-4xl font-bold text-slate-900 dark:text-white">{portfolioData.achievements.length}</p>
-                </div>
-                <div className="ml-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30 transition-colors">
-                  <Trophy className="h-8 w-8 text-amber-600 dark:text-amber-400" />
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="mb-8">
