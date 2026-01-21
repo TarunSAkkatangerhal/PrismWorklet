@@ -2044,6 +2044,29 @@ export default function WorkletDetailPage() {
               
               {/* Right: Status & Progress - Now appears above buttons on smaller screens */}
               <div className="lg:min-w-[300px] space-y-4 order-first lg:order-last">
+                {/* Team Chat Button - positioned at top right */}
+                {worklet.status === 'Ongoing' && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        // Navigate to appropriate chat page based on user role
+                        const role = userRole || currentUserRole?.toLowerCase() || 'student';
+                        if (role === 'mentor') {
+                          navigate('/mentor-chat', { state: { workletId: worklet.id } });
+                        } else if (role === 'professor') {
+                          navigate('/professor-chat', { state: { workletId: worklet.id } });
+                        } else {
+                          navigate('/student-chat', { state: { workletId: worklet.id } });
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                    >
+                      <MessageCircle size={20} />
+                      <span>Chats</span>
+                    </button>
+                  </div>
+                )}
+                
                 {/* Status Badge Enhanced */}
                 <div className="flex flex-col sm:flex-row lg:flex-col items-start gap-4">
                   <div className="flex flex-col gap-3 w-full">
@@ -2094,29 +2117,6 @@ export default function WorkletDetailPage() {
             {/* Action Buttons - Now separate section below status and info */}
             {/* Removed Export and Edit Project buttons as requested */}
             
-            {/* Chat Button for quick access to worklet chat room - Only for Ongoing worklets */}
-            {worklet.status === 'Ongoing' && (
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => {
-                    // Navigate to appropriate chat page based on user role
-                    const role = userRole || currentUserRole?.toLowerCase() || 'student';
-                    if (role === 'mentor') {
-                      navigate('/mentor-chat', { state: { workletId: worklet.id } });
-                    } else if (role === 'professor') {
-                      navigate('/professor-chat', { state: { workletId: worklet.id } });
-                    } else {
-                      navigate('/student-chat', { state: { workletId: worklet.id } });
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-                >
-                  <MessageCircle size={20} />
-                  <span>Team Chat</span>
-                </button>
-              </div>
-            )}
-
             {/* Progress Bar now appears here for improved visual balance */}
             <div className="mt-6">
               <EnhancedProgressBar progress={worklet.progress} size="lg" />

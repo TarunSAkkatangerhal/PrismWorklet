@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Star, Check, MoreVertical, Mail, CheckCheck, Paperclip, Image as ImageIcon, File, Download, FileText } from 'lucide-react';
+import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Check, MoreVertical, CheckCheck, Paperclip, Image as ImageIcon, File, Download, FileText, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
 import chatService from '../services/chat';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import LeftSidebar from '../components/Left';
+import EmailNotification from '../components/EmailNotification';
+import MessageActionModal from '../components/MessageActionModal';
 
 // Helper to format timestamps
 const formatTime = (dateString) => {
@@ -198,7 +200,7 @@ const DateSeparator = ({ date }) => {
 };
 
 // Message Bubble Component - WhatsApp style
-const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete, onStar }) => {
+const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, setEditModal }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
 
@@ -228,18 +230,7 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete,
       alert('Messages can only be deleted within 20 minutes of sending');
       return;
     }
-    if (window.confirm('Are you sure you want to delete this message? This cannot be undone.')) {
-      onDelete(message.message_id);
-      setShowMenu(false);
-    }
-  };
-
-  const handleStar = () => {
-    if (!canEdit) {
-      alert('Messages can only be starred within 20 minutes of sending');
-      return;
-    }
-    onStar(message.message_id);
+    setDeleteModal({ isOpen: true, messageId: message.message_id });
     setShowMenu(false);
   };
 
@@ -248,7 +239,7 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete,
       alert('Messages can only be edited within 20 minutes of sending');
       return;
     }
-    onEdit(message);
+    setEditModal({ isOpen: true, messageId: message.message_id, currentText: message.message_text });
     setShowMenu(false);
   };
 
@@ -276,9 +267,6 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete,
             }`}
           >
             <div className="flex items-start gap-2">
-              {message.is_starred && (
-                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 flex-shrink-0 mt-1" />
-              )}
               {message.included_in_email && (
                 <CheckCheck className="w-3 h-3 text-green-500 flex-shrink-0 mt-1" title="Included in email" />
               )}
@@ -422,13 +410,6 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, onEdit, onDelete,
               className="absolute top-8 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 min-w-[140px] z-10"
             >
               <button
-                onClick={handleStar}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
-              >
-                <Star className={`w-4 h-4 ${message.is_starred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                {message.is_starred ? 'Unstar' : 'Star'}
-              </button>
-              <button
                 onClick={handleEdit}
                 className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
               >
@@ -466,21 +447,44 @@ export default function StudentChatPage() {
   const [groupProfile, setGroupProfile] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(5000); // Start at 5s
   const [editingMessage, setEditingMessage] = useState(null);
-  const [emailStatus, setEmailStatus] = useState({ can_send: true, starred_messages_available: 0 });
-  const [sendingEmail, setSendingEmail] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [emailStatus, setEmailStatus] = useState({ can_send: true, email_sent_today: false });
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailNotification, setEmailNotification] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+    recipientCount: 0
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, messageId: null });
+  const [editModal, setEditModal] = useState({ isOpen: false, messageId: null, currentText: '' });
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
   const fileInputRef = useRef(null);
+  const isFirstLoadRef = useRef(true);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (instant = false) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    if (isFirstLoadRef.current && messages.length > 0) {
+      // Instant scroll on first load to prevent wave effect
+      scrollToBottom(true);
+      isFirstLoadRef.current = false;
+    } else if (messages.length > 0) {
+      // Smooth scroll for new messages
+      scrollToBottom(false);
+    }
   }, [messages]);
+
+  // Reset first load flag when changing rooms
+  useEffect(() => {
+    isFirstLoadRef.current = true;
+  }, [selectedRoom]);
 
   // Get current user
   useEffect(() => {
@@ -532,14 +536,6 @@ export default function StudentChatPage() {
       // Remove deleted message from current view
       const deleteData = data.data;
       setMessages((prev) => prev.filter(msg => msg.message_id !== deleteData.message_id));
-    } else if (data.type === 'message_starred' || data.type === 'group_message_starred') {
-      // Update starred status in current view
-      const starData = data.data;
-      setMessages((prev) => prev.map(msg => 
-        msg.message_id === starData.message_id 
-          ? { ...msg, is_starred: starData.is_starred }
-          : msg
-      ));
     }
   };
 
@@ -586,6 +582,46 @@ export default function StudentChatPage() {
     }
   };
 
+  // Check email notification status
+  const checkEmailStatus = async (workletId) => {
+    try {
+      const status = await chatService.checkEmailStatus(workletId);
+      setEmailStatus(status);
+    } catch (error) {
+      console.error('Error checking email status:', error);
+    }
+  };
+
+  // Send notification email
+  const handleSendNotificationEmail = async () => {
+    if (!selectedRoom) return;
+    setShowConfirmModal(false);
+    setSendingEmail(true);
+    
+    try {
+      const result = await chatService.sendNotificationEmail(selectedRoom.worklet_id);
+      setEmailNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'Email Sent Successfully! 🎉',
+        message: 'All worklet members have been notified about the new messages.',
+        recipientCount: result.recipients_count
+      });
+      await checkEmailStatus(selectedRoom.worklet_id);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      setEmailNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Failed to Send Email',
+        message: error.response?.data?.detail || 'An error occurred while sending the email notification. Please try again.',
+        recipientCount: undefined
+      });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   // Handle file upload
   const handleFileUpload = async (event) => {
     const file = event.target.files?.[0];
@@ -621,52 +657,12 @@ export default function StudentChatPage() {
   const handleSelectRoom = async (room) => {
     setSelectedRoom(room);
     await fetchGroupMessages(room.worklet_id);
-    
-    // Check email status for this worklet
-    if (room.worklet_id) {
-      checkEmailStatus(room.worklet_id);
-    }
+    await checkEmailStatus(room.worklet_id);
     
     // Mark room as read and refresh to clear unread dot
     setTimeout(() => {
       fetchGroupChats();
     }, 500);
-  };
-
-  // Check if email can be sent for this worklet
-  const checkEmailStatus = async (workletId) => {
-    try {
-      const status = await chatService.checkEmailStatus(workletId);
-      setEmailStatus(status);
-    } catch (error) {
-      console.error('Error checking email status:', error);
-    }
-  };
-
-  // Send starred messages email
-  const handleSendStarredEmail = async () => {
-    if (!selectedRoom?.worklet_id) return;
-    
-    if (!window.confirm(`Send an email with starred messages from the last 5 minutes to all worklet members?`)) {
-      return;
-    }
-    
-    try {
-      setSendingEmail(true);
-      const result = await chatService.sendStarredMessagesEmail(selectedRoom.worklet_id);
-      
-      alert(`Email sent successfully to ${result.recipients_count} members! ${result.messages_included} starred messages included.`);
-      
-      // Refresh email status and messages
-      await checkEmailStatus(selectedRoom.worklet_id);
-      await fetchGroupMessages(selectedRoom.worklet_id);
-    } catch (error) {
-      console.error('Error sending email:', error);
-      const errorMsg = error.response?.data?.detail || 'Failed to send email';
-      alert(`Error: ${errorMsg}`);
-    } finally {
-      setSendingEmail(false);
-    }
   };
 
   // Send a message
@@ -753,10 +749,20 @@ export default function StudentChatPage() {
     }
   };
 
-  // Edit message handler - populate input field
-  const handleEditMessage = (message) => {
-    setEditingMessage(message);
-    setNewMessage(message.message_text);
+  // Edit message handler
+  const handleEditMessage = async (messageId, newText) => {
+    try {
+      await chatService.editMessage(messageId, { message_text: newText });
+      setMessages(messages.map(msg => 
+        msg.message_id === messageId 
+          ? { ...msg, message_text: newText, is_edited: true }
+          : msg
+      ));
+      setEditModal({ isOpen: false, messageId: null, currentText: '' });
+    } catch (error) {
+      console.error('Error editing message:', error);
+      alert('Failed to edit message');
+    }
   };
 
   // Cancel edit
@@ -769,32 +775,11 @@ export default function StudentChatPage() {
   const handleDeleteMessage = async (messageId) => {
     try {
       await chatService.deleteMessage(messageId);
-      // Remove message locally
-      setMessages((prev) => prev.filter(msg => msg.message_id !== messageId));
+      setMessages(messages.filter(msg => msg.message_id !== messageId));
+      setDeleteModal({ isOpen: false, messageId: null });
     } catch (error) {
       console.error('Error deleting message:', error);
       alert('Failed to delete message');
-    }
-  };
-
-  // Star message handler
-  const handleStarMessage = async (messageId) => {
-    try {
-      const response = await chatService.toggleStarMessage(messageId);
-      // Update message locally
-      setMessages((prev) => prev.map(msg => 
-        msg.message_id === messageId 
-          ? { ...msg, is_starred: response.is_starred }
-          : msg
-      ));
-      
-      // Refresh email status to update starred message count
-      if (selectedRoom?.worklet_id) {
-        checkEmailStatus(selectedRoom.worklet_id);
-      }
-    } catch (error) {
-      console.error('Error starring message:', error);
-      alert('Failed to star message');
     }
   };
 
@@ -1009,34 +994,29 @@ export default function StudentChatPage() {
                     {selectedRoom.isGroup && (
                       <>
                         <button
-                          onClick={handleSendStarredEmail}
-                          disabled={!emailStatus.can_send || sendingEmail || emailStatus.starred_messages_available === 0}
-                          className={`p-2 rounded-full transition-colors relative ${
-                            !emailStatus.can_send || sendingEmail || emailStatus.starred_messages_available === 0
-                              ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800'
-                              : 'hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                          }`}
-                          title={
-                            !emailStatus.can_send 
-                              ? 'Email already sent today' 
-                              : emailStatus.starred_messages_available === 0
-                              ? 'No starred messages in last 5 minutes'
-                              : 'Send starred messages via email'
-                          }
-                        >
-                          <Mail className="w-5 h-5" />
-                          {emailStatus.starred_messages_available > 0 && emailStatus.can_send && (
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                              {emailStatus.starred_messages_available}
-                            </span>
-                          )}
-                        </button>
-                        <button
                           onClick={() => handleViewGroupProfile(selectedRoom.worklet_id)}
                           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
                           title="View group info"
                         >
                           <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                        </button>
+                        <button
+                          onClick={() => setShowConfirmModal(true)}
+                          disabled={!emailStatus.can_send || sendingEmail}
+                          className={`p-2 rounded-lg transition-colors ${
+                            !emailStatus.can_send || sendingEmail
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
+                          }`}
+                          title={
+                            sendingEmail
+                              ? 'Sending email...'
+                              : emailStatus.email_sent_today
+                              ? 'Email already sent today'
+                              : 'Send email notification to all members'
+                          }
+                        >
+                          <Mail className="w-5 h-5" />
                         </button>
                       </>
                     )}
@@ -1072,9 +1052,8 @@ export default function StudentChatPage() {
                           message={message}
                           isOwnMessage={message.sender_id === currentUserId}
                           currentUserId={currentUserId}
-                          onEdit={handleEditMessage}
-                          onDelete={handleDeleteMessage}
-                          onStar={handleStarMessage}
+                          setDeleteModal={setDeleteModal}
+                          setEditModal={setEditModal}
                         />
                       ))}
                     </div>
@@ -1317,6 +1296,44 @@ export default function StudentChatPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Email Confirmation Modal */}
+      <EmailNotification
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onCancel={() => setShowConfirmModal(false)}
+        onConfirm={handleSendNotificationEmail}
+        type="confirm"
+        title="Send Email Notification?"
+        message="This will send an email notification to all worklet members about new messages. You can only send one email per worklet per day."
+      />
+
+      {/* Email Result Modal */}
+      <EmailNotification
+        isOpen={emailNotification.isOpen}
+        onClose={() => setEmailNotification({ ...emailNotification, isOpen: false })}
+        type={emailNotification.type}
+        title={emailNotification.title}
+        message={emailNotification.message}
+        recipientCount={emailNotification.recipientCount}
+      />
+
+      {/* Delete Message Modal */}
+      <MessageActionModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, messageId: null })}
+        onConfirm={() => handleDeleteMessage(deleteModal.messageId)}
+        type="delete"
+      />
+
+      {/* Edit Message Modal */}
+      <MessageActionModal
+        isOpen={editModal.isOpen}
+        onClose={() => setEditModal({ isOpen: false, messageId: null, currentText: '' })}
+        onConfirm={(newText) => handleEditMessage(editModal.messageId, newText)}
+        type="edit"
+        initialMessage={editModal.currentText}
+      />
     </div>
   );
 }
