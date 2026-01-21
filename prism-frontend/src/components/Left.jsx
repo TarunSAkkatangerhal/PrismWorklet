@@ -156,14 +156,15 @@ const LeftSidebar = () => {
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/student-dashboard')} />
                         <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/student-chat')} hasUnread={hasUnreadMessages} />
-                        <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
+                        <SidebarItem icon={<Award size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
+                        <SidebarItem icon={<User size={20} />} label="Profile" onClick={() => navigate('/student-profile')} />
                     </>
                 ) : userData && userData.role && userData.role.toLowerCase() === 'professor' ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/professor-dashboard')} />
                         <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/professor-chat')} hasUnread={hasUnreadMessages} />
+                        <SidebarItem icon={<Award size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                         <SidebarItem icon={<User size={20} />} label="Profile" onClick={() => navigate('/professor-profile')} />
-                        <SidebarItem icon={<Award size={20} />} label="My Achievement" onClick={() => navigate('/portfolio')} />
                     </>
                 ) : userData && userData.role ? (
                     <>

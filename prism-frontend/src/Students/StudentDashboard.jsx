@@ -231,8 +231,7 @@ export default function StudentDashboard() {
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-[1.5vw] mb-[3vh]">
           {/* Profile Card */}
           <div 
-            onClick={() => navigate('/student-profile')}
-            className="lg:col-span-2 relative overflow-visible rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700 cursor-pointer hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 group"
+            className="lg:col-span-2 relative overflow-visible rounded-2xl border border-white/10 bg-white/60 backdrop-blur-xl shadow-lg p-[1.5vw] dark:bg-slate-900/50 dark:border-slate-700 hover:shadow-2xl transition-all duration-300 group"
           >
             <div className="flex items-start gap-[1.2vw]">
               {userProfileData?.avatar_url ? (
@@ -254,10 +253,6 @@ export default function StudentDashboard() {
                   <h2 className="text-[clamp(1.125rem,1.8vw,1.5rem)] font-bold text-slate-900 dark:text-white">
                     {userProfileData?.name || userName}
                   </h2>
-                  <span className="text-sm text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                    View Profile
-                    <ChevronRight className="w-4 h-4" />
-                  </span>
                 </div>
                 {userProfileData?.email && (
                   <p className="text-[clamp(0.75rem,0.9vw,0.875rem)] text-slate-600 dark:text-slate-300 mt-[0.2vw]">
