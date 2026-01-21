@@ -1,9 +1,9 @@
 // Professor Profile Page - Comprehensive profile management for professors
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Mail, Award, 
-  Edit2, Save, X, School,
-  ExternalLink
+  User, Mail, Phone, BookOpen, Hash,
+  Calendar, Award, 
+  Edit2, Save, X, School
 } from 'lucide-react';
 import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
@@ -53,10 +53,7 @@ export default function ProfessorProfile() {
     department: '',
     designation: '',
     specialization: '',
-    bio: '',
-    github: '',
-    linkedin: '',
-    portfolio: ''
+    googleScholar: ''
   });
 
   // Load user profile data
@@ -78,10 +75,7 @@ export default function ProfessorProfile() {
         department: user.department || '',
         designation: user.designation || '',
         specialization: user.specialization || '',
-        bio: user.bio || '',
-        github: user.github || '',
-        linkedin: user.linkedin || '',
-        portfolio: user.portfolio || ''
+        googleScholar: user.googleScholar || user.google_scholar || ''
       });
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -142,10 +136,7 @@ export default function ProfessorProfile() {
       department: profileData?.department || '',
       designation: profileData?.designation || '',
       specialization: profileData?.specialization || '',
-      bio: profileData?.bio || '',
-      github: profileData?.github || '',
-      linkedin: profileData?.linkedin || '',
-      portfolio: profileData?.portfolio || ''
+      googleScholar: profileData?.googleScholar || profileData?.google_scholar || ''
     });
     setEditMode(false);
   };
@@ -200,7 +191,7 @@ export default function ProfessorProfile() {
                 <h1 className="text-xl font-bold text-slate-800 dark:text-white mb-1">
                   {profileData?.name || 'Professor'}
                 </h1>
-                <span className="inline-block px-3 py-0.5 bg-purple-200 dark:bg-white/20 backdrop-blur-sm text-purple-800 dark:text-white rounded-full text-xs font-semibold border border-purple-300 dark:border-white/30 mb-2">
+                <span className="inline-block px-3 py-0.5 bg-gradient-to-r from-purple-200 to-blue-200 dark:from-purple-600/30 dark:to-blue-600/30 backdrop-blur-sm text-purple-800 dark:text-white rounded-full text-xs font-semibold border border-purple-300 dark:border-white/30 mb-2">
                   {profileData?.role || 'Professor'}
                 </span>
                 <div className="flex flex-wrap gap-3 mt-1.5">
@@ -219,17 +210,17 @@ export default function ProfessorProfile() {
 
               {/* Stats Cards */}
               <div className="flex gap-1.5">
-                <div className="bg-white/50 dark:bg-white/20 backdrop-blur-sm rounded-lg p-2 border border-purple-300 dark:border-white/30 min-w-[70px]">
-                  <p className="text-lg font-bold text-indigo-700 dark:text-white leading-none">{stats.totalWorklets}</p>
-                  <p className="text-[10px] text-slate-700 dark:text-white/80 font-medium mt-0.5">Worklets</p>
+                <div className="bg-white/50 dark:bg-white/20 backdrop-blur-sm rounded-lg p-3 border border-slate-300 dark:border-white/30 min-w-[85px]">
+                  <p className="text-xl font-bold text-slate-700 dark:text-white leading-none">{stats.totalWorklets}</p>
+                  <p className="text-xs text-slate-700 dark:text-white/80 font-medium mt-1">Worklets</p>
                 </div>
-                <div className="bg-white/50 dark:bg-white/20 backdrop-blur-sm rounded-lg p-2 border border-purple-300 dark:border-white/30 min-w-[70px]">
-                  <p className="text-lg font-bold text-indigo-700 dark:text-white leading-none">{stats.completedWorklets}</p>
-                  <p className="text-[10px] text-slate-700 dark:text-white/80 font-medium mt-0.5">Completed</p>
+                <div className="bg-white/50 dark:bg-white/20 backdrop-blur-sm rounded-lg p-3 border border-slate-300 dark:border-white/30 min-w-[85px]">
+                  <p className="text-xl font-bold text-slate-700 dark:text-white leading-none">{stats.completedWorklets}</p>
+                  <p className="text-xs text-slate-700 dark:text-white/80 font-medium mt-1">Completed</p>
                 </div>
-                <div className="bg-white/50 dark:bg-white/20 backdrop-blur-sm rounded-lg p-2 border border-purple-300 dark:border-white/30 min-w-[70px]">
-                  <p className="text-lg font-bold text-indigo-700 dark:text-white leading-none">{stats.completionRate}%</p>
-                  <p className="text-[10px] text-slate-700 dark:text-white/80 font-medium mt-0.5">Success</p>
+                <div className="bg-white/50 dark:bg-white/20 backdrop-blur-sm rounded-lg p-3 border border-slate-300 dark:border-white/30 min-w-[85px]">
+                  <p className="text-xl font-bold text-slate-700 dark:text-white leading-none">{stats.completionRate}%</p>
+                  <p className="text-xs text-slate-700 dark:text-white/80 font-medium mt-1">Success</p>
                 </div>
               </div>
             </div>
@@ -267,223 +258,166 @@ export default function ProfessorProfile() {
           </div>
         </div>
 
-        {/* Content Grid Layout */}
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Personal Information Card */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-shadow">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3 pb-3 border-b-2 border-blue-100 dark:border-slate-700">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                Personal Information
-              </h3>
-              <div className="space-y-4">
-                {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Full Name</label>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.name || 'Not set'}
-                    </p>
-                  )}
-                </div>
-
-                {/* Phone Number */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Phone Number</label>
-                  {editMode ? (
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="+91 1234567890"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.phone || 'Not set'}
-                    </p>
-                  )}
-                </div>
-
-                {/* Department */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Department</label>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="department"
-                      value={formData.department}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Computer Science"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.department || 'Not set'}
-                    </p>
-                  )}
-                </div>
-
-                {/* Designation */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Designation</label>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="designation"
-                      value={formData.designation}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Assistant Professor, Associate Professor"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.designation || 'Not set'}
-                    </p>
-                  )}
-                </div>
-
-                {/* Specialization */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Area of Specialization</label>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="specialization"
-                      value={formData.specialization}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Machine Learning, Data Science"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <p className="text-base font-medium text-slate-900 dark:text-white px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      {formData.specialization || 'Not set'}
-                    </p>
-                  )}
-                </div>
+        {/* Personal Information Card - Two Column Layout */}
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-gradient-to-r from-purple-200 to-blue-200 dark:from-purple-700/50 dark:to-blue-700/50">
+              <div className="p-2 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg">
+                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-
-              {/* About Me - Full Width */}
-              <div className="mt-5 pt-5 border-t-2 border-slate-100 dark:border-slate-800">
-                <label className="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1.5">About Me</label>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">👤 Personal Information</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
+                  👨‍🏫 Full Name
+                </label>
                 {editMode ? (
-                  <textarea
-                    name="bio"
-                    value={formData.bio}
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
                     onChange={handleInputChange}
-                    rows="3"
-                    placeholder="Tell us about your academic background, research interests, and teaching experience..."
-                    className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white resize-none"
+                    className="w-full px-4 py-3 text-base bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/20 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
                   />
                 ) : (
-                  <p className="text-base text-slate-700 dark:text-slate-300 leading-relaxed px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                    {formData.bio || 'Tell us about your academic background, research interests, and teaching experience...'}
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                    {formData.name || 'Not set'}
                   </p>
                 )}
               </div>
-            </div>
 
-            {/* Professional Links */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-lg border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3 pb-3 border-b-2 border-blue-100 dark:border-slate-700">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <ExternalLink className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                Professional Links
-              </h3>
-              <div className="space-y-4">
-                {/* GitHub */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">GitHub</label>
-                  {editMode ? (
-                    <input
-                      type="url"
-                      name="github"
-                      value={formData.github}
-                      onChange={handleInputChange}
-                      placeholder="https://github.com/username"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-700/50 px-3 py-2.5 rounded-xl">
-                      <svg className="w-5 h-5 text-slate-700 dark:text-slate-300 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                      </svg>
-                      {formData.github ? (
-                        <a href={formData.github} target="_blank" rel="noopener noreferrer" className="text-base text-blue-600 dark:text-blue-400 hover:underline truncate">
-                          {formData.github}
-                        </a>
-                      ) : (
-                        <span className="text-base text-slate-500 dark:text-slate-400">Not provided</span>
-                      )}
-                    </div>
-                  )}
-                </div>
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+                  📧 Email
+                </label>
+                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20 break-all">
+                  {formData.email || 'Not set'}
+                </p>
+              </div>
 
-                {/* LinkedIn */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">LinkedIn</label>
-                  {editMode ? (
-                    <input
-                      type="url"
-                      name="linkedin"
-                      value={formData.linkedin}
-                      onChange={handleInputChange}
-                      placeholder="https://linkedin.com/in/username"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-700/50 px-3 py-2.5 rounded-xl">
-                      <svg className="w-5 h-5 text-slate-700 dark:text-slate-300 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                      </svg>
-                      {formData.linkedin ? (
-                        <a href={formData.linkedin} target="_blank" rel="noopener noreferrer" className="text-base text-blue-600 dark:text-blue-400 hover:underline truncate">
-                          {formData.linkedin}
-                        </a>
-                      ) : (
-                        <span className="text-base text-slate-500 dark:text-slate-400">Not provided</span>
-                      )}
-                    </div>
-                  )}
-                </div>
+              {/* Phone Number */}
+              <div>
+                <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
+                  📱 Phone Number
+                </label>
+                {editMode ? (
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="+91 1234567890"
+                    className="w-full px-4 py-3 text-base bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/20 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                    {formData.phone || 'Not set'}
+                  </p>
+                )}
+              </div>
 
-                {/* Portfolio */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Portfolio/Website</label>
-                  {editMode ? (
-                    <input
-                      type="url"
-                      name="portfolio"
-                      value={formData.portfolio}
-                      onChange={handleInputChange}
-                      placeholder="https://yourwebsite.com"
-                      className="w-full px-3 py-2.5 text-base bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-700/50 px-3 py-2.5 rounded-xl">
-                      <Award className="w-5 h-5 text-slate-700 dark:text-slate-300 flex-shrink-0" />
-                      {formData.portfolio ? (
-                        <a href={formData.portfolio} target="_blank" rel="noopener noreferrer" className="text-base text-blue-600 dark:text-blue-400 hover:underline truncate">
-                          {formData.portfolio}
-                        </a>
-                      ) : (
-                        <span className="text-base text-slate-500 dark:text-slate-400">Not provided</span>
-                      )}
-                    </div>
-                  )}
-                </div>
+              {/* College */}
+              <div>
+                <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+                  🏛️ College
+                </label>
+                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                  {formData.college || 'Not set'}
+                </p>
+              </div>
+
+              {/* Department */}
+              <div>
+                <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
+                  📚 Department
+                </label>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Computer Science"
+                    className="w-full px-4 py-3 text-base bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/20 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                    {formData.department || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Designation */}
+              <div>
+                <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+                  🎓 Designation
+                </label>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="designation"
+                    value={formData.designation}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Assistant Professor, Associate Professor"
+                    className="w-full px-4 py-3 text-base bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-white transition-all"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                    {formData.designation || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Specialization */}
+              <div>
+                <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
+                  🔬 Area of Specialization
+                </label>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="specialization"
+                    value={formData.specialization}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Machine Learning, Data Science"
+                    className="w-full px-4 py-3 text-base bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/20 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                    {formData.specialization || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Google Scholar */}
+              <div>
+                <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+                  🎓 Google Scholar Profile
+                </label>
+                {editMode ? (
+                  <input
+                    type="url"
+                    name="googleScholar"
+                    value={formData.googleScholar}
+                    onChange={handleInputChange}
+                    placeholder="https://scholar.google.com/citations?user=..."
+                    className="w-full px-4 py-3 text-base bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-white transition-all"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20 break-all">
+                    {formData.googleScholar ? (
+                      <a href={formData.googleScholar} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                        {formData.googleScholar}
+                      </a>
+                    ) : (
+                      'Not set'
+                    )}
+                  </p>
+                )}
               </div>
             </div>
           </div>
