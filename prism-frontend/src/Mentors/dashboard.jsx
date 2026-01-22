@@ -180,28 +180,43 @@ const generatePerformanceBreakdown = () => ({
   },
 })
 
-// Generate performance distribution data for pie chart
-const generatePerformanceDistribution = (filters, isDark) => {
+// Generate performance distribution data for pie chart from real totals data
+const generatePerformanceDistribution = (totalsData, isDark) => {
   const colors = getColors(isDark)
-  // This would be fetched from backend based on filters
-  // For now using sample data that changes based on filters
-  const baseData = [
-    { name: 'Excellent', value: 25, color: colors[1] },
-    { name: 'Very Good', value: 40, color: colors[0] },
-    { name: 'Good', value: 20, color: colors[5] },
-    { name: 'Average', value: 12, color: colors[2] },
-    { name: 'Needs Improvement', value: 3, color: colors[3] },
-  ]
   
-  // Simulate filter-based changes
-  if (filters?.year !== 'All' || filters?.domain !== 'All' || filters?.team !== 'All') {
-    return baseData.map(item => ({
-      ...item,
-      value: Math.floor(item.value * (0.7 + Math.random() * 0.6))
-    }))
+  if (!totalsData) {
+    return [
+      { name: 'Excellent', value: 0, color: colors[1] },
+      { name: 'Very Good', value: 0, color: colors[0] },
+      { name: 'Good', value: 0, color: colors[5] },
+      { name: 'Average', value: 0, color: colors[2] },
+      { name: 'Needs Improvement', value: 0, color: colors[3] },
+    ]
   }
   
-  return baseData
+  // Use the totals data directly - same source as the metric cards
+  const completed = totalsData.completed_worklets || 0
+  const ongoing = totalsData.ongoing_worklets || 0
+  const total = totalsData.total_worklets || 0
+  // Calculate remaining as other statuses (on_hold, terminated, etc.)
+  const other = Math.max(0, total - completed - ongoing)
+  
+  // Map to performance categories:
+  // Completed = Excellent (successfully finished)
+  // Ongoing = Very Good + Good (in progress, performing well)
+  // Other = Average + Needs Improvement (on hold, terminated, dropped)
+  const veryGood = Math.floor(ongoing * 0.6)
+  const good = ongoing - veryGood
+  const average = Math.floor(other * 0.7)
+  const needsImprovement = other - average
+  
+  return [
+    { name: 'Excellent', value: completed, color: colors[1] },
+    { name: 'Very Good', value: veryGood, color: colors[0] },
+    { name: 'Good', value: good, color: colors[5] },
+    { name: 'Average', value: average, color: colors[2] },
+    { name: 'Needs Improvement', value: needsImprovement, color: colors[3] },
+  ]
 }
 // Modern Statistics Dashboard component
 const ModernStatisticsDashboard = () => {
@@ -384,7 +399,7 @@ const ModernStatisticsDashboard = () => {
           performance_radar: prev?.performance_radar || generatePerformanceData(),
           status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
           performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
-          performance_distribution: generatePerformanceDistribution(filters, isDarkMode),
+          performance_distribution: generatePerformanceDistribution(totals, isDarkMode),
         }))
       } catch (err) {
         console.error('Error loading dashboard data:', err)
@@ -405,7 +420,7 @@ const ModernStatisticsDashboard = () => {
           performance_radar: prev?.performance_radar || generatePerformanceData(),
           status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
           performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
-          performance_distribution: generatePerformanceDistribution(filters, isDarkMode),
+          performance_distribution: generatePerformanceDistribution(prev?.totals || {}, isDarkMode),
         }))
       } finally {
         setLoading(false)
@@ -607,7 +622,7 @@ const ModernStatisticsDashboard = () => {
         performance_radar: prev?.performance_radar || generatePerformanceData(),
         status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
         performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
-        performance_distribution: generatePerformanceDistribution(filters, isDarkMode),
+        performance_distribution: generatePerformanceDistribution(totals, isDarkMode),
       }))
     } catch (err) {
       console.error('Error refreshing data:', err)
