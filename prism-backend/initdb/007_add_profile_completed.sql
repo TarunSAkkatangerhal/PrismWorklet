@@ -9,4 +9,4 @@ ALTER TABLE user_profiles
   ADD COLUMN skills TEXT NULL AFTER student_id,
   ADD COLUMN interests TEXT NULL AFTER skills,
   ADD COLUMN batch_from DATE NULL AFTER interests,
-  ADD COLUMN batch_to DATE NULL AFTER batch_from;
+  ADD COLUMN batch_to DATE NULL AFTER batch_from; 

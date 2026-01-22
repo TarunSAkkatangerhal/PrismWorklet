@@ -12,6 +12,8 @@ import {
   Users,
   FileText,
   Shield,
+  Maximize,
+  X,
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
 import { motion,} from 'framer-motion'
@@ -27,7 +29,9 @@ import {
   Legend,
   BarChart,
   Bar,
-  
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts'
 import {
   Title,
@@ -73,22 +77,24 @@ const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color, onClick
     transition={{ duration: 0.6 }}
     whileHover={{ y: -5, transition: { duration: 0.2 } }}
     onClick={isClickable ? onClick : undefined}
-    className={`p-6 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${
+    className={`p-4 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${
       isClickable ? 'cursor-pointer hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200' : ''
     }`}>
-    <div className="flex items-center justify-between h-full">
-      <div>
-        {/* Using dark: variants for cleaner, automatic theme switching */}
-        <Text className="text-gray-600 dark:text-gray-400">{title}</Text>
-        <Metric className="text-gray-900 dark:text-white">{value}</Metric>
-        {subtitle && <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">{subtitle}</Text>}
+    <div className="flex flex-col h-full">
+      {/* Icon and Title on same line */}
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={`w-5 h-5 flex-shrink-0 ${isClickable ? 'group-hover:scale-110 transition-transform' : ''}`} style={{ color }} />
+        <Text className="text-gray-600 dark:text-gray-400 text-xs font-semibold">{title}</Text>
       </div>
-      <Icon className={`w-8 h-8 ${isClickable ? 'group-hover:scale-110 transition-transform' : ''}`} style={{ color }} />
+      {/* Count */}
+      <Metric className="text-gray-900 dark:text-white text-2xl mb-1">{value}</Metric>
+      {/* Description */}
+      {subtitle && <Text className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</Text>}
     </div>
   </motion.div>
 )
 // Modern chart container component
-const ChartContainer = ({ title, children, isDark, exportAction }) => (
+const ChartContainer = ({ title, children, isDark, exportAction, previewAction }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -98,16 +104,28 @@ const ChartContainer = ({ title, children, isDark, exportAction }) => (
     }`}>
     <div className="flex justify-between items-center mb-6">
       <Title className={isDark ? 'text-white' : 'text-gray-900'}>{title}</Title>
-      {exportAction && (
-        <button
-          onClick={exportAction}
-          className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-            isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-          }`}>
-          <Download size={16} />
-          <span className="text-sm">Export</span>
-        </button>
-      )}
+      <div className="flex gap-2">
+        {previewAction && (
+          <button
+            onClick={previewAction}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+              isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}>
+            <Maximize size={16} />
+            <span className="text-sm">Preview</span>
+          </button>
+        )}
+        {exportAction && (
+          <button
+            onClick={exportAction}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+              isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}>
+            <Download size={16} />
+            <span className="text-sm">Export</span>
+          </button>
+        )}
+      </div>
     </div>
     {children}
   </motion.div>
@@ -161,6 +179,45 @@ const generatePerformanceBreakdown = () => ({
     'Needs Improvement': 40,
   },
 })
+
+// Generate performance distribution data for pie chart from real totals data
+const generatePerformanceDistribution = (totalsData, isDark) => {
+  const colors = getColors(isDark)
+  
+  if (!totalsData) {
+    return [
+      { name: 'Excellent', value: 0, color: colors[1] },
+      { name: 'Very Good', value: 0, color: colors[0] },
+      { name: 'Good', value: 0, color: colors[5] },
+      { name: 'Average', value: 0, color: colors[2] },
+      { name: 'Needs Improvement', value: 0, color: colors[3] },
+    ]
+  }
+  
+  // Use the totals data directly - same source as the metric cards
+  const completed = totalsData.completed_worklets || 0
+  const ongoing = totalsData.ongoing_worklets || 0
+  const total = totalsData.total_worklets || 0
+  // Calculate remaining as other statuses (on_hold, terminated, etc.)
+  const other = Math.max(0, total - completed - ongoing)
+  
+  // Map to performance categories:
+  // Completed = Excellent (successfully finished)
+  // Ongoing = Very Good + Good (in progress, performing well)
+  // Other = Average + Needs Improvement (on hold, terminated, dropped)
+  const veryGood = Math.floor(ongoing * 0.6)
+  const good = ongoing - veryGood
+  const average = Math.floor(other * 0.7)
+  const needsImprovement = other - average
+  
+  return [
+    { name: 'Excellent', value: completed, color: colors[1] },
+    { name: 'Very Good', value: veryGood, color: colors[0] },
+    { name: 'Good', value: good, color: colors[5] },
+    { name: 'Average', value: average, color: colors[2] },
+    { name: 'Needs Improvement', value: needsImprovement, color: colors[3] },
+  ]
+}
 // Modern Statistics Dashboard component
 const ModernStatisticsDashboard = () => {
   useDocumentTitle('Performance Analytics Dashboard');
@@ -170,6 +227,9 @@ const ModernStatisticsDashboard = () => {
   // Use the ThemeContext to get the current theme state dynamically.
   // This replaces the hardcoded `const isDarkMode = true;`
   const { isDarkMode } = useContext(ThemeContext)
+
+  // Preview modal state
+  const [previewChart, setPreviewChart] = useState(null)
 
   // Custom scrollbar styles
   React.useEffect(() => {
@@ -339,6 +399,7 @@ const ModernStatisticsDashboard = () => {
           performance_radar: prev?.performance_radar || generatePerformanceData(),
           status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
           performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
+          performance_distribution: generatePerformanceDistribution(totals, isDarkMode),
         }))
       } catch (err) {
         console.error('Error loading dashboard data:', err)
@@ -359,6 +420,7 @@ const ModernStatisticsDashboard = () => {
           performance_radar: prev?.performance_radar || generatePerformanceData(),
           status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
           performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
+          performance_distribution: generatePerformanceDistribution(prev?.totals || {}, isDarkMode),
         }))
       } finally {
         setLoading(false)
@@ -560,6 +622,7 @@ const ModernStatisticsDashboard = () => {
         performance_radar: prev?.performance_radar || generatePerformanceData(),
         status_distribution: prev?.status_distribution || generateStatusData(isDarkMode),
         performance_breakdown: prev?.performance_breakdown || generatePerformanceBreakdown(),
+        performance_distribution: generatePerformanceDistribution(totals, isDarkMode),
       }))
     } catch (err) {
       console.error('Error refreshing data:', err)
@@ -610,6 +673,9 @@ const ModernStatisticsDashboard = () => {
         break
       case 'performance':
         csvContent = 'Category,Score\n' + data.performance_radar.map((d) => `${d.subject},${d.userScore}`).join('\n')
+        break
+      case 'performance_distribution':
+        csvContent = 'Performance Level,Count\n' + (data.performance_distribution || []).map((d) => `${d.name},${d.value}`).join('\n')
         break
       default:
         // Handle other cases or provide a default export
@@ -718,8 +784,7 @@ const ModernStatisticsDashboard = () => {
 
         <section className="space-y-6">
           {/* Key Metrics Cards */}
-          {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
             <AnimatedMetricCard
               title="Total Worklets"
               value={statisticsData?.totals?.total_worklets || 0}
@@ -758,30 +823,12 @@ const ModernStatisticsDashboard = () => {
               color={getColors(isDarkMode)[5]}
               isDark={isDarkMode}
             />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <AnimatedMetricCard
               title="Total Mentors"
               value={statisticsData?.totals?.total_mentors || 0}
               subtitle="Across all domains"
               icon={Users}
               color={getColors(isDarkMode)[0]}
-              isDark={isDarkMode}
-            />
-            <AnimatedMetricCard
-              title="Papers Published"
-              value={statisticsData?.publications?.papers || 0}
-              subtitle="Cited in journals"
-              icon={FileText}
-              color={getColors(isDarkMode)[1]}
-              isDark={isDarkMode}
-            />
-            <AnimatedMetricCard
-              title="Patents Filed"
-              value={statisticsData?.publications?.patents || 0}
-              subtitle="Intellectual property"
-              icon={Shield}
-              color={getColors(isDarkMode)[4]}
               isDark={isDarkMode}
             />
             <AnimatedMetricCard
@@ -795,47 +842,19 @@ const ModernStatisticsDashboard = () => {
           </div>
 
           {/* Advanced Visualizations */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             {/* Interactive Line Chart with Scroll */}
             <ChartContainer
               title="Monthly Progress Trends"
               isDark={isDarkMode}
-              exportAction={() => exportData('monthly')}>
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    📊 {statisticsData?.monthly_data?.length || 0} {filters.year === 'All' ? 'years' : 'months'} of data available
-                    {filters.year === 'All' ? ' (Year-wise aggregated)' : ` (${filters.year})`}
-                  </p>
-                  <button
-                    onClick={() => {
-                      const scrollContainer = document.querySelector('.custom-scrollbar')
-                      scrollContainer?.scrollTo({ left: 0, behavior: 'smooth' })
-                    }}
-                    className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
-                    ← Start
-                  </button>
-                  <button
-                    onClick={() => {
-                      const scrollContainer = document.querySelector('.custom-scrollbar')
-                      scrollContainer?.scrollTo({ left: scrollContainer.scrollWidth, behavior: 'smooth' })
-                    }}
-                    className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
-                    End →
-                  </button>
-                </div>
-                <div className="flex space-x-2 items-center">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Total Worklets</span>
-                  <div className="w-2 h-2 bg-green-500 rounded-full ml-4"></div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Completed</span>
-                  <div className="w-3 h-3 bg-yellow-400 rounded-full ml-4 ring-2 ring-yellow-300"></div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Current Month</span>
-                </div>
-              </div>
-              <div className="overflow-x-auto pb-4 custom-scrollbar">
+              exportAction={() => exportData('monthly')}
+              previewAction={() => setPreviewChart('monthly')}>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                 📊 {statisticsData?.monthly_data?.length || 0} {filters.year === 'All' ? 'years' : 'months'} of data {filters.year === 'All' ? '(Year-wise aggregated)' : filters.year !== 'All' ? `(${filters.year})` : ''}
+              </p>
+              <div className="mt-8 overflow-x-auto pb-4 custom-scrollbar -ml-8">
                 <div className={filters.year === 'All' ? 'min-w-full' : 'min-w-[1200px]'}>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={statisticsData?.monthly_data || []}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
                       <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
@@ -928,20 +947,25 @@ const ModernStatisticsDashboard = () => {
                   </ResponsiveContainer>
                 </div>
               </div>
+              <div className="flex justify-center items-center mt-2">
+                <div className="w-3 h-3 bg-yellow-400 rounded-full ring-2 ring-yellow-300"></div>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Current Month</span>
+              </div>
             </ChartContainer>
 
-            {/* Modern Area Chart */}
-            {/* Worklet Status Bar Chart */}
-            {/* Worklet Status Bar Chart */}
             {/* Worklet Status Bar Chart */}
             <ChartContainer
               title="Worklet Status Trends"
               isDark={isDarkMode}
-              exportAction={() => exportData('status_trends')}>
-              <div className="overflow-x-auto pb-4 custom-scrollbar">
+              exportAction={() => exportData('status_trends')}
+              previewAction={() => setPreviewChart('status')}>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                 📊 Status breakdown across time periods
+              </p>
+              <div className="mt-10 overflow-x-auto pb-4 custom-scrollbar -ml-8">
                 {/* Dynamic width based on filter selection */}
                 <div className={filters.year === 'All' ? 'min-w-full' : 'min-w-[1200px]'}>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={statisticsData?.worklet_status_data || []}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
                       <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
@@ -977,7 +1001,11 @@ const ModernStatisticsDashboard = () => {
                         content={<CustomTooltip isDark={isDarkMode} />}
                         cursor={{ fill: isDarkMode ? '#374151' : '#f3f4f6' }}
                       />
-                      <Legend wrapperStyle={{ color: isDarkMode ? '#F3F4F6' : '#1F2937' }} />
+                      <Legend 
+                        wrapperStyle={{ color: isDarkMode ? '#F3F4F6' : '#1F2937' }} 
+                        align="right"
+                        verticalAlign="bottom"
+                      />
 
                       <Bar
                         dataKey="completed"
@@ -1000,9 +1028,239 @@ const ModernStatisticsDashboard = () => {
                 </div>
               </div>
             </ChartContainer>
+
+            {/* Performance Distribution Pie Chart */}
+            <ChartContainer
+              title="Performance Distribution"
+              isDark={isDarkMode}
+              exportAction={() => exportData('performance_distribution')}
+              previewAction={() => setPreviewChart('performance')}>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  📊 Worklet performance breakdown based on current filters
+                  {filters.year !== 'All' && ` (${filters.year})`}
+                  {filters.domain !== 'All' && ` - ${filters.domain}`}
+                  {filters.team !== 'All' && ` - ${filters.team}`}
+                </p>
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Total: {(statisticsData?.performance_distribution || []).reduce((sum, item) => sum + item.value, 0)} worklets
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={statisticsData?.performance_distribution || []}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={false}
+                    outerRadius={70}
+                    innerRadius={35}
+                    fill="#8884d8"
+                    dataKey="value"
+                    animationBegin={0}
+                    animationDuration={800}>
+                    {(statisticsData?.performance_distribution || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0]
+                        const total = (statisticsData?.performance_distribution || []).reduce((sum, item) => sum + item.value, 0)
+                        const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : 0
+                        return (
+                          <div
+                            className={`p-4 rounded-lg shadow-lg border ${
+                              isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200'
+                            }`}>
+                            <p className="font-semibold mb-2">{data.name}</p>
+                            <p style={{ color: data.payload.color }} className="text-sm">
+                              Count: {data.value}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Percentage: {percentage}%
+                            </p>
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Legend
+                    verticalAlign="bottom"
+                    height={36}
+                    wrapperStyle={{ color: isDarkMode ? '#E5E7EB' : '#374151' }}
+                    formatter={(value, entry) => (
+                      <span style={{ color: isDarkMode ? '#E5E7EB' : '#374151' }}>
+                        {value} ({entry.payload.value})
+                      </span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
           </div>
         </section>
       </main>
+
+      {/* Preview Modal */}
+      {previewChart && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-8"
+          onClick={() => setPreviewChart(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className={`relative w-full max-w-7xl h-[90vh] rounded-xl shadow-2xl p-8 ${
+              isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}
+            onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewChart(null)}
+              className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
+                isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              }`}>
+              <X size={24} />
+            </button>
+
+            {previewChart === 'monthly' && (
+              <div className="h-full flex flex-col">
+                <Title className={`mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Monthly Progress Trends - Detailed View
+                </Title>
+                <div className="flex-1 overflow-x-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={statisticsData?.monthly_data || []}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
+                      <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+                      <YAxis
+                        stroke={isDarkMode ? '#9CA3AF' : '#6B7280'}
+                        allowDecimals={false}
+                        tickFormatter={(v) => (Number.isInteger(v) ? v : '')}
+                      />
+                      <Tooltip content={<CustomTooltip isDark={isDarkMode} />} />
+                      <Legend wrapperStyle={{ color: isDarkMode ? '#E5E7EB' : '#374151' }} />
+                      <Line
+                        type="monotone"
+                        dataKey="worklets"
+                        stroke={getColors(isDarkMode)[0]}
+                        strokeWidth={4}
+                        dot={{ r: 6 }}
+                        name="Total Worklets"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="completed"
+                        stroke={getColors(isDarkMode)[1]}
+                        strokeWidth={4}
+                        dot={{ r: 6 }}
+                        name="Completed"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {previewChart === 'status' && (
+              <div className="h-full flex flex-col">
+                <Title className={`mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Worklet Status Trends - Detailed View
+                </Title>
+                <div className="flex-1 overflow-x-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={statisticsData?.worklet_status_data || []}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
+                      <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+                      <YAxis
+                        stroke={isDarkMode ? '#9CA3AF' : '#6B7280'}
+                        allowDecimals={false}
+                        tickFormatter={(v) => (Number.isInteger(v) ? v : '')}
+                      />
+                      <Tooltip
+                        content={<CustomTooltip isDark={isDarkMode} />}
+                        cursor={{ fill: isDarkMode ? '#374151' : '#f3f4f6' }}
+                      />
+                      <Legend wrapperStyle={{ color: isDarkMode ? '#F3F4F6' : '#1F2937' }} />
+                      <Bar dataKey="completed" stackId="a" name="Completed" fill={getColors(isDarkMode)[1]} />
+                      <Bar dataKey="ongoing" stackId="a" name="Ongoing" fill={getColors(isDarkMode)[0]} />
+                      <Bar dataKey="on_hold" stackId="a" name="On Hold" fill={getColors(isDarkMode)[2]} />
+                      <Bar dataKey="terminated" stackId="a" name="Terminated" fill={getColors(isDarkMode)[3]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {previewChart === 'performance' && (
+              <div className="h-full flex flex-col">
+                <Title className={`mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Performance Distribution - Detailed View
+                </Title>
+                <div className="flex-1 flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={statisticsData?.performance_distribution || []}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                        outerRadius={200}
+                        innerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        animationBegin={0}
+                        animationDuration={800}>
+                        {(statisticsData?.performance_distribution || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0]
+                            const total = (statisticsData?.performance_distribution || []).reduce((sum, item) => sum + item.value, 0)
+                            const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : 0
+                            return (
+                              <div
+                                className={`p-4 rounded-lg shadow-lg border ${
+                                  isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200'
+                                }`}>
+                                <p className="font-semibold mb-2">{data.name}</p>
+                                <p style={{ color: data.payload.color }} className="text-sm">
+                                  Count: {data.value}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  Percentage: {percentage}%
+                                </p>
+                              </div>
+                            )
+                          }
+                          return null
+                        }}
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        height={36}
+                        wrapperStyle={{ color: isDarkMode ? '#E5E7EB' : '#374151' }}
+                        formatter={(value, entry) => (
+                          <span style={{ color: isDarkMode ? '#E5E7EB' : '#374151', fontSize: '14px' }}>
+                            {value} ({entry.payload.value})
+                          </span>
+                        )}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

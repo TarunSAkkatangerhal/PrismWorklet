@@ -26,11 +26,9 @@ export const chatService = {
   },
 
   // Edit a message
-  async editMessage(messageId, newText) {
+  async editMessage(messageId, messageData) {
     try {
-      const response = await secureAPI.put(`/api/chat/messages/${messageId}`, {
-        message_text: newText,
-      });
+      const response = await secureAPI.put(`/api/chat/messages/${messageId}`, messageData);
       return response.data;
     } catch (error) {
       console.error('Error editing message:', error);
@@ -45,17 +43,6 @@ export const chatService = {
       return response.data;
     } catch (error) {
       console.error('Error deleting message:', error);
-      throw error;
-    }
-  },
-
-  // Toggle star on a message
-  async toggleStarMessage(messageId) {
-    try {
-      const response = await secureAPI.patch(`/api/chat/messages/${messageId}/star`);
-      return response.data;
-    } catch (error) {
-      console.error('Error toggling star on message:', error);
       throw error;
     }
   },
@@ -264,18 +251,18 @@ export const chatService = {
     }
   },
 
-  // Send starred messages email
-  async sendStarredMessagesEmail(workletId) {
+  // Send notification email to worklet members
+  async sendNotificationEmail(workletId) {
     try {
-      const response = await secureAPI.post(`/api/chat/groups/${workletId}/send-starred-email`);
+      const response = await secureAPI.post(`/api/chat/groups/${workletId}/send-notification-email`);
       return response.data;
     } catch (error) {
-      console.error('Error sending starred messages email:', error);
+      console.error('Error sending notification email:', error);
       throw error;
     }
   },
 
-  // Check email status for worklet
+  // Check email notification status for worklet
   async checkEmailStatus(workletId) {
     try {
       const response = await secureAPI.get(`/api/chat/groups/${workletId}/email-status`);

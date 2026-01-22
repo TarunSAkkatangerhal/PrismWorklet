@@ -39,7 +39,6 @@ class MessageResponse(BaseModel):
     sent_at: datetime
     is_read: bool
     is_edited: bool = False
-    is_starred: bool = False
     included_in_email: bool = False
 
     class Config:
@@ -368,7 +367,7 @@ async def get_group_messages(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get messages from a worklet group chat"""
+    """Get messages from a worklet group chat - only past 40 days"""
     # Verify user is a member
     is_member = db.query(UserWorkletAssociation).filter(
         and_(
@@ -380,9 +379,13 @@ async def get_group_messages(
     if not is_member:
         raise HTTPException(status_code=403, detail="Not a member of this worklet")
     
+    # Calculate date 40 days ago
+    forty_days_ago = datetime.utcnow() - timedelta(days=40)
+    
     messages = db.query(GroupChatMessage).filter(
         GroupChatMessage.worklet_id == worklet_id,
-        GroupChatMessage.is_deleted == False
+        GroupChatMessage.is_deleted == False,
+        GroupChatMessage.sent_at >= forty_days_ago
     ).order_by(desc(GroupChatMessage.sent_at)).offset(skip).limit(limit).all()
     
     # Mark messages as read by current user (create read receipts)
@@ -431,8 +434,7 @@ async def get_group_messages(
             attachments=msg.attachments,
             sent_at=msg.sent_at,
             is_read=is_read_by_all,
-            is_edited=msg.is_edited,
-            is_starred=msg.is_starred
+            is_edited=msg.is_edited
         ))
     
     return result
@@ -501,8 +503,7 @@ async def send_group_message(
         attachments=new_message.attachments,
         sent_at=new_message.sent_at,
         is_read=True,
-        is_edited=False,
-        is_starred=False
+        is_edited=False
     )
 
 
@@ -605,58 +606,6 @@ async def delete_message(
     return {"status": "success", "message": "Message deleted successfully"}
 
 
-@router.patch("/messages/{message_id}/star")
-async def toggle_star_message(
-    message_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Toggle star status on a message - only sender can star their own message"""
-    message = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == message_id).first()
-    
-    if not message:
-        raise HTTPException(status_code=404, detail="Message not found")
-    
-    # Only sender can star their own message
-    if message.sender_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You can only star your own messages")
-    
-    # Check if message is within 20 minutes of being sent
-    time_since_sent = datetime.utcnow() - message.sent_at
-    if time_since_sent.total_seconds() > 1200:  # 20 minutes = 1200 seconds
-        raise HTTPException(status_code=403, detail="Messages can only be starred within 20 minutes of sending")
-    
-    # Toggle star status
-    message.is_starred = not message.is_starred
-    
-    # Set starred_at timestamp when starring, clear it when unstarring
-    if message.is_starred:
-        message.starred_at = datetime.utcnow()
-    else:
-        message.starred_at = None
-    
-    db.commit()
-    
-    # Notify via websocket - group message only
-    members = db.query(UserWorkletAssociation).filter(
-        UserWorkletAssociation.worklet_id == message.worklet_id
-    ).all()
-    
-    star_notification = {
-        "type": "group_message_starred",
-        "data": {
-            "message_id": message.message_id,
-            "worklet_id": message.worklet_id,
-            "is_starred": message.is_starred
-        }
-    }
-    
-    for member in members:
-        await manager.send_personal_message(star_notification, member.user_id)
-    
-    return {"status": "success", "is_starred": message.is_starred}
-
-
 @router.get("/unread-count")
 async def get_unread_count(
     current_user: User = Depends(get_current_user),
@@ -713,16 +662,16 @@ async def create_missing_group_chats(
     }
 
 
-# ============= Email Trigger Endpoint =============
+# ============= Email Notification Endpoint =============
 
-@router.post("/groups/{worklet_id}/send-starred-email")
-async def send_starred_messages_email(
+@router.post("/groups/{worklet_id}/send-notification-email")
+async def send_notification_email(
     worklet_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Send an email to all worklet members with starred messages from the last 5 minutes.
+    Send a notification email to all worklet members.
     Only one email can be sent per worklet per day.
     """
     # Check if worklet exists
@@ -739,28 +688,16 @@ async def send_starred_messages_email(
     if not is_member:
         raise HTTPException(status_code=403, detail="You are not a member of this worklet")
     
-    # Check if email already sent today for this worklet
+    # Check if this user already sent email today for this worklet
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     existing_trigger = db.query(EmailTrigger).filter(
         EmailTrigger.worklet_id == worklet_id,
+        EmailTrigger.user_id == current_user.id,
         EmailTrigger.sent_at >= today_start
     ).first()
     
     if existing_trigger:
-        raise HTTPException(status_code=400, detail="Email has already been sent for this worklet today")
-    
-    # Get starred messages from the last 5 minutes (based on when they were starred)
-    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
-    starred_messages = db.query(GroupChatMessage).filter(
-        GroupChatMessage.worklet_id == worklet_id,
-        GroupChatMessage.is_starred == True,
-        GroupChatMessage.starred_at != None,
-        GroupChatMessage.starred_at >= five_minutes_ago,
-        GroupChatMessage.included_in_email == False
-    ).order_by(GroupChatMessage.sent_at.asc()).all()
-    
-    if not starred_messages:
-        raise HTTPException(status_code=400, detail="No starred messages found in the last 5 minutes")
+        raise HTTPException(status_code=400, detail="You have already sent an email notification for this worklet today")
     
     # Get all worklet members except the sender
     members = db.query(User).join(
@@ -776,81 +713,80 @@ async def send_starred_messages_email(
     
     # Build email content
     sender_role = current_user.role.capitalize() if current_user.role else "Member"
+    sender_name = current_user.name
     
-    # Prepare message content with character limit
-    messages_html = ""
-    total_chars = 0
-    max_email_chars = 2000  # Reserve space for header/footer
-    included_message_ids = []
-    
-    for msg in starred_messages:
-        # Get sender details
-        sender = db.query(User).filter(User.id == msg.sender_id).first()
-        sender_name = sender.name if sender else "Unknown"
-        
-        # Truncate long messages
-        message_preview = msg.message_text
-        if len(message_preview) > 150:
-            message_preview = message_preview[:150] + "..."
-        
-        # Format timestamp
-        time_str = msg.sent_at.strftime("%b %d, %I:%M %p")
-        
-        # Build message HTML
-        msg_html = f"""
-        <div style="margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-left: 3px solid #4F46E5;">
-            <div style="font-size: 12px; color: #666; margin-bottom: 5px;">
-                <strong>{sender_name}</strong> · {time_str}
-            </div>
-            <div style="color: #333;">{message_preview}</div>
-        </div>
-        """
-        
-        # Check if adding this message would exceed limit
-        if total_chars + len(msg_html) > max_email_chars:
-            break
-        
-        messages_html += msg_html
-        total_chars += len(msg_html)
-        included_message_ids.append(msg.message_id)
-    
-    # Create email body
+    # Create professional notification email
     email_html = f"""
     <html>
     <head>
         <style>
-            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-            .header {{ background: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
-            .content {{ background: white; padding: 20px; border: 1px solid #ddd; }}
-            .footer {{ background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; border-radius: 0 0 8px 8px; }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1a1f29; margin: 0; padding: 0; background: #f5f7fb; }}
+            .container {{ max-width: 600px; margin: 24px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.08); }}
+            .header {{ background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 32px 24px; text-align: center; }}
+            .header h2 {{ margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.3px; }}
+            .content {{ padding: 32px 28px; }}
+            .notification-box {{ background: linear-gradient(135deg, #EEF2FF, #F3E8FF); border-left: 4px solid #4F46E5; padding: 20px; margin: 24px 0; border-radius: 8px; }}
+            .notification-box p {{ margin: 0; }}
+            .notification-title {{ font-size: 16px; font-weight: 600; color: #4F46E5; margin-bottom: 12px; }}
+            .notification-details {{ font-size: 14px; color: #475569; line-height: 1.8; }}
+            .action-section {{ text-align: center; margin: 32px 0; }}
+            .action-button {{ display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }}
+            .footer {{ background: #F8FAFC; padding: 20px 24px; text-align: center; font-size: 12px; color: #64748B; border-top: 1px solid #E2E8F0; }}
+            .security-note {{ font-size: 13px; color: #64748B; background: #F1F5F9; padding: 14px; border-radius: 6px; margin-top: 20px; border-left: 3px solid #94A3B8; }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h2 style="margin: 0;">📩 Starred Messages from {worklet.title}</h2>
+                <h2>📩 PRISM Worklet Notification</h2>
             </div>
             <div class="content">
-                <p>Hello,</p>
-                <p>You have starred messages from a <strong>{sender_role}</strong> in the worklet <strong>{worklet.title}</strong>:</p>
-                <div style="margin: 20px 0;">
-                    {messages_html}
+                <p style="font-size: 15px; margin-bottom: 20px;">Dear Team Member,</p>
+                <div class="notification-box">
+                    <div class="notification-title">You have new messages in your worklet</div>
+                    <div class="notification-details">
+                        <strong>From:</strong> {sender_name} ({sender_role})<br>
+                        <strong>Worklet:</strong> {worklet.title}
+                    </div>
                 </div>
-                <p style="margin-top: 20px; font-size: 14px; color: #666;">
-                    {len(included_message_ids)} message(s) included · Last 5 minutes
+                <p style="font-size: 15px; line-height: 1.7; color: #334155;">
+                    Important updates have been shared in your worklet chat. Please log in to the PRISM platform to view and respond to these messages at your earliest convenience.
                 </p>
+                <div class="action-section">
+                    <a href="#" class="action-button">View Messages on PRISM</a>
+                </div>
+                <div class="security-note">
+                    <strong>Security Notice:</strong> For your privacy and security, message content is not included in email notifications. Please access the PRISM platform directly to view all details.
+                </div>
             </div>
             <div class="footer">
-                <p style="margin: 5px 0;">PRISM Worklet Platform</p>
+                <p style="margin: 5px 0; font-weight: 600; color: #475569;">Samsung PRISM Worklet Platform</p>
                 <p style="margin: 5px 0;">This is an automated notification. Please do not reply to this email.</p>
+                <p style="margin: 10px 0 5px; font-size: 11px;">© 2026 Samsung PRISM. All rights reserved.</p>
             </div>
         </div>
     </body>
     </html>
     """
     
-    email_subject = f"Starred Messages from {sender_role} - {worklet.title}"
+    email_subject = f"PRISM: New Messages in {worklet.title}"
+    
+    # Plain text version
+    plain_text_body = f"""Dear Team Member,
+
+You have new messages in your worklet.
+
+From: {sender_name} ({sender_role})
+Worklet: {worklet.title}
+
+Important updates have been shared in your worklet chat. Please log in to the PRISM platform to view and respond to these messages at your earliest convenience.
+
+Security Notice: For your privacy and security, message content is not included in email notifications. Please access the PRISM platform directly to view all details.
+
+---
+Samsung PRISM Worklet Platform
+This is an automated notification. Please do not reply to this email.
+"""
     
     # Send emails to all members
     failed_emails = []
@@ -860,17 +796,11 @@ async def send_starred_messages_email(
                 to_email=member.email,
                 subject=email_subject,
                 body_html=email_html,
-                body_plain=f"You have starred messages from {sender_role} in {worklet.title}. Please check the worklet chat for details."
+                body_plain=plain_text_body
             )
         except Exception as e:
             failed_emails.append(member.email)
             print(f"Failed to send email to {member.email}: {str(e)}")
-    
-    # Mark messages as included in email
-    for msg_id in included_message_ids:
-        msg = db.query(GroupChatMessage).filter(GroupChatMessage.message_id == msg_id).first()
-        if msg:
-            msg.included_in_email = True
     
     # Record email trigger
     email_trigger = EmailTrigger(
@@ -882,43 +812,46 @@ async def send_starred_messages_email(
     
     return {
         "status": "success",
-        "message": "Email sent successfully",
+        "message": "Notification email sent successfully",
         "recipients_count": len(members) - len(failed_emails),
-        "messages_included": len(included_message_ids),
         "failed_emails": failed_emails
     }
 
 
 @router.get("/groups/{worklet_id}/email-status")
-async def check_email_status(
+async def check_email_notification_status(
     worklet_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Check if email can be sent for this worklet today.
+    Check if email notification can be sent for this worklet today.
     """
-    # Check if email already sent today
+    # Check if worklet exists
+    worklet = db.query(Worklet).filter(Worklet.id == worklet_id).first()
+    if not worklet:
+        raise HTTPException(status_code=404, detail="Worklet not found")
+    
+    # Check if user is a member of this worklet
+    is_member = db.query(UserWorkletAssociation).filter(
+        UserWorkletAssociation.worklet_id == worklet_id,
+        UserWorkletAssociation.user_id == current_user.id
+    ).first()
+    
+    if not is_member:
+        raise HTTPException(status_code=403, detail="You are not a member of this worklet")
+    
+    # Check if this user already sent email today for this worklet
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     existing_trigger = db.query(EmailTrigger).filter(
         EmailTrigger.worklet_id == worklet_id,
+        EmailTrigger.user_id == current_user.id,
         EmailTrigger.sent_at >= today_start
     ).first()
-    
-    # Count starred messages from last 5 minutes (based on when they were starred)
-    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
-    starred_count = db.query(GroupChatMessage).filter(
-        GroupChatMessage.worklet_id == worklet_id,
-        GroupChatMessage.is_starred == True,
-        GroupChatMessage.starred_at != None,
-        GroupChatMessage.starred_at >= five_minutes_ago,
-        GroupChatMessage.included_in_email == False
-    ).count()
     
     return {
         "can_send": existing_trigger is None,
         "email_sent_today": existing_trigger is not None,
-        "starred_messages_available": starred_count,
         "last_sent": existing_trigger.sent_at if existing_trigger else None
     }
 
@@ -993,3 +926,35 @@ async def get_file(filename: str):
         raise HTTPException(status_code=403, detail="Access denied")
     
     return FileResponse(file_path)
+
+
+@router.delete("/cleanup-old-messages")
+async def cleanup_old_messages(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete messages older than 40 days from the database"""
+    # Only allow admin/system to run cleanup (optional security check)
+    # if current_user.role not in ['admin', 'system']:
+    #     raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    forty_days_ago = datetime.utcnow() - timedelta(days=40)
+    
+    # Delete old messages
+    deleted_count = db.query(GroupChatMessage).filter(
+        GroupChatMessage.sent_at < forty_days_ago
+    ).delete(synchronize_session=False)
+    
+    # Delete associated read receipts for deleted messages
+    db.query(GroupMessageReadReceipt).filter(
+        ~GroupMessageReadReceipt.message_id.in_(
+            db.query(GroupChatMessage.message_id)
+        )
+    ).delete(synchronize_session=False)
+    
+    db.commit()
+    
+    return {
+        "message": f"Deleted {deleted_count} messages older than 40 days",
+        "deleted_count": deleted_count
+    }
