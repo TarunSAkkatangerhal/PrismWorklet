@@ -132,6 +132,7 @@ export const useAuth = () => {
     logout,
     isAuthenticated: !!user,
     isStudent: user?.role?.toLowerCase() === 'student',
+    isProfessor: user?.role?.toLowerCase() === 'professor',
     isMentor: user?.role && ['mentor', 'admin', 'professor'].includes(user.role.toLowerCase())
   };
 };

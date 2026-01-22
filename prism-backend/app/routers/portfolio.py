@@ -28,14 +28,18 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
         raise HTTPException(status_code=404, detail="Mentor not found")
 
     # New schema entities
+    # Note: Achievements and commercializations are only available for Mentors (not Professors)
     # MySQL doesn't support NULLS LAST syntax; emulate via COALESCE (treat NULL year as 0)
-    achievements = (
-        db.query(Achievement)
-        .options(joinedload(Achievement.worklet))
-        .filter(Achievement.user_id == mentor_id)
-        .order_by((Achievement.year.is_(None)).asc(), Achievement.year.desc(), Achievement.created_at.desc())
-        .all()
-    )
+    achievements = []
+    commercializations = []
+    if mentor.role == "Mentor":
+        achievements = (
+            db.query(Achievement)
+            .options(joinedload(Achievement.worklet))
+            .filter(Achievement.user_id == mentor_id)
+            .order_by((Achievement.year.is_(None)).asc(), Achievement.year.desc(), Achievement.created_at.desc())
+            .all()
+        )
     papers = (
         db.query(Paper)
         .options(joinedload(Paper.worklet))
@@ -50,13 +54,14 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
         .order_by((Patent.filing_year.is_(None)).asc(), Patent.filing_year.desc(), Patent.created_at.desc())
         .all()
     )
-    commercializations = (
-        db.query(Commercialization)
-        .options(joinedload(Commercialization.worklet))
-        .filter(Commercialization.user_id == mentor_id)
-        .order_by((Commercialization.year.is_(None)).asc(), Commercialization.year.desc(), Commercialization.created_at.desc())
-        .all()
-    )
+    if mentor.role == "Mentor":
+        commercializations = (
+            db.query(Commercialization)
+            .options(joinedload(Commercialization.worklet))
+            .filter(Commercialization.user_id == mentor_id)
+            .order_by((Commercialization.year.is_(None)).asc(), Commercialization.year.desc(), Commercialization.created_at.desc())
+            .all()
+        )
 
     worklets_data = []
     if include_worklets:
@@ -155,19 +160,13 @@ def get_my_portfolio(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 @router.get("/student/{student_id}")
 def get_student_portfolio(student_id: int, db: Session = Depends(get_db), include_worklets: Optional[bool] = False, request: Request = None):
-    """Aggregate portfolio data for a student (achievements/papers/patents/commercializations)."""
+    """Aggregate portfolio data for a student (papers/patents only)."""
     user = db.query(User).filter(User.id == student_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     # Entities are keyed by user_id
-    achievements = (
-        db.query(Achievement)
-        .options(joinedload(Achievement.worklet))
-        .filter(Achievement.user_id == student_id)
-        .order_by((Achievement.year.is_(None)).asc(), Achievement.year.desc(), Achievement.created_at.desc())
-        .all()
-    )
+    # Note: Achievements and commercializations are only available for mentors
     papers = (
         db.query(Paper)
         .options(joinedload(Paper.worklet))
@@ -180,13 +179,6 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
         .options(joinedload(Patent.worklet))
         .filter(Patent.user_id == student_id)
         .order_by((Patent.filing_year.is_(None)).asc(), Patent.filing_year.desc(), Patent.created_at.desc())
-        .all()
-    )
-    commercializations = (
-        db.query(Commercialization)
-        .options(joinedload(Commercialization.worklet))
-        .filter(Commercialization.user_id == student_id)
-        .order_by((Commercialization.year.is_(None)).asc(), Commercialization.year.desc(), Commercialization.created_at.desc())
         .all()
     )
 
@@ -236,7 +228,6 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
             "role": user.role,
             "college": user.college,
         },
-        "achievements": [serialize(a) for a in achievements],
         "papers": [
             {
                 **with_abs_link(serialize(p)),
@@ -252,19 +243,10 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
             }
             for p in patents
         ],
-        "commercializations": [
-            {
-                **with_abs_link(serialize(c)),
-                "revenue": float(c.revenue) if getattr(c, "revenue", None) is not None else None,
-            }
-            for c in commercializations
-        ],
         "worklets": worklets_data,
         "stats": {
-            "achievements_count": len(achievements),
             "papers_count": len(papers),
             "patents_count": len(patents),
-            "commercializations_count": len(commercializations),
             "worklets_count": len(worklets_data),
         },
     }
