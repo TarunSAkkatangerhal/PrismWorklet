@@ -127,11 +127,14 @@ export default function StudentProfile() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      // Only send editable fields (not registration data)
+      // Send all editable fields except name and email
       const updateData = {
-        github: formData.github,
-        linkedin: formData.linkedin,
-        portfolio_url: formData.portfolio
+        contact_number: formData.phone,
+        program: formData.department,
+        student_id: formData.studentId,
+        qualification: formData.qualification,
+        batch_from: formData.batchFrom,
+        batch_to: formData.batchTo
       };
       
       await secureAPI.put('/auth/me/profile', updateData);
@@ -324,9 +327,20 @@ export default function StudentProfile() {
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
                   📱 Phone Number
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
-                  {formData.phone || 'Not set'}
-                </p>
+                {editMode ? (
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border-2 border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter phone number"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                    {formData.phone || 'Not set'}
+                  </p>
+                )}
               </div>
 
               {/* College */}
@@ -344,9 +358,20 @@ export default function StudentProfile() {
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
                   📚 Department / Branch
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
-                  {formData.department || 'Not set'}
-                </p>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                    className="w-full text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border-2 border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter department/branch"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                    {formData.department || 'Not set'}
+                  </p>
+                )}
               </div>
 
               {/* Student ID */}
@@ -354,9 +379,20 @@ export default function StudentProfile() {
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
                   🆔 Student ID
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
-                  {formData.studentId || 'Not set'}
-                </p>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="studentId"
+                    value={formData.studentId}
+                    onChange={handleInputChange}
+                    className="w-full text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border-2 border-indigo-300 dark:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Enter student ID"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                    {formData.studentId || 'Not set'}
+                  </p>
+                )}
               </div>
 
               {/* Qualification */}
@@ -364,29 +400,56 @@ export default function StudentProfile() {
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
                   🎓 Qualification
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
-                  {formData.qualification || 'Not set'}
-                </p>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="qualification"
+                    value={formData.qualification}
+                    onChange={handleInputChange}
+                    className="w-full text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border-2 border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter qualification"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                    {formData.qualification || 'Not set'}
+                  </p>
+                )}
               </div>
 
-              {/* Batch From */}
+              {/* Batch Period (From - To) */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  📅 Batch From
+                  📅 Batch Period
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
-                  {formData.batchFrom ? new Date(formData.batchFrom).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Not set'}
-                </p>
-              </div>
-
-              {/* Batch To */}
-              <div>
-                <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  📅 Batch To
-                </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
-                  {formData.batchTo ? new Date(formData.batchTo).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Not set'}
-                </p>
+                {editMode ? (
+                  <div className="flex gap-3 items-center">
+                    <input
+                      type="month"
+                      name="batchFrom"
+                      value={formData.batchFrom ? formData.batchFrom.substring(0, 7) : ''}
+                      onChange={handleInputChange}
+                      className="flex-1 text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border-2 border-indigo-300 dark:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="text-slate-600 dark:text-slate-400 font-semibold">to</span>
+                    <input
+                      type="month"
+                      name="batchTo"
+                      value={formData.batchTo ? formData.batchTo.substring(0, 7) : ''}
+                      onChange={handleInputChange}
+                      className="flex-1 text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border-2 border-indigo-300 dark:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                    {formData.batchFrom && formData.batchTo 
+                      ? `${new Date(formData.batchFrom).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })} - ${new Date(formData.batchTo).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`
+                      : formData.batchFrom 
+                      ? new Date(formData.batchFrom).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+                      : formData.batchTo
+                      ? new Date(formData.batchTo).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+                      : 'Not set'}
+                  </p>
+                )}
               </div>
             </div>
           </div>
