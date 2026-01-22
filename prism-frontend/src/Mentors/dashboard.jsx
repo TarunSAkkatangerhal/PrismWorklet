@@ -73,17 +73,19 @@ const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color, onClick
     transition={{ duration: 0.6 }}
     whileHover={{ y: -5, transition: { duration: 0.2 } }}
     onClick={isClickable ? onClick : undefined}
-    className={`p-6 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${
+    className={`p-4 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${
       isClickable ? 'cursor-pointer hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200' : ''
     }`}>
-    <div className="flex items-center justify-between h-full">
-      <div>
-        {/* Using dark: variants for cleaner, automatic theme switching */}
-        <Text className="text-gray-600 dark:text-gray-400">{title}</Text>
-        <Metric className="text-gray-900 dark:text-white">{value}</Metric>
-        {subtitle && <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">{subtitle}</Text>}
+    <div className="flex flex-col h-full">
+      {/* Icon and Title on same line */}
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={`w-5 h-5 flex-shrink-0 ${isClickable ? 'group-hover:scale-110 transition-transform' : ''}`} style={{ color }} />
+        <Text className="text-gray-600 dark:text-gray-400 text-xs font-semibold">{title}</Text>
       </div>
-      <Icon className={`w-8 h-8 ${isClickable ? 'group-hover:scale-110 transition-transform' : ''}`} style={{ color }} />
+      {/* Count */}
+      <Metric className="text-gray-900 dark:text-white text-2xl mb-1">{value}</Metric>
+      {/* Description */}
+      {subtitle && <Text className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</Text>}
     </div>
   </motion.div>
 )
@@ -718,8 +720,7 @@ const ModernStatisticsDashboard = () => {
 
         <section className="space-y-6">
           {/* Key Metrics Cards */}
-          {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
             <AnimatedMetricCard
               title="Total Worklets"
               value={statisticsData?.totals?.total_worklets || 0}
@@ -758,30 +759,12 @@ const ModernStatisticsDashboard = () => {
               color={getColors(isDarkMode)[5]}
               isDark={isDarkMode}
             />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <AnimatedMetricCard
               title="Total Mentors"
               value={statisticsData?.totals?.total_mentors || 0}
               subtitle="Across all domains"
               icon={Users}
               color={getColors(isDarkMode)[0]}
-              isDark={isDarkMode}
-            />
-            <AnimatedMetricCard
-              title="Papers Published"
-              value={statisticsData?.publications?.papers || 0}
-              subtitle="Cited in journals"
-              icon={FileText}
-              color={getColors(isDarkMode)[1]}
-              isDark={isDarkMode}
-            />
-            <AnimatedMetricCard
-              title="Patents Filed"
-              value={statisticsData?.publications?.patents || 0}
-              subtitle="Intellectual property"
-              icon={Shield}
-              color={getColors(isDarkMode)[4]}
               isDark={isDarkMode}
             />
             <AnimatedMetricCard

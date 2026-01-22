@@ -13,6 +13,7 @@ import {
   Loader,
   Grid3X3,
   List,
+  Download,
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
 import { ThemeContext } from '../context/ThemeContext'
@@ -170,6 +171,47 @@ const NavStat = () => {
     navigate('/Dashboard')
   }
 
+  const handleExport = () => {
+    // Get the worklets to export based on current filter
+    const dataToExport = filteredWorklets.map(worklet => ({
+      ID: worklet.cert_id || worklet.id,
+      College: worklet.college || 'N/A',
+      'Worklet Name': worklet.title
+    }))
+
+    if (dataToExport.length === 0) {
+      alert('No worklets to export')
+      return
+    }
+
+    // Convert to CSV
+    const headers = ['ID', 'College', 'Worklet Name']
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(row => 
+        headers.map(header => {
+          const value = row[header] || ''
+          // Escape values that contain commas or quotes
+          return value.includes(',') || value.includes('"') 
+            ? `"${value.replace(/"/g, '""')}"` 
+            : value
+        }).join(',')
+      )
+    ].join('\n')
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    const filterName = activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)
+    link.setAttribute('download', `${filterName}_Worklets_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const getFilterStats = () => {
     let total = worklets.length
     const completed = worklets.filter(w => w.status === 'Completed').length
@@ -325,12 +367,30 @@ const NavStat = () => {
                   </h2>
                 </div>
                 
-                {/* View Toggle Buttons */}
-                <div className={`flex items-center rounded-lg border ${
-                  isDarkMode 
-                    ? 'border-purple-700/30 bg-slate-800/40' 
-                    : 'border-purple-300/40 bg-white/60'
-                }`}>
+                {/* Export and View Toggle Buttons */}
+                <div className="flex items-center gap-2">
+                  {/* Export Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleExport}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                      isDarkMode
+                        ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-slate-700/70 hover:text-white'
+                        : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-white/80 hover:text-gray-800'
+                    }`}
+                    title="Export to CSV"
+                  >
+                    <Download size={16} />
+                    <span>Export</span>
+                  </motion.button>
+
+                  {/* View Toggle Buttons */}
+                  <div className={`flex items-center rounded-lg border ${
+                    isDarkMode 
+                      ? 'border-purple-700/30 bg-slate-800/40' 
+                      : 'border-purple-300/40 bg-white/60'
+                  }`}>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -365,6 +425,7 @@ const NavStat = () => {
                   >
                     <List size={16} />
                   </motion.button>
+                  </div>
                 </div>
               </div>
             </div>
