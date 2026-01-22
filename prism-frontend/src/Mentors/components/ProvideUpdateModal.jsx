@@ -2,24 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import axios from 'axios';
 
-const ProvideUpdateModal = ({ isOpen, onClose, worklet }) => {
-  const [progress, setProgress] = useState(50);
+const ProvideUpdateModal = ({ isOpen, onClose, worklet, onSuccess, onError }) => {
+  // Update type state
+  const [updateType, setUpdateType] = useState('adhoc'); // 'adhoc' or 'meeting'
+  
+  // Common states
+  const [ setProgress] = useState(50);
+  
+  // Ad-hoc update states
   const [workCompleted, setWorkCompleted] = useState('');
   const [challenges, setChallenges] = useState('');
   const [nextSteps, setNextSteps] = useState('');
   const [needSupport, setNeedSupport] = useState(false);
+  const [additionalNotes, setAdditionalNotes] = useState('');
+  
+  // Meeting update states
+  const [meetingAgenda, setMeetingAgenda] = useState('');
+  const [keyDiscussions, setKeyDiscussions] = useState('');
+  const [meetingNextSteps, setMeetingNextSteps] = useState('');
+  const [meetingNotes, setMeetingNotes] = useState('');
   
   // Worklet selection state (for dashboard usage)
   const [availableWorklets, setAvailableWorklets] = useState([]);
   const [selectedWorklet, setSelectedWorklet] = useState(null);
   const [loadingWorklets, setLoadingWorklets] = useState(false);
-
-  // Fetch student's worklets when modal opens without a pre-selected worklet
-  useEffect(() => {
-    if (isOpen && !worklet) {
-      fetchStudentWorklets();
-    }
-  }, [isOpen, worklet]);
 
   const fetchStudentWorklets = async () => {
     setLoadingWorklets(true);
@@ -83,37 +89,105 @@ const ProvideUpdateModal = ({ isOpen, onClose, worklet }) => {
     }
   };
 
+  // Fetch student's worklets when modal opens without a pre-selected worklet
+  useEffect(() => {
+    if (isOpen && !worklet) {
+      fetchStudentWorklets();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, worklet]);
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Determine which worklet to use (prop or selected)
     const targetWorklet = worklet || selectedWorklet;
     
     if (!targetWorklet) {
-      alert('Please select a worklet to provide an update for.');
+      if (onError) {
+        onError('Please select a worklet to provide an update for.');
+      } else {
+        alert('Please select a worklet to provide an update for.');
+      }
       return;
     }
     
-    // TODO: Add API call to submit update
-    console.log('Submit Update:', {
+    // Prepare payload based on update type
+    const payload = {
       worklet_id: targetWorklet.id,
-      worklet_cert_id: targetWorklet.cert_id,
-      progress,
-      workCompleted,
-      challenges,
-      nextSteps,
-      needSupport
-    });
+      update_type: updateType,
+    };
     
-    // Reset form
+    if (updateType === 'meeting') {
+      payload.meeting_agenda = meetingAgenda;
+      payload.key_discussions = keyDiscussions;
+      payload.meeting_next_steps = meetingNextSteps;
+      payload.meeting_notes = meetingNotes;
+    } else {
+      payload.work_completed = workCompleted;
+      payload.challenges = challenges;
+      payload.next_steps = nextSteps;
+      payload.need_support = needSupport;
+      payload.additional_notes = additionalNotes;
+    }
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        if (onError) {
+          onError('Please login to submit an update.');
+        } else {
+          alert('Please login to submit an update.');
+        }
+        return;
+      }
+      
+      const response = await axios.post(
+        'http://localhost:8000/api/updates/',
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (response.status === 201) {
+        if (onSuccess) {
+          onSuccess('Your update has been submitted successfully!');
+        } else {
+          alert('Update submitted successfully!');
+        }
+        // Reset form
+        resetForm();
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error submitting update:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to submit update. Please try again.';
+      if (onError) {
+        onError(errorMessage);
+      } else {
+        alert(errorMessage);
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setUpdateType('adhoc');
     setWorkCompleted('');
     setChallenges('');
     setNextSteps('');
     setNeedSupport(false);
-    
-    onClose();
+    setAdditionalNotes('');
+    setMeetingAgenda('');
+    setKeyDiscussions('');
+    setMeetingNextSteps('');
+    setMeetingNotes('');
   };
 
   return (
@@ -121,7 +195,7 @@ const ProvideUpdateModal = ({ isOpen, onClose, worklet }) => {
       <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Provide Progress Update</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Updates</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Share your current worklet progress with your mentor</p>
           </div>
           <button
@@ -203,96 +277,192 @@ const ProvideUpdateModal = ({ isOpen, onClose, worklet }) => {
               </div>
             )}
 
-            {/* Progress Percentage */}
+            {/* Update Type Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Progress Percentage
+                Update Type <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={progress}
-                  onChange={(e) => setProgress(parseInt(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={progress}
-                  onChange={(e) => setProgress(parseInt(e.target.value))}
-                  className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-                            bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-center
-                            focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">%</span>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setUpdateType('adhoc')}
+                  className={`px-4 py-3 rounded-lg border-2 font-medium transition-all duration-200 ${
+                    updateType === 'adhoc'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
+                  }`}
+                >
+                  Ad-hoc Update
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUpdateType('meeting')}
+                  className={`px-4 py-3 rounded-lg border-2 font-medium transition-all duration-200 ${
+                    updateType === 'meeting'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
+                  }`}
+                >
+                  Meeting Update
+                </button>
               </div>
             </div>
 
-            {/* Work Completed */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Work Completed This Week
-              </label>
-              <textarea
-                value={workCompleted}
-                onChange={(e) => setWorkCompleted(e.target.value)}
-                rows={4}
-                placeholder="Describe what you've accomplished this week..."
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-                          focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              />
-            </div>
+            {/* Conditional Fields Based on Update Type */}
+            {updateType === 'adhoc' ? (
+              // Ad-hoc Update Fields
+              <>
+                {/* Work Completed */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Work Completed <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={workCompleted}
+                    onChange={(e) => setWorkCompleted(e.target.value)}
+                    rows={4}
+                    required
+                    placeholder="Describe what you've accomplished..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
 
-            {/* Challenges Faced */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Challenges or Blockers
-              </label>
-              <textarea
-                value={challenges}
-                onChange={(e) => setChallenges(e.target.value)}
-                rows={3}
-                placeholder="Any issues or challenges you're facing? (optional)"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-                          focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              />
-            </div>
+                {/* Challenges Faced */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Challenges or Blockers
+                  </label>
+                  <textarea
+                    value={challenges}
+                    onChange={(e) => setChallenges(e.target.value)}
+                    rows={3}
+                    placeholder="Any issues or challenges you're facing? (optional)"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
 
-            {/* Next Steps */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Planned Next Steps
-              </label>
-              <textarea
-                value={nextSteps}
-                onChange={(e) => setNextSteps(e.target.value)}
-                rows={3}
-                placeholder="What do you plan to work on next?"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
-                          focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              />
-            </div>
+                {/* Next Steps */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Planned Next Steps <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={nextSteps}
+                    onChange={(e) => setNextSteps(e.target.value)}
+                    rows={3}
+                    required
+                    placeholder="What do you plan to work on next?"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
 
-            {/* Mentor Support Needed */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <input
-                  type="checkbox"
-                  checked={needSupport}
-                  onChange={(e) => setNeedSupport(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded 
-                            focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 
-                            focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                />
-                Need mentor support or guidance
-              </label>
-            </div>
+                {/* Additional Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Additional Notes
+                  </label>
+                  <textarea
+                    value={additionalNotes}
+                    onChange={(e) => setAdditionalNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Any other information you'd like to share (optional)"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
+
+                {/* Mentor Support Needed */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={needSupport}
+                      onChange={(e) => setNeedSupport(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded 
+                                focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 
+                                focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    Need mentor support or guidance
+                  </label>
+                </div>
+              </>
+            ) : (
+              // Meeting Update Fields
+              <>
+                {/* Meeting Agenda */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Meeting Agenda/Topics <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={meetingAgenda}
+                    onChange={(e) => setMeetingAgenda(e.target.value)}
+                    rows={3}
+                    required
+                    placeholder="What topics were covered in this meeting?"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
+
+                {/* Key Discussions */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Key Discussions & Decisions <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={keyDiscussions}
+                    onChange={(e) => setKeyDiscussions(e.target.value)}
+                    rows={4}
+                    required
+                    placeholder="Important points discussed and decisions made..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
+
+                {/* Planned Next Steps */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Planned Next Steps
+                  </label>
+                  <textarea
+                    value={meetingNextSteps}
+                    onChange={(e) => setMeetingNextSteps(e.target.value)}
+                    rows={3}
+                    placeholder="What are the next steps or action items? (optional)"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
+
+                {/* Meeting Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Additional Meeting Notes
+                  </label>
+                  <textarea
+                    value={meetingNotes}
+                    onChange={(e) => setMeetingNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Any other meeting notes or observations (optional)"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
+              </>
+            )}
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">

@@ -6,13 +6,13 @@ import InternReferralForm from "../Mentors/layouts/Intern";
 import FeedbackForm from "../Mentors/layouts/FeedbackForm";
 import EvaluateModal from "../Mentors/layouts/EvaluateModal";
 import ProvideUpdateModal from "../Mentors/components/ProvideUpdateModal";
-import MeetingUpdatesModal from "../Mentors/components/MeetingUpdatesModal";
-import TestimonialModal from "../Students/TestimonialModal";
+import TestimonialModal from "../Students/StudentTestimonialModal";
+import ProfessorTestimonialModal from "../Professors/ProfessorTestimonialModal";
 import axios from 'axios';
 import apiClient from '../services/secureAPI';
 
 import {
-  RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot, Calendar, Star
+  RefreshCcw, Lightbulb, Briefcase, MessageSquare, ClipboardCheck, PlusCircle, Bot, Star
 } from "lucide-react";
 
 const RightSidebar = () => {
@@ -26,8 +26,10 @@ const RightSidebar = () => {
   
   // Student modal states
   const [isProvideUpdateOpen, setIsProvideUpdateOpen] = useState(false);
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false);
+  
+  // Professor modal state
+  const [isProfessorTestimonialModalOpen, setIsProfessorTestimonialModalOpen] = useState(false);
   
   // Notification state for success/error messages
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
@@ -262,23 +264,19 @@ const RightSidebar = () => {
             <div className="space-y-[1.5vh]">
               <ActivityButton
                 icon={<RefreshCcw className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-blue-600" />}
-                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Provide Update</span>}
+                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Updates</span>}
                 onClick={() => setIsProvideUpdateOpen(true)}
-              />
-              <ActivityButton
-                icon={<Calendar className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-green-600" />}
-                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Meeting Updates</span>}
-                onClick={() => setIsMeetingModalOpen(true)}
-              />
-              <ActivityButton
-                icon={<MessageSquare className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-indigo-600" />}
-                label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Submit Feedback</span>}
-                onClick={() => setIsFeedbackFormOpen(true)}
               />
               <ActivityButton
                 icon={<Star className="w-[clamp(1rem,1.5vw,1.25rem)] h-[clamp(1rem,1.5vw,1.25rem)] text-yellow-600" />}
                 label={<span className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold">Testimonials</span>}
-                onClick={() => setIsTestimonialModalOpen(true)}
+                onClick={() => {
+                  if (userData.role.toLowerCase() === 'student') {
+                    setIsTestimonialModalOpen(true);
+                  } else if (userData.role.toLowerCase() === 'professor') {
+                    setIsProfessorTestimonialModalOpen(true);
+                  }
+                }}
               />
             </div>
           </>
@@ -397,17 +395,20 @@ const RightSidebar = () => {
         isOpen={isProvideUpdateOpen}
         onClose={() => setIsProvideUpdateOpen(false)}
         worklet={null}
-      />
-
-      <MeetingUpdatesModal
-        isOpen={isMeetingModalOpen}
-        onClose={() => setIsMeetingModalOpen(false)}
-        worklet={null}
+        onSuccess={showSuccessNotification}
+        onError={showErrorNotification}
       />
 
       <TestimonialModal
         isOpen={isTestimonialModalOpen}
         onClose={() => setIsTestimonialModalOpen(false)}
+        worklet={null}
+      />
+
+      {/* Professor Modals */}
+      <ProfessorTestimonialModal
+        isOpen={isProfessorTestimonialModalOpen}
+        onClose={() => setIsProfessorTestimonialModalOpen(false)}
         worklet={null}
       />
     </aside>

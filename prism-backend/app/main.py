@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app import auth
-from app.routers import worklets, health, dashboard, evaluations, associations, portfolio, suggestions, milestones, meetings, students
+from app.routers import worklets, health, dashboard, evaluations, associations, portfolio, suggestions, milestones, meetings, students, updates
 from app.core.config import settings
 from app.core.rate_limiter import RateLimiter
 from app.database import get_db
@@ -98,6 +98,7 @@ app.include_router(milestones.router)
 app.include_router(college.router)
 app.include_router(meetings.router, prefix="/api/meetings", tags=["meetings"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+app.include_router(updates.router)
 
 # Backwards-compatible alias for student worklets under /api
 from fastapi import Depends
