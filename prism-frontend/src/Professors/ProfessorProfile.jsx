@@ -1,8 +1,7 @@
 // Professor Profile Page - Comprehensive profile management for professors
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Mail, Phone, BookOpen, Hash,
-  Calendar, Award, 
+  User, Mail,
   Edit2, Save, X, School
 } from 'lucide-react';
 import LeftSidebar from '../components/Left';

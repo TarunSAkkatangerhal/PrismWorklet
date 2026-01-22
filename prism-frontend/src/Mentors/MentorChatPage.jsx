@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Check, MoreVertical, CheckCheck, Paperclip, Image as ImageIcon, File, Download, FileText, Mail } from 'lucide-react';
+import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Check, MoreVertical, CheckCheck, Image as ImageIcon, File, Download, FileText, Mail } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
@@ -450,7 +450,6 @@ export default function MentorChatPage() {
   const [pollingInterval, setPollingInterval] = useState(5000); // Start at 5s
   const [editingMessage, setEditingMessage] = useState(null);
   const [attachments, setAttachments] = useState([]);
-  const [uploadingFile, setUploadingFile] = useState(false);
   const [emailStatus, setEmailStatus] = useState({ can_send: true, email_sent_today: false });
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailNotification, setEmailNotification] = useState({
@@ -465,7 +464,6 @@ export default function MentorChatPage() {
   const [editModal, setEditModal] = useState({ isOpen: false, messageId: null, currentText: '' });
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
-  const fileInputRef = useRef(null);
   const isFirstLoadRef = useRef(true);
 
   const scrollToBottom = (instant = false) => {
@@ -647,32 +645,6 @@ export default function MentorChatPage() {
       });
     } finally {
       setSendingEmail(false);
-    }
-  };
-
-  // Handle file upload
-  const handleFileUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    setUploadingFile(true);
-    try {
-      const response = await secureAPI.post('/api/chat/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      setAttachments([...attachments, response.data]);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      alert(error.response?.data?.detail || 'Failed to upload file');
-    } finally {
-      setUploadingFile(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
   };
 

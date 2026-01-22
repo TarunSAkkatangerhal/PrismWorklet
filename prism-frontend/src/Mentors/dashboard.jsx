@@ -10,8 +10,6 @@ import {
   CheckCircle,
   GraduationCap,
   Users,
-  FileText,
-  Shield,
   Maximize,
   X,
 } from 'lucide-react'

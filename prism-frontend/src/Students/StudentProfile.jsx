@@ -1,8 +1,7 @@
 // Student Profile Page - Comprehensive profile management for students
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Mail, Phone, BookOpen, Hash,
-  Calendar, GraduationCap, School,
+  User, Mail, School,
   Edit2, Save, X
 } from 'lucide-react';
 import LeftSidebar from '../components/Left';
