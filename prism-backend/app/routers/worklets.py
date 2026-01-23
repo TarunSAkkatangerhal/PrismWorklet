@@ -87,18 +87,33 @@ def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme
 
 @router.get("", response_model=List[WorkletResponse], include_in_schema=False)
 @router.get("/", response_model=List[WorkletResponse])
-def list_worklets(year: Optional[int] = None, db: Session = Depends(get_db)):
-    """List worklets from the new DB shape with optional year filtering.
+def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team: Optional[str] = None, db: Session = Depends(get_db)):
+    """List worklets from the new DB shape with optional year, domain, and team filtering.
     Year is derived from start_date/end_date when not explicitly stored.
     Uses eager loading to avoid N+1 query problems.
     """
     from sqlalchemy.orm import joinedload
+    from app.models import TechDomain, TeamMG
     
-    # Eager load college and team relationships to avoid N+1 queries
-    worklets = db.query(Worklet).options(
+    # Build base query with eager loading
+    query = db.query(Worklet).options(
         joinedload(Worklet.college_rel),
         joinedload(Worklet.team_rel)
-    ).all()
+    )
+    
+    # Apply domain filter if provided
+    if domain is not None and domain != "All":
+        domain_obj = db.query(TechDomain).filter(TechDomain.domain_name == domain).first()
+        if domain_obj:
+            query = query.filter(Worklet.tech_domain_id == domain_obj.id)
+    
+    # Apply team filter if provided
+    if team is not None and team != "All":
+        team_obj = db.query(TeamMG).filter(TeamMG.team_name == team).first()
+        if team_obj:
+            query = query.filter(Worklet.team_mg_id == team_obj.id)
+    
+    worklets = query.all()
     
     # Batch fetch all student associations to avoid N+1 queries
     worklet_ids = [w.id for w in worklets]

@@ -178,42 +178,20 @@ const generatePerformanceBreakdown = () => ({
   },
 })
 
-// Generate performance distribution data for pie chart from real totals data
+// Generate performance distribution data for pie chart from real API performance data
 const generatePerformanceDistribution = (totalsData, isDark) => {
   const colors = getColors(isDark)
   
-  if (!totalsData) {
-    return [
-      { name: 'Excellent', value: 0, color: colors[1] },
-      { name: 'Very Good', value: 0, color: colors[0] },
-      { name: 'Good', value: 0, color: colors[5] },
-      { name: 'Average', value: 0, color: colors[2] },
-      { name: 'Needs Improvement', value: 0, color: colors[3] },
-    ]
-  }
-  
-  // Use the totals data directly - same source as the metric cards
-  const completed = totalsData.completed_worklets || 0
-  const ongoing = totalsData.ongoing_worklets || 0
-  const total = totalsData.total_worklets || 0
-  // Calculate remaining as other statuses (on_hold, terminated, etc.)
-  const other = Math.max(0, total - completed - ongoing)
-  
-  // Map to performance categories:
-  // Completed = Excellent (successfully finished)
-  // Ongoing = Very Good + Good (in progress, performing well)
-  // Other = Average + Needs Improvement (on hold, terminated, dropped)
-  const veryGood = Math.floor(ongoing * 0.6)
-  const good = ongoing - veryGood
-  const average = Math.floor(other * 0.7)
-  const needsImprovement = other - average
+  // Use actual performance_distribution from backend API
+  const perfDist = totalsData?.performance_distribution || {}
   
   return [
-    { name: 'Excellent', value: completed, color: colors[1] },
-    { name: 'Very Good', value: veryGood, color: colors[0] },
-    { name: 'Good', value: good, color: colors[5] },
-    { name: 'Average', value: average, color: colors[2] },
-    { name: 'Needs Improvement', value: needsImprovement, color: colors[3] },
+    { name: 'Excellent', value: perfDist.excellent || 0, color: colors[1] },
+    { name: 'Very Good', value: perfDist.very_good || 0, color: colors[0] },
+    { name: 'Good', value: perfDist.good || 0, color: colors[5] },
+    { name: 'Average', value: perfDist.average || 0, color: colors[2] },
+    { name: 'Needs Improvement', value: perfDist.needs_improvement || 0, color: colors[3] },
+    { name: 'Not Rated', value: perfDist.not_rated || 0, color: '#9CA3AF' },
   ]
 }
 // Modern Statistics Dashboard component

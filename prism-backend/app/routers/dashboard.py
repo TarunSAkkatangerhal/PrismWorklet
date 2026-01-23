@@ -6,6 +6,7 @@ from app.models import User, Worklet, UserWorkletAssociation, Paper, Patent
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from app.core.config import settings
+from app.core.constants import normalize_performance
 from datetime import date, datetime, time
 from calendar import monthrange
 from typing import Optional
@@ -196,6 +197,42 @@ def get_dashboard_statistics(
             papers_count = db.query(Paper).filter(Paper.publication_year == selected_year).count()
             patents_count = db.query(Patent).filter(Patent.filing_year == selected_year).count()
 
+        # Calculate performance distribution from worklets
+        if selected_year is None:
+            perf_worklets = worklets_query.all()
+        else:
+            perf_worklets = [db.query(Worklet).filter(Worklet.id == wid).first() for wid in year_active_ids]
+            perf_worklets = [w for w in perf_worklets if w is not None]
+        
+        performance_counts = {
+            "excellent": 0,
+            "very_good": 0,
+            "good": 0,
+            "average": 0,
+            "needs_improvement": 0,
+            "not_rated": 0,
+        }
+        
+        for w in perf_worklets:
+            raw_performance = getattr(w, 'Performance', None)
+            performance = normalize_performance(raw_performance)
+            if performance and performance.lower() not in ("na", "n/a", ""):
+                perf_lower = performance.lower().replace(" ", "_")
+                if perf_lower == "excellent":
+                    performance_counts["excellent"] += 1
+                elif perf_lower in ("very_good", "very good"):
+                    performance_counts["very_good"] += 1
+                elif perf_lower == "good":
+                    performance_counts["good"] += 1
+                elif perf_lower == "average":
+                    performance_counts["average"] += 1
+                elif perf_lower in ("poor", "needs_improvement", "needs improvement"):
+                    performance_counts["needs_improvement"] += 1
+                else:
+                    performance_counts["not_rated"] += 1
+            else:
+                performance_counts["not_rated"] += 1
+
         logger.debug(f"Dashboard statistics computed:")
         logger.info(f"  total_mentors: {total_mentors}")
         logger.info(f"  total_worklets: {total_worklets}")
@@ -217,6 +254,7 @@ def get_dashboard_statistics(
             "completion_rate": round((completed_worklets / total_worklets * 100) if total_worklets > 0 else 0, 1),
             "total_professors": total_professors,
             "publications": {"papers": papers_count, "patents": patents_count},
+            "performance_distribution": performance_counts,
         }
         if debug:
             result["debug"] = debug_info

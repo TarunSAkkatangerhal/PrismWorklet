@@ -37,6 +37,8 @@ const NavStat = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
   const yearFilter = location.state?.year || 'All'
+  const domainFilter = location.state?.domain || 'All'
+  const teamFilter = location.state?.team || 'All'
 
   // Filter options configuration
   const filterOptions = [
@@ -73,6 +75,8 @@ const NavStat = () => {
       if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       const params = new URLSearchParams()
       if (yearFilter && yearFilter !== 'All') params.set('year', yearFilter)
+      if (domainFilter && domainFilter !== 'All') params.set('domain', domainFilter)
+      if (teamFilter && teamFilter !== 'All') params.set('team', teamFilter)
       
       let data = []
       try {
@@ -114,7 +118,7 @@ const NavStat = () => {
     } finally {
       setLoading(false)
     }
-  }, [yearFilter, targetCollege])
+  }, [yearFilter, domainFilter, teamFilter, targetCollege])
 
   // Apply filter whenever full dataset or activeFilter changes
   useEffect(() => {
