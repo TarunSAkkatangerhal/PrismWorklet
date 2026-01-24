@@ -35,7 +35,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],  # Specific methods only
     allow_headers=["*"],
     expose_headers=["*"],
 )
@@ -52,6 +52,30 @@ def read_root():
     return {"message": "Welcome to Samsung Prism Backend!"}
 
 # Removed unused root-level completed worklets endpoint
+
+# HTTPS enforcement middleware (production only) - DISABLED
+# This was causing issues with localhost development
+# For production deployment, use a reverse proxy (Nginx/Traefik) for HTTPS enforcement instead
+# @app.middleware("http")
+# async def https_redirect(request: Request, call_next):
+#     if not settings.DEBUG and request.url.scheme == "http":
+#         url = request.url.replace(scheme="https")
+#         from fastapi.responses import RedirectResponse
+#         return RedirectResponse(url=str(url), status_code=301)
+#     return await call_next(request)
+
+
+# Request size limit middleware (10MB max)
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    max_size = 10 * 1024 * 1024  # 10MB
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > max_size:
+        return JSONResponse(
+            status_code=413,
+            content={"detail": "Request body too large. Maximum size is 10MB."}
+        )
+    return await call_next(request)
 
 # Custom middleware for request timing and logging
 @app.middleware("http")
@@ -72,14 +96,24 @@ async def global_exception_handler(request: Request, exc: Exception):
             "detail": str(exc) if settings.DEBUG else "An unexpected error occurred"
         }
     )
+# Smart rate limiting - only for sensitive auth endpoints
+# Excludes frequent check endpoints like /auth/me, /auth/profile to prevent UX issues
+login_rate_limiter = RateLimiter(times=10, window=60)  # 10 login attempts per minute
+auth_check_rate_limiter = RateLimiter(times=200, window=60)  # 200 auth checks per minute
 
-# Rate limiting for auth endpoints
-auth_rate_limiter = RateLimiter(times=30, window=60)  # 30 requests per minute
 @app.middleware("http")
-async def rate_limit_auth(request: Request, call_next: Callable):
-    if request.url.path.startswith("/auth/"):
-        await auth_rate_limiter(request)
-    return await call_next(request)
+async def smart_rate_limit(request: Request, call_next: Callable):
+    path = request.url.path
+    
+    # Strict rate limiting for login/register (prevent brute force)
+    if path in ["/auth/login", "/auth/register", "/auth/token"]:
+        await login_rate_limiter(request)
+    # Lenient rate limiting for auth checks (allow frequent legitimate use)
+    elif path.startswith("/auth/"):
+        await auth_check_rate_limiter(request)
+    
+    response = await call_next(request)
+    return response
 
 
 # Routers
