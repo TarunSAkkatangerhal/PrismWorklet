@@ -1,8 +1,7 @@
 // Student Profile Page - Comprehensive profile management for students
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Mail, Phone, BookOpen, Hash,
-  Calendar, GraduationCap, School,
+  User, Mail, School,
   Edit2, Save, X
 } from 'lucide-react';
 import LeftSidebar from '../components/Left';
@@ -298,16 +297,16 @@ export default function StudentProfile() {
               <div className="p-2 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg">
                 <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">👤 Personal Information</h3>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Personal Information</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Full Name */}
               <div>
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  👨‍🎓 Full Name
+                  Full Name
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
                   {formData.name || 'Not set'}
                 </p>
               </div>
@@ -315,9 +314,9 @@ export default function StudentProfile() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  📧 Email
+                  Email
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20 break-all">
+                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:bg-slate-700/50 rounded-lg border border-indigo-100/50 dark:border-slate-600 break-all">
                   {formData.email || 'Not set'}
                 </p>
               </div>
@@ -325,7 +324,7 @@ export default function StudentProfile() {
               {/* Phone Number */}
               <div>
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  📱 Phone Number
+                  Phone Number
                 </label>
                 {editMode ? (
                   <input
@@ -337,7 +336,7 @@ export default function StudentProfile() {
                     placeholder="Enter phone number"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
                     {formData.phone || 'Not set'}
                   </p>
                 )}
@@ -346,9 +345,9 @@ export default function StudentProfile() {
               {/* College */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  🏛️ College
+                  College
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:bg-slate-700/50 rounded-lg border border-indigo-100/50 dark:border-slate-600">
                   {formData.college || 'Not set'}
                 </p>
               </div>
@@ -356,7 +355,7 @@ export default function StudentProfile() {
               {/* Department */}
               <div>
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  📚 Department / Branch
+                  Department / Branch
                 </label>
                 {editMode ? (
                   <input
@@ -368,7 +367,7 @@ export default function StudentProfile() {
                     placeholder="Enter department/branch"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
                     {formData.department || 'Not set'}
                   </p>
                 )}
@@ -377,7 +376,7 @@ export default function StudentProfile() {
               {/* Student ID */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  🆔 Student ID
+                  Student ID
                 </label>
                 {editMode ? (
                   <input
@@ -389,7 +388,7 @@ export default function StudentProfile() {
                     placeholder="Enter student ID"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:bg-slate-700/50 rounded-lg border border-indigo-100/50 dark:border-slate-600">
                     {formData.studentId || 'Not set'}
                   </p>
                 )}
@@ -398,7 +397,7 @@ export default function StudentProfile() {
               {/* Qualification */}
               <div>
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  🎓 Qualification
+                  Qualification
                 </label>
                 {editMode ? (
                   <input
@@ -410,7 +409,7 @@ export default function StudentProfile() {
                     placeholder="Enter qualification"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
                     {formData.qualification || 'Not set'}
                   </p>
                 )}
@@ -419,7 +418,7 @@ export default function StudentProfile() {
               {/* Batch Period (From - To) */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  📅 Batch Period
+                  Batch Period
                 </label>
                 {editMode ? (
                   <div className="flex gap-3 items-center">
@@ -440,7 +439,7 @@ export default function StudentProfile() {
                     />
                   </div>
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:bg-slate-700/50 rounded-lg border border-indigo-100/50 dark:border-slate-600">
                     {formData.batchFrom && formData.batchTo 
                       ? `${new Date(formData.batchFrom).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })} - ${new Date(formData.batchTo).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`
                       : formData.batchFrom 

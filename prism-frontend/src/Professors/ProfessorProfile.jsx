@@ -1,8 +1,7 @@
 // Professor Profile Page - Comprehensive profile management for professors
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Mail, Phone, BookOpen, Hash,
-  Calendar, Award, 
+  User, Mail,
   Edit2, Save, X, School
 } from 'lucide-react';
 import LeftSidebar from '../components/Left';
@@ -265,14 +264,14 @@ export default function ProfessorProfile() {
               <div className="p-2 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg">
                 <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">👤 Personal Information</h3>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Personal Information</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Full Name */}
               <div>
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  👨‍🏫 Full Name
+                  Full Name
                 </label>
                 {editMode ? (
                   <input
@@ -283,7 +282,7 @@ export default function ProfessorProfile() {
                     className="w-full px-4 py-3 text-base bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/20 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
                     {formData.name || 'Not set'}
                   </p>
                 )}
@@ -292,9 +291,9 @@ export default function ProfessorProfile() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  📧 Email
+                  Email
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20 break-all">
+                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:bg-slate-700/50 rounded-lg border border-indigo-100/50 dark:border-slate-600 break-all">
                   {formData.email || 'Not set'}
                 </p>
               </div>
@@ -302,7 +301,7 @@ export default function ProfessorProfile() {
               {/* Phone Number */}
               <div>
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  📱 Phone Number
+                  Phone Number
                 </label>
                 {editMode ? (
                   <input
@@ -314,7 +313,7 @@ export default function ProfessorProfile() {
                     className="w-full px-4 py-3 text-base bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/20 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
                     {formData.phone || 'Not set'}
                   </p>
                 )}
@@ -323,9 +322,9 @@ export default function ProfessorProfile() {
               {/* College */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  🏛️ College
+                  College
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:bg-slate-700/50 rounded-lg border border-indigo-100/50 dark:border-slate-600">
                   {formData.college || 'Not set'}
                 </p>
               </div>
@@ -333,7 +332,7 @@ export default function ProfessorProfile() {
               {/* Department */}
               <div>
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  📚 Department
+                  Department
                 </label>
                 {editMode ? (
                   <input
@@ -345,7 +344,7 @@ export default function ProfessorProfile() {
                     className="w-full px-4 py-3 text-base bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/20 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
                     {formData.department || 'Not set'}
                   </p>
                 )}
@@ -354,7 +353,7 @@ export default function ProfessorProfile() {
               {/* Designation */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  🎓 Designation
+                  Designation
                 </label>
                 {editMode ? (
                   <input
@@ -366,7 +365,7 @@ export default function ProfessorProfile() {
                     className="w-full px-4 py-3 text-base bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-white transition-all"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:bg-slate-700/50 rounded-lg border border-indigo-100/50 dark:border-slate-600">
                     {formData.designation || 'Not set'}
                   </p>
                 )}
@@ -375,7 +374,7 @@ export default function ProfessorProfile() {
               {/* Specialization */}
               <div>
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                  🔬 Area of Specialization
+                  Area of Specialization
                 </label>
                 {editMode ? (
                   <input
@@ -387,7 +386,7 @@ export default function ProfessorProfile() {
                     className="w-full px-4 py-3 text-base bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/20 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-white transition-all"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:from-blue-900/10 dark:to-blue-800/10 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
                     {formData.specialization || 'Not set'}
                   </p>
                 )}
@@ -396,7 +395,7 @@ export default function ProfessorProfile() {
               {/* Google Scholar */}
               <div>
                 <label className="block text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-                  🎓 Google Scholar Profile
+                  Google Scholar Profile
                 </label>
                 {editMode ? (
                   <input
@@ -408,7 +407,7 @@ export default function ProfessorProfile() {
                     className="w-full px-4 py-3 text-base bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-white transition-all"
                   />
                 ) : (
-                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-lg border border-indigo-100/50 dark:border-indigo-800/20 break-all">
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-indigo-50/50 dark:bg-slate-700/50 rounded-lg border border-indigo-100/50 dark:border-slate-600 break-all">
                     {formData.googleScholar ? (
                       <a href={formData.googleScholar} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">
                         {formData.googleScholar}

@@ -12,8 +12,7 @@ import InternReferralForm from '../layouts/Intern'
 import FeedbackForm from '../layouts/FeedbackForm'
 import LeftSidebar from '../../components/Left'
 import ProvideUpdateModal from '../components/ProvideUpdateModal'
-import MeetingUpdatesModal from '../components/MeetingUpdatesModal'
-import TestimonialModal from '../../Students/TestimonialModal'
+import TestimonialModal from '../../Students/StudentTestimonialModal'
 import { getCurrentUser } from '../../services/auth'
 import ProfessionalSelect from '../../components/ProfessionalSelect'
 
@@ -51,7 +50,12 @@ import {
   MoreHorizontal,
   ThumbsUp,
   Zap,
-  Star
+  Star,
+  TrendingUp,
+  AlertTriangle,
+  ArrowRight,
+  User,
+  Video
 } from 'lucide-react'
 import { interpolate } from 'framer-motion'
 
@@ -269,7 +273,6 @@ export default function WorkletDetailPage() {
   const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false)
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
   const [isInternModalOpen, setIsInternModalOpen] = useState(false)
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false)
   
   // Notification state for success/error messages
@@ -411,6 +414,7 @@ export default function WorkletDetailPage() {
   })
   const [allMilestoneFiles, setAllMilestoneFiles] = useState([])
   const [suggestions, setSuggestions] = useState([])
+  const [workletUpdates, setWorkletUpdates] = useState([])
 
   // --- NOTIFICATION HANDLERS ---
   const showSuccessNotification = (message) => {
@@ -534,6 +538,26 @@ export default function WorkletDetailPage() {
           console.error('Error fetching suggestions:', suggError)
           // Don't fail the whole page if suggestions fetch fails
           setSuggestions([])
+        }
+
+        // Fetch worklet updates
+        try {
+          const updatesResponse = await axios.get(
+            `http://localhost:8000/api/updates/worklet/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+              },
+            }
+          )
+          
+          if (updatesResponse.data) {
+            setWorkletUpdates(updatesResponse.data)
+          }
+        } catch (updatesError) {
+          console.error('Error fetching worklet updates:', updatesError)
+          setWorkletUpdates([])
         }
 
         // Fetch milestones for this worklet
@@ -2189,7 +2213,7 @@ export default function WorkletDetailPage() {
                     { id: 'overview', label: 'Overview', icon: <BookOpen size={16} /> },
                     { id: 'team', label: 'Team', icon: <Users size={16} /> },
                     { id: 'milestone', label: 'Milestones', icon: <Target size={16} /> },
-                    { id: 'suggestions', label: 'Suggestions', icon: <Lightbulb size={16} /> },
+                    { id: 'suggestions', label: 'Suggestions/Updates', icon: <Lightbulb size={16} /> },
                     { id: 'files', label: 'Files', icon: <FolderOpen size={16} /> }
                   ].map((tab) => (
                     <button
@@ -2340,7 +2364,7 @@ export default function WorkletDetailPage() {
                 {/* Other tabs can be added here following the same pattern */}
                 {activeTab === 'milestone' && <MilestoneTab />}
 
-                {/* Suggestions Tab */}
+                {/* Suggestions/Updates Tab */}
                 {activeTab === 'suggestions' && (
                   <GlassCard className="p-6">
                     <div className="flex items-center justify-between mb-6">
@@ -2351,7 +2375,7 @@ export default function WorkletDetailPage() {
                         <div>
                           <h3 className="text-xl font-bold text-gray-900 dark:text-white">MENTOR SUGGESTIONS</h3>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Feedback and recommendations from your mentors
+                            {userRole === 'mentor' ? 'Your suggestions and recommendations' : 'Feedback and recommendations from your mentors'}
                           </p>
                         </div>
                       </div>
@@ -2404,15 +2428,6 @@ export default function WorkletDetailPage() {
                                           New
                                         </span>
                                       )}
-                                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        suggestion.priority === 'high' 
-                                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                                          : suggestion.priority === 'medium'
-                                          ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
-                                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                                      }`}>
-                                        {suggestion.priority}
-                                      </span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                       <span className="font-medium text-gray-700 dark:text-gray-300">
@@ -2596,6 +2611,237 @@ export default function WorkletDetailPage() {
                         ))
                       )}
                     </div>
+
+                    {/* Worklet Updates Section */}
+                    {workletUpdates.length > 0 && (
+                      <div className="mt-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg">
+                            <Activity size={20} className="text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">WORKLET UPDATES</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Progress updates and meeting summaries
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {workletUpdates.map((update, index) => (
+                            <div 
+                              key={update.id}
+                              className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm p-5 transition-all duration-200 hover:shadow-md ${
+                                update.update_type === 'adhoc'
+                                  ? 'border-blue-200 dark:border-blue-700/50 bg-blue-50/20 dark:bg-blue-900/5'
+                                  : 'border-purple-200 dark:border-purple-700/50 bg-purple-50/20 dark:bg-purple-900/5'
+                              }`}
+                            >
+                              <div className="flex items-start gap-4">
+                                {/* Update Type Icon */}
+                                <div className="flex-shrink-0">
+                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg ${
+                                    update.update_type === 'adhoc'
+                                      ? 'bg-gradient-to-br from-blue-400 to-blue-600'
+                                      : 'bg-gradient-to-br from-purple-400 to-purple-600'
+                                  }`}>
+                                    {update.update_type === 'adhoc' ? (
+                                      <TrendingUp size={20} />
+                                    ) : (
+                                      <Video size={20} />
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Content */}
+                                <div className="flex-grow">
+                                  {/* Header */}
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base">
+                                          {update.update_type === 'adhoc' ? 'Ad-hoc Progress Update' : 'Meeting Summary'}
+                                        </h4>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          update.update_type === 'adhoc'
+                                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                            : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                        }`}>
+                                          {update.update_type === 'adhoc' ? 'Ad-hoc' : 'Meeting'}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <Clock size={12} />
+                                        <span>{new Date(update.timestamp).toLocaleDateString('en-US', { 
+                                          month: 'short', 
+                                          day: 'numeric', 
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}</span>
+                                        {update.submitted_by_name && (
+                                          <>
+                                            <span>•</span>
+                                            <User size={12} />
+                                            <span className="font-medium text-gray-600 dark:text-gray-400">
+                                              {update.submitted_by_name}
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Ad-hoc Update Fields */}
+                                  {update.update_type === 'adhoc' && (
+                                    <div className="space-y-3">
+                                      {update.work_completed && (
+                                        <div>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <CheckCircle size={14} className="text-green-600 dark:text-green-400" />
+                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                              Work Completed
+                                            </span>
+                                          </div>
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-5">
+                                            {update.work_completed}
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {update.challenges && (
+                                        <div>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <AlertTriangle size={14} className="text-orange-600 dark:text-orange-400" />
+                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                              Challenges
+                                            </span>
+                                          </div>
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-5">
+                                            {update.challenges}
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {update.next_steps && (
+                                        <div>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <ArrowRight size={14} className="text-blue-600 dark:text-blue-400" />
+                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                              Next Steps
+                                            </span>
+                                          </div>
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-5">
+                                            {update.next_steps}
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {update.need_support !== null && update.need_support !== undefined && (
+                                        <div className="mt-3 p-2 bg-white dark:bg-gray-800/50 rounded-lg border-l-4 
+                                                      border-purple-500 dark:border-purple-400">
+                                          <div className="flex items-center gap-2">
+                                            <Users size={14} className="text-purple-600 dark:text-purple-400" />
+                                            <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">
+                                              Support Required
+                                            </span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
+                                            <span className={`text-xs font-medium ${
+                                              update.need_support 
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-green-600 dark:text-green-400'
+                                            }`}>
+                                              {update.need_support ? 'Yes' : 'No'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {update.additional_notes && (
+                                        <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg border-l-4 
+                                                      border-gray-400 dark:border-gray-600">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <FileText size={14} className="text-gray-500 dark:text-gray-400" />
+                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                              Additional Notes
+                                            </span>
+                                          </div>
+                                          <p className="text-xs text-gray-700 dark:text-gray-300">
+                                            {update.additional_notes}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Meeting Update Fields */}
+                                  {update.update_type === 'meeting' && (
+                                    <div className="space-y-3">
+                                      {update.meeting_agenda && (
+                                        <div>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <Target size={14} className="text-purple-600 dark:text-purple-400" />
+                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                              Agenda
+                                            </span>
+                                          </div>
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-5">
+                                            {update.meeting_agenda}
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {update.key_discussions && (
+                                        <div>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <MessageCircle size={14} className="text-indigo-600 dark:text-indigo-400" />
+                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                              Key Discussions
+                                            </span>
+                                          </div>
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-5">
+                                            {update.key_discussions}
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {update.meeting_next_steps && (
+                                        <div>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <ArrowRight size={14} className="text-blue-600 dark:text-blue-400" />
+                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                              Next Steps
+                                            </span>
+                                          </div>
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-5">
+                                            {update.meeting_next_steps}
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {update.meeting_notes && (
+                                        <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg border-l-4 
+                                                      border-gray-400 dark:border-gray-600">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <FileText size={14} className="text-gray-500 dark:text-gray-400" />
+                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                              Notes
+                                            </span>
+                                          </div>
+                                          <p className="text-xs text-gray-700 dark:text-gray-300">
+                                            {update.meeting_notes}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </GlassCard>
                 )}
 
@@ -2810,22 +3056,25 @@ export default function WorkletDetailPage() {
                     <>
                       <ActivityButton
                         icon={<FileText size={18} />}
-                        label="Provide Update"
+                        label="Updates"
                         status="Share your progress"
                         onClick={() => setIsProvideUpdateOpen(true)}
                       />
                       <ActivityButton
-                        icon={<Calendar size={18} />}
-                        label="Meeting Updates"
-                        status="Log meeting notes"
-                        onClick={() => setIsMeetingModalOpen(true)}
+                        icon={<Star size={18} />}
+                        label="Testimonials"
+                        status="Share your experience"
+                        onClick={() => setIsTestimonialModalOpen(true)}
                       />
+                    </>
+                  ) : userRole === 'professor' ? (
+                    // Professor Quick Actions
+                    <>
                       <ActivityButton
-                        icon={<MessageSquare size={18} />}
-                        label="Submit Feedback"
-                        status={milestones.length === 0 ? "No milestones available" : "Share your feedback"}
-                        onClick={() => setIsFeedbackOpen(true)}
-                        disabled={milestones.length === 0}
+                        icon={<FileText size={18} />}
+                        label="Updates"
+                        status="Share your updates"
+                        onClick={() => setIsProvideUpdateOpen(true)}
                       />
                       <ActivityButton
                         icon={<Star size={18} />}
@@ -2835,7 +3084,7 @@ export default function WorkletDetailPage() {
                       />
                     </>
                   ) : (
-                    // Mentor Quick Actions (existing)
+                    // Mentor Quick Actions
                     <>
                       <ActivityButton
                         icon={<PlusCircle size={18} />}
@@ -2919,12 +3168,6 @@ export default function WorkletDetailPage() {
       <ProvideUpdateModal
         isOpen={isProvideUpdateOpen}
         onClose={() => setIsProvideUpdateOpen(false)}
-        worklet={worklet}
-      />
-
-      <MeetingUpdatesModal
-        isOpen={isMeetingModalOpen}
-        onClose={() => setIsMeetingModalOpen(false)}
         worklet={worklet}
       />
 

@@ -820,6 +820,7 @@ export default function StudentChatPage() {
         handleSelectRoom({ ...targetWorklet, isGroup: true, displayName: targetWorklet.group_name });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.workletId, groupChats, selectedRoom]);
 
   // Filter and sort rooms by search, type, and latest message - empty since we only show groups
