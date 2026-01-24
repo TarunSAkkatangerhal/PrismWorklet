@@ -245,7 +245,7 @@ const ModernStatisticsDashboard = () => {
   
   const [statisticsData, setStatisticsData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({ year: 'All', domain: 'All', team: 'All' })
+  const [filters, setFilters] = useState({ year: new Date().getFullYear(), domain: 'All', team: 'All' })
   const [options, setOptions] = useState({ years: [], domains: [], teams: [] })
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -698,10 +698,10 @@ const ModernStatisticsDashboard = () => {
           <div className="flex items-center space-x-3">
             <select
               value={filters.year}
-              onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, year: e.target.value === 'All' ? e.target.value : parseInt(e.target.value) })}
               className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
               <option value="All">All Years</option>
-              {(options.years || []).map((year) => (
+              {(options.years || []).sort((a, b) => b - a).map((year) => (
                 <option key={year} value={year}>
                   {year}
                 </option>

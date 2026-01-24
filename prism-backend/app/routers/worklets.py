@@ -180,18 +180,14 @@ def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team
         except Exception:
             derived_year = None
 
-        # Apply year filter if provided (using active window logic to match dashboard)
+        # Apply year filter if provided (using start_date year to match dashboard)
         if year is not None:
-            # Check if worklet was active at any point during the specified year
+            # Check if worklet started in the specified year
             start_date = getattr(w, "start_date", None)
-            end_date = getattr(w, "end_date", None) or datetime.utcnow().date()
             
             if start_date is not None:
-                year_start = date(year, 1, 1)
-                year_end = date(year, 12, 31)
-                
-                # Skip if worklet ended before year started or started after year ended
-                if end_date < year_start or start_date > year_end:
+                # Only include worklets that started in this year
+                if start_date.year != year:
                     continue
             else:
                 # If no start date, skip this worklet when year filter is applied

@@ -44,11 +44,11 @@ def get_dashboard_statistics(
     db: Session = Depends(get_db)
 ):
     """Get platform-wide dashboard statistics.
-    When a year is provided, compute KPIs scoped to that year using active-window semantics:
-      - total_worklets: worklets active at any point in the year (overlap)
-      - completed_worklets: worklets with end_date in the year
-      - ongoing_worklets: worklets active in the year and not completed/terminated within the year
-      - total_mentors/students/professors: unique users associated to year-active worklets (by role)
+    When a year is provided, compute KPIs scoped to that year using start_date:
+      - total_worklets: worklets with start_date in the specified year
+      - completed_worklets: worklets with status_id=2 (Completed) and start_date in year
+      - ongoing_worklets: worklets with status_id=1 (Ongoing) and start_date in year
+      - total_mentors/students/professors: unique users associated to year worklets (by role)
       - publications: counts of papers/patents in that year
     Supports optional domain and team filtering.
     Without year, returns overall totals.
@@ -124,74 +124,48 @@ def get_dashboard_statistics(
             start_dt = datetime.combine(year_start, time.min)
             end_dt = datetime.combine(year_end, time.max)
 
-            # Use filtered worklets query
-            worklets = worklets_query.all()
+            # Filter worklets by start_date year
+            year_worklets_query = worklets_query.filter(
+                Worklet.start_date >= year_start,
+                Worklet.start_date <= year_end
+            )
 
-            def effective_window(w: Worklet):
-                s = getattr(w, "start_date", None)
-                e = getattr(w, "end_date", None) or today
-                return s, e
+            total_worklets = safe_count(year_worklets_query)
+            # Completed: status_id = 2
+            completed_worklets = safe_count(year_worklets_query.filter(Worklet.status_id == 2))
+            # Ongoing: status_id = 1
+            ongoing_worklets = safe_count(year_worklets_query.filter(Worklet.status_id == 1))
 
-            year_active_ids: set[int] = set()
-            completed_in_year = 0
-            ongoing_in_year = 0
-            for w in worklets:
-                s, e = effective_window(w)
-                if s is None:
-                    continue
-                if not (e < year_start or s > year_end):
-                    year_active_ids.add(w.id)
-                    status_id = getattr(w, 'status_id', None)
-                    end_d = getattr(w, 'end_date', None)
-                    if status_id == 2 and end_d is not None and year_start <= end_d <= year_end:
-                        completed_in_year += 1
-                    is_terminated_in_year = False
-                    is_completed_in_year = (status_id == 2 and end_d is not None and year_start <= end_d <= year_end)
-                    if not is_terminated_in_year and not is_completed_in_year:
-                        ongoing_in_year += 1
+            # Get worklet IDs for user association filtering
+            year_worklet_ids = [w.id for w in year_worklets_query.all()]
 
-            total_worklets = len(year_active_ids)
-            completed_worklets = completed_in_year
-            ongoing_worklets = ongoing_in_year
+            # Get users associated with worklets that started in this year
+            if year_worklet_ids:
+                # Get distinct user IDs by role from associations
+                mentor_ids = db.query(UserWorkletAssociation.user_id).distinct().filter(
+                    UserWorkletAssociation.worklet_id.in_(year_worklet_ids),
+                    UserWorkletAssociation.role_in_worklet == 'Mentor'
+                ).all()
+                student_ids = db.query(UserWorkletAssociation.user_id).distinct().filter(
+                    UserWorkletAssociation.worklet_id.in_(year_worklet_ids),
+                    UserWorkletAssociation.role_in_worklet == 'Student'
+                ).all()
+                professor_ids = db.query(UserWorkletAssociation.user_id).distinct().filter(
+                    UserWorkletAssociation.worklet_id.in_(year_worklet_ids),
+                    UserWorkletAssociation.role_in_worklet == 'Professor'
+                ).all()
+                
+                total_mentors = len(mentor_ids)
+                total_students = len(student_ids)
+                total_professors = len(professor_ids)
+            else:
+                total_mentors = 0
+                total_students = 0
+                total_professors = 0
 
-            # Overlap logic: user was active at any point during the year
-            mentors_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
-                role_eq(User.role, "Mentor"),
-                User.created_at <= end_dt.date(),
-                or_(User.active_till == None, User.active_till >= year_start),
-            ).all()
-            students_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
-                role_eq(User.role, "Student"),
-                User.created_at <= end_dt.date(),
-                or_(User.active_till == None, User.active_till >= year_start),
-            ).all()
-            professors_year = db.query(User.id, User.name, User.created_at, User.active_till).filter(
-                role_eq(User.role, "Professor"),
-                User.created_at <= end_dt.date(),
-                or_(User.active_till == None, User.active_till >= year_start),
-            ).all()
-
-            total_mentors = len(mentors_year)
-            total_students = len(students_year)
-            total_professors = len(professors_year)
-
-            # Debug: show distinct role distribution among users active in year
-            active_roles_dist = db.query(User.role, func.count(User.id)).filter(
-                User.created_at <= end_dt.date(),
-                or_(User.active_till == None, User.active_till >= year_start),
-            ).group_by(User.role).all()
-            logger.debug(f"Active-year Users role distribution ({selected_year}): {active_roles_dist}")
-            if debug:
-                debug_info["active_year_role_distribution"] = [(str(r), int(c)) for r, c in active_roles_dist]
-                debug_info["mentors_ids_year"] = [int(m.id) for m in mentors_year]
-                debug_info["mentors_details_year"] = [
-                    {"id": int(m.id), "name": m.name, "created_at": str(m.created_at), "active_till": str(m.active_till)} for m in mentors_year
-                ]
-
-            # Users table only for year-specific totals
-            logger.debug(f"Year-specific counts (Users table only):")
-            print(
-                f"  active_window: mentors={total_mentors}, students={total_students}, professors={total_professors}"
+            logger.debug(f"Year-specific counts (from worklet associations):")
+            logger.debug(
+                f"  year={selected_year}: mentors={total_mentors}, students={total_students}, professors={total_professors}"
             )
 
             papers_count = db.query(Paper).filter(Paper.publication_year == selected_year).count()
@@ -201,8 +175,7 @@ def get_dashboard_statistics(
         if selected_year is None:
             perf_worklets = worklets_query.all()
         else:
-            perf_worklets = [db.query(Worklet).filter(Worklet.id == wid).first() for wid in year_active_ids]
-            perf_worklets = [w for w in perf_worklets if w is not None]
+            perf_worklets = year_worklets_query.all()
         
         performance_counts = {
             "excellent": 0,
@@ -273,10 +246,10 @@ def get_platform_monthly_trends(
 ):
     """Platform-wide monthly trends for a given year.
     For each month:
-      - worklets: number of worklets active during that month (overlapping window)
-      - completed: number of worklets whose end_date falls in that month
-      - students: total student associations across active worklets for that month
-    Uses Worklet.start_date and Worklet.end_date when available; if end missing, cap at today.
+      - worklets: number of worklets with start_date in that month
+      - completed: number of worklets with status_id=2 (Completed) and start_date in that month
+      - students: total student associations for worklets starting in that month
+    Uses Worklet.start_date for filtering by month.
     Supports optional domain and team filtering.
     """
     try:
@@ -335,48 +308,36 @@ def get_platform_monthly_trends(
             for a in assocs:
                 student_counts[a.worklet_id] = student_counts.get(a.worklet_id, 0) + 1
 
-        # Aggregate
-        now_d = date.today()
+        # Aggregate by start_date
         year_start = date(selected_year, 1, 1)
         year_end = date(selected_year, 12, 31)
         for w in worklets:
             start_date_val = getattr(w, 'start_date', None)
-            end_date_val = getattr(w, 'end_date', None)
             status_id = getattr(w, 'status_id', None)
-            w_year = getattr(w, 'year', None)
+            
+            # Skip if no start_date or outside year range
+            if start_date_val is None or start_date_val < year_start or start_date_val > year_end:
+                continue
 
-            # Effective start
-            start_eff = start_date_val if start_date_val is not None else (date(w_year, 1, 1) if w_year else None)
-            # Effective end
-            end_eff = end_date_val if end_date_val is not None else now_d
-
-            # Clamp to year
-            if start_eff is not None and start_eff < year_start:
-                start_eff = year_start
-            if end_eff is None or end_eff > year_end:
-                end_eff = year_end
-
+            # Find the month this worklet belongs to based on start_date
             for m in months:
-                active = (start_eff is not None and end_eff is not None and not (end_eff < m['start'] or start_eff > m['end']))
-                if active:
+                if m['start'] <= start_date_val <= m['end']:
                     m['worklets'] += 1
-                    m['students'] += student_counts.get(getattr(w, 'id', None), 0)
-                # Count as completed if status is Completed (2) and end_date falls in this month
-                if status_id == 2 and end_date_val is not None and (m['start'] <= end_date_val <= m['end']):
-                    m['completed'] += 1
+                    m['students'] += student_counts.get(w.id, 0)
+                    # Count as completed if status is Completed (2)
+                    if status_id == 2:
+                        m['completed'] += 1
+                    break
 
-        # Years list from actual dates only (start_date, end_date), capped to current year
+        # Years list from start_date only, capped to current year
         years_set: set[int] = set()
         for w in worklets:
             sd = getattr(w, 'start_date', None)
-            ed = getattr(w, 'end_date', None)
             if sd is not None:
                 years_set.add(int(sd.year))
-            if ed is not None:
-                years_set.add(int(ed.year))
         if not years_set:
             years_set.add(today.year)
-        # Only include present years up to current year (no future, no filled gaps)
+        # Only include present years up to current year (no future years)
         present_years = sorted([y for y in years_set if y <= today.year])
         return {
             "monthly": [{
@@ -401,7 +362,11 @@ def get_platform_status_trends(
     db: Session = Depends(get_db)
 ):
     """Platform-wide monthly status trends for a given year.
-    Excludes Dropped. Completed count in completion month; completed worklets count as ongoing in months before their completion.
+    Groups worklets by start_date month and status_id:
+    - Status 0 (To Start) and 1 (Ongoing) → ongoing
+    - Status 2 (Completed) → completed
+    - Status 3 (On Hold) → on_hold
+    - Status 4 (Dropped) → excluded
     Supports optional domain and team filtering.
     """
     try:
@@ -446,57 +411,38 @@ def get_platform_status_trends(
 
         # Pull filtered worklets
         worklets = worklets_query.all()
-        now_d = date.today()
         year_start = date(selected_year, 1, 1)
         year_end = date(selected_year, 12, 31)
 
         for w in worklets:
             status_id = getattr(w, 'status_id', None)
-            if status_id == 4:  # Dropped
+            # Exclude Dropped (status_id = 4)
+            if status_id == 4:
                 continue
+                
             start_date_val = getattr(w, 'start_date', None)
-            end_date_val = getattr(w, 'end_date', None)
-            w_year = getattr(w, 'year', None)
-            # Effective start
-            start_eff = start_date_val if start_date_val is not None else (date(w_year, 1, 1) if w_year else None)
+            
+            # Skip if no start_date or outside year range
+            if start_date_val is None or start_date_val < year_start or start_date_val > year_end:
+                continue
 
-            # Effective end
-            end_eff = end_date_val if end_date_val is not None else now_d
-
-            # Clamp
-            if start_eff is not None and start_eff < year_start:
-                start_eff = year_start
-            if end_eff is None or end_eff > year_end:
-                end_eff = year_end
-
+            # Find the month this worklet belongs to based on start_date
             for m in months:
-                overlaps = (start_eff is not None and end_eff is not None and not (end_eff < m['start'] or start_eff > m['end']))
-                if not overlaps:
-                    continue
-                if status_id == 2:  # Completed
-                    if end_date_val is not None and (m['start'] <= end_date_val <= m['end']):
+                if m['start'] <= start_date_val <= m['end']:
+                    # Categorize by status_id
+                    if status_id == 2:  # Completed
                         m['completed'] += 1
-                    elif end_date_val is not None and m['end'] < date(end_date_val.year, end_date_val.month, monthrange(end_date_val.year, end_date_val.month)[1]):
+                    elif status_id in (0, 1):  # To Start or Ongoing
                         m['ongoing'] += 1
-                    elif end_date_val is None:
-                        m['ongoing'] += 1
-                elif status_id in (0, 1):  # To Start or On Going
-                    m['ongoing'] += 1
-                elif status_id == 3:  # On Hold
-                    m['on_hold'] += 1
-                elif False:
-                    m['terminated'] += 1
-                else:
-                    m['ongoing'] += 1
+                    elif status_id == 3:  # On Hold
+                        m['on_hold'] += 1
+                    break
 
         years_set: set[int] = set()
         for w in worklets:
             sd = getattr(w, 'start_date', None)
-            ed = getattr(w, 'end_date', None)
             if sd is not None:
                 years_set.add(int(sd.year))
-            if ed is not None:
-                years_set.add(int(ed.year))
         if not years_set:
             years_set.add(today.year)
         present_years = sorted([y for y in years_set if y <= today.year])
@@ -526,18 +472,15 @@ def get_domains(
             domains = db.query(TechDomain.domain_name).order_by(TechDomain.domain_name).all()
             return {"domains": [d.domain_name for d in domains]}
         
-        # Filter domains by year - get domains that have worklets active in that year
+        # Filter domains by year - get domains that have worklets starting in that year
         year_start = date(year, 1, 1)
         year_end = date(year, 12, 31)
         
-        # Get distinct domain IDs from worklets active in the year
+        # Get distinct domain IDs from worklets with start_date in the year
         domain_ids = db.query(Worklet.tech_domain_id).distinct().filter(
             and_(
-                Worklet.start_date <= year_end,
-                or_(
-                    Worklet.end_date >= year_start,
-                    Worklet.end_date == None
-                )
+                Worklet.start_date >= year_start,
+                Worklet.start_date <= year_end
             )
         ).all()
         
@@ -579,11 +522,8 @@ def get_teams(
             year_end = date(year, 12, 31)
             query = query.filter(
                 and_(
-                    Worklet.start_date <= year_end,
-                    or_(
-                        Worklet.end_date >= year_start,
-                        Worklet.end_date == None
-                    )
+                    Worklet.start_date >= year_start,
+                    Worklet.start_date <= year_end
                 )
             )
         
