@@ -1,4 +1,5 @@
 ﻿import os
+import secrets
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict, field_validator, ValidationError
 import logging
@@ -21,8 +22,8 @@ class Settings(BaseSettings):
     DB_NAME: str = "prism"
     DATABASE_URL: str = "mysql+pymysql://root:password@localhost/prism"
     
-    # JWT
-    SECRET_KEY: str = "your-secret-key-here"
+    # JWT - Generate secure key if not provided
+    SECRET_KEY: str = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
@@ -57,9 +58,13 @@ class Settings(BaseSettings):
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v):
-        """Warn if using default secret key"""
+        """Validate SECRET_KEY security"""
+        if len(v) < 32:
+            logger.error("❌ SECRET_KEY is too short! Must be at least 32 characters.")
+            raise ValueError("SECRET_KEY must be at least 32 characters for security")
         if v == "your-secret-key-here":
-            logger.warning("⚠️  Using default SECRET_KEY! Please set a secure key in production.")
+            logger.error("❌ Using default SECRET_KEY! Set SECRET_KEY in environment variables.")
+            raise ValueError("Default SECRET_KEY is not allowed")
         return v
     
     @field_validator("SMTP_USER")

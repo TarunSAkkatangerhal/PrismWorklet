@@ -908,7 +908,7 @@ const AddCommercializationForm = ({ onAdd, onCancel, completedWorklets }) => {
 const Portfolio = () => {
   useDocumentTitle('Portfolio');
   const navigate = useNavigate()
-  const { isStudent } = useAuth() // Detect if user is a student
+  const { isStudent, isProfessor } = useAuth() // Detect if user is a student or professor
   const [activeTab, setActiveTab] = useState('achievements')
   const [expandedRows, setExpandedRows] = useState({})
   const [portfolioData, setPortfolioData] = useState(emptyPortfolio)
@@ -924,6 +924,10 @@ const Portfolio = () => {
     try {
       setLoadingPortfolio(true)
       const data = await fetchStudentPortfolio()
+      
+      // Ensure achievements and commercializations arrays exist even if not returned
+      if (!data.achievements) data.achievements = []
+      if (!data.commercializations) data.commercializations = []
       
       // Get current user info
       const token = localStorage.getItem('access_token')
@@ -1033,10 +1037,9 @@ const Portfolio = () => {
     ? portfolioData.patents.filter(patent => patent.user_id === currentUserId)
     : portfolioData.patents
 
-  // Filter tabs based on user role - students don't see commercializations
-  const tabs = isStudent 
+  // Filter tabs based on user role - students and professors don't see achievements/commercializations
+  const tabs = (isStudent || isProfessor)
     ? [
-        { id: 'achievements', label: 'Achievements', icon: Trophy },
         { id: 'papers', label: 'Papers', icon: FileText },
         { id: 'patents', label: 'Patents', icon: Shield },
       ]
@@ -1088,21 +1091,23 @@ const Portfolio = () => {
           )}
 
           {/* Statistics Cards - Professional Design */}
-          <div className={`grid grid-cols-1 md:grid-cols-2 ${isStudent ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-5 mb-8`}>
-            <div 
-              className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-600 transition-all duration-300"
-              onClick={() => setActiveTab('achievements')}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium uppercase tracking-wide mb-3">Achievements</p>
-                  <p className="text-4xl font-bold text-slate-900 dark:text-white">{portfolioData.achievements.length}</p>
-                </div>
-                <div className="ml-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30 transition-colors">
-                  <Trophy className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${(isStudent || isProfessor) ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-5 mb-8`}>
+            {!isStudent && !isProfessor && (
+              <div 
+                className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-600 transition-all duration-300"
+                onClick={() => setActiveTab('achievements')}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-slate-600 dark:text-slate-400 text-sm font-medium uppercase tracking-wide mb-3">Achievements</p>
+                    <p className="text-4xl font-bold text-slate-900 dark:text-white">{portfolioData.achievements.length}</p>
+                  </div>
+                  <div className="ml-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30 transition-colors">
+                    <Trophy className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div 
               className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300"
@@ -1134,7 +1139,7 @@ const Portfolio = () => {
               </div>
             </div>
 
-            {!isStudent && (
+            {!isStudent && !isProfessor && (
               <div 
                 className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-600 transition-all duration-300"
                 onClick={() => setActiveTab('commercializations')}
