@@ -7,7 +7,7 @@ const ProvideUpdateModal = ({ isOpen, onClose, worklet, onSuccess, onError }) =>
   const [updateType, setUpdateType] = useState('adhoc'); // 'adhoc' or 'meeting'
   
   // Common states
-  const [ setProgress] = useState(50);
+  const [ progress,setProgress] = useState(50);
   
   // Ad-hoc update states
   const [workCompleted, setWorkCompleted] = useState('');
