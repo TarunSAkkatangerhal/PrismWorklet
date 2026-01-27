@@ -2686,6 +2686,17 @@ export default function WorkletDetailPage() {
                                             <span className="font-medium text-gray-600 dark:text-gray-400">
                                               {update.submitted_by_name}
                                             </span>
+                                            {update.submitted_by_role && (
+                                              <span className={`ml-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                update.submitted_by_role.toLowerCase() === 'student' 
+                                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                                  : update.submitted_by_role.toLowerCase() === 'professor'
+                                                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                                                  : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                              }`}>
+                                                {update.submitted_by_role}
+                                              </span>
+                                            )}
                                           </>
                                         )}
                                       </div>
