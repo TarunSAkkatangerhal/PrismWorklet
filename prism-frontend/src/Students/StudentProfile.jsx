@@ -126,25 +126,32 @@ export default function StudentProfile() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
+      // Format batch dates to YYYY-MM-DD format for backend
+      const formatBatchDate = (dateStr) => {
+        if (!dateStr) return null;
+        // If already in YYYY-MM-DD format, return as is
+        if (dateStr.length === 10) return dateStr;
+        // If in YYYY-MM format, add -01 for day
+        if (dateStr.length === 7) return `${dateStr}-01`;
+        return dateStr;
+      };
+      
       // Send all editable fields except name and email
       const updateData = {
         contact_number: formData.phone,
         program: formData.department,
         student_id: formData.studentId,
         qualification: formData.qualification,
-        batch_from: formData.batchFrom,
-        batch_to: formData.batchTo
+        batch_from: formatBatchDate(formData.batchFrom),
+        batch_to: formatBatchDate(formData.batchTo)
       };
       
       await secureAPI.put('/auth/me/profile', updateData);
       // Reload profile data to get updated values
       await loadProfileData();
       setEditMode(false);
-      // Show success message
-      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
     }
