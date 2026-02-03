@@ -1,5 +1,6 @@
 import { Routes, Route} from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
+import { WebSocketProvider } from "./context/WebSocketContext";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
 import { MentorRoute, StudentRoute, ProfessorRoute, ProtectedRoute } from "./components/RoleBasedRoute";
 import RequireRegistration from "./components/RequireRegistration";
@@ -35,7 +36,8 @@ export default function App() {
   
   return (
     <ThemeProvider>
-      <Routes>
+      <WebSocketProvider>
+        <Routes>
 
         {/*--------------------------------  Common Routing Start-------------------------------- */}
         <Route path="*" element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} /> 
@@ -79,7 +81,8 @@ export default function App() {
 
 
 
-      </Routes>
+        </Routes>
+      </WebSocketProvider>
     </ThemeProvider>
   );
 }

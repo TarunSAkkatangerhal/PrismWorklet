@@ -173,13 +173,43 @@ const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
 
   const PIE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444']
 
+  const handleExportPerformance = (e) => {
+    e.stopPropagation()
+    if (performanceData.length === 0) {
+      alert('No data to export')
+      return
+    }
+    const headers = ['Performance Category', 'Count']
+    const csvContent = [
+      headers.join(','),
+      ...performanceData.map(row => `${row.name},${row.value}`)
+    ].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.setAttribute('href', URL.createObjectURL(blob))
+    link.setAttribute('download', `Worklet_Performance_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <div
       className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg shadow-slate-200/60 dark:shadow-black/20 p-6 transition-all duration-300 ${
         !isEnlarged && 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
       }`}
       onClick={() => !isEnlarged && onEnlarge && onEnlarge('performance', data)}>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Overall Worklet Performance</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Overall Worklet Performance</h3>
+        <button
+          onClick={handleExportPerformance}
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+          title="Export to CSV"
+        >
+          <Download className="w-3 h-3" />
+          Export
+        </button>
+      </div>
       <div
         className={`w-full text-xs text-gray-600 dark:text-gray-400 ${
           isEnlarged ? 'h-[450px]' : 'h-[250px]'
@@ -236,7 +266,7 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
   const ITEMS_PER_PAGE = isEnlarged ? 25 : 15; // Show more items when enlarged
 
   const processedData = useMemo(() => {
-    if (!data || data.length === 0) return { paginatedData: [], pageCount: 0 };
+    if (!data || data.length === 0) return { paginatedData: [], pageCount: 0, allData: [] };
 
     // 1. Map and sort the data
     const sortedData = [...data]
@@ -266,16 +296,36 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const paginatedData = sortedData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    return { paginatedData, pageCount };
+    return { paginatedData, pageCount, allData: sortedData };
   }, [data, sortOrder, currentPage, ITEMS_PER_PAGE]);
 
-  const { paginatedData, pageCount } = processedData;
+  const { paginatedData, pageCount, allData } = processedData;
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pageCount) {
       setCurrentPage(newPage);
     }
   };
+
+  const handleExportWorklets = (e) => {
+    e.stopPropagation()
+    if (!allData || allData.length === 0) {
+      alert('No data to export')
+      return
+    }
+    const headers = ['College Name', 'Worklet Count']
+    const csvContent = [
+      headers.join(','),
+      ...allData.map(row => `"${row.name}",${row.worklets}`)
+    ].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.setAttribute('href', URL.createObjectURL(blob))
+    link.setAttribute('download', `Worklets_Per_College_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   return (
     <div
@@ -290,6 +340,14 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
       >
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Worklet Count per College</h3>
         <div className="flex items-center space-x-2 text-xs">
+           <button
+             onClick={handleExportWorklets}
+             className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+             title="Export to CSV"
+           >
+             <Download className="w-3 h-3" />
+             Export
+           </button>
            <select
              value={sortOrder}
              onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
@@ -413,6 +471,26 @@ const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
       .slice(0, limit)
   }, [data, isEnlarged, statusFilter])
 
+  const handleExportStudents = (e) => {
+    e.stopPropagation()
+    if (chartData.length === 0) {
+      alert('No data to export')
+      return
+    }
+    const headers = ['Worklet Name', 'Student Count']
+    const csvContent = [
+      headers.join(','),
+      ...chartData.map(row => `"${row.name.replace(/"/g, '""')}",${row.studentCount}`)
+    ].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.setAttribute('href', URL.createObjectURL(blob))
+    link.setAttribute('download', `Students_Per_Worklet_${statusFilter}_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const studentsTooltip = ({ active, payload, label }) => {
     if (!active || !payload || payload.length === 0) return null
     const { value } = payload[0]
@@ -433,9 +511,17 @@ const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
         !isEnlarged && 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
       }`}
       onClick={() => !isEnlarged && onEnlarge && onEnlarge('studentsPerWorklet', data)}>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Students per Worklet</h3>
         <div className="flex items-center gap-2 text-xs">
+          <button
+            onClick={handleExportStudents}
+            className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+            title="Export to CSV"
+          >
+            <Download className="w-3 h-3" />
+            Export
+          </button>
           {['Ongoing','Completed','On Hold','Terminated'].map((s) => (
             <button
               key={s}

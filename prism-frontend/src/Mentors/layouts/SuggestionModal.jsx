@@ -235,7 +235,7 @@ export default function SuggestionModal({ isOpen, onClose, workletId, preSelecte
                 >
                   <option value="">Choose a worklet...</option>
                   {worklets.map((worklet) => {
-                    const displayText = `${worklet.cert_id || worklet.id} - ${worklet.description || worklet.title || ''}`;
+                    const displayText = `${worklet.cert_id || worklet.id} - ${worklet.title}`;
                     const truncatedText = displayText.length > 60 
                       ? displayText.substring(0, 60) + '...' 
                       : displayText;
