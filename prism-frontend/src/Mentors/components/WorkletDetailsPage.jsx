@@ -415,6 +415,10 @@ export default function WorkletDetailPage() {
   const [allMilestoneFiles, setAllMilestoneFiles] = useState([])
   const [suggestions, setSuggestions] = useState([])
   const [workletUpdates, setWorkletUpdates] = useState([])
+  
+  // File upload states
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [selectedWorkletFile, setSelectedWorkletFile] = useState(null)
 
   // --- NOTIFICATION HANDLERS ---
   const showSuccessNotification = (message) => {
@@ -429,6 +433,70 @@ export default function WorkletDetailPage() {
     setTimeout(() => {
       setNotification({ show: false, message: '', type: '' })
     }, 3000)
+  }
+
+  // --- FILE UPLOAD HANDLERS ---
+  const handleWorkletFileSelect = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      setSelectedWorkletFile(file)
+      handleWorkletFileUpload(file)
+    }
+  }
+
+  const handleWorkletFileUpload = async (file) => {
+    if (!file) return
+
+    setUploadingFile(true)
+    try {
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        showErrorNotification('Please login to upload files')
+        return
+      }
+
+      // Get current user info
+      const userResp = await axios.get('http://localhost:8000/auth/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const currentUser = userResp.data
+
+      // Upload file
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const uploadResponse = await axios.post(
+        'http://localhost:8000/api/chat/upload',
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      )
+
+      // Add file to the list with full backend URL
+      const newFile = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        url: `http://localhost:8000${uploadResponse.data.url}`,
+        uploadedBy: currentUser.name,
+        uploadedByRole: currentUser.role.toLowerCase(),
+        uploadedDate: new Date().toISOString(),
+        milestoneTitle: 'Additional File'
+      }
+
+      setAllMilestoneFiles(prev => [newFile, ...prev])
+      showSuccessNotification('File uploaded successfully!')
+      setSelectedWorkletFile(null)
+    } catch (error) {
+      console.error('Error uploading file:', error)
+      showErrorNotification(error.response?.data?.detail || 'Failed to upload file')
+    } finally {
+      setUploadingFile(false)
+    }
   }
 
   // --- DATA FETCHING FUNCTION ---
@@ -1108,6 +1176,26 @@ export default function WorkletDetailPage() {
       try {
         const token = localStorage.getItem('access_token')
         
+        // Upload file first if selected
+        let fileUrl = null
+        if (selectedFile) {
+          const formData = new FormData()
+          formData.append('file', selectedFile)
+
+          const uploadResponse = await axios.post(
+            'http://localhost:8000/api/chat/upload',
+            formData,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+              }
+            }
+          )
+          // Construct full URL
+          fileUrl = `http://localhost:8000${uploadResponse.data.url}`
+        }
+        
         // Prepare milestone data for backend
         const milestoneData = {
           worklet_id: parseInt(id),
@@ -1122,7 +1210,7 @@ export default function WorkletDetailPage() {
           attachment_name: selectedFile?.name || null,
           attachment_size: selectedFile?.size || null,
           attachment_type: selectedFile?.type || null,
-          attachment_url: selectedFile ? URL.createObjectURL(selectedFile) : null
+          attachment_url: fileUrl
         }
 
         // POST to backend
@@ -2023,17 +2111,22 @@ export default function WorkletDetailPage() {
                 >
                   <ArrowLeft size={16} />
                 </button>
-                <Link 
-                  to="/worklets" 
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-600 hover:text-indigo-700 
-                            dark:text-gray-400 dark:hover:text-indigo-400 font-medium transition-all duration-200 
-                            hover:bg-white/50 dark:hover:bg-gray-700/50"
-                >
-                  <Home size={16} />
-                  <span>Worklets</span>
-                </Link>
-                <ChevronRight size={16} className="text-gray-400" />
-                <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Project Details</span>
+                {/* Only show breadcrumb for mentors */}
+                {currentUserRole?.toLowerCase() === 'mentor' && (
+                  <>
+                    <Link 
+                      to="/worklets" 
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-600 hover:text-indigo-700 
+                                dark:text-gray-400 dark:hover:text-indigo-400 font-medium transition-all duration-200 
+                                hover:bg-white/50 dark:hover:bg-gray-700/50"
+                    >
+                      <Home size={16} />
+                      <span>Worklets</span>
+                    </Link>
+                    <ChevronRight size={16} className="text-gray-400" />
+                    <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Project Details</span>
+                  </>
+                )}
               </div>
               
             </nav>
@@ -2975,12 +3068,33 @@ export default function WorkletDetailPage() {
                     {/* File Upload Section - Only for students */}
                     {userRole === 'student' && (
                       <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <button className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 
-                                         rounded-xl text-gray-600 dark:text-gray-400 hover:border-blue-500 
-                                         dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 
-                                         transition-all duration-200 flex items-center justify-center gap-2">
-                          <Upload size={20} />
-                          <span>Upload Additional Files</span>
+                        <input
+                          type="file"
+                          id="worklet-file-input"
+                          onChange={handleWorkletFileSelect}
+                          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip,.ppt,.pptx,.xls,.xlsx"
+                          className="hidden"
+                          disabled={uploadingFile}
+                        />
+                        <button 
+                          onClick={() => document.getElementById('worklet-file-input').click()}
+                          disabled={uploadingFile}
+                          className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 
+                                   rounded-xl text-gray-600 dark:text-gray-400 hover:border-blue-500 
+                                   dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 
+                                   transition-all duration-200 flex items-center justify-center gap-2
+                                   disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300">
+                          {uploadingFile ? (
+                            <>
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload size={20} />
+                              <span>Upload Additional Files</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     )}

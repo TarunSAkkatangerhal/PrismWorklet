@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import LeftSidebar from '../components/Left';
 import RightSidebar from '../components/Right';
-import { getCurrentUser } from '../services/auth';
 import secureAPI from '../services/secureAPI';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -64,17 +63,22 @@ export default function ProfessorProfile() {
   const loadProfileData = async () => {
     setLoading(true);
     try {
-      const user = await getCurrentUser();
+      // Fetch full profile data from /auth/profile endpoint
+      const response = await secureAPI.get('/auth/profile');
+      const user = response.data;
       setProfileData(user);
+      
+      // Map profile data from user profile
+      const profile = user.profile || {};
       setFormData({
         name: user.name || '',
         email: user.email || '',
-        phone: user.phone || '',
+        phone: profile.contact_number || '',
         college: user.college || '',
-        department: user.department || '',
-        designation: user.designation || '',
-        specialization: user.specialization || '',
-        googleScholar: user.googleScholar || user.google_scholar || ''
+        department: profile.organization || '',
+        designation: profile.expertise || '',
+        specialization: profile.qualification || '',
+        googleScholar: profile.linkedin || ''
       });
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -114,28 +118,38 @@ export default function ProfessorProfile() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      await secureAPI.put('/users/profile', formData);
-      setProfileData(prev => ({ ...prev, ...formData }));
+      // Map form fields to backend profile fields
+      const updateData = {
+        name: formData.name,
+        contact_number: formData.phone,
+        organization: formData.department,
+        expertise: formData.designation,
+        qualification: formData.specialization,
+        linkedin: formData.googleScholar
+      };
+      
+      await secureAPI.put('/auth/me/profile', updateData);
+      // Reload profile data to get updated values
+      await loadProfileData();
       setEditMode(false);
-      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancelEdit = () => {
+    const profile = profileData?.profile || {};
     setFormData({
       name: profileData?.name || '',
       email: profileData?.email || '',
-      phone: profileData?.phone || '',
+      phone: profile.contact_number || '',
       college: profileData?.college || '',
-      department: profileData?.department || '',
-      designation: profileData?.designation || '',
-      specialization: profileData?.specialization || '',
-      googleScholar: profileData?.googleScholar || profileData?.google_scholar || ''
+      department: profile.organization || '',
+      designation: profile.expertise || '',
+      specialization: profile.qualification || '',
+      googleScholar: profile.linkedin || ''
     });
     setEditMode(false);
   };
