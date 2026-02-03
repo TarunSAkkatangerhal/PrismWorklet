@@ -5,6 +5,7 @@ import { Home, BarChart, GraduationCap, Calendar, Folder, Settings, Moon, Sun, I
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { ThemeContext } from '../context/ThemeContext';
+import { useWebSocket } from '../context/WebSocketContext';
 import profilePic from '../assets/profilePic.jpg';
 import secureAPI from '../services/secureAPI';
 
@@ -58,6 +59,7 @@ const LeftSidebar = () => {
 
     // Use global theme state from context
     const { isDarkMode, toggleTheme } = useContext(ThemeContext);
+    const { unreadCount } = useWebSocket();
 
     // Get user data on component mount
     useEffect(() => {
@@ -91,24 +93,10 @@ const LeftSidebar = () => {
         setUserData(getCurrentUserFromToken());
     }, []);
 
-    // Fetch unread message count
+    // Update unread message status based on WebSocket unreadCount
     useEffect(() => {
-        const fetchUnreadCount = async () => {
-            try {
-                const response = await secureAPI.get('/api/chat/unread-count');
-                setHasUnreadMessages(response.data.unread_count > 0);
-            } catch (error) {
-                console.error('Error fetching unread count:', error);
-            }
-        };
-
-        if (userData) {
-            fetchUnreadCount();
-            // Poll every 30 seconds for unread count
-            const interval = setInterval(fetchUnreadCount, 30000);
-            return () => clearInterval(interval);
-        }
-    }, [userData]);
+        setHasUnreadMessages(unreadCount > 0);
+    }, [unreadCount]);
 
     // Floating UI hook for robust menu positioning
     const { x, y, refs, strategy } = useFloating({
@@ -155,21 +143,21 @@ const LeftSidebar = () => {
                 {userData && userData.role && userData.role.toLowerCase() === 'student' ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/student-dashboard')} />
-                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/student-chat')} hasUnread={hasUnreadMessages} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/student-chat')} hasUnread={hasUnreadMessages} unreadCount={unreadCount} />
                         <SidebarItem icon={<Award size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                         <SidebarItem icon={<User size={20} />} label="Profile" onClick={() => navigate('/student-profile')} />
                     </>
                 ) : userData && userData.role && userData.role.toLowerCase() === 'professor' ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/professor-dashboard')} />
-                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/professor-chat')} hasUnread={hasUnreadMessages} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/professor-chat')} hasUnread={hasUnreadMessages} unreadCount={unreadCount} />
                         <SidebarItem icon={<Award size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                         <SidebarItem icon={<User size={20} />} label="Profile" onClick={() => navigate('/professor-profile')} />
                     </>
                 ) : userData && userData.role ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
-                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/mentor-chat')} hasUnread={hasUnreadMessages} />
+                        <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/mentor-chat')} hasUnread={hasUnreadMessages} unreadCount={unreadCount} />
                         <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} />
                         <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                                                                         {/* Top separator for Dashboard/Academia group */}

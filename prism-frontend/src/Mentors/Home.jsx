@@ -184,7 +184,7 @@ export default function Dashboard() {
             title: worklet.cert_id || worklet.title || 'Untitled Worklet',
             status,
             progress: progressVal,
-            description: worklet.description || worklet.problem_statement || worklet.title || 'No description available',
+            description:worklet.title || 'No description available',
             startDateISO: startISO,
             endDateISO: endISO,
             startDate: startDisplay,
@@ -676,7 +676,7 @@ function WorkletCard({ worklet, layout, navigate }) {
           <div className="mt-[0.25vw] text-[clamp(0.6rem,0.8vw,0.75rem)] text-blue-300">{worklet.college}</div>
 
           {/* DESCRIPTION is now displayed on hover */}
-          <p className="mt-[0.75vw] text-[clamp(0.75rem,1vw,0.875rem)] text-gray-200">{worklet.description}</p>
+          <p className="mt-[0.75vw] text-[clamp(0.75rem,1vw,0.875rem)] text-gray-200">{ worklet.title}</p>
 
           <div className="mt-[0.75vw] flex items-center gap-[0.5vw] text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-300">
             <Calendar size={Math.max(12, Math.min(16, window.innerWidth * 0.012))} />
