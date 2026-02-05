@@ -181,10 +181,11 @@ export default function Dashboard() {
           
           return {
             id: worklet.id,
-            title: worklet.cert_id || worklet.title || 'Untitled Worklet',
+            cert_id: worklet.cert_id || 'Untitled Worklet',
+            title: worklet.title||'no title available',
             status,
             progress: progressVal,
-            description: worklet.description || worklet.problem_statement || worklet.title || 'No description available',
+            description:worklet.description || 'No description available',
             startDateISO: startISO,
             endDateISO: endISO,
             startDate: startDisplay,
@@ -631,7 +632,7 @@ function WorkletCard({ worklet, layout, navigate }) {
           </span>
         </div>
         {/* CERT ID with comfortable font size */}
-        <h3 className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold leading-tight">{worklet.title}</h3>
+        <h3 className="text-[clamp(0.875rem,1.2vw,1rem)] font-semibold leading-tight">{worklet.cert_id}</h3>
         {/* PROBLEM STATEMENT below cert_id */}
         <p className="text-[clamp(0.7rem,0.95vw,0.85rem)] text-gray-200 mt-[0.3vw] leading-snug">{truncateText(worklet.description, 60)}</p>
       </div>
@@ -671,12 +672,12 @@ function WorkletCard({ worklet, layout, navigate }) {
           className="scrollable-content flex-grow p-[clamp(0.75rem,1.5vw,1.25rem)] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {/* ID is now displayed on hover instead of title */}
+          {/* college is now displayed on hover instead of title */}
 
           <div className="mt-[0.25vw] text-[clamp(0.6rem,0.8vw,0.75rem)] text-blue-300">{worklet.college}</div>
 
-          {/* DESCRIPTION is now displayed on hover */}
-          <p className="mt-[0.75vw] text-[clamp(0.75rem,1vw,0.875rem)] text-gray-200">{worklet.description}</p>
+          {/* TITLE is now displayed on hover */}
+          <p className="mt-[0.75vw] text-[clamp(0.75rem,1vw,0.875rem)] text-gray-200">{ worklet.title}</p>
 
           <div className="mt-[0.75vw] flex items-center gap-[0.5vw] text-[clamp(0.6rem,0.8vw,0.75rem)] text-gray-300">
             <Calendar size={Math.max(12, Math.min(16, window.innerWidth * 0.012))} />

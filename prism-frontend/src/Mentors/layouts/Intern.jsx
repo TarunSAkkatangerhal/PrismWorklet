@@ -348,7 +348,7 @@ export default function InternReferralForm({ workletId, preSelectedWorklet, onSu
                   const value = worklet.id ?? worklet.cert_id; // fallback to cert_id if id missing
                   return (
                     <option key={value} value={value}>
-                      {(worklet.cert_id || value)} - {(worklet.description || worklet.title || 'No description')}
+                      {(worklet.cert_id || value)} - {(worklet.title || 'No description')}
                     </option>
                   );
                 })}

@@ -130,6 +130,13 @@ class UserProfileUpdate(BaseModel):
     contact_number: Optional[str] = None
     organization: Optional[str] = None
     github: Optional[str] = None
+    
+    # Student-specific fields
+    student_id: Optional[str] = None
+    program: Optional[str] = None
+    batch_from: Optional[date] = None
+    batch_to: Optional[date] = None
+    year_of_study: Optional[int] = None
 
 class StudentProfileComplete(BaseModel):
     extra: dict  # Contains: full_name, phone, college_roll_no, qualification, branch, batch_from, batch_to

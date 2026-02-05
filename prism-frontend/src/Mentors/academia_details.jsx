@@ -14,7 +14,8 @@ import {
   PauseCircle,
   XCircle,
   Clock,
-  Building2
+  Building2,
+  Download
 } from 'lucide-react'
 import LeftSidebar from '../components/Left'
 import { ThemeContext } from '../context/ThemeContext'
@@ -335,6 +336,62 @@ const NavColl = () => {
     })
   }
 
+  const handleExport = () => {
+    // Get the data to export based on current filter
+    let dataToExport = []
+    
+    if (activeFilter === 'students') {
+      // Export students
+      dataToExport = filtered.map(student => ({
+        Name: student.name || 'N/A',
+        Email: student.email || 'N/A',
+        College: student.collegeName || 'N/A'
+      }))
+    } else {
+      // Export worklets
+      dataToExport = filtered.map(worklet => ({
+        ID: worklet.workletId || worklet.id,
+        Title: worklet.title || 'N/A',
+        College: worklet.collegeName || 'N/A',
+        Status: worklet.status || 'N/A',
+        Domain: worklet.domain || 'N/A',
+        'Student Count': worklet.studentCount || 0
+      }))
+    }
+
+    if (dataToExport.length === 0) {
+      alert('No data to export')
+      return
+    }
+
+    // Convert to CSV
+    const headers = Object.keys(dataToExport[0])
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(row => 
+        headers.map(header => {
+          const value = String(row[header] || '')
+          // Escape values that contain commas or quotes
+          return value.includes(',') || value.includes('"') 
+            ? `"${value.replace(/"/g, '""')}"` 
+            : value
+        }).join(',')
+      )
+    ].join('\n')
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    const filterName = activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)
+    link.setAttribute('download', `College_${filterName}_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const getFilterStats = () => {
     // Calculate stats from FILTERED data to respect year/team filters
     let total = 0, ongoing = 0, completed = 0, onhold = 0, terminated = 0, students = 0
@@ -521,28 +578,46 @@ const NavColl = () => {
                   </h2>
                 </div>
                 
-                {/* View Toggle Buttons */}
-                <div className={`flex items-center rounded-lg border ${
-                  isDarkMode 
-                    ? 'border-purple-700/30 bg-slate-800/40' 
-                    : 'border-purple-300/40 bg-white/60'
-                }`}>
+                {/* Export and View Toggle Buttons */}
+                <div className="flex items-center gap-2">
+                  {/* Export Button */}
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-l-lg transition-all duration-200 ${
-                      viewMode === 'grid'
-                        ? isDarkMode
-                          ? 'bg-purple-400 text-white shadow-md'
-                          : 'bg-purple-300 text-white shadow-md'
-                        : isDarkMode
-                          ? 'text-gray-400 hover:text-purple-200 hover:bg-slate-700/50'
-                          : 'text-gray-500 hover:text-purple-500 hover:bg-purple-50/50'
+                    onClick={handleExport}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                      isDarkMode
+                        ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-slate-700/70 hover:text-white'
+                        : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-white/80 hover:text-gray-800'
                     }`}
-                    title="Grid View"
+                    title="Export to CSV"
                   >
-                    <Grid3X3 size={16} />
+                    <Download size={16} />
+                    <span>Export</span>
+                  </motion.button>
+
+                  {/* View Toggle Buttons */}
+                  <div className={`flex items-center rounded-lg border ${
+                    isDarkMode 
+                      ? 'border-purple-700/30 bg-slate-800/40' 
+                      : 'border-purple-300/40 bg-white/60'
+                  }`}>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-l-lg transition-all duration-200 ${
+                        viewMode === 'grid'
+                          ? isDarkMode
+                            ? 'bg-purple-400 text-white shadow-md'
+                            : 'bg-purple-300 text-white shadow-md'
+                          : isDarkMode
+                            ? 'text-gray-400 hover:text-purple-200 hover:bg-slate-700/50'
+                            : 'text-gray-500 hover:text-purple-500 hover:bg-purple-50/50'
+                      }`}
+                      title="Grid View"
+                    >
+                      <Grid3X3 size={16} />
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -561,6 +636,7 @@ const NavColl = () => {
                   >
                     <List size={16} />
                   </motion.button>
+                  </div>
                 </div>
               </div>
             </div>

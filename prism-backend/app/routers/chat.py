@@ -125,6 +125,48 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+# ============= Helper Functions =============
+
+def calculate_user_unread_count(user_id: int, db: Session) -> int:
+    """Calculate unread message count for a specific user"""
+    user_worklets = db.query(UserWorkletAssociation.worklet_id).filter(
+        UserWorkletAssociation.user_id == user_id
+    ).subquery()
+    
+    group_messages = db.query(GroupChatMessage.message_id).filter(
+        and_(
+            GroupChatMessage.worklet_id.in_(user_worklets),
+            GroupChatMessage.sender_id != user_id,
+            GroupChatMessage.is_deleted == False
+        )
+    ).all()
+    
+    unread_count = 0
+    for msg in group_messages:
+        receipt = db.query(GroupMessageReadReceipt).filter(
+            and_(
+                GroupMessageReadReceipt.message_id == msg.message_id,
+                GroupMessageReadReceipt.user_id == user_id
+            )
+        ).first()
+        if not receipt:
+            unread_count += 1
+    
+    return unread_count
+
+
+async def broadcast_unread_count_to_user(user_id: int, db: Session):
+    """Calculate and send unread count to a specific user via WebSocket"""
+    unread_count = calculate_user_unread_count(user_id, db)
+    message = {
+        "type": "unread_count_update",
+        "data": {
+            "unread_count": unread_count
+        }
+    }
+    await manager.send_personal_message(message, user_id)
+
+
 # ============= WebSocket Endpoint =============
 
 @router.websocket("/ws")
@@ -148,6 +190,9 @@ async def websocket_endpoint(
         print(f"WebSocket: User {user.name} (ID: {user.id}) connecting...")
         await manager.connect(user.id, websocket)
         print(f"WebSocket: User {user.name} (ID: {user.id}) connected successfully")
+        
+        # Send initial unread count
+        await broadcast_unread_count_to_user(user.id, db)
         
         try:
             while True:
@@ -389,6 +434,7 @@ async def get_group_messages(
     ).order_by(desc(GroupChatMessage.sent_at)).offset(skip).limit(limit).all()
     
     # Mark messages as read by current user (create read receipts)
+    receipts_created = False
     for msg in messages:
         if msg.sender_id != current_user.id:
             # Check if receipt already exists
@@ -405,7 +451,12 @@ async def get_group_messages(
                     user_id=current_user.id
                 )
                 db.add(receipt)
+                receipts_created = True
     db.commit()
+    
+    # If any receipts were created, broadcast updated unread count
+    if receipts_created:
+        await broadcast_unread_count_to_user(current_user.id, db)
     
     # Get total members count (excluding sender)
     total_members = db.query(UserWorkletAssociation).filter(
@@ -492,6 +543,11 @@ async def send_group_message(
     # Send to all members including sender
     for member in members:
         await manager.send_personal_message(group_message_data, member.user_id)
+    
+    # Broadcast unread count updates to all worklet members (except sender)
+    for member in members:
+        if member.user_id != current_user.id:
+            await broadcast_unread_count_to_user(member.user_id, db)
     
     return MessageResponse(
         message_id=new_message.message_id,
