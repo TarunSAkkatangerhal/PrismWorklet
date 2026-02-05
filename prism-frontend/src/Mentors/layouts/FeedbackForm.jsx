@@ -203,10 +203,38 @@ export default function FeedbackForm({
         data = response?.data?.ongoing_worklets || [];
       }
       
-      setWorklets(Array.isArray(data) ? data : []);
-      if ((data || []).length === 0) {
+      // Filter worklets to only include those with milestones added by students
+      const workletsWithMilestones = [];
+      for (const worklet of (Array.isArray(data) ? data : [])) {
+        try {
+          const workletId = worklet.id || worklet.worklet_id;
+          if (!workletId) continue;
+          
+          const milestoneResponse = await axios.get(
+            `http://localhost:8000/milestones/worklet/${workletId}`,
+            {
+              headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+              }
+            }
+          );
+          
+          const milestones = milestoneResponse.data || [];
+          // Only include worklet if it has at least one milestone
+          if (milestones.length > 0) {
+            workletsWithMilestones.push(worklet);
+          }
+        } catch (error) {
+          // If there's an error fetching milestones for this worklet, skip it
+          console.error(`Error fetching milestones for worklet ${worklet.id}:`, error);
+        }
+      }
+      
+      setWorklets(workletsWithMilestones);
+      if (workletsWithMilestones.length === 0) {
         const roleText = userRole ? userRole.toLowerCase() : 'user';
-        setError(`No worklets found for this ${roleText}`);
+        setError(`No worklets with student-submitted milestones found for this ${roleText}`);
       }
     } catch (error) {
       setError("Failed to load worklets. Please try again.");
