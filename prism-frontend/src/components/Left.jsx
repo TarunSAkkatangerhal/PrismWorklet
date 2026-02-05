@@ -158,7 +158,7 @@ const LeftSidebar = () => {
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
                         <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/mentor-chat')} hasUnread={hasUnreadMessages} unreadCount={unreadCount} />
-                        5{/* <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} /> */}
+                        <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} /> 
                         <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                                                                         {/* Top separator for Dashboard/Academia group */}
                                                                         <div className="w-[75%] mx-auto my-[1.2vh]">
