@@ -22,6 +22,28 @@ export function RoleBasedRoute({ children, allowedRoles, redirectTo = "/" }) {
 }
 
 // Specific role guards with enhanced security
+export function AdminRoute({ children }) {
+  const token = localStorage.getItem('access_token');
+  const role = localStorage.getItem('user_role');
+
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
+
+  const userRole = role?.toLowerCase();
+
+  if (userRole === 'admin') {
+    return children;
+  }
+
+  // Redirect other roles to their dashboards
+  if (userRole === 'mentor') return <Navigate to="/home" replace />;
+  if (userRole === 'student') return <Navigate to="/student-dashboard" replace />;
+  if (userRole === 'professor') return <Navigate to="/professor-dashboard" replace />;
+
+  return <Navigate to="/" replace />;
+}
+
 export function MentorRoute({ children }) {
   // Fallback to localStorage for now to keep app working
   const token = localStorage.getItem('access_token');
@@ -34,9 +56,14 @@ export function MentorRoute({ children }) {
   
   const userRole = role?.toLowerCase();
   
-  // Allow access if user is mentor or admin
-  if (userRole && ['mentor', 'admin'].includes(userRole)) {
+  // Allow access only for mentor (admin now has its own routes)
+  if (userRole === 'mentor') {
     return children;
+  }
+
+  // Redirect admin to admin dashboard
+  if (userRole === 'admin') {
+    return <Navigate to="/admin-dashboard" replace />;
   }
   
   // Redirect students to student dashboard
@@ -69,9 +96,14 @@ export function StudentRoute({ children }) {
     return children;
   }
   
-  // Redirect mentors to mentor dashboard, professors to professor dashboard
-  if (['mentor', 'admin'].includes(userRole)) {
+  // Redirect mentors to mentor dashboard
+  if (userRole === 'mentor') {
     return <Navigate to="/home" replace />;
+  }
+
+  // Redirect admin to admin dashboard
+  if (userRole === 'admin') {
+    return <Navigate to="/admin-dashboard" replace />;
   }
   
   if (userRole === 'professor') {
@@ -93,9 +125,14 @@ export function ProfessorRoute({ children }) {
   
   const userRole = role?.toLowerCase();
   
-  // Allow access if user is professor or admin
-  if (userRole && ['professor', 'admin'].includes(userRole)) {
+  // Allow access only for professor
+  if (userRole === 'professor') {
     return children;
+  }
+  
+  // Redirect admin to admin dashboard
+  if (userRole === 'admin') {
+    return <Navigate to="/admin-dashboard" replace />;
   }
   
   // Redirect students to student dashboard

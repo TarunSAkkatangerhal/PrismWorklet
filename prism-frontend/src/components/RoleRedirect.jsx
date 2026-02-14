@@ -26,7 +26,9 @@ export default function RoleRedirect() {
           navigate('/student-dashboard', { replace: true });
         } else if (user.role.toLowerCase() === 'professor' && currentPath !== '/professor-dashboard') {
           navigate('/professor-dashboard', { replace: true });
-        } else if (['mentor', 'admin'].includes(user.role.toLowerCase()) && currentPath !== '/home') {
+        } else if (user.role.toLowerCase() === 'admin' && currentPath !== '/admin-dashboard') {
+          navigate('/admin-dashboard', { replace: true });
+        } else if (user.role.toLowerCase() === 'mentor' && currentPath !== '/home') {
           navigate('/home', { replace: true });
         }
       } catch (error) {

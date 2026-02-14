@@ -30,12 +30,14 @@ export default function Login() {
       }
     }
     // Auto-login on page load if valid token exists and not already on dashboard
-    if (currentUser && currentPath !== "/home" && currentPath !== "/student-dashboard") {
+    if (currentUser && currentPath !== "/home" && currentPath !== "/student-dashboard" && currentPath !== "/admin-dashboard") {
       // Route based on validated user role from token
       if (currentUser.role && currentUser.role.toLowerCase() === "student") {
         navigate("/student-dashboard");
+      } else if (currentUser.role && currentUser.role.toLowerCase() === "admin") {
+        navigate("/admin-dashboard");
       } else {
-        navigate("/home"); // Default to mentor/admin dashboard
+        navigate("/home"); // Default to mentor dashboard
       }
     }
   }, [navigate]);

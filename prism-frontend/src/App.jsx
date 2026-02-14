@@ -2,7 +2,7 @@ import { Routes, Route} from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import { WebSocketProvider } from "./context/WebSocketContext";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
-import { MentorRoute, StudentRoute, ProfessorRoute, ProtectedRoute } from "./components/RoleBasedRoute";
+import { MentorRoute, StudentRoute, ProfessorRoute, AdminRoute, ProtectedRoute } from "./components/RoleBasedRoute";
 import RequireRegistration from "./components/RequireRegistration";
 import RoleRedirect from "./components/RoleRedirect";
 import Login from "./Shared Components/login";
@@ -27,6 +27,8 @@ import StudentRegistrationForm from "./Students/StudentRegistrationForm";
 import ProfessorDashboard from "./Professors/ProfessorDashboard";
 import ProfessorChatPage from "./Professors/ProfessorChatPage";
 import ProfessorProfile from "./Professors/ProfessorProfile";
+
+import AdminDashboard from "./Admin/AdminDashboard";
 
 
 
@@ -77,8 +79,9 @@ export default function App() {
         {/*--------------------------------  Professor Routing End-------------------------------- */}
 
 
-
-
+        {/*--------------------------------  Admin Routing Start-------------------------------- */}
+        <Route path="/admin-dashboard" element={<ProtectedRoute><AdminRoute><AdminDashboard /></AdminRoute></ProtectedRoute>} />
+        {/*--------------------------------  Admin Routing End-------------------------------- */}
 
 
         </Routes>
