@@ -29,6 +29,9 @@ import ProfessorChatPage from "./Professors/ProfessorChatPage";
 import ProfessorProfile from "./Professors/ProfessorProfile";
 
 import AdminDashboard from "./Admin/AdminDashboard";
+import AdminWorklets from "./Admin/AdminWorklets";
+import AdminWorkletDetail from "./Admin/AdminWorkletDetail";
+import AdminUsers from "./Admin/AdminUsers";
 
 
 
@@ -81,6 +84,9 @@ export default function App() {
 
         {/*--------------------------------  Admin Routing Start-------------------------------- */}
         <Route path="/admin-dashboard" element={<ProtectedRoute><AdminRoute><AdminDashboard /></AdminRoute></ProtectedRoute>} />
+        <Route path="/admin-worklets" element={<ProtectedRoute><AdminRoute><AdminWorklets /></AdminRoute></ProtectedRoute>} />
+        <Route path="/admin-worklet/:id" element={<ProtectedRoute><AdminRoute><AdminWorkletDetail /></AdminRoute></ProtectedRoute>} />
+        <Route path="/admin-users" element={<ProtectedRoute><AdminRoute><AdminUsers /></AdminRoute></ProtectedRoute>} />
         {/*--------------------------------  Admin Routing End-------------------------------- */}
 
 

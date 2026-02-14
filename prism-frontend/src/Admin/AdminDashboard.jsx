@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import AdminLeftSidebar from './AdminLeftSidebar';
-import AdminRightSidebar from './AdminRightSidebar';
+import { AdminLeftSidebar, AdminRightSidebar } from './AdminSidebar';
 import {
   Users, Briefcase, GraduationCap, UserCheck, TrendingUp,
   Clock, CheckCircle, AlertCircle, BarChart3, Activity,
