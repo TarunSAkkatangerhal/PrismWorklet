@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { AdminLeftSidebar, AdminRightSidebar } from './AdminSidebar';
+import { AdminLeftSidebar } from './AdminSidebar';
 import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
@@ -458,8 +458,6 @@ const AdminUsers = () => {
 
         </div>
       </main>
-
-      <AdminRightSidebar />
     </div>
   );
 };

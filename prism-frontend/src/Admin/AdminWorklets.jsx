@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { AdminLeftSidebar, AdminRightSidebar } from './AdminSidebar';
+import { AdminLeftSidebar } from './AdminSidebar';
 import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
@@ -353,8 +353,6 @@ const AdminWorklets = () => {
         )}
         </div>
       </main>
-
-      <AdminRightSidebar />
     </div>
   );
 };

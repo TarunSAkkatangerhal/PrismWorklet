@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { AdminLeftSidebar, AdminRightSidebar } from './AdminSidebar';
+import { AdminLeftSidebar } from './AdminSidebar';
 import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
@@ -283,7 +283,6 @@ const AdminWorkletDetail = () => {
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600" />
         </div>
-        <AdminRightSidebar />
       </div>
     );
   }
@@ -297,7 +296,6 @@ const AdminWorkletDetail = () => {
           <p className="text-lg text-red-500">{error || 'Worklet not found'}</p>
           <button onClick={() => navigate('/admin-worklets')} className="text-sm text-purple-600 hover:underline">← Back to Worklets</button>
         </div>
-        <AdminRightSidebar />
       </div>
     );
   }
@@ -791,8 +789,6 @@ const AdminWorkletDetail = () => {
           </div>
         </div>
       </main>
-
-      <AdminRightSidebar />
     </div>
   );
 };
