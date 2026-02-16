@@ -60,7 +60,7 @@ const Footer = () => {
               <h3 className="text-2xl font-bold mb-6">Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <a 
-                  href="/about" 
+                  href="https://www.samsungprism.com/about" 
                   className="text-blue-100 hover:text-white transition-colors duration-200"
                 >
                   About Us
@@ -72,19 +72,19 @@ const Footer = () => {
                   Contact Us
                 </a>
                 <a 
-                  href="/privacy" 
+                  href="https://www.samsung.com/in/info/privacy/" 
                   className="text-blue-100 hover:text-white transition-colors duration-200"
                 >
                   Privacy Policy
                 </a>
                 <a 
-                  href="/terms" 
+                  href="https://www.samsungprism.com/terms-conditions" 
                   className="text-blue-100 hover:text-white transition-colors duration-200"
                 >
                   Terms & Conditions
                 </a>
                 <a 
-                  href="/faqs" 
+                  href="https://www.samsungprism.com/faq" 
                   className="text-blue-100 hover:text-white transition-colors duration-200"
                 >
                   FAQs

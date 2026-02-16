@@ -12,3 +12,5 @@ argon2-cffi>=23.1.0
 cryptography>=41.0.8
 python-multipart>=0.0.6
 websockets>=12.0
+pandas>=2.1.0
+numpy>=1.24.0

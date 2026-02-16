@@ -4,19 +4,27 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { AdminLeftSidebar } from './AdminSidebar';
 import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
+import * as XLSX from 'xlsx';
 import {
   Search, ChevronRight, Target, Activity, CheckCircle, X, Clock,
   Users, Grid3X3, List, Building2, Briefcase, AlertCircle,
-  TrendingUp, Filter
+  TrendingUp, Filter, ChevronDown, Calendar, Layers, Shield, FileSpreadsheet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const statusFilters = [
-  { key: 'all',       label: 'All Worklets', icon: Target,      color: 'blue'   },
-  { key: 'ongoing',   label: 'Ongoing',      icon: Activity,    color: 'yellow' },
-  { key: 'completed', label: 'Completed',    icon: CheckCircle, color: 'green'  },
-  { key: 'on hold',   label: 'On Hold',      icon: Clock,       color: 'orange' },
-  { key: 'dropped',   label: 'Dropped',      icon: X,           color: 'red'    },
+const statusOptions = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'ongoing', label: 'Ongoing' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on hold', label: 'On Hold' },
+  { value: 'dropped', label: 'Dropped' },
+];
+
+const riskOptions = [
+  { value: 'all', label: 'All Risk Levels' },
+  { value: 'safe', label: 'Safe' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
 ];
 
 const statusColor = (s) => {
@@ -46,6 +54,70 @@ const riskColor = (r) => {
   return 'text-slate-400';
 };
 
+// Custom dropdown component
+const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(opt => opt.value === value) || options[0];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 min-w-[140px] ${
+          isDarkMode
+            ? 'bg-slate-800/50 border-slate-600/50 text-slate-200 hover:bg-slate-700/50'
+            : 'bg-white/80 border-slate-300/50 text-slate-700 hover:bg-slate-50'
+        }`}
+      >
+        <Icon size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+        <span className="text-sm font-medium truncate flex-1 text-left">{selectedOption.label}</span>
+        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className={`absolute top-full left-0 mt-1 z-20 min-w-full rounded-lg border shadow-lg overflow-hidden ${
+                isDarkMode
+                  ? 'bg-slate-800 border-slate-600'
+                  : 'bg-white border-slate-200'
+              }`}
+            >
+              <div className="max-h-60 overflow-y-auto">
+                {options.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      onChange(opt.value);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full px-3 py-2 text-sm text-left transition-colors ${
+                      value === opt.value
+                        ? isDarkMode
+                          ? 'bg-purple-600/30 text-purple-300'
+                          : 'bg-purple-100 text-purple-700'
+                        : isDarkMode
+                          ? 'text-slate-300 hover:bg-slate-700'
+                          : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const AdminWorklets = () => {
   useDocumentTitle('PRISM Admin - Worklets');
   const navigate = useNavigate();
@@ -55,14 +127,28 @@ const AdminWorklets = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState('list');
 
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [collegeFilter, setCollegeFilter] = useState('all');
+  const [groupFilter, setGroupFilter] = useState('all');
+  const [riskFilter, setRiskFilter] = useState('all');
+  const [stageFilter, setStageFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
+
+  // Filter options from API
+  const [colleges, setColleges] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [stages, setStages] = useState([]);
+  const [years, setYears] = useState([]);
+
+  // Fetch worklets
   useEffect(() => {
     const fetchWorklets = async () => {
       try {
         setLoading(true);
-        const res = await API.get('/api/worklets/');
+        const res = await API.get('/worklets/');
         setWorklets(res.data);
       } catch (err) {
         console.error('Failed to fetch worklets:', err);
@@ -74,14 +160,103 @@ const AdminWorklets = () => {
     fetchWorklets();
   }, []);
 
+  // Fetch filter options
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        // Fetch colleges
+        API.get('/api/admin/colleges').then(res => {
+          setColleges(res.data || []);
+        }).catch(() => setColleges([]));
+
+        // Fetch groups
+        API.get('/worklets/groups').then(res => {
+          setGroups(res.data || []);
+        }).catch(() => setGroups([]));
+
+        // Fetch stages
+        API.get('/worklets/stages').then(res => {
+          setStages(res.data || []);
+        }).catch(() => setStages([]));
+      } catch (err) {
+        console.error('Failed to fetch filter options:', err);
+      }
+    };
+    fetchFilterOptions();
+  }, []);
+
+  // Derive years from worklets data
+  useEffect(() => {
+    if (worklets.length > 0) {
+      const uniqueYears = [...new Set(worklets.map(w => w.year).filter(Boolean))].sort((a, b) => b - a);
+      setYears(uniqueYears);
+    }
+  }, [worklets]);
+
+  // Build filter option arrays
+  const collegeOptions = useMemo(() => [
+    { value: 'all', label: 'All Colleges' },
+    ...colleges.map(c => ({ value: c.name, label: c.name }))
+  ], [colleges]);
+
+  const groupOptions = useMemo(() => [
+    { value: 'all', label: 'All Groups' },
+    ...groups.map(g => ({ value: g.group_id?.toString(), label: g.label }))
+  ], [groups]);
+
+  const stageOptions = useMemo(() => [
+    { value: 'all', label: 'All Stages' },
+    ...stages.map(s => ({ value: s.stage, label: s.stage }))
+  ], [stages]);
+
+  const yearOptions = useMemo(() => [
+    { value: 'all', label: 'All Years' },
+    ...years.map(y => ({ value: y.toString(), label: y.toString() }))
+  ], [years]);
+
   const filtered = useMemo(() => {
     let list = worklets;
-    if (activeFilter !== 'all') {
+
+    // Status filter
+    if (statusFilter !== 'all') {
       list = list.filter(w => {
         const s = (w.status || '').toLowerCase();
-        return s.includes(activeFilter);
+        return s.includes(statusFilter);
       });
     }
+
+    // College filter
+    if (collegeFilter !== 'all') {
+      list = list.filter(w => w.college === collegeFilter);
+    }
+
+    // Group filter (by group_mg_id)
+    if (groupFilter !== 'all') {
+      list = list.filter(w => w.group_mg_id?.toString() === groupFilter);
+    }
+
+    // Risk filter
+    if (riskFilter !== 'all') {
+      list = list.filter(w => {
+        const r = (w.riskStatus || '').toLowerCase();
+        if (riskFilter === 'safe') return r === 'safe' || r === 'green';
+        if (riskFilter === 'medium') return r === 'medium' || r === 'amber';
+        if (riskFilter === 'high') return r === 'high' || r === 'red';
+        return true;
+      });
+    }
+
+    // Stage filter
+    if (stageFilter !== 'all') {
+      list = list.filter(w => w.stage === stageFilter);
+    }
+
+    // Year filter
+    if (yearFilter !== 'all') {
+      list = list.filter(w => w.year?.toString() === yearFilter);
+    }
+
+    // Search filter
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(w =>
@@ -91,7 +266,108 @@ const AdminWorklets = () => {
       );
     }
     return list;
-  }, [worklets, activeFilter, search]);
+  }, [worklets, statusFilter, collegeFilter, groupFilter, riskFilter, stageFilter, yearFilter, search]);
+
+  // Excel export function
+  const handleExportToExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Filtered Worklets List
+      const workletListData = [
+        ['Worklet List Export'],
+        ['Generated On', new Date().toLocaleString()],
+        ['Total Worklets', filtered.length],
+        [''],
+        ['ID', 'Certificate ID', 'Title', 'Status', 'College', 'Group', 'Stage', 'Students', 'Progress (%)', 'Performance', 'Risk Status', 'Year']
+      ];
+      
+      filtered.forEach(w => {
+        workletListData.push([
+          w.id || '',
+          w.cert_id || '',
+          w.title || '',
+          w.status || 'To Start',
+          w.college || '',
+          w.group_mg_id || '',
+          w.stage || '',
+          w.student_count || 0,
+          w.worklet_progress || 0,
+          w.performance || '',
+          w.riskStatus || '',
+          w.year || ''
+        ]);
+      });
+      
+      const ws1 = XLSX.utils.aoa_to_sheet(workletListData);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Worklets');
+
+      // Sheet 2: Applied Filters
+      const filtersData = [
+        ['Applied Filters'],
+        ['Generated On', new Date().toLocaleString()],
+        [''],
+        ['Filter Type', 'Value'],
+        ['Search Term', search || 'None'],
+        ['Status', statusFilter === 'all' ? 'All Statuses' : statusFilter],
+        ['College', collegeFilter === 'all' ? 'All Colleges' : collegeFilter],
+        ['Group', groupFilter === 'all' ? 'All Groups' : groupFilter],
+        ['Risk Status', riskFilter === 'all' ? 'All Risk Levels' : riskFilter],
+        ['Stage', stageFilter === 'all' ? 'All Stages' : stageFilter],
+        ['Year', yearFilter === 'all' ? 'All Years' : yearFilter]
+      ];
+      
+      const ws2 = XLSX.utils.aoa_to_sheet(filtersData);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Filters');
+
+      // Sheet 3: Summary Statistics
+      const total = filtered.length;
+      const active = filtered.filter(w => w.status === 'Ongoing').length;
+      const completed = filtered.filter(w => w.status === 'Completed').length;
+      const pending = filtered.filter(w => w.status === 'To Start' || w.status === 'Pending').length;
+      
+      const statusBreakdown = {};
+      filtered.forEach(w => {
+        const status = w.status || 'To Start';
+        statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
+      });
+      
+      const riskBreakdown = {};
+      filtered.forEach(w => {
+        const risk = w.riskStatus || 'Unknown';
+        riskBreakdown[risk] = (riskBreakdown[risk] || 0) + 1;
+      });
+      
+      const summaryData = [
+        ['Worklet Statistics'],
+        ['Generated On', new Date().toLocaleString()],
+        [''],
+        ['Overview', ''],
+        ['Total Worklets', total],
+        ['Active (Ongoing)', active],
+        ['Completed', completed],
+        ['Pending/To Start', pending],
+        [''],
+        ['Status Breakdown', ''],
+        ...Object.entries(statusBreakdown).map(([status, count]) => [status, count]),
+        [''],
+        ['Risk Status Breakdown', ''],
+        ...Object.entries(riskBreakdown).map(([risk, count]) => [risk, count])
+      ];
+      
+      const ws3 = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, ws3, 'Summary');
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = 'PRISM_Admin_Worklets_' + timestamp + '.xlsx';
+      
+      XLSX.writeFile(wb, filename);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export worklets to Excel. Please try again.');
+    }
+  };
 
   const counts = useMemo(() => {
     const c = { all: worklets.length, ongoing: 0, completed: 0, 'on hold': 0, dropped: 0 };
@@ -104,6 +380,21 @@ const AdminWorklets = () => {
     });
     return c;
   }, [worklets]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setStatusFilter('all');
+    setCollegeFilter('all');
+    setGroupFilter('all');
+    setRiskFilter('all');
+    setStageFilter('all');
+    setYearFilter('all');
+    setSearch('');
+  };
+
+  const hasActiveFilters = statusFilter !== 'all' || collegeFilter !== 'all' || 
+    groupFilter !== 'all' || riskFilter !== 'all' || stageFilter !== 'all' || 
+    yearFilter !== 'all' || search.trim();
 
   return (
     <div className="flex h-screen w-full bg-slate-100 text-slate-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200">
@@ -164,6 +455,23 @@ const AdminWorklets = () => {
               } backdrop-blur-sm`}
             />
           </div>
+
+          {/* Export Excel button */}
+          <motion.button
+            onClick={handleExportToExcel}
+            className={`flex items-center gap-2 px-4 py-2.5 ml-4 rounded-xl font-medium transition-all shadow-md ${
+              isDarkMode
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+            title="Export filtered worklets to Excel"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <FileSpreadsheet size={16} />
+            <span className="text-sm">Export Excel</span>
+          </motion.button>
+
           <div className={`flex rounded-lg overflow-hidden border ml-4 ${isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'}`}>
             <motion.button
               onClick={() => setViewMode('grid')}
@@ -192,40 +500,84 @@ const AdminWorklets = () => {
           </div>
         </div>
 
-        {/* Status filter tabs */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {statusFilters.map(f => {
-            const active = activeFilter === f.key;
-            return (
-              <motion.button
-                key={f.key}
-                onClick={() => setActiveFilter(f.key)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  active
-                    ? isDarkMode
-                      ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
-                      : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
-                    : isDarkMode
-                      ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-gradient-to-r hover:from-gray-800/40 hover:to-gray-700/40 hover:text-white'
-                      : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 hover:text-gray-800'
+        {/* Filter Dropdowns */}
+        <div className={`mb-6 p-4 rounded-xl border ${
+          isDarkMode
+            ? 'bg-slate-800/60 border-slate-700/50'
+            : 'bg-white/70 border-slate-200/50'
+        }`}>
+          <div className="flex items-center gap-2 mb-3">
+            <Filter size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+            <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Filters</span>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className={`ml-auto text-xs px-2 py-1 rounded-md transition-colors ${
+                  isDarkMode
+                    ? 'text-purple-400 hover:bg-purple-600/20'
+                    : 'text-purple-600 hover:bg-purple-100'
                 }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
               >
-                <f.icon size={16} />
-                <span>{f.label}</span>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  active
-                    ? 'bg-white/20 text-white'
-                    : isDarkMode
-                      ? 'bg-gray-800/30 text-gray-300'
-                      : 'bg-gray-100/80 text-gray-700'
-                }`}>
-                  {counts[f.key] ?? 0}
-                </span>
-              </motion.button>
-            );
-          })}
+                Clear all
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <FilterDropdown
+              label="Group"
+              icon={Users}
+              value={groupFilter}
+              options={groupOptions}
+              onChange={setGroupFilter}
+              isDarkMode={isDarkMode}
+            />
+            <FilterDropdown
+              label="College"
+              icon={Building2}
+              value={collegeFilter}
+              options={collegeOptions}
+              onChange={setCollegeFilter}
+              isDarkMode={isDarkMode}
+            />
+            <FilterDropdown
+              label="Status"
+              icon={Activity}
+              value={statusFilter}
+              options={statusOptions}
+              onChange={setStatusFilter}
+              isDarkMode={isDarkMode}
+            />
+            <FilterDropdown
+              label="Risk Status"
+              icon={Shield}
+              value={riskFilter}
+              options={riskOptions}
+              onChange={setRiskFilter}
+              isDarkMode={isDarkMode}
+            />
+            <FilterDropdown
+              label="Stage"
+              icon={Layers}
+              value={stageFilter}
+              options={stageOptions}
+              onChange={setStageFilter}
+              isDarkMode={isDarkMode}
+            />
+            <FilterDropdown
+              label="Year"
+              icon={Calendar}
+              value={yearFilter}
+              options={yearOptions}
+              onChange={setYearFilter}
+              isDarkMode={isDarkMode}
+            />
+          </div>
+          {/* Results summary */}
+          <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-slate-700/50' : 'border-slate-200/50'}`}>
+            <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Showing <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-700'}`}>{filtered.length}</span> of {worklets.length} worklets
+            </span>
+          </div>
         </div>
 
         {/* Content */}
@@ -281,9 +633,9 @@ const AdminWorklets = () => {
                     <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                       <Users className="w-3.5 h-3.5" /> {w.student_count ?? 0} Students
                     </div>
-                    {w.team && (
+                    {w.group_mg_id && (
                       <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                        <Target className="w-3.5 h-3.5" /> {w.team}
+                        <Target className="w-3.5 h-3.5" /> Group {w.group_mg_id}
                       </div>
                     )}
                   </div>

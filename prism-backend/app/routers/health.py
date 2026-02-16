@@ -1,6 +1,8 @@
 ﻿from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.database import get_db, engine
+from app.models import User, Worklet
 import logging
 
 router = APIRouter()
@@ -9,6 +11,31 @@ logger = logging.getLogger(__name__)
 @router.get("/health")
 def health_check():
     return {"status": "healthy", "service": "Samsung PRISM Backend"}
+
+@router.get("/public-stats")
+def get_public_stats(db: Session = Depends(get_db)):
+    """
+    Get public statistics for the login page.
+    Returns counts of students, projects (worklets), and mentors.
+    No authentication required.
+    """
+    try:
+        students_count = db.query(func.count(User.id)).filter(User.role == "Student").scalar() or 0
+        mentors_count = db.query(func.count(User.id)).filter(User.role == "Mentor").scalar() or 0
+        projects_count = db.query(func.count(Worklet.id)).scalar() or 0
+        
+        return {
+            "students": students_count,
+            "projects": projects_count,
+            "mentors": mentors_count
+        }
+    except Exception as e:
+        logger.error(f"Failed to get public stats: {str(e)}")
+        return {
+            "students": 0,
+            "projects": 0,
+            "mentors": 0
+        }
 
 @router.get("/health/db")
 def db_health_check(db: Session = Depends(get_db)):

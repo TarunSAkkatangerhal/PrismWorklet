@@ -98,7 +98,8 @@ def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team
     # Build base query with eager loading
     query = db.query(Worklet).options(
         joinedload(Worklet.college_rel),
-        joinedload(Worklet.team_rel)
+        joinedload(Worklet.team_rel),
+        joinedload(Worklet.stage_rel)
     )
     
     # Apply domain filter if provided
@@ -211,6 +212,12 @@ def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team
         if w.team_rel:
             team_name = w.team_rel.team_name
 
+        # Get stage info from eager-loaded relationship
+        stage_id = getattr(w, 'stage_id', None)
+        stage_name = None
+        if w.stage_rel:
+            stage_name = w.stage_rel.stage
+
         response.append({
             'id': w.id,
             'cert_id': str(w.cert_id) if getattr(w, 'cert_id', None) is not None else str(w.id),
@@ -228,12 +235,39 @@ def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team
             'college': college_name,
             'student_count': student_count,
             'team': team_name,
+            'group_mg_id': getattr(w, 'group_mg_id', None),
+            'stage_id': stage_id,
+            'stage': stage_name,
             'github_repo_url': github_url,
             'github_repo': repo_name,
             'performance': normalize_performance(getattr(w, 'Performance', None)),
             'riskStatus': normalize_risk_status(getattr(w, 'RiskStatus', None))
         })
     return response
+
+# ----------------- Groups (for filtering) -----------------
+@router.get("/groups", tags=["worklets"])
+def get_worklet_groups(db: Session = Depends(get_db)):
+    """Return all unique group IDs for filter dropdowns."""
+    try:
+        # Get all unique non-null group_mg_id values
+        groups = db.query(Worklet.group_mg_id).distinct().filter(Worklet.group_mg_id.isnot(None)).order_by(Worklet.group_mg_id).all()
+        return [{"group_id": g[0], "label": f"Group {g[0]}"} for g in groups]
+    except Exception as e:
+        logger.error(f"Error fetching groups: {e}")
+        return []
+
+# ----------------- Stages (for filtering) -----------------
+@router.get("/stages", tags=["worklets"])
+def get_worklet_stages(db: Session = Depends(get_db)):
+    """Return all worklet stages for filter dropdowns."""
+    from app.models import WorkletStage
+    try:
+        stages = db.query(WorkletStage).order_by(WorkletStage.stage_id).all()
+        return [{"stage_id": s.stage_id, "stage": s.stage} for s in stages]
+    except Exception as e:
+        logger.error(f"Error fetching stages: {e}")
+        return []
 
 # ----------------- Student Worklets (Authenticated) -----------------
 @router.get("/student/me", tags=["worklets"])

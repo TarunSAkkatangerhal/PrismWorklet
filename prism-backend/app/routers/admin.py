@@ -161,6 +161,74 @@ def list_colleges_for_filter(
     return [{"id": c.college_id, "name": c.college_name} for c in colleges]
 
 
+# ─── GET /users/{user_id} ────────────────────────────────────────────
+
+@router.get("/users/{user_id}")
+def get_user_by_id(
+    user_id: int,
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Get detailed information about a specific user by ID."""
+    logger.info(f"Fetching user profile for user_id: {user_id}")
+    
+    # Subquery: count worklets for this user
+    worklet_count_sq = (
+        db.query(
+            UserWorkletAssociation.user_id,
+            func.count(UserWorkletAssociation.worklet_id).label("worklet_count"),
+        )
+        .filter(UserWorkletAssociation.user_id == user_id)
+        .group_by(UserWorkletAssociation.user_id)
+        .subquery()
+    )
+    
+    result = (
+        db.query(
+            User,
+            College.college_name,
+            func.coalesce(worklet_count_sq.c.worklet_count, 0).label("worklet_count"),
+        )
+        .options(joinedload(User.profile))
+        .outerjoin(College, User.college_id == College.college_id)
+        .outerjoin(worklet_count_sq, User.id == worklet_count_sq.c.user_id)
+        .filter(User.id == user_id)
+        .first()
+    )
+    
+    if not result:
+        logger.error(f"User not found with ID: {user_id}")
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user, college_name, wc = result
+    logger.info(f"Found user: {user.name}, role: {user.role}, college: {college_name}")
+    
+    # Get student_id from profile if available
+    student_id = None
+    try:
+        if user.profile:
+            student_id = user.profile.student_id
+    except Exception as e:
+        logger.warning(f"Error accessing profile for user {user_id}: {e}")
+    
+    response_data = {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "college_id": user.college_id,
+        "college_name": college_name,
+        "student_id": student_id,
+        "is_active": user.is_active,
+        "profile_completed": user.profile_completed,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "worklet_count": wc,
+    }
+    
+    logger.info(f"Returning user data: {response_data}")
+    return response_data
+
+
 # ─── PATCH /users/{user_id}/toggle-active ────────────────────────────
 
 @router.patch("/users/{user_id}/toggle-active")

@@ -153,6 +153,8 @@ export const login = async (email, password, role) => {
       const status = error.response.status;
       if (status === 401) {
         throw new Error('Invalid credentials');
+      } else if (status === 403) {
+        throw new Error('You are not registered as the selected role. Please select the correct role.');
       } else if (status === 429) {
         throw new Error('Too many login attempts. Please try again later.');
       } else if (status >= 500) {

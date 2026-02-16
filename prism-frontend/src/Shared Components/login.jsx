@@ -55,6 +55,7 @@ export default function Login() {
   const [role, setRole] = useState("student"); // default role
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [showForgotLink, setShowForgotLink] = useState(false); // show only after failed login
+  const [showPassword, setShowPassword] = useState(false); // toggle password visibility
   
   // OTP Timer states
   const [otpTimer, setOtpTimer] = useState(0);
@@ -79,6 +80,22 @@ export default function Login() {
     batch_to: ''
   });
   const [registrationError, setRegistrationError] = useState('');
+
+  // Public stats for login page
+  const [publicStats, setPublicStats] = useState({ students: 0, projects: 0, mentors: 0 });
+
+  // Fetch public stats on mount
+  useEffect(() => {
+    const fetchPublicStats = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/public-stats');
+        setPublicStats(response.data);
+      } catch (error) {
+        console.error('Failed to fetch public stats:', error);
+      }
+    };
+    fetchPublicStats();
+  }, []);
 
   // Fetch colleges when registration form is shown
   useEffect(() => {
@@ -580,7 +597,7 @@ const handleSignup = async (e) => {
                       Home
                     </button>
                     <button 
-                      onClick={() => alert('Samsung PRISM is an innovative platform for connecting students with mentors and internship opportunities.')}
+                      onClick={() => window.open('https://www.samsungprism.com/about', '_blank')}
                       className="text-white/80 hover:text-white text-sm transition-colors duration-200 hover:underline"
                     >
                       About PRISM
@@ -618,15 +635,15 @@ const handleSignup = async (e) => {
                   {/* Stats */}
                   <div className="mt-12 grid grid-cols-3 gap-8 animate-fade-in-up delay-600">
                     <div className="text-center">
-                      <div className="text-3xl font-bold">1000+</div>
+                      <div className="text-3xl font-bold">{publicStats.students}+</div>
                       <div className="text-blue-200">Students</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold">500+</div>
+                      <div className="text-3xl font-bold">{publicStats.projects}+</div>
                       <div className="text-blue-200">Projects</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold">50+</div>
+                      <div className="text-3xl font-bold">{publicStats.mentors}+</div>
                       <div className="text-blue-200">Mentors</div>
                     </div>
                   </div>
@@ -751,7 +768,7 @@ const handleSignup = async (e) => {
                     <div className="relative">
                       <input
                         id="password"
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         value={password}
                         disabled={isLoading}
                         onChange={(e) => {
@@ -761,7 +778,7 @@ const handleSignup = async (e) => {
                         }}
                         onFocus={() => setIsPasswordFocused(true)}
                         onBlur={() => setIsPasswordFocused(false)}
-                        className={`w-full px-4 py-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        className={`w-full px-4 py-3 pr-12 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                           isLoading ? 'opacity-50 cursor-not-allowed' : ''
                         } ${
                           passwordError 
@@ -771,6 +788,23 @@ const handleSignup = async (e) => {
                         placeholder="Enter your password"
                         required
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-700 transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? (
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                          </svg>
+                        )}
+                      </button>
                     </div>
                     {passwordError && (
                       <p className="mt-1 text-sm text-red-500 flex items-center">
@@ -1264,26 +1298,45 @@ const handleSignup = async (e) => {
                     <>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">Choose Password</label>
-                        <input 
-                          type="password" 
-                          value={password} 
-                          onChange={(e) => {
-                            setPassword(e.target.value);
-                            setPasswordValidation(validatePasswordRequirements(e.target.value));
-                            setPasswordError("");
-                          }}
-                          onFocus={() => setIsPasswordFocused(true)} 
-                          onBlur={() => setIsPasswordFocused(false)} 
-                          className={`w-full px-4 py-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                            passwordError 
-                              ? 'border-red-500 focus:ring-red-500' 
-                              : password && passwordValidation.isValid
-                                ? 'border-green-500 focus:ring-green-500' 
-                                : 'border-slate-200 focus:ring-blue-500'
-                          }`}
-                          placeholder="Create your password (8-12 chars)" 
-                          required 
-                        />
+                        <div className="relative">
+                          <input 
+                            type={showPassword ? "text" : "password"} 
+                            value={password} 
+                            onChange={(e) => {
+                              setPassword(e.target.value);
+                              setPasswordValidation(validatePasswordRequirements(e.target.value));
+                              setPasswordError("");
+                            }}
+                            onFocus={() => setIsPasswordFocused(true)} 
+                            onBlur={() => setIsPasswordFocused(false)} 
+                            className={`w-full px-4 py-3 pr-12 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                              passwordError 
+                                ? 'border-red-500 focus:ring-red-500' 
+                                : password && passwordValidation.isValid
+                                  ? 'border-green-500 focus:ring-green-500' 
+                                  : 'border-slate-200 focus:ring-blue-500'
+                            }`}
+                            placeholder="Create your password (8-12 chars)" 
+                            required 
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-700 transition-colors"
+                            tabIndex={-1}
+                          >
+                            {showPassword ? (
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                              </svg>
+                            ) : (
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                              </svg>
+                            )}
+                          </button>
+                        </div>
                         
                         {/* Password Requirements Display */}
                         {password && (

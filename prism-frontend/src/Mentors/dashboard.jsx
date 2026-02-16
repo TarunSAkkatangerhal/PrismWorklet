@@ -828,7 +828,11 @@ const ModernStatisticsDashboard = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                  📊 {statisticsData?.monthly_data?.length || 0} {filters.year === 'All' ? 'years' : 'months'} of data {filters.year === 'All' ? '(Year-wise aggregated)' : filters.year !== 'All' ? `(${filters.year})` : ''}
               </p>
-              <div className="mt-8 overflow-x-auto pb-4 custom-scrollbar -ml-8">
+              <div 
+                className="mt-8 overflow-x-auto pb-4 custom-scrollbar -ml-8 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setPreviewChart('monthly')}
+                title="Click to view full screen"
+              >
                 <div className={filters.year === 'All' ? 'min-w-full' : 'min-w-[1200px]'}>
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={statisticsData?.monthly_data || []}>
@@ -938,7 +942,11 @@ const ModernStatisticsDashboard = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                  📊 Status breakdown across time periods
               </p>
-              <div className="mt-10 overflow-x-auto pb-4 custom-scrollbar -ml-8">
+              <div 
+                className="mt-10 overflow-x-auto pb-4 custom-scrollbar -ml-8 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setPreviewChart('status')}
+                title="Click to view full screen"
+              >
                 {/* Dynamic width based on filter selection */}
                 <div className={filters.year === 'All' ? 'min-w-full' : 'min-w-[1200px]'}>
                   <ResponsiveContainer width="100%" height={200}>
@@ -1022,7 +1030,12 @@ const ModernStatisticsDashboard = () => {
                   Total: {(statisticsData?.performance_distribution || []).reduce((sum, item) => sum + item.value, 0)} worklets
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={200}>
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setPreviewChart('performance')}
+                title="Click to view full screen"
+              >
+                <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie
                     data={statisticsData?.performance_distribution || []}
@@ -1076,6 +1089,7 @@ const ModernStatisticsDashboard = () => {
                   />
                 </PieChart>
               </ResponsiveContainer>
+              </div>
             </ChartContainer>
           </div>
         </section>

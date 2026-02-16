@@ -100,6 +100,15 @@ const AdminWorkletDetail = () => {
   const [addRole, setAddRole] = useState('Student');
   const [addCollege, setAddCollege] = useState('');
   const [addName, setAddName] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  
+  // User profile modal state
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileUser, setProfileUser] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Modify form state
   const [form, setForm] = useState({});
@@ -114,21 +123,29 @@ const AdminWorkletDetail = () => {
   const fetchWorklet = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await API.get(`/api/worklets/${id}`);
+      setError(null);
+      console.log('Fetching worklet with ID:', id);
+      const res = await API.get(`/worklets/${id}`);
+      console.log('Worklet API response:', res.data);
+      
+      if (!res.data) {
+        throw new Error('No data received from server');
+      }
+      
       setWorklet(res.data);
       setForm({
         college_id:      res.data.college_id || '',
-        group:           res.data.team || '',
+        group:           res.data.team || res.data.group || '',
         assign_date:     dateToInput(res.data.assign_date),
-        github_url:      res.data.github_repo_url || '',
+        github_url:      res.data.github_repo_url || res.data.github_url || '',
         start_date:      dateToInput(res.data.start_date),
         end_date:        dateToInput(res.data.end_date),
         status:          res.data.status || 'Ongoing',
-        stage:           res.data.current_stage || '',
+        stage:           res.data.current_stage || res.data.stage || '',
         cert_id:         res.data.cert_id || '',
         performance:     res.data.performance || 'NA',
-        riskStatus:      res.data.riskStatus || 'NA',
-        riskNotes:       res.data.risk_status_notes || '',
+        riskStatus:      res.data.riskStatus || res.data.risk_status || 'NA',
+        riskNotes:       res.data.risk_status_notes || res.data.riskNotes || '',
         paperDetails:    res.data.paper_details || '',
         patentDetails:   res.data.patent_details || '',
         commerceDetails: res.data.commercialization_details || '',
@@ -140,78 +157,13 @@ const AdminWorkletDetail = () => {
         category:        res.data.category || '',
       });
     } catch (err) {
-      console.error(err);
-      // Fallback: use dummy data so the UI is still visible
-      const dummy = {
-        id: Number(id) || 1267,
-        cert_id: '25TS16CITB',
-        title: 'Smart PRISM Worklet Management System',
-        description: 'Build a comprehensive data analytics platform for Smart PRISM Worklet Management System. Current analysis methods are manual and time-consuming. Critical problems include lack of automated data processing and real-time insights.',
-        problem_statement: 'Build a comprehensive data analytics platform for Smart PRISM Worklet Management System. Current analysis methods are manual and time-consuming.',
-        expectation: 'Develop a fully functional worklet management platform with real-time dashboards, automated workflows, and role-based access control.',
-        prerequisites: 'React, Python/FastAPI, PostgreSQL, Docker',
-        status: 'Ongoing',
-        current_stage: 'Kicked-Off',
-        worklet_progress: 54,
-        start_date: '2025-06-25',
-        end_date: '2025-12-24',
-        created_at: '2025-06-23T09:39:08',
-        created_by: 'Admin',
-        college: 'Cambridge Institute of Technology',
-        college_id: 1,
-        team: 'R&D Strategy Group',
-        github_repo_url: 'https://github.ecodesamsung.com/SRIB-PRISM/CITB_25TS16CITB_Smart_PR',
-        performance: 'Good',
-        riskStatus: 'Safe',
-        risk_status_notes: '16th Sept- Mentor has connected with team\n27-June : Kicked-Off',
-        group_head_comments: '27-June : Need to reschedule on 01-July.',
-        stream: 'Any',
-        degree: 'Any',
-        complexity: 'Medium',
-        research: true,
-        poc: true,
-        data_collection: false,
-        linked_project: false,
-        is_excellent: false,
-        is_data_collected: 'Not Applicable',
-        is_genai: false,
-        modality: '',
-        category: '',
-        paper_details: '',
-        patent_details: '',
-        commercialization_details: '',
-        attachments: [{ name: 'Attachment1' }],
-        professors: [
-          { id: 101, name: 'Jayanthi M G', college: 'Cambridge Institute of Technology', eligible: true },
-          { id: 102, name: 'Shilpa S B', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 103, name: 'Lakshmi Shree MS', college: 'Cambridge Institute of Technology', eligible: true },
-        ],
-        students: [
-          { id: 201, name: 'Ruqhiya Taj', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 202, name: 'Mohammed Umar', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 203, name: 'Nandan M K', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 204, name: 'Aisha Khan', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 205, name: 'Priya Sharma', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 206, name: 'Rahul Verma', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 207, name: 'Sneha Patil', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 208, name: 'Arjun Reddy', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 209, name: 'Kavya Nair', college: 'Cambridge Institute of Technology', eligible: false },
-          { id: 210, name: 'Deepak Joshi', college: 'Cambridge Institute of Technology', eligible: false },
-        ],
-        mentors: [],
-      };
-      setWorklet(dummy);
-      setForm({
-        college_id: dummy.college_id, group: dummy.team, assign_date: '2026-02-11',
-        github_url: dummy.github_repo_url, start_date: dateToInput(dummy.start_date),
-        end_date: dateToInput(dummy.end_date), status: dummy.status, stage: dummy.current_stage,
-        cert_id: dummy.cert_id, performance: dummy.performance, riskStatus: dummy.riskStatus,
-        riskNotes: dummy.risk_status_notes, paperDetails: '', patentDetails: '',
-        commerceDetails: '', groupHeadComments: dummy.group_head_comments,
-        isExcellent: false, isDataCollected: 'Not Applicable', isGenAI: false,
-        modality: '', category: '',
-      });
-      setError(null); // clear error so UI renders
+      console.error('Failed to fetch worklet:', err);
+      console.error('Error response:', err.response?.data);
+      const errorMsg = err.response?.status === 404 
+        ? 'Worklet not found. It may have been deleted or the ID is incorrect.'
+        : err.response?.data?.detail || err.message || 'Failed to load worklet details. Please try again.';
+      setError(errorMsg);
+      setWorklet(null);
     } finally {
       setLoading(false);
     }
@@ -220,14 +172,33 @@ const AdminWorkletDetail = () => {
   useEffect(() => { fetchWorklet(); }, [fetchWorklet]);
 
   useEffect(() => {
-    API.get('/api/colleges/').then(r => setColleges(r.data)).catch(() => {});
+    API.get('/api/admin/colleges').then(r => setColleges(r.data)).catch(() => {});
   }, []);
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showSearchDropdown && !e.target.closest('.search-dropdown-container')) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSearchDropdown]);
+
+  // Reset search when role or college changes
+  useEffect(() => {
+    setAddName('');
+    setSelectedUser(null);
+    setSearchResults([]);
+    setShowSearchDropdown(false);
+  }, [addRole, addCollege]);
 
   /* ─── generic update helper ─── */
   const handleUpdate = async (key, payload) => {
     setSaving(s => ({ ...s, [key]: true }));
     try {
-      await API.put(`/api/worklets/${worklet.id}`, payload);
+      await API.put(`/worklets/${worklet.id}`, payload);
       showToast(`${key} updated successfully`);
       fetchWorklet();
     } catch (err) {
@@ -237,18 +208,63 @@ const AdminWorkletDetail = () => {
     }
   };
 
+  /* ─── search users as typing ─── */
+  const handleSearchUsers = async (searchText) => {
+    setAddName(searchText);
+    if (!searchText.trim() || searchText.length < 2) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+    
+    try {
+      setSearchLoading(true);
+      const params = new URLSearchParams({
+        search: searchText,
+        role: addRole,
+        page: '1',
+        page_size: '10'
+      });
+      if (addCollege) {
+        params.append('college_id', addCollege);
+      }
+      
+      const res = await API.get(`/api/admin/users?${params.toString()}`);
+      const users = res.data?.users || [];
+      setSearchResults(users);
+      setShowSearchDropdown(users.length > 0);
+    } catch (err) {
+      console.error('Search failed:', err);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  /* ─── select user from dropdown ─── */
+  const handleSelectUser = (user) => {
+    setSelectedUser(user);
+    setAddName(user.name);
+    setShowSearchDropdown(false);
+  };
+
   /* ─── add user to worklet ─── */
   const handleAddUser = async () => {
-    if (!addName.trim()) return showToast('Enter a name', 'error');
+    if (!selectedUser) {
+      return showToast('Please search and select a user from the dropdown', 'error');
+    }
+    
     try {
       setSaving(s => ({ ...s, addUser: true }));
-      // search user first
-      const searchRes = await API.get(`/api/users/search?name=${encodeURIComponent(addName)}&role=${addRole}`);
-      const user = searchRes.data?.[0];
-      if (!user) return showToast('User not found', 'error');
-      await API.post('/api/associations/', { user_id: user.id, worklet_id: worklet.id, role_in_worklet: addRole });
-      showToast(`${addRole} added`);
+      await API.post('/api/associations/', { 
+        user_id: selectedUser.id, 
+        worklet_id: worklet.id, 
+        role_in_worklet: addRole 
+      });
+      showToast(`${addRole} '${selectedUser.name}' added successfully`);
       setAddName('');
+      setSelectedUser(null);
+      setSearchResults([]);
       fetchWorklet();
     } catch (err) {
       showToast(err.response?.data?.detail || 'Failed to add user', 'error');
@@ -265,6 +281,32 @@ const AdminWorkletDetail = () => {
       fetchWorklet();
     } catch (err) {
       showToast('Failed to remove', 'error');
+    }
+  };
+
+  /* ─── view user profile ─── */
+  const handleViewProfile = async (userId, userName) => {
+    console.log('handleViewProfile called with:', { userId, userName });
+    if (!userId) {
+      console.log('No userId provided, skipping profile fetch');
+      showToast('Cannot view profile - user ID not available', 'error');
+      return;
+    }
+    try {
+      setProfileLoading(true);
+      setShowProfileModal(true);
+      console.log('Fetching profile for user ID:', userId);
+      const res = await API.get(`/api/admin/users/${userId}`);
+      console.log('Profile data received:', res.data);
+      setProfileUser(res.data);
+    } catch (err) {
+      console.error('Failed to fetch user profile:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      showToast('Failed to load user profile', 'error');
+      setShowProfileModal(false);
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -291,10 +333,27 @@ const AdminWorkletDetail = () => {
     return (
       <div className="flex h-screen w-full bg-slate-100 dark:bg-slate-900">
         <AdminLeftSidebar />
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <AlertCircle className="w-10 h-10 text-red-400" />
-          <p className="text-lg text-red-500">{error || 'Worklet not found'}</p>
-          <button onClick={() => navigate('/admin-worklets')} className="text-sm text-purple-600 hover:underline">← Back to Worklets</button>
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8 max-w-md text-center">
+            <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Worklet Not Found</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{error || 'Unable to load worklet details'}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mb-6">Worklet ID: {id}</p>
+            <div className="flex gap-3 justify-center">
+              <button 
+                onClick={() => navigate('/admin-worklets')} 
+                className="px-5 py-2 rounded-lg bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-colors shadow-md flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to Worklets
+              </button>
+              <button 
+                onClick={fetchWorklet} 
+                className="px-5 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-md"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -455,9 +514,45 @@ const AdminWorkletDetail = () => {
                         {colleges.map(c => <option key={c.id} value={c.id}>{c.college_name || c.name}</option>)}
                       </select>
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-500 mb-1 block">Name</label>
-                      <input value={addName} onChange={e => setAddName(e.target.value)} placeholder="Enter name" className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm min-w-[180px]" />
+                    <div className="relative flex-1 min-w-[200px] search-dropdown-container">
+                      <label className="text-xs font-semibold text-slate-500 mb-1 block">Search Name</label>
+                      <input 
+                        value={addName} 
+                        onChange={e => handleSearchUsers(e.target.value)} 
+                        onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
+                        placeholder="Type to search..." 
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm" 
+                      />
+                      {searchLoading && (
+                        <div className="absolute right-3 top-9 animate-spin h-4 w-4 border-2 border-purple-500/30 border-t-purple-500 rounded-full" />
+                      )}
+                      
+                      {/* Search Results Dropdown */}
+                      {showSearchDropdown && searchResults.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 max-h-64 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
+                          {searchResults.map(user => (
+                            <div
+                              key={user.id}
+                              onClick={() => handleSelectUser(user)}
+                              className="px-3 py-2 hover:bg-purple-50 dark:hover:bg-slate-700 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-slate-800 dark:text-white">{user.name}</div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400">
+                                {user.email} • {user.college || 'No College'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* No results message */}
+                      {addName.length >= 2 && !searchLoading && searchResults.length === 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg px-3 py-2">
+                          <div className="text-sm text-slate-500 dark:text-slate-400">
+                            No {addRole.toLowerCase()}s found{addCollege ? ' in selected college' : ''}.
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <UpdateBtn onClick={handleAddUser} loading={saving.addUser} label="Add" />
                   </div>
@@ -477,17 +572,38 @@ const AdminWorkletDetail = () => {
                       <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700">
                         Professor ({professors.length})
                       </h4>
-                      {professors.map(p => (
-                        <div key={p.id} className="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                          <div className="col-span-1"><input type="checkbox" defaultChecked className="rounded text-indigo-600" /></div>
-                          <div className="col-span-4 text-sm text-indigo-600 dark:text-indigo-400 font-medium cursor-pointer hover:underline">{p.name}</div>
-                          <div className="col-span-2"><input type="checkbox" defaultChecked={p.eligible} className="rounded text-indigo-600" /></div>
-                          <div className="col-span-4 text-xs text-slate-500">{p.college || '—'}</div>
-                          <div className="col-span-1">
-                            <button onClick={() => handleRemoveUser(p.id)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
+                      {professors.map((p, idx) => {
+                        // Handle both string names and object formats
+                        const isString = typeof p === 'string';
+                        const professorName = isString ? p : (p.name || p.user_name || 'Unknown');
+                        const professorId = isString ? null : (p.id || p.user_id);
+                        const professorCollege = isString ? '—' : (p.college || p.college_name || '—');
+                        const professorEligible = isString ? false : (p.eligible || false);
+                        
+                        return (
+                          <div key={professorId || `prof-${idx}`} className="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                            <div className="col-span-1"><input type="checkbox" defaultChecked className="rounded text-indigo-600" /></div>
+                            <div 
+                              className={`col-span-4 text-sm font-medium ${
+                                professorId 
+                                  ? 'text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline' 
+                                  : 'text-slate-600 dark:text-slate-400'
+                              }`}
+                              onClick={professorId ? () => handleViewProfile(professorId, professorName) : undefined}
+                              title={professorId ? 'Click to view profile' : 'Profile not available'}
+                            >
+                              {professorName}
+                            </div>
+                            <div className="col-span-2"><input type="checkbox" defaultChecked={professorEligible} className="rounded text-indigo-600" /></div>
+                            <div className="col-span-4 text-xs text-slate-500">{professorCollege}</div>
+                            <div className="col-span-1">
+                              {professorId && (
+                                <button onClick={() => handleRemoveUser(professorId)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
@@ -497,17 +613,38 @@ const AdminWorkletDetail = () => {
                       <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700">
                         Student ({students.length})
                       </h4>
-                      {students.map(s => (
-                        <div key={s.id} className="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                          <div className="col-span-1"><input type="checkbox" defaultChecked className="rounded text-indigo-600" /></div>
-                          <div className="col-span-4 text-sm text-indigo-600 dark:text-indigo-400 font-medium cursor-pointer hover:underline">{s.name}</div>
-                          <div className="col-span-2"><input type="checkbox" defaultChecked={s.eligible} className="rounded text-indigo-600" /></div>
-                          <div className="col-span-4 text-xs text-slate-500">{s.college || '—'}</div>
-                          <div className="col-span-1">
-                            <button onClick={() => handleRemoveUser(s.id)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
+                      {students.map((s, idx) => {
+                        // Handle both string names and object formats
+                        const isString = typeof s === 'string';
+                        const studentName = isString ? s : (s.name || s.user_name || 'Unknown');
+                        const studentId = isString ? null : (s.id || s.user_id);
+                        const studentCollege = isString ? '—' : (s.college || s.college_name || '—');
+                        const studentEligible = isString ? false : (s.eligible || false);
+                        
+                        return (
+                          <div key={studentId || `student-${idx}`} className="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                            <div className="col-span-1"><input type="checkbox" defaultChecked className="rounded text-indigo-600" /></div>
+                            <div 
+                              className={`col-span-4 text-sm font-medium ${
+                                studentId 
+                                  ? 'text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline' 
+                                  : 'text-slate-600 dark:text-slate-400'
+                              }`}
+                              onClick={studentId ? () => handleViewProfile(studentId, studentName) : undefined}
+                              title={studentId ? 'Click to view profile' : 'Profile not available'}
+                            >
+                              {studentName}
+                            </div>
+                            <div className="col-span-2"><input type="checkbox" defaultChecked={studentEligible} className="rounded text-indigo-600" /></div>
+                            <div className="col-span-4 text-xs text-slate-500">{studentCollege}</div>
+                            <div className="col-span-1">
+                              {studentId && (
+                                <button onClick={() => handleRemoveUser(studentId)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
@@ -789,6 +926,158 @@ const AdminWorkletDetail = () => {
           </div>
         </div>
       </main>
+
+      {/* User Profile Modal */}
+      <AnimatePresence>
+        {showProfileModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowProfileModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-[90%] max-w-2xl max-h-[85vh] overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <GraduationCap className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">User Profile</h2>
+                    <p className="text-sm text-indigo-100">Detailed Information</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(85vh-88px)]">
+                {profileLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4" />
+                    <p className="text-slate-500 dark:text-slate-400">Loading profile...</p>
+                  </div>
+                ) : profileUser ? (
+                  <div className="space-y-6">
+                    {/* Basic Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Full Name</label>
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-white">{profileUser.name || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Role</label>
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                          <span className="inline-block px-3 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
+                            {profileUser.role || '—'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Email Address</label>
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                          <p className="text-sm text-slate-700 dark:text-slate-300">{profileUser.email || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">College</label>
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-slate-400" />
+                          <p className="text-sm text-slate-700 dark:text-slate-300">{profileUser.college || profileUser.college_name || '—'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Info */}
+                    {profileUser.student_id && (
+                      <div>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Student ID</label>
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                          <p className="text-sm font-mono text-slate-700 dark:text-slate-300">{profileUser.student_id}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Worklet Involvement */}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Worklet Summary</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="px-4 py-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                          <div className="flex items-center gap-2 mb-1">
+                            <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Total Worklets</span>
+                          </div>
+                          <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{profileUser.worklet_count || 0}</p>
+                        </div>
+                        <div className="px-4 py-3 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl border border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            <span className="text-xs font-medium text-green-600 dark:text-green-400">Status</span>
+                          </div>
+                          <p className="text-sm font-bold text-green-700 dark:text-green-300">
+                            {profileUser.is_active ? 'Active' : 'Inactive'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Account Details */}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Account Information</label>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">Profile Completed</span>
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${profileUser.profile_completed ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'}`}>
+                            {profileUser.profile_completed ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                        {profileUser.created_at && (
+                          <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">Member Since</span>
+                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              {fmtFull(profileUser.created_at)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <AlertCircle className="w-12 h-12 text-red-400 mb-3" />
+                    <p className="text-slate-500 dark:text-slate-400">Failed to load profile</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className="px-5 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

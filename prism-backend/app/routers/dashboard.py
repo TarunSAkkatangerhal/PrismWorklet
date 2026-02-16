@@ -11,6 +11,9 @@ from datetime import date, datetime, time
 from calendar import monthrange
 from typing import Optional
 import logging
+import pandas as pd
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -171,40 +174,64 @@ def get_dashboard_statistics(
             papers_count = db.query(Paper).filter(Paper.publication_year == selected_year).count()
             patents_count = db.query(Patent).filter(Patent.filing_year == selected_year).count()
 
-        # Calculate performance distribution from worklets
+        # Calculate performance distribution from worklets using pandas for efficiency
         if selected_year is None:
             perf_worklets = worklets_query.all()
         else:
             perf_worklets = year_worklets_query.all()
         
-        performance_counts = {
-            "excellent": 0,
-            "very_good": 0,
-            "good": 0,
-            "average": 0,
-            "needs_improvement": 0,
-            "not_rated": 0,
-        }
-        
-        for w in perf_worklets:
-            raw_performance = getattr(w, 'Performance', None)
-            performance = normalize_performance(raw_performance)
-            if performance and performance.lower() not in ("na", "n/a", ""):
-                perf_lower = performance.lower().replace(" ", "_")
-                if perf_lower == "excellent":
-                    performance_counts["excellent"] += 1
-                elif perf_lower in ("very_good", "very good"):
-                    performance_counts["very_good"] += 1
-                elif perf_lower == "good":
-                    performance_counts["good"] += 1
-                elif perf_lower == "average":
-                    performance_counts["average"] += 1
-                elif perf_lower in ("poor", "needs_improvement", "needs improvement"):
-                    performance_counts["needs_improvement"] += 1
+        # Convert worklets to DataFrame for efficient performance categorization
+        if perf_worklets:
+            perf_data = []
+            for w in perf_worklets:
+                raw_performance = getattr(w, 'Performance', None)
+                performance = normalize_performance(raw_performance)
+                perf_data.append({'performance': performance})
+            
+            df_perf = pd.DataFrame(perf_data)
+            
+            # Normalize performance values using pandas operations (vectorized)
+            df_perf['performance'] = df_perf['performance'].fillna('').str.lower().str.replace(' ', '_')
+            
+            # Categorize performance efficiently
+            def categorize_performance(perf):
+                if not perf or perf in ('na', 'n/a', ''):
+                    return 'not_rated'
+                elif perf == 'excellent':
+                    return 'excellent'
+                elif perf in ('very_good', 'verygood'):
+                    return 'very_good'
+                elif perf == 'good':
+                    return 'good'
+                elif perf == 'average':
+                    return 'average'
+                elif perf in ('poor', 'needs_improvement', 'needsimprovement'):
+                    return 'needs_improvement'
                 else:
-                    performance_counts["not_rated"] += 1
-            else:
-                performance_counts["not_rated"] += 1
+                    return 'not_rated'
+            
+            df_perf['category'] = df_perf['performance'].apply(categorize_performance)
+            
+            # Count using pandas value_counts (very fast)
+            perf_counts = df_perf['category'].value_counts().to_dict()
+            
+            performance_counts = {
+                "excellent": perf_counts.get("excellent", 0),
+                "very_good": perf_counts.get("very_good", 0),
+                "good": perf_counts.get("good", 0),
+                "average": perf_counts.get("average", 0),
+                "needs_improvement": perf_counts.get("needs_improvement", 0),
+                "not_rated": perf_counts.get("not_rated", 0),
+            }
+        else:
+            performance_counts = {
+                "excellent": 0,
+                "very_good": 0,
+                "good": 0,
+                "average": 0,
+                "needs_improvement": 0,
+                "not_rated": 0,
+            }
 
         logger.debug(f"Dashboard statistics computed:")
         logger.info(f"  total_mentors: {total_mentors}")
@@ -244,7 +271,7 @@ def get_platform_monthly_trends(
     team: str | None = None,
     db: Session = Depends(get_db)
 ):
-    """Platform-wide monthly trends for a given year.
+    """Platform-wide monthly trends for a given year (Pandas-optimized for large datasets).
     For each month:
       - worklets: number of worklets with start_date in that month
       - completed: number of worklets with status_id=2 (Completed) and start_date in that month
@@ -273,83 +300,126 @@ def get_platform_monthly_trends(
             if team_obj:
                 worklets_query = worklets_query.filter(Worklet.team_mg_id == team_obj.id)
 
-        # Build month windows
-        months: list[dict] = []
-        for m in range(1, 13):
-            last_day = monthrange(selected_year, m)[1]
-            start_d = date(selected_year, m, 1)
-            end_d = date(selected_year, m, last_day)
-            months.append({
-                "month": start_d.strftime('%b %Y'),
-                "month_key": f"{start_d.year:04d}-{start_d.month:02d}",
-                "start": start_d,
-                "end": end_d,
-                "worklets": 0,
-                "completed": 0,
-                "students": 0,
-            })
-        for idx, m in enumerate(months):
-            m["order"] = idx
-
-        # Pull filtered worklets
+        # Pull filtered worklets and convert to DataFrame for efficient processing
         worklets = worklets_query.all()
-
-        # Precompute student counts per worklet
-        worklet_ids = [w.id for w in worklets]
-        student_counts = {}
-        if worklet_ids:
-            assocs = db.query(UserWorkletAssociation).filter(
-                and_(
-                    UserWorkletAssociation.worklet_id.in_(worklet_ids),
-                    UserWorkletAssociation.role_in_worklet == 'Student'
-                )
-            ).all()
-            # Sum by worklet_id
-            for a in assocs:
-                student_counts[a.worklet_id] = student_counts.get(a.worklet_id, 0) + 1
-
-        # Aggregate by start_date
-        year_start = date(selected_year, 1, 1)
-        year_end = date(selected_year, 12, 31)
+        
+        if not worklets:
+            # Return empty structure if no worklets
+            months = []
+            for m in range(1, 13):
+                start_d = date(selected_year, m, 1)
+                months.append({
+                    "month": start_d.strftime('%b %Y'),
+                    "worklets": 0,
+                    "completed": 0,
+                    "students": 0,
+                    "order": m - 1,
+                    "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
+                })
+            return {"monthly": months, "years": [today.year]}
+        
+        # Convert worklets to pandas DataFrame for efficient aggregation
+        worklets_data = []
         for w in worklets:
             start_date_val = getattr(w, 'start_date', None)
-            status_id = getattr(w, 'status_id', None)
+            if start_date_val:
+                worklets_data.append({
+                    'worklet_id': w.id,
+                    'start_date': start_date_val,
+                    'status_id': getattr(w, 'status_id', None)
+                })
+        
+        df_worklets = pd.DataFrame(worklets_data)
+        
+        # Filter by year
+        year_start = pd.Timestamp(selected_year, 1, 1)
+        year_end = pd.Timestamp(selected_year, 12, 31)
+        df_worklets['start_date'] = pd.to_datetime(df_worklets['start_date'])
+        df_worklets = df_worklets[
+            (df_worklets['start_date'] >= year_start) & 
+            (df_worklets['start_date'] <= year_end)
+        ]
+        
+        if df_worklets.empty:
+            # Return empty structure
+            months = []
+            for m in range(1, 13):
+                start_d = date(selected_year, m, 1)
+                months.append({
+                    "month": start_d.strftime('%b %Y'),
+                    "worklets": 0,
+                    "completed": 0,
+                    "students": 0,
+                    "order": m - 1,
+                    "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
+                })
+            return {"monthly": months, "years": [today.year]}
+        
+        # Add year-month column for grouping
+        df_worklets['year_month'] = df_worklets['start_date'].dt.to_period('M')
+        df_worklets['is_completed'] = (df_worklets['status_id'] == 2).astype(int)
+        
+        # Get student counts using pandas for efficiency
+        worklet_ids = df_worklets['worklet_id'].tolist()
+        assocs = db.query(UserWorkletAssociation).filter(
+            and_(
+                UserWorkletAssociation.worklet_id.in_(worklet_ids),
+                UserWorkletAssociation.role_in_worklet == 'Student'
+            )
+        ).all()
+        
+        # Convert associations to DataFrame
+        if assocs:
+            df_assocs = pd.DataFrame([
+                {'worklet_id': a.worklet_id, 'user_id': a.user_id} 
+                for a in assocs
+            ])
+            # Count unique students per worklet
+            student_counts = df_assocs.groupby('worklet_id')['user_id'].count().to_dict()
+            df_worklets['students'] = df_worklets['worklet_id'].map(student_counts).fillna(0).astype(int)
+        else:
+            df_worklets['students'] = 0
+        
+        # Aggregate by month using pandas groupby (very efficient for large datasets)
+        monthly_agg = df_worklets.groupby('year_month').agg({
+            'worklet_id': 'count',  # Total worklets
+            'is_completed': 'sum',  # Completed worklets
+            'students': 'sum'       # Total students
+        }).reset_index()
+        
+        monthly_agg.columns = ['year_month', 'worklets', 'completed', 'students']
+        
+        # Create full 12-month structure
+        months = []
+        for m in range(1, 13):
+            start_d = date(selected_year, m, 1)
+            period = pd.Period(f"{selected_year}-{m:02d}", freq='M')
             
-            # Skip if no start_date or outside year range
-            if start_date_val is None or start_date_val < year_start or start_date_val > year_end:
-                continue
-
-            # Find the month this worklet belongs to based on start_date
-            for m in months:
-                if m['start'] <= start_date_val <= m['end']:
-                    m['worklets'] += 1
-                    m['students'] += student_counts.get(w.id, 0)
-                    # Count as completed if status is Completed (2)
-                    if status_id == 2:
-                        m['completed'] += 1
-                    break
-
-        # Years list from start_date only, capped to current year
-        years_set: set[int] = set()
-        for w in worklets:
-            sd = getattr(w, 'start_date', None)
-            if sd is not None:
-                years_set.add(int(sd.year))
-        if not years_set:
-            years_set.add(today.year)
-        # Only include present years up to current year (no future years)
-        present_years = sorted([y for y in years_set if y <= today.year])
+            # Find matching data from aggregation
+            match = monthly_agg[monthly_agg['year_month'] == period]
+            
+            months.append({
+                "month": start_d.strftime('%b %Y'),
+                "worklets": int(match['worklets'].iloc[0]) if not match.empty else 0,
+                "completed": int(match['completed'].iloc[0]) if not match.empty else 0,
+                "students": int(match['students'].iloc[0]) if not match.empty else 0,
+                "order": m - 1,
+                "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
+            })
+        
+        # Get years list efficiently using pandas
+        years_set = df_worklets['start_date'].dt.year.unique().tolist()
+        present_years = sorted([int(y) for y in years_set if y <= today.year])
+        if not present_years:
+            present_years = [today.year]
+        
         return {
-            "monthly": [{
-                "month": m['month'],
-                "worklets": m['worklets'],
-                "completed": m['completed'],
-                "students": m['students'],
-                "order": m['order'],
-                "month_key": m['month_key']
-            } for m in months],
+            "monthly": months,
             "years": present_years
         }
+    except Exception as e:
+        logger.error(f"Error computing platform monthly trends: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
     except Exception as e:
         logger.error(f"Error computing platform monthly trends: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -361,7 +431,7 @@ def get_platform_status_trends(
     team: str | None = None,
     db: Session = Depends(get_db)
 ):
-    """Platform-wide monthly status trends for a given year.
+    """Platform-wide monthly status trends for a given year (Pandas-optimized for large datasets).
     Groups worklets by start_date month and status_id:
     - Status 0 (To Start) and 1 (Ongoing) → ongoing
     - Status 2 (Completed) → completed
@@ -390,67 +460,128 @@ def get_platform_status_trends(
             if team_obj:
                 worklets_query = worklets_query.filter(Worklet.team_mg_id == team_obj.id)
 
-        # Build months
-        months: list[dict] = []
-        for m in range(1, 13):
-            last_day = monthrange(selected_year, m)[1]
-            start_d = date(selected_year, m, 1)
-            end_d = date(selected_year, m, last_day)
-            months.append({
-                "month": start_d.strftime('%b %Y'),
-                "month_key": f"{start_d.year:04d}-{start_d.month:02d}",
-                "start": start_d,
-                "end": end_d,
-                "completed": 0,
-                "ongoing": 0,
-                "on_hold": 0,
-                "terminated": 0,
-            })
-        for idx, m in enumerate(months):
-            m["order"] = idx
-
         # Pull filtered worklets
         worklets = worklets_query.all()
-        year_start = date(selected_year, 1, 1)
-        year_end = date(selected_year, 12, 31)
-
+        
+        if not worklets:
+            # Return empty structure
+            months = []
+            for m in range(1, 13):
+                start_d = date(selected_year, m, 1)
+                months.append({
+                    "month": start_d.strftime('%b %Y'),
+                    "completed": 0,
+                    "ongoing": 0,
+                    "on_hold": 0,
+                    "terminated": 0,
+                    "order": m - 1,
+                    "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
+                })
+            return {"monthly": months, "years": [today.year]}
+        
+        # Convert worklets to pandas DataFrame for efficient processing
+        worklets_data = []
         for w in worklets:
+            start_date_val = getattr(w, 'start_date', None)
             status_id = getattr(w, 'status_id', None)
             # Exclude Dropped (status_id = 4)
-            if status_id == 4:
-                continue
-                
-            start_date_val = getattr(w, 'start_date', None)
+            if status_id != 4 and start_date_val:
+                worklets_data.append({
+                    'worklet_id': w.id,
+                    'start_date': start_date_val,
+                    'status_id': status_id
+                })
+        
+        if not worklets_data:
+            months = []
+            for m in range(1, 13):
+                start_d = date(selected_year, m, 1)
+                months.append({
+                    "month": start_d.strftime('%b %Y'),
+                    "completed": 0,
+                    "ongoing": 0,
+                    "on_hold": 0,
+                    "terminated": 0,
+                    "order": m - 1,
+                    "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
+                })
+            return {"monthly": months, "years": [today.year]}
+        
+        df_worklets = pd.DataFrame(worklets_data)
+        
+        # Filter by year using pandas datetime operations
+        year_start = pd.Timestamp(selected_year, 1, 1)
+        year_end = pd.Timestamp(selected_year, 12, 31)
+        df_worklets['start_date'] = pd.to_datetime(df_worklets['start_date'])
+        df_worklets = df_worklets[
+            (df_worklets['start_date'] >= year_start) & 
+            (df_worklets['start_date'] <= year_end)
+        ]
+        
+        if df_worklets.empty:
+            months = []
+            for m in range(1, 13):
+                start_d = date(selected_year, m, 1)
+                months.append({
+                    "month": start_d.strftime('%b %Y'),
+                    "completed": 0,
+                    "ongoing": 0,
+                    "on_hold": 0,
+                    "terminated": 0,
+                    "order": m - 1,
+                    "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
+                })
+            return {"monthly": months, "years": [today.year]}
+        
+        # Add year-month column
+        df_worklets['year_month'] = df_worklets['start_date'].dt.to_period('M')
+        
+        # Categorize status using efficient pandas operations
+        df_worklets['completed'] = (df_worklets['status_id'] == 2).astype(int)
+        df_worklets['ongoing'] = df_worklets['status_id'].isin([0, 1]).astype(int)
+        df_worklets['on_hold'] = (df_worklets['status_id'] == 3).astype(int)
+        df_worklets['terminated'] = 0  # Status 4 already excluded
+        
+        # Aggregate by month using pandas groupby (very efficient)
+        monthly_agg = df_worklets.groupby('year_month').agg({
+            'completed': 'sum',
+            'ongoing': 'sum',
+            'on_hold': 'sum',
+            'terminated': 'sum'
+        }).reset_index()
+        
+        # Create full 12-month structure
+        months = []
+        for m in range(1, 13):
+            start_d = date(selected_year, m, 1)
+            period = pd.Period(f"{selected_year}-{m:02d}", freq='M')
             
-            # Skip if no start_date or outside year range
-            if start_date_val is None or start_date_val < year_start or start_date_val > year_end:
-                continue
-
-            # Find the month this worklet belongs to based on start_date
-            for m in months:
-                if m['start'] <= start_date_val <= m['end']:
-                    # Categorize by status_id
-                    if status_id == 2:  # Completed
-                        m['completed'] += 1
-                    elif status_id in (0, 1):  # To Start or Ongoing
-                        m['ongoing'] += 1
-                    elif status_id == 3:  # On Hold
-                        m['on_hold'] += 1
-                    break
-
-        years_set: set[int] = set()
-        for w in worklets:
-            sd = getattr(w, 'start_date', None)
-            if sd is not None:
-                years_set.add(int(sd.year))
-        if not years_set:
-            years_set.add(today.year)
-        present_years = sorted([y for y in years_set if y <= today.year])
-
+            # Find matching data from aggregation
+            match = monthly_agg[monthly_agg['year_month'] == period]
+            
+            months.append({
+                "month": start_d.strftime('%b %Y'),
+                "completed": int(match['completed'].iloc[0]) if not match.empty else 0,
+                "ongoing": int(match['ongoing'].iloc[0]) if not match.empty else 0,
+                "on_hold": int(match['on_hold'].iloc[0]) if not match.empty else 0,
+                "terminated": int(match['terminated'].iloc[0]) if not match.empty else 0,
+                "order": m - 1,
+                "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
+            })
+        
+        # Get years list efficiently using pandas
+        years_set = df_worklets['start_date'].dt.year.unique().tolist()
+        present_years = sorted([int(y) for y in years_set if y <= today.year])
+        if not present_years:
+            present_years = [today.year]
+        
         return {
-            "monthly": [{k: v for k, v in m.items() if k not in ("start", "end")} for m in months],
+            "monthly": months,
             "years": present_years
         }
+    except Exception as e:
+        logger.error(f"Error computing platform status trends: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
     except Exception as e:
         logger.error(f"Error computing platform status trends: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
