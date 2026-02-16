@@ -38,49 +38,38 @@ export default function App() {
     <ThemeProvider>
       <WebSocketProvider>
         <Routes>
+          {/* Common Routing Start */}
+          <Route path="*" element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} /> 
+          <Route path="/" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          {/* Common Routing End */}
 
-        {/*--------------------------------  Common Routing Start-------------------------------- */}
-        <Route path="*" element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} /> 
-        <Route path="/" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        {/*--------------------------------  Common Routing End-------------------------------- */}
-        
+          {/* Mentor Routing Start */}
+          <Route path="/home" element={<ProtectedRoute><MentorRoute><Home /></MentorRoute></ProtectedRoute>} />
+          <Route path="/Dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/dashboard_details" element={<ProtectedRoute><NavStat /></ProtectedRoute>} />
+          <Route path="/academia_details" element={<ProtectedRoute><NavColl /></ProtectedRoute>} />
+          <Route path="/ray" element={<ProtectedRoute><Ray /></ProtectedRoute>} />
+          <Route path="/worklets" element={<ProtectedRoute><WorkletsPage /></ProtectedRoute>} />
+          <Route path="/worklet/:id" element={<ProtectedRoute><WorkletDetailPage /></ProtectedRoute>} />
+          <Route path="/meeting" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+          <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
+          <Route path="/academia" element={<ProtectedRoute><Colleges /></ProtectedRoute>} />
+          <Route path="/mentor-chat" element={<ProtectedRoute><MentorRoute><MentorChatPage /></MentorRoute></ProtectedRoute>} />
+          {/* Mentor Routing End */}
 
-        {/*--------------------------------  Mentor Routing Start-------------------------------- */}
-        <Route path="/home" element={<ProtectedRoute><MentorRoute><Home /></MentorRoute></ProtectedRoute>} />
-        <Route path="/Dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/dashboard_details" element={<ProtectedRoute><NavStat /></ProtectedRoute>} />
-        <Route path="/academia_details" element={<ProtectedRoute><NavColl /></ProtectedRoute>} />
-        <Route path="/ray" element={<ProtectedRoute><Ray /></ProtectedRoute>} />
-        <Route path="/worklets" element={<ProtectedRoute><WorkletsPage /></ProtectedRoute>} />
-        <Route path="/worklet/:id" element={<ProtectedRoute><WorkletDetailPage /></ProtectedRoute>} />
-        <Route path="/meeting" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
-        <Route path="/portfolio" element={<ProtectedRoute><Portfolio/></ProtectedRoute>}/>
-        <Route path="/academia" element={<ProtectedRoute><Colleges /></ProtectedRoute>} />
-        <Route path="/mentor-chat" element={<ProtectedRoute><MentorRoute><MentorChatPage /></MentorRoute></ProtectedRoute>} />
-        {/*-------------------------------- Mentor Routing End-------------------------------- */}
-
-
-
-        {/* -------------------------------- Student Routing Start -------------------------------- */}
+          {/* Student Routing Start */}
           <Route path="/student-registration" element={<ProtectedRoute><StudentRoute><StudentRegistrationForm /></StudentRoute></ProtectedRoute>} />
           <Route path="/student-dashboard" element={<ProtectedRoute><StudentRoute><RequireRegistration><StudentDashboard /></RequireRegistration></StudentRoute></ProtectedRoute>} />
           <Route path="/student-chat" element={<ProtectedRoute><StudentRoute><RequireRegistration><StudentChatPage /></RequireRegistration></StudentRoute></ProtectedRoute>} />
           <Route path="/student-profile" element={<ProtectedRoute><StudentRoute><RequireRegistration><StudentProfile /></RequireRegistration></StudentRoute></ProtectedRoute>} />
-        {/* -------------------------------- Student Routing End -------------------------------- */}
+          {/* Student Routing End */}
 
-
-        {/*--------------------------------  Professor Routing Start-------------------------------- */}
-        <Route path="/professor-dashboard" element={<ProtectedRoute><ProfessorRoute><ProfessorDashboard /></ProfessorRoute></ProtectedRoute>} />
-        <Route path="/professor-chat" element={<ProtectedRoute><ProfessorRoute><ProfessorChatPage /></ProfessorRoute></ProtectedRoute>} />
-        <Route path="/professor-profile" element={<ProtectedRoute><ProfessorRoute><ProfessorProfile /></ProfessorRoute></ProtectedRoute>} />
-        {/*--------------------------------  Professor Routing End-------------------------------- */}
-
-
-
-
-
-
+          {/* Professor Routing Start */}
+          <Route path="/professor-dashboard" element={<ProtectedRoute><ProfessorRoute><ProfessorDashboard /></ProfessorRoute></ProtectedRoute>} />
+          <Route path="/professor-chat" element={<ProtectedRoute><ProfessorRoute><ProfessorChatPage /></ProfessorRoute></ProtectedRoute>} />
+          <Route path="/professor-profile" element={<ProtectedRoute><ProfessorRoute><ProfessorProfile /></ProfessorRoute></ProtectedRoute>} />
+          {/* Professor Routing End */}
         </Routes>
       </WebSocketProvider>
     </ThemeProvider>

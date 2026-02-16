@@ -160,22 +160,18 @@ const LeftSidebar = () => {
                         <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/mentor-chat')} hasUnread={hasUnreadMessages} unreadCount={unreadCount} />
                         <SidebarItem icon={<Calendar size={20} />} label="Meetings" onClick={() => navigate('/meeting')} /> 
                         <SidebarItem icon={<Folder size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
-                                                                        {/* Top separator for Dashboard/Academia group */}
-                                                                        <div className="w-[75%] mx-auto my-[1.2vh]">
-                                                                            <hr
-                                                                                className="h-1 rounded-full border-0 bg-gradient-to-r from-indigo-500 via-purple-400 to-blue-400 dark:from-indigo-700 dark:via-purple-800 dark:to-blue-700 shadow-md opacity-95"
-                                                                            />
-                                                                        </div>
-                                                                        <div className="flex flex-col gap-[1vh] items-center bg-white/60 dark:bg-slate-800/60 rounded-xl py-[0.7vh] shadow-sm border border-slate-200 dark:border-slate-700 w-[90%] mx-auto">
-                                                                            <SidebarItem icon={<BarChart size={20} />} label="Dashboard" onClick={() => navigate('/Dashboard')} />
-                                                                            <SidebarItem icon={<GraduationCap size={20} />} label="Academia" onClick={() => navigate('/academia')} />
-                                                                        </div>
-                                                                        {/* Bottom separator for Dashboard/Academia group */}
-                                                                        <div className="w-[75%] mx-auto my-[1.2vh]">
-                                                                            <hr
-                                                                                className="h-1 rounded-full border-0 bg-gradient-to-r from-indigo-500 via-purple-400 to-blue-400 dark:from-indigo-700 dark:via-purple-800 dark:to-blue-700 shadow-md opacity-95"
-                                                                            />
-                                                                        </div>
+                        {/* Top separator for Dashboard/Academia group */}
+                        <div className="w-[75%] mx-auto my-[1.2vh]">
+                            <hr className="h-1 rounded-full border-0 bg-gradient-to-r from-indigo-500 via-purple-400 to-blue-400 dark:from-indigo-700 dark:via-purple-800 dark:to-blue-700 shadow-md opacity-95" />
+                        </div>
+                        <div className="flex flex-col gap-[1vh] items-center bg-white/60 dark:bg-slate-800/60 rounded-xl py-[0.7vh] shadow-sm border border-slate-200 dark:border-slate-700 w-[90%] mx-auto">
+                            <SidebarItem icon={<BarChart size={20} />} label="Dashboard" onClick={() => navigate('/Dashboard')} />
+                            <SidebarItem icon={<GraduationCap size={20} />} label="Academia" onClick={() => navigate('/academia')} />
+                        </div>
+                        {/* Bottom separator for Dashboard/Academia group */}
+                        <div className="w-[75%] mx-auto my-[1.2vh]">
+                            <hr className="h-1 rounded-full border-0 bg-gradient-to-r from-indigo-500 via-purple-400 to-blue-400 dark:from-indigo-700 dark:via-purple-800 dark:to-blue-700 shadow-md opacity-95" />
+                        </div>
                     </>
                 ) : null}
             </nav>
