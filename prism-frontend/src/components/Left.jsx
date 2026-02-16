@@ -154,7 +154,7 @@ const LeftSidebar = () => {
                         <SidebarItem icon={<Award size={20} />} label="Portfolio" onClick={() => navigate('/portfolio')} />
                         <SidebarItem icon={<User size={20} />} label="Profile" onClick={() => navigate('/professor-profile')} />
                     </>
-                ) : userData && userData.role ? (
+                ) : userData && userData.role && userData.role.toLowerCase() !== 'admin' ? (
                     <>
                         <SidebarItem icon={<Home size={20} />} label="Home" onClick={() => navigate('/home')} />
                         <SidebarItem icon={<MessageCircle size={20} />} label="Chats" onClick={() => navigate('/mentor-chat')} hasUnread={hasUnreadMessages} unreadCount={unreadCount} />

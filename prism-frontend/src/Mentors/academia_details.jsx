@@ -737,7 +737,7 @@ const NavColl = () => {
                                 <h3 className={`font-semibold text-lg mb-1 line-clamp-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                   {item.title ? item.title : item.name}
                                 </h3>
-                                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <p className={`text-sm line-clamp-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                   {item.title ? item.description : item.email}
                                 </p>
                               </div>
