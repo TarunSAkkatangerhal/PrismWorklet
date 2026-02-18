@@ -394,7 +394,7 @@ const NavColl = () => {
 
   const getFilterStats = () => {
     // Calculate stats from FILTERED data to respect year/team filters
-    let total = 0, ongoing = 0, completed = 0, onhold = 0, terminated = 0, students = 0
+    let total = 0, ongoing = 0, completed = 0, onhold = 0, terminated = 0
     
     console.log(`[getFilterStats] Starting with ${colleges.length} colleges, yearFilter=${yearFilter}, teamFilter=${teamFilter}`)
     
@@ -420,15 +420,16 @@ const NavColl = () => {
       onhold += filteredWorklets.filter(w => (w.status === 'On Hold' || w.progressStatus === 'On Hold')).length
       terminated += filteredWorklets.filter(w => (w.status === 'Terminated' || w.status === 'Dropped' || w.progressStatus === 'Terminated')).length
       
-      // Count students from studentCount field (may include duplicates across worklets)
-      const workletStudents = filteredWorklets.reduce((sum, worklet) => {
-        const count = worklet.studentCount || worklet.student_count || 0
-        console.log(`[getFilterStats] Worklet "${worklet.title}": studentCount=${count}`)
-        return sum + count
-      }, 0)
-      
-      students += workletStudents
-      console.log(`[getFilterStats] ${college.name}: ${workletStudents} students from filtered worklets`)
+      console.log(`[getFilterStats] ${college.name}: processed ${filteredWorklets.length} worklets`)
+    })
+    
+    // Use totalStudents from backend (already calculated as unique students by college_id)
+    // This avoids counting the same student multiple times across worklets
+    let students = 0
+    colleges.forEach((college) => {
+      if (selectedCollege && (college.name || '').trim() !== selectedCollege.trim()) return
+      // Add the college's totalStudents (from backend, not recalculated)
+      students += college.totalStudents || 0
     })
     
     console.log(`[getFilterStats] FINAL - Total: ${total}, Ongoing: ${ongoing}, Completed: ${completed}, OnHold: ${onhold}, Terminated: ${terminated}, Students: ${students}`)

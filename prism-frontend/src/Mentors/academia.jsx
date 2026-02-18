@@ -1102,12 +1102,6 @@ const Colleges = () => {
           const name = college.college_name || college.name
           const worklets = workletsByCollege[name] || []
           
-          // Count total students from studentCount field (not from assignedStudents array)
-          // assignedStudents might be empty or incomplete, but studentCount has the accurate count
-          const derivedTotalStudents = worklets.reduce((sum, worklet) => {
-            return sum + (worklet.studentCount || 0)
-          }, 0)
-          
           return {
             id: college.college_id ?? college.id,
             name,
@@ -1123,7 +1117,8 @@ const Colleges = () => {
             ongoingCount: college.ongoingCount ?? 0,
             onHoldCount: college.onHoldCount ?? 0,
             terminatedCount: college.terminatedCount ?? 0,
-            totalStudents: typeof college.totalStudents === 'number' ? college.totalStudents : derivedTotalStudents,
+            // Use totalStudents directly from backend (already calculated as unique students by college_id)
+            totalStudents: college.totalStudents ?? 0,
             worklets,
           }
         })
@@ -1266,23 +1261,15 @@ const Colleges = () => {
           })
           .filter((worklet) => worklet && worklet.title)
 
-        const derivedTotalStudents = (() => {
-          // Count total students from studentCount field (not from assignedStudents array)
-          return mergedWorklets.reduce((sum, worklet) => {
-            return sum + (worklet.studentCount || 0)
-          }, 0)
-        })()
-
+        // Update college with detailed worklet data, but preserve totalStudents from backend  
         setAllCollegeData((prev) =>
           prev.map((entry) =>
             entry.id === collegeId
               ? {
                   ...entry,
                   worklets: mergedWorklets,
-                  totalStudents:
-                    typeof entry.totalStudents === 'number' && entry.totalStudents > 0
-                      ? entry.totalStudents
-                      : derivedTotalStudents,
+                  // Always preserve totalStudents from backend (already set during initial load)
+                  totalStudents: entry.totalStudents ?? 0,
                 }
               : entry
           )
@@ -1361,8 +1348,7 @@ const Colleges = () => {
           return perf.includes('poor') || perf.includes('needs attention')
         }).length
         
-        // Count total students from studentCount field (summing up, may include duplicates across worklets)
-        const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
+        // Preserve totalStudents from backend (students belong to college, not filtered by year/team)
         
         return {
           ...college,
@@ -1376,7 +1362,8 @@ const Colleges = () => {
           goodCount,
           averageCount,
           poorCount,
-          totalStudents
+          // Keep original totalStudents from college data
+          totalStudents: college.totalStudents ?? 0
         }
       }).filter(Boolean)
     }
@@ -1427,8 +1414,7 @@ const Colleges = () => {
         return perf.includes('poor') || perf.includes('needs attention')
       }).length
       
-      // Count total students from studentCount field (summing up, may include duplicates across worklets)
-      const totalStudents = filteredWorklets.reduce((sum, w) => sum + (w.studentCount || 0), 0)
+      // Preserve totalStudents from backend (students belong to college, not filtered by year/team)
       
       return {
         ...college,
@@ -1442,7 +1428,8 @@ const Colleges = () => {
         goodCount,
         averageCount,
         poorCount,
-        totalStudents
+        // Keep original totalStudents from college data
+        totalStudents: college.totalStudents ?? 0
       }
     })
   }, [allCollegeData, collegeSearch, selectedTeam, selectedYear])
