@@ -142,11 +142,8 @@ export const AdminLeftSidebar = () => {
     <aside className="w-[clamp(5rem,8vw,7.5rem)] h-screen sticky top-0 bg-gradient-to-t from-purple-300 via-indigo-50 to-blue-100 dark:from-slate-800 dark:via-slate-900 dark:to-black flex flex-col py-[1vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <nav className="flex flex-col gap-[2vh] items-center">
         <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard" onClick={() => navigate('/admin-dashboard')} isActive={isActivePath('/admin-dashboard')} />
-        <SidebarItem icon={<Clock size={20} />} label="Pendings" onClick={() => navigate('/admin-pendings')} isActive={isActivePath('/admin-pendings')} />
         <SidebarItem icon={<Briefcase size={20} />} label="Worklet" onClick={() => navigate('/admin-worklets')} isActive={isActivePath('/admin-worklets')} />
         <SidebarItem icon={<Users size={20} />} label="Users" onClick={() => navigate('/admin-users')} isActive={isActivePath('/admin-users')} />
-        <SidebarItem icon={<Award size={20} />} label="Excellent" onClick={() => navigate('/admin-excellent')} isActive={isActivePath('/admin-excellent')} />
-        <SidebarItem icon={<Database size={20} />} label="Data" onClick={() => navigate('/admin-data-collection')} isActive={isActivePath('/admin-data-collection')} />
 
         {/* Separator */}
         <div className="w-[75%] mx-auto my-[1.2vh]">

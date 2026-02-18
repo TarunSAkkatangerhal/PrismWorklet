@@ -32,7 +32,7 @@ const AdminUsers = () => {
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeRole, setActiveRole] = useState('');
+  const [activeRole, setActiveRole] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [collegeFilter, setCollegeFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -69,11 +69,6 @@ const AdminUsers = () => {
         ]);
         setStats(statsRes.data);
         setColleges(collegesRes.data);
-        // Set initial active role to first available role
-        const firstRole = ['Student', 'Professor', 'Mentor'].find(
-          role => (statsRes.data[role.toLowerCase() + 's'] || 0) >= 0
-        );
-        if (firstRole) setActiveRole(firstRole);
       } catch (e) {
         console.error('Failed to load admin meta:', e);
       }
@@ -83,15 +78,11 @@ const AdminUsers = () => {
 
   /* fetch users whenever filters change */
   const fetchUsers = useCallback(async () => {
-    // Don't fetch if no role is selected yet
-    if (!activeRole) {
-      setLoading(false);
-      return;
-    }
     try {
       setLoading(true);
       setError(null);
-      const params = { role: activeRole, page, page_size: pageSize };
+      const params = { page, page_size: pageSize };
+      if (activeRole !== 'all') params.role = activeRole;
       if (statusFilter !== 'all') params.status = statusFilter;
       if (collegeFilter) params.college_id = collegeFilter;
       if (search.trim()) params.search = search.trim();
@@ -231,73 +222,64 @@ const AdminUsers = () => {
             </div>
           </div>
 
-          {/* ─── Role Tabs (Dynamic) ────────────────────────────── */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {roleTabs.map(tab => {
-              const active = activeRole === tab.key;
-              const Icon = tab.icon;
-              return (
-                <motion.button
-                  key={tab.key}
-                  onClick={() => setActiveRole(tab.key)}
-                  className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    active
-                      ? isDarkMode
-                        ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
-                        : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
-                      : isDarkMode
-                        ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-gradient-to-r hover:from-gray-800/40 hover:to-gray-700/40 hover:text-white'
-                        : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 hover:text-gray-800'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Icon size={16} />
-                  <span>{tab.label}</span>
-                  <span className={`px-2 py-0.5 text-xs rounded-full ${
-                    active ? 'bg-white/20 text-white' : isDarkMode ? 'bg-gray-800/30 text-gray-300' : 'bg-gray-100/80 text-gray-700'
-                  }`}>
-                    {tab.count}
-                  </span>
-                </motion.button>
-              );
-            })}
-          </div>
-
           {/* ─── Filters bar ────────────────────────────────────── */}
-          <div className={`flex items-center flex-wrap gap-3 mb-4 p-4 rounded-lg ${
+          <div className={`flex items-center flex-wrap gap-3 mb-4 p-3 rounded-lg ${
             isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white/60 border-slate-200/50'
           } border shadow-sm`}>
+            {/* Role dropdown */}
+            <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm ${
+              isDarkMode ? 'bg-slate-700/60 border-gray-600/40' : 'bg-white border-gray-300/60'
+            }`}>
+              <Users size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+              <select
+                value={activeRole}
+                onChange={e => setActiveRole(e.target.value)}
+                className={`bg-transparent outline-none text-sm ${
+                  isDarkMode ? 'text-white' : 'text-slate-700'
+                }`}
+              >
+                <option value="all">All Users ({stats.total})</option>
+                {roleTabs.map(tab => (
+                  <option key={tab.key} value={tab.key}>{tab.label} ({tab.count})</option>
+                ))}
+              </select>
+            </div>
             {/* Status dropdown */}
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className={`px-3 py-2 rounded-lg border text-sm transition-all ${
-                isDarkMode
-                  ? 'bg-slate-700/60 border-gray-600/40 text-white'
-                  : 'bg-white border-gray-300/60 text-slate-700'
-              }`}
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+            <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm ${
+              isDarkMode ? 'bg-slate-700/60 border-gray-600/40' : 'bg-white border-gray-300/60'
+            }`}>
+              <CheckCircle size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className={`bg-transparent outline-none text-sm ${
+                  isDarkMode ? 'text-white' : 'text-slate-700'
+                }`}
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
 
             {/* College dropdown */}
-            <select
-              value={collegeFilter}
-              onChange={e => setCollegeFilter(e.target.value)}
-              className={`px-3 py-2 rounded-lg border text-sm transition-all max-w-[220px] ${
-                isDarkMode
-                  ? 'bg-slate-700/60 border-gray-600/40 text-white'
-                  : 'bg-white border-gray-300/60 text-slate-700'
-              }`}
-            >
-              <option value="">All Colleges</option>
-              {colleges.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm max-w-[240px] ${
+              isDarkMode ? 'bg-slate-700/60 border-gray-600/40' : 'bg-white border-gray-300/60'
+            }`}>
+              <Building2 size={14} className={`shrink-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+              <select
+                value={collegeFilter}
+                onChange={e => setCollegeFilter(e.target.value)}
+                className={`bg-transparent outline-none text-sm truncate ${
+                  isDarkMode ? 'text-white' : 'text-slate-700'
+                }`}
+              >
+                <option value="">All Colleges</option>
+                {colleges.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
 
             {/* Search */}
             <div className="relative flex-1 min-w-[200px]">
@@ -330,6 +312,66 @@ const AdminUsers = () => {
               <span>Export</span>
             </motion.button>
           </div>
+
+          {/* Showing count + Pagination */}
+          {!loading && !error && users.length > 0 && (
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <motion.button
+                    disabled={page <= 1}
+                    onClick={() => setPage(p => p - 1)}
+                    className={`p-1.5 rounded-lg border text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                      isDarkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-slate-100'
+                    }`}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <ChevronLeft size={16} />
+                  </motion.button>
+                  {(() => {
+                    const pageNumbers = [];
+                    const maxVisible = 5;
+                    let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                    if (endPage - startPage < maxVisible - 1) {
+                      startPage = Math.max(1, endPage - maxVisible + 1);
+                    }
+                    if (startPage > 1) {
+                      pageNumbers.push(
+                        <motion.button key={1} onClick={() => setPage(1)} className={`min-w-[28px] h-7 px-1.5 rounded-md text-xs font-medium transition-all ${isDarkMode ? 'border border-slate-600 text-slate-300 hover:bg-slate-700' : 'border border-slate-300 text-slate-600 hover:bg-slate-100'}`} whileTap={{ scale: 0.95 }}>1</motion.button>
+                      );
+                      if (startPage > 2) pageNumbers.push(<span key="e1" className={`px-1 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>...</span>);
+                    }
+                    for (let i = startPage; i <= endPage; i++) {
+                      pageNumbers.push(
+                        <motion.button key={i} onClick={() => setPage(i)} className={`min-w-[28px] h-7 px-1.5 rounded-md text-xs font-medium transition-all ${page === i ? (isDarkMode ? 'bg-purple-500 text-white border border-purple-400' : 'bg-purple-600 text-white border border-purple-500') : (isDarkMode ? 'border border-slate-600 text-slate-300 hover:bg-slate-700' : 'border border-slate-300 text-slate-600 hover:bg-slate-100')}`} whileTap={{ scale: 0.95 }}>{i}</motion.button>
+                      );
+                    }
+                    if (endPage < totalPages) {
+                      if (endPage < totalPages - 1) pageNumbers.push(<span key="e2" className={`px-1 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>...</span>);
+                      pageNumbers.push(
+                        <motion.button key={totalPages} onClick={() => setPage(totalPages)} className={`min-w-[28px] h-7 px-1.5 rounded-md text-xs font-medium transition-all ${isDarkMode ? 'border border-slate-600 text-slate-300 hover:bg-slate-700' : 'border border-slate-300 text-slate-600 hover:bg-slate-100'}`} whileTap={{ scale: 0.95 }}>{totalPages}</motion.button>
+                      );
+                    }
+                    return pageNumbers;
+                  })()}
+                  <motion.button
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(p => p + 1)}
+                    className={`p-1.5 rounded-lg border text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                      isDarkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-slate-100'
+                    }`}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <ChevronRight size={16} />
+                  </motion.button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ─── Table ──────────────────────────────────────────── */}
           {loading ? (
@@ -478,127 +520,6 @@ const AdminUsers = () => {
                 </table>
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className={`flex items-center justify-between px-4 py-3 border-t ${
-                  isDarkMode ? 'border-slate-700/40 bg-slate-800/60' : 'border-slate-100 bg-slate-50/60'
-                }`}>
-                  <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    {/* Previous Button */}
-                    <motion.button
-                      disabled={page <= 1}
-                      onClick={() => setPage(p => p - 1)}
-                      className={`p-1.5 rounded-lg border text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                        isDarkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-slate-100'
-                      }`}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <ChevronLeft size={16} />
-                    </motion.button>
-
-                    {/* Page Numbers */}
-                    {(() => {
-                      const pageNumbers = [];
-                      const maxVisible = 5;
-                      let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
-                      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-                      
-                      if (endPage - startPage < maxVisible - 1) {
-                        startPage = Math.max(1, endPage - maxVisible + 1);
-                      }
-
-                      // First page + ellipsis
-                      if (startPage > 1) {
-                        pageNumbers.push(
-                          <motion.button
-                            key={1}
-                            onClick={() => setPage(1)}
-                            className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-all ${
-                              isDarkMode 
-                                ? 'border border-slate-600 text-slate-300 hover:bg-slate-700'
-                                : 'border border-slate-300 text-slate-600 hover:bg-slate-100'
-                            }`}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            1
-                          </motion.button>
-                        );
-                        if (startPage > 2) {
-                          pageNumbers.push(
-                            <span key="ellipsis1" className={`px-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                              ...
-                            </span>
-                          );
-                        }
-                      }
-
-                      // Middle pages
-                      for (let i = startPage; i <= endPage; i++) {
-                        pageNumbers.push(
-                          <motion.button
-                            key={i}
-                            onClick={() => setPage(i)}
-                            className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-all ${
-                              page === i
-                                ? isDarkMode
-                                  ? 'bg-purple-500 text-white border border-purple-400'
-                                  : 'bg-purple-600 text-white border border-purple-500'
-                                : isDarkMode
-                                  ? 'border border-slate-600 text-slate-300 hover:bg-slate-700'
-                                  : 'border border-slate-300 text-slate-600 hover:bg-slate-100'
-                            }`}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {i}
-                          </motion.button>
-                        );
-                      }
-
-                      // Last page + ellipsis
-                      if (endPage < totalPages) {
-                        if (endPage < totalPages - 1) {
-                          pageNumbers.push(
-                            <span key="ellipsis2" className={`px-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                              ...
-                            </span>
-                          );
-                        }
-                        pageNumbers.push(
-                          <motion.button
-                            key={totalPages}
-                            onClick={() => setPage(totalPages)}
-                            className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-all ${
-                              isDarkMode 
-                                ? 'border border-slate-600 text-slate-300 hover:bg-slate-700'
-                                : 'border border-slate-300 text-slate-600 hover:bg-slate-100'
-                            }`}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {totalPages}
-                          </motion.button>
-                        );
-                      }
-
-                      return pageNumbers;
-                    })()}
-
-                    {/* Next Button */}
-                    <motion.button
-                      disabled={page >= totalPages}
-                      onClick={() => setPage(p => p + 1)}
-                      className={`p-1.5 rounded-lg border text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                        isDarkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-slate-100'
-                      }`}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <ChevronRight size={16} />
-                    </motion.button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
