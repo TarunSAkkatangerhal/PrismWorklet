@@ -6,8 +6,8 @@ import { ThemeContext } from '../context/ThemeContext';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import {
-  Users, Briefcase, Building2, GraduationCap,
-  Activity, CheckCircle, Target, Clock,
+  Users, Briefcase, Building2, GraduationCap, Shield,
+  Activity, CheckCircle, Target, Clock, TrendingUp,
   Download, Maximize, X, RotateCcw, FileSpreadsheet
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -22,9 +22,6 @@ import {
   Legend,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 import { Title, Text, Metric } from '@tremor/react';
 
@@ -56,14 +53,14 @@ const CustomTooltip = ({ active, payload, label, isDark }) => {
 };
 
 // Animated metric card component
-const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color, onClick, isClickable = false }) => (
+const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color, onClick, isClickable = false, hoverContent }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.6 }}
     whileHover={{ y: -5, transition: { duration: 0.2 } }}
     onClick={isClickable ? onClick : undefined}
-    className={`p-4 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${
+    className={`relative group p-4 rounded-xl shadow-lg border bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${
       isClickable ? 'cursor-pointer hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200' : ''
     }`}
   >
@@ -75,6 +72,13 @@ const AnimatedMetricCard = ({ title, value, subtitle, icon: Icon, color, onClick
       <Metric className="text-gray-900 dark:text-white text-2xl mb-1">{value}</Metric>
       {subtitle && <Text className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</Text>}
     </div>
+    {hoverContent && (
+      <div className="absolute left-0 right-0 top-full mt-1 z-30 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200">
+        <div className="p-3 rounded-lg shadow-xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600">
+          {hoverContent}
+        </div>
+      </div>
+    )}
   </motion.div>
 );
 
@@ -119,17 +123,6 @@ const ChartContainer = ({ title, children, isDark, exportAction, previewAction }
   </motion.div>
 );
 
-// Generate user distribution data for pie chart
-const generateUserDistribution = (stats, isDark) => {
-  const colors = getColors(isDark);
-  return [
-    { name: 'Students', value: stats?.students || 0, color: colors[1] },
-    { name: 'Mentors', value: stats?.mentors || 0, color: colors[0] },
-    { name: 'Professors', value: stats?.professors || 0, color: colors[4] },
-    { name: 'Admins', value: stats?.admins || 0, color: colors[2] },
-  ];
-};
-
 const AdminDashboard = () => {
   useDocumentTitle('PRISM Admin - Dashboard');
   const navigate = useNavigate();
@@ -151,6 +144,7 @@ const AdminDashboard = () => {
   const [monthlyData, setMonthlyData] = useState([]);
   const [workletStatusData, setWorkletStatusData] = useState([]);
   const [workletStats, setWorkletStats] = useState({ total: 0, ongoing: 0, completed: 0, pending: 0 });
+  const [collegeStats, setCollegeStats] = useState([]);
 
   // Custom scrollbar styles
   useEffect(() => {
@@ -186,12 +180,13 @@ const AdminDashboard = () => {
       if (filters.year && filters.year !== 'All') params.set('year', filters.year);
       
       // Fetch all data in parallel
-      const [statsRes, collegesRes, workletStatsRes, monthlyTrendsRes, statusTrendsRes] = await Promise.all([
+      const [statsRes, collegesRes, workletStatsRes, monthlyTrendsRes, statusTrendsRes, collegeStatsRes] = await Promise.all([
         axios.get(`${API}/api/admin/users/stats`, { headers: h }),
         axios.get(`${API}/api/admin/colleges`, { headers: h }),
         axios.get(`${API}/api/dashboard/statistics${params.toString() ? `?${params.toString()}` : ''}`, { headers: h }),
         axios.get(`${API}/api/dashboard/platform-monthly-trends${params.toString() ? `?${params.toString()}` : ''}`, { headers: h }),
         axios.get(`${API}/api/dashboard/platform-status-trends${params.toString() ? `?${params.toString()}` : ''}`, { headers: h }),
+        axios.get(`${API}/api/admin/college-stats`, { headers: h }),
       ]);
       
       // Set user stats based on whether filters are applied
@@ -259,6 +254,9 @@ const AdminDashboard = () => {
       }));
       setWorkletStatusData(transformedStatus);
       
+      // Set college stats for institution comparison
+      setCollegeStats(Array.isArray(collegeStatsRes.data) ? collegeStatsRes.data : []);
+      
       // Set last updated timestamp
       setLastUpdated(new Date());
       
@@ -268,6 +266,7 @@ const AdminDashboard = () => {
       setWorkletStats({ total: 0, ongoing: 0, completed: 0, pending: 0 });
       setMonthlyData([]);
       setWorkletStatusData([]);
+      setCollegeStats([]);
     } finally {
       setLoading(false);
     }
@@ -304,17 +303,17 @@ const AdminDashboard = () => {
       data.forEach(row => {
         csvContent += `${row.month},${row.users},${row.worklets},${row.completed}\n`;
       });
-    } else if (type === 'status') {
-      data = workletStatusData;
-      csvContent = 'Month,Completed,Ongoing,On Hold,Terminated\n';
+    } else if (type === 'funnel') {
+      csvContent = 'Stage,Count\n';
+      csvContent += `Users,${stats.total || 0}\n`;
+      csvContent += `Assigned,${workletStats.total || 0}\n`;
+      csvContent += `Ongoing,${workletStats.ongoing || 0}\n`;
+      csvContent += `Completed,${workletStats.completed || 0}\n`;
+    } else if (type === 'institutions') {
+      data = collegeStats;
+      csvContent = 'Institution,Worklets,Users,Completed\n';
       data.forEach(row => {
-        csvContent += `${row.month},${row.completed},${row.ongoing},${row.on_hold},${row.terminated}\n`;
-      });
-    } else if (type === 'users') {
-      const userData = generateUserDistribution(stats, isDarkMode);
-      csvContent = 'Role,Count\n';
-      userData.forEach(row => {
-        csvContent += `${row.name},${row.value}\n`;
+        csvContent += `${row.name},${row.worklets},${row.users},${row.completed}\n`;
       });
     }
     
@@ -376,18 +375,17 @@ const AdminDashboard = () => {
         XLSX.utils.book_append_sheet(wb, ws3, 'Monthly Trends');
       }
       
-      // Sheet 4: Status Trends
-      if (workletStatusData.length > 0) {
-        const statusHeader = [['Worklet Status Trends'], [''], ['Month', 'Completed', 'Ongoing', 'On Hold', 'Terminated']];
-        const statusRows = workletStatusData.map(row => [
-          row.month,
-          row.completed || 0,
-          row.ongoing || 0,
-          row.on_hold || 0,
-          row.terminated || 0
+      // Sheet 4: Institution Comparison
+      if (collegeStats.length > 0) {
+        const instHeader = [['Institution Comparison'], [''], ['Institution', 'Worklets', 'Users', 'Completed']];
+        const instRows = collegeStats.map(row => [
+          row.name,
+          row.worklets || 0,
+          row.users || 0,
+          row.completed || 0
         ]);
-        const ws4 = XLSX.utils.aoa_to_sheet([...statusHeader, ...statusRows]);
-        XLSX.utils.book_append_sheet(wb, ws4, 'Status Trends');
+        const ws4 = XLSX.utils.aoa_to_sheet([...instHeader, ...instRows]);
+        XLSX.utils.book_append_sheet(wb, ws4, 'Institution Comparison');
       }
       
       // Sheet 5: Colleges
@@ -473,33 +471,12 @@ const AdminDashboard = () => {
               <FileSpreadsheet className="w-4 h-4" />
               <span>Export Excel</span>
             </button>
-            <button
-              onClick={handleManualRefresh}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Activity className="w-4 h-4" />
-              <span>Refresh</span>
-            </button>
           </div>
         </header>
 
-        {/* Refresh overlay */}
-        {isRefreshing && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4 shadow-xl">
-              <div className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin">
-                <Activity className="w-full h-full" />
-              </div>
-              <span className="text-gray-600 dark:text-gray-300 font-medium">
-                Refreshing Dashboard...
-              </span>
-            </div>
-          </div>
-        )}
-
         <section className="space-y-6">
           {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-[clamp(0.75rem,1.5vw,1.25rem)] mb-8">
             <AnimatedMetricCard
               title="Total Users"
               value={stats.total || 0}
@@ -508,24 +485,30 @@ const AdminDashboard = () => {
               color={getColors(isDarkMode)[0]}
               onClick={handleUsersClick}
               isClickable={true}
-            />
-            <AnimatedMetricCard
-              title="Students"
-              value={stats.students || 0}
-              subtitle={filters.year && filters.year !== 'All' ? `In ${filters.year} worklets` : "Registered students"}
-              icon={GraduationCap}
-              color={getColors(isDarkMode)[1]}
-              onClick={handleUsersClick}
-              isClickable={true}
-            />
-            <AnimatedMetricCard
-              title="Mentors"
-              value={stats.mentors || 0}
-              subtitle={filters.year && filters.year !== 'All' ? `Active in ${filters.year}` : "Active mentors"}
-              icon={Users}
-              color={getColors(isDarkMode)[4]}
-              onClick={handleUsersClick}
-              isClickable={true}
+              hoverContent={
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <GraduationCap size={13} className="text-green-500" />
+                    <span className="text-gray-500 dark:text-gray-400">Students</span>
+                    <span className="font-bold text-gray-800 dark:text-white ml-auto">{stats.students || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Users size={13} className="text-purple-500" />
+                    <span className="text-gray-500 dark:text-gray-400">Mentors</span>
+                    <span className="font-bold text-gray-800 dark:text-white ml-auto">{stats.mentors || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Users size={13} className="text-blue-500" />
+                    <span className="text-gray-500 dark:text-gray-400">Professors</span>
+                    <span className="font-bold text-gray-800 dark:text-white ml-auto">{stats.professors || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Shield size={13} className="text-orange-500" />
+                    <span className="text-gray-500 dark:text-gray-400">Admins</span>
+                    <span className="font-bold text-gray-800 dark:text-white ml-auto">{stats.admins || 0}</span>
+                  </div>
+                </div>
+              }
             />
             <AnimatedMetricCard
               title="Total Worklets"
@@ -535,15 +518,44 @@ const AdminDashboard = () => {
               color={getColors(isDarkMode)[5]}
               onClick={handleWorkletsClick}
               isClickable={true}
+              hoverContent={
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Activity size={13} className="text-blue-500" />
+                    <span className="text-gray-500 dark:text-gray-400">Ongoing</span>
+                    <span className="font-bold text-gray-800 dark:text-white ml-auto">{workletStats.ongoing || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle size={13} className="text-green-500" />
+                    <span className="text-gray-500 dark:text-gray-400">Completed</span>
+                    <span className="font-bold text-gray-800 dark:text-white ml-auto">{workletStats.completed || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={13} className="text-yellow-500" />
+                    <span className="text-gray-500 dark:text-gray-400">Pending</span>
+                    <span className="font-bold text-gray-800 dark:text-white ml-auto">{workletStats.pending || 0}</span>
+                  </div>
+                </div>
+              }
             />
             <AnimatedMetricCard
-              title="Ongoing"
-              value={workletStats.ongoing || 0}
-              subtitle={filters.year && filters.year !== 'All' ? `${filters.year} projects` : "In progress"}
-              icon={Activity}
-              color={getColors(isDarkMode)[2]}
-              onClick={handleWorkletsClick}
-              isClickable={true}
+              title="Completion Rate"
+              value={`${workletStats.total ? Math.round((workletStats.completed / workletStats.total) * 100) : 0}%`}
+              subtitle={`${workletStats.completed || 0} of ${workletStats.total || 0} worklets completed`}
+              icon={CheckCircle}
+              color={getColors(isDarkMode)[1]}
+            />
+            <AnimatedMetricCard
+              title="Growth Rate"
+              value={`${(() => {
+                if (monthlyData.length < 2) return 0;
+                const current = monthlyData[monthlyData.length - 1]?.worklets || 0;
+                const previous = monthlyData[monthlyData.length - 2]?.worklets || 0;
+                return previous > 0 ? Math.round(((current - previous) / previous) * 100) : 0;
+              })()}%`}
+              subtitle="Month-over-month worklet growth"
+              icon={TrendingUp}
+              color={getColors(isDarkMode)[4]}
             />
             <AnimatedMetricCard
               title="Institutions"
@@ -552,42 +564,6 @@ const AdminDashboard = () => {
               icon={Building2}
               color={getColors(isDarkMode)[0]}
               onClick={handleCollegesClick}
-              isClickable={true}
-            />
-          </div>
-
-          {/* Additional Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <AnimatedMetricCard
-              title="Professors"
-              value={stats.professors || 0}
-              subtitle={filters.year && filters.year !== 'All' ? `Active in ${filters.year}` : "Faculty members"}
-              icon={Users}
-              color={getColors(isDarkMode)[4]}
-            />
-            <AnimatedMetricCard
-              title="Completed"
-              value={workletStats.completed || 0}
-              subtitle={filters.year && filters.year !== 'All' ? `Finished in ${filters.year}` : "Successfully delivered"}
-              icon={CheckCircle}
-              color={getColors(isDarkMode)[1]}
-              onClick={handleWorkletsClick}
-              isClickable={true}
-            />
-            <AnimatedMetricCard
-              title="Pending"
-              value={workletStats.pending || 0}
-              subtitle="Awaiting review"
-              icon={Clock}
-              color={getColors(isDarkMode)[2]}
-            />
-            <AnimatedMetricCard
-              title="Active Worklets"
-              value={workletStats.ongoing || 0}
-              subtitle="Currently running"
-              icon={Briefcase}
-              color={getColors(isDarkMode)[5]}
-              onClick={handleWorkletsClick}
               isClickable={true}
             />
           </div>
@@ -629,112 +605,115 @@ const AdminDashboard = () => {
               )}
             </ChartContainer>
 
-            {/* Worklet Status Trends */}
+            {/* Worklet Lifecycle Funnel */}
             <ChartContainer
-              title="Worklet Status Trends"
+              title="Worklet Lifecycle"
               isDark={isDarkMode}
-              exportAction={() => exportData('status')}
-              previewAction={() => setPreviewChart('status')}
+              exportAction={() => exportData('funnel')}
+              previewAction={() => setPreviewChart('funnel')}
             >
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                📊 Status breakdown across time
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                Drop-off across the worklet pipeline
               </p>
-              {workletStatusData.length === 0 ? (
+              {stats.total === 0 && workletStats.total === 0 ? (
                 <div className="h-[200px] flex items-center justify-center">
-                  <p className="text-gray-400 dark:text-gray-500 text-sm">No data available for selected filters</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-sm">No data available</p>
                 </div>
               ) : (
-                <div 
-                  className="mt-4 overflow-x-auto pb-4 custom-scrollbar cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => setPreviewChart('status')}
+                <div
+                  className="cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setPreviewChart('funnel')}
                   title="Click to view full screen"
                 >
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={workletStatusData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
-                      <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
-                      <YAxis stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} allowDecimals={false} />
-                      <Tooltip content={<CustomTooltip isDark={isDarkMode} />} cursor={{ fill: isDarkMode ? '#374151' : '#f3f4f6' }} />
-                      <Legend wrapperStyle={{ color: isDarkMode ? '#F3F4F6' : '#1F2937' }} />
-                      <Bar dataKey="completed" stackId="a" name="Completed" fill={getColors(isDarkMode)[1]} radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="ongoing" stackId="a" name="Ongoing" fill={getColors(isDarkMode)[0]} />
-                      <Bar dataKey="on_hold" stackId="a" name="On Hold" fill={getColors(isDarkMode)[2]} />
-                      <Bar dataKey="terminated" stackId="a" name="Terminated" fill={getColors(isDarkMode)[3]} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {(() => {
+                    const funnelData = [
+                      { label: 'Users', value: stats.total || 0, color: getColors(isDarkMode)[0] },
+                      { label: 'Assigned', value: workletStats.total || 0, color: getColors(isDarkMode)[4] },
+                      { label: 'Ongoing', value: workletStats.ongoing || 0, color: getColors(isDarkMode)[2] },
+                      { label: 'Completed', value: workletStats.completed || 0, color: getColors(isDarkMode)[1] },
+                    ];
+                    const maxVal = Math.max(...funnelData.map(d => d.value), 1);
+                    return (
+                      <div className="space-y-1.5">
+                        {funnelData.map((item, i) => {
+                          const widthPct = Math.max((item.value / maxVal) * 100, 12);
+                          const prevVal = i > 0 ? funnelData[i - 1].value : null;
+                          const dropoff = prevVal && prevVal > 0 ? Math.round(((prevVal - item.value) / prevVal) * 100) : null;
+                          return (
+                            <motion.div
+                              key={item.label}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.1 }}
+                              className="flex items-center gap-2"
+                            >
+                              <span className={`text-xs w-16 text-right font-medium shrink-0 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                {item.label}
+                              </span>
+                              <div className="flex-1 flex items-center">
+                                <div
+                                  className="h-8 rounded-md flex items-center justify-center transition-all duration-500 relative"
+                                  style={{ width: `${widthPct}%`, backgroundColor: item.color, minWidth: '40px' }}
+                                >
+                                  <span className="text-white text-xs font-bold drop-shadow-sm">{item.value}</span>
+                                </div>
+                                {dropoff !== null && (
+                                  <span className={`ml-2 text-[10px] font-medium ${dropoff > 50 ? 'text-red-400' : dropoff > 25 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                    ↓{dropoff}%
+                                  </span>
+                                )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </ChartContainer>
 
-            {/* User Distribution */}
+            {/* 📍 Institution Comparison */}
             <ChartContainer
-              title="User Distribution"
+              title="📍 Institution Comparison"
               isDark={isDarkMode}
-              exportAction={() => exportData('users')}
-              previewAction={() => setPreviewChart('users')}
+              exportAction={() => exportData('institutions')}
+              previewAction={() => setPreviewChart('institutions')}
             >
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  📊 Platform user breakdown
-                </p>
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Total: {stats.total || 0} users
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Worklets & users by institution
+              </p>
+              {collegeStats.length === 0 ? (
+                <div className="h-[200px] flex items-center justify-center">
+                  <p className="text-gray-400 dark:text-gray-500 text-sm">No institution data available</p>
                 </div>
-              </div>
-              <div 
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => setPreviewChart('users')}
-                title="Click to view full screen"
-              >
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                  <Pie
-                    data={generateUserDistribution(stats, isDarkMode)}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={70}
-                    innerRadius={35}
-                    fill="#8884d8"
-                    dataKey="value"
-                    animationBegin={0}
-                    animationDuration={800}
-                  >
-                    {generateUserDistribution(stats, isDarkMode).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className={`p-3 rounded-lg shadow-lg border ${
-                            isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                          }`}>
-                            <p className="font-medium" style={{ color: data.color }}>{data.name}</p>
-                            <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                              Count: {data.value}
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Legend
-                    verticalAlign="bottom"
-                    height={36}
-                    wrapperStyle={{ color: isDarkMode ? '#E5E7EB' : '#374151' }}
-                    formatter={(value, entry) => (
-                      <span style={{ color: isDarkMode ? '#E5E7EB' : '#374151' }}>
-                        {value} ({entry.payload.value})
-                      </span>
-                    )}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              </div>
+              ) : (
+                <div 
+                  className="mt-2 overflow-x-auto pb-2 custom-scrollbar cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setPreviewChart('institutions')}
+                  title="Click to view full screen"
+                >
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={collegeStats} layout="vertical" margin={{ left: 10, right: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} horizontal={false} />
+                      <XAxis type="number" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} allowDecimals={false} />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} 
+                        width={80} 
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(v) => v.length > 12 ? v.slice(0, 12) + '…' : v}
+                      />
+                      <Tooltip content={<CustomTooltip isDark={isDarkMode} />} cursor={{ fill: isDarkMode ? '#374151' : '#f3f4f6' }} />
+                      <Legend wrapperStyle={{ color: isDarkMode ? '#F3F4F6' : '#1F2937' }} />
+                      <Bar dataKey="worklets" name="Worklets" fill={getColors(isDarkMode)[0]} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="users" name="Users" fill={getColors(isDarkMode)[1]} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="completed" name="Completed" fill={getColors(isDarkMode)[4]} radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </ChartContainer>
           </div>
 
@@ -805,86 +784,91 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {previewChart === 'status' && (
+            {previewChart === 'funnel' && (
               <div className="h-full flex flex-col">
                 <Title className={`mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Worklet Status Trends - Detailed View
+                  Worklet Lifecycle Funnel - Detailed View
                 </Title>
-                <div className="flex-1 overflow-x-auto">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={workletStatusData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} />
-                      <XAxis dataKey="month" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} />
-                      <YAxis stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} allowDecimals={false} />
-                      <Tooltip content={<CustomTooltip isDark={isDarkMode} />} cursor={{ fill: isDarkMode ? '#374151' : '#f3f4f6' }} />
-                      <Legend wrapperStyle={{ color: isDarkMode ? '#F3F4F6' : '#1F2937' }} />
-                      <Bar dataKey="completed" stackId="a" name="Completed" fill={getColors(isDarkMode)[1]} />
-                      <Bar dataKey="ongoing" stackId="a" name="Ongoing" fill={getColors(isDarkMode)[0]} />
-                      <Bar dataKey="on_hold" stackId="a" name="On Hold" fill={getColors(isDarkMode)[2]} />
-                      <Bar dataKey="terminated" stackId="a" name="Terminated" fill={getColors(isDarkMode)[3]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="flex-1 flex items-center justify-center">
+                  {(() => {
+                    const funnelData = [
+                      { label: 'Users', value: stats.total || 0, color: getColors(isDarkMode)[0] },
+                      { label: 'Assigned', value: workletStats.total || 0, color: getColors(isDarkMode)[4] },
+                      { label: 'Ongoing', value: workletStats.ongoing || 0, color: getColors(isDarkMode)[2] },
+                      { label: 'Completed', value: workletStats.completed || 0, color: getColors(isDarkMode)[1] },
+                    ];
+                    const maxVal = Math.max(...funnelData.map(d => d.value), 1);
+                    return (
+                      <div className="w-full max-w-2xl space-y-3 px-8">
+                        {funnelData.map((item, i) => {
+                          const widthPct = Math.max((item.value / maxVal) * 100, 8);
+                          const prevVal = i > 0 ? funnelData[i - 1].value : null;
+                          const dropoff = prevVal && prevVal > 0 ? Math.round(((prevVal - item.value) / prevVal) * 100) : null;
+                          const convRate = i > 0 && funnelData[0].value > 0 ? ((item.value / funnelData[0].value) * 100).toFixed(1) : null;
+                          return (
+                            <motion.div
+                              key={item.label}
+                              initial={{ opacity: 0, x: -30 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.15 }}
+                              className="flex items-center gap-4"
+                            >
+                              <span className={`text-sm w-24 text-right font-semibold shrink-0 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                                {item.label}
+                              </span>
+                              <div className="flex-1 flex items-center">
+                                <div
+                                  className="h-12 rounded-lg flex items-center justify-center transition-all duration-700 shadow-sm"
+                                  style={{ width: `${widthPct}%`, backgroundColor: item.color, minWidth: '60px' }}
+                                >
+                                  <span className="text-white text-base font-bold drop-shadow-sm">{item.value}</span>
+                                </div>
+                                <div className="ml-3 flex flex-col">
+                                  {dropoff !== null && (
+                                    <span className={`text-xs font-semibold ${dropoff > 50 ? 'text-red-400' : dropoff > 25 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                      ↓ {dropoff}% drop-off
+                                    </span>
+                                  )}
+                                  {convRate !== null && (
+                                    <span className={`text-[11px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      {convRate}% of total users
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
 
-            {previewChart === 'users' && (
+            {previewChart === 'institutions' && (
               <div className="h-full flex flex-col">
                 <Title className={`mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  User Distribution - Detailed View
+                  📍 Institution Comparison - Detailed View
                 </Title>
-                <div className="flex-1 flex items-center justify-center">
+                <div className="flex-1 overflow-x-auto">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={generateUserDistribution(stats, isDarkMode)}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={true}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                        outerRadius={200}
-                        innerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                        animationBegin={0}
-                        animationDuration={800}
-                      >
-                        {generateUserDistribution(stats, isDarkMode).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className={`p-4 rounded-lg shadow-lg border ${
-                                isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                              }`}>
-                                <p className="font-semibold text-lg" style={{ color: data.color }}>{data.name}</p>
-                                <p className={`text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                  Count: {data.value}
-                                </p>
-                                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                  {((data.value / stats.total) * 100).toFixed(1)}% of total
-                                </p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
+                    <BarChart data={collegeStats} layout="vertical" margin={{ left: 30, right: 30 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#E5E7EB'} horizontal={false} />
+                      <XAxis type="number" stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} allowDecimals={false} />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        stroke={isDarkMode ? '#9CA3AF' : '#6B7280'} 
+                        width={150} 
+                        tick={{ fontSize: 13 }}
                       />
-                      <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        wrapperStyle={{ color: isDarkMode ? '#E5E7EB' : '#374151' }}
-                        formatter={(value, entry) => (
-                          <span style={{ color: isDarkMode ? '#E5E7EB' : '#374151', fontSize: '14px' }}>
-                            {value} ({entry.payload.value})
-                          </span>
-                        )}
-                      />
-                    </PieChart>
+                      <Tooltip content={<CustomTooltip isDark={isDarkMode} />} cursor={{ fill: isDarkMode ? '#374151' : '#f3f4f6' }} />
+                      <Legend wrapperStyle={{ color: isDarkMode ? '#F3F4F6' : '#1F2937' }} />
+                      <Bar dataKey="worklets" name="Worklets" fill={getColors(isDarkMode)[0]} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="users" name="Users" fill={getColors(isDarkMode)[1]} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="completed" name="Completed" fill={getColors(isDarkMode)[4]} radius={[0, 4, 4, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
