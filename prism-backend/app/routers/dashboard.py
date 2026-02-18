@@ -330,11 +330,17 @@ def get_platform_monthly_trends(
                 })
         
         df_worklets = pd.DataFrame(worklets_data)
+        df_worklets['start_date'] = pd.to_datetime(df_worklets['start_date'])
+        
+        # Extract years from all worklets BEFORE year filtering
+        all_years_set = df_worklets['start_date'].dt.year.unique().tolist()
+        present_years = sorted([int(y) for y in all_years_set if y <= today.year])
+        if not present_years:
+            present_years = [today.year]
         
         # Filter by year
         year_start = pd.Timestamp(selected_year, 1, 1)
         year_end = pd.Timestamp(selected_year, 12, 31)
-        df_worklets['start_date'] = pd.to_datetime(df_worklets['start_date'])
         df_worklets = df_worklets[
             (df_worklets['start_date'] >= year_start) & 
             (df_worklets['start_date'] <= year_end)
@@ -407,19 +413,11 @@ def get_platform_monthly_trends(
                 "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
             })
         
-        # Get years list efficiently using pandas
-        years_set = df_worklets['start_date'].dt.year.unique().tolist()
-        present_years = sorted([int(y) for y in years_set if y <= today.year])
-        if not present_years:
-            present_years = [today.year]
-        
+        # Years list was already extracted before year filtering
         return {
             "monthly": months,
             "years": present_years
         }
-    except Exception as e:
-        logger.error(f"Error computing platform monthly trends: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
     except Exception as e:
         logger.error(f"Error computing platform monthly trends: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -508,11 +506,17 @@ def get_platform_status_trends(
             return {"monthly": months, "years": [today.year]}
         
         df_worklets = pd.DataFrame(worklets_data)
+        df_worklets['start_date'] = pd.to_datetime(df_worklets['start_date'])
+        
+        # Extract years from all worklets BEFORE year filtering
+        all_years_set = df_worklets['start_date'].dt.year.unique().tolist()
+        present_years = sorted([int(y) for y in all_years_set if y <= today.year])
+        if not present_years:
+            present_years = [today.year]
         
         # Filter by year using pandas datetime operations
         year_start = pd.Timestamp(selected_year, 1, 1)
         year_end = pd.Timestamp(selected_year, 12, 31)
-        df_worklets['start_date'] = pd.to_datetime(df_worklets['start_date'])
         df_worklets = df_worklets[
             (df_worklets['start_date'] >= year_start) & 
             (df_worklets['start_date'] <= year_end)
@@ -569,19 +573,11 @@ def get_platform_status_trends(
                 "month_key": f"{start_d.year:04d}-{start_d.month:02d}"
             })
         
-        # Get years list efficiently using pandas
-        years_set = df_worklets['start_date'].dt.year.unique().tolist()
-        present_years = sorted([int(y) for y in years_set if y <= today.year])
-        if not present_years:
-            present_years = [today.year]
-        
+        # Years list was already extracted before year filtering
         return {
             "monthly": months,
             "years": present_years
         }
-    except Exception as e:
-        logger.error(f"Error computing platform status trends: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
     except Exception as e:
         logger.error(f"Error computing platform status trends: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
