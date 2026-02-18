@@ -13,7 +13,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 const statusOptions = [
-  { value: 'all', label: 'All Statuses' },
+  { value: 'all', label: 'All Status' },
   { value: 'ongoing', label: 'Ongoing' },
   { value: 'completed', label: 'Completed' },
   { value: 'on hold', label: 'On Hold' },
@@ -152,7 +152,7 @@ const AdminWorklets = () => {
         setWorklets(res.data);
       } catch (err) {
         console.error('Failed to fetch worklets:', err);
-        setError('Failed to load the worklets');
+        setError('Failed to load worklets');
       } finally {
         setLoading(false);
       }
@@ -435,20 +435,20 @@ const AdminWorklets = () => {
           </div>
         </div>
 
-        {/* Search + View toggle */}
-        <div className={`flex items-center justify-between mb-6 p-4 rounded-lg ${
+        {/* Search + Filters inline */}
+        <div className={`flex items-center flex-wrap gap-2 mb-6 p-3 rounded-lg ${
           isDarkMode
             ? 'bg-slate-800/80 border-slate-700/50'
             : 'bg-white/60 border-slate-200/50'
         } border shadow-sm`}>
-          <div className="relative flex-1">
-            <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+          <div className="relative w-64">
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
             <input
               type="text"
-              placeholder="Search worklets by title, college, domain, or description..."
+              placeholder="Search worklets..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className={`w-full pl-12 pr-4 py-2.5 rounded-xl border transition-all duration-200 ${
+              className={`w-full pl-10 pr-3 py-2 rounded-lg border transition-all duration-200 text-sm ${
                 isDarkMode
                   ? 'bg-slate-800/50 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
                   : 'bg-white/70 border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
@@ -456,127 +456,110 @@ const AdminWorklets = () => {
             />
           </div>
 
-          {/* Export Excel button */}
-          <motion.button
-            onClick={handleExportToExcel}
-            className={`flex items-center gap-2 px-4 py-2.5 ml-4 rounded-xl font-medium transition-all shadow-md ${
-              isDarkMode
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-green-600 text-white hover:bg-green-700'
-            }`}
-            title="Export filtered worklets to Excel"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <FileSpreadsheet size={16} />
-            <span className="text-sm">Export Excel</span>
-          </motion.button>
+          <FilterDropdown
+            label="Group"
+            icon={Users}
+            value={groupFilter}
+            options={groupOptions}
+            onChange={setGroupFilter}
+            isDarkMode={isDarkMode}
+          />
+          <FilterDropdown
+            label="College"
+            icon={Building2}
+            value={collegeFilter}
+            options={collegeOptions}
+            onChange={setCollegeFilter}
+            isDarkMode={isDarkMode}
+          />
+          <FilterDropdown
+            label="Status"
+            icon={Activity}
+            value={statusFilter}
+            options={statusOptions}
+            onChange={setStatusFilter}
+            isDarkMode={isDarkMode}
+          />
+          <FilterDropdown
+            label="Risk Status"
+            icon={Shield}
+            value={riskFilter}
+            options={riskOptions}
+            onChange={setRiskFilter}
+            isDarkMode={isDarkMode}
+          />
+          <FilterDropdown
+            label="Stage"
+            icon={Layers}
+            value={stageFilter}
+            options={stageOptions}
+            onChange={setStageFilter}
+            isDarkMode={isDarkMode}
+          />
+          <FilterDropdown
+            label="Year"
+            icon={Calendar}
+            value={yearFilter}
+            options={yearOptions}
+            onChange={setYearFilter}
+            isDarkMode={isDarkMode}
+          />
 
-          <div className={`flex rounded-lg overflow-hidden border ml-4 ${isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'}`}>
-            <motion.button
-              onClick={() => setViewMode('grid')}
-              className={`px-3 py-2 text-sm font-medium transition-colors ${
-                viewMode === 'grid'
-                  ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
-                  : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                isDarkMode
+                  ? 'text-purple-400 hover:bg-purple-600/20'
+                  : 'text-purple-600 hover:bg-purple-100'
               }`}
+            >
+              Clear all
+            </button>
+          )}
+
+          <div className="ml-auto flex items-center gap-2">
+            <motion.button
+              onClick={handleExportToExcel}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all shadow-sm text-sm ${
+                isDarkMode
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+              title="Export filtered worklets to Excel"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Grid3X3 size={16} />
+              <FileSpreadsheet size={14} />
+              <span>Export</span>
             </motion.button>
-            <motion.button
-              onClick={() => setViewMode('list')}
-              className={`px-3 py-2 text-sm font-medium transition-colors ${
-                viewMode === 'list'
-                  ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
-                  : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <List size={16} />
-            </motion.button>
-          </div>
-        </div>
 
-        {/* Filter Dropdowns */}
-        <div className={`mb-6 p-4 rounded-xl border ${
-          isDarkMode
-            ? 'bg-slate-800/60 border-slate-700/50'
-            : 'bg-white/70 border-slate-200/50'
-        }`}>
-          <div className="flex items-center gap-2 mb-3">
-            <Filter size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-            <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Filters</span>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className={`ml-auto text-xs px-2 py-1 rounded-md transition-colors ${
-                  isDarkMode
-                    ? 'text-purple-400 hover:bg-purple-600/20'
-                    : 'text-purple-600 hover:bg-purple-100'
+            <div className={`flex rounded-lg overflow-hidden border ${isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'}`}>
+              <motion.button
+                onClick={() => setViewMode('grid')}
+                className={`px-2.5 py-2 text-sm font-medium transition-colors ${
+                  viewMode === 'grid'
+                    ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
+                    : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
                 }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                Clear all
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <FilterDropdown
-              label="Group"
-              icon={Users}
-              value={groupFilter}
-              options={groupOptions}
-              onChange={setGroupFilter}
-              isDarkMode={isDarkMode}
-            />
-            <FilterDropdown
-              label="College"
-              icon={Building2}
-              value={collegeFilter}
-              options={collegeOptions}
-              onChange={setCollegeFilter}
-              isDarkMode={isDarkMode}
-            />
-            <FilterDropdown
-              label="Status"
-              icon={Activity}
-              value={statusFilter}
-              options={statusOptions}
-              onChange={setStatusFilter}
-              isDarkMode={isDarkMode}
-            />
-            <FilterDropdown
-              label="Risk Status"
-              icon={Shield}
-              value={riskFilter}
-              options={riskOptions}
-              onChange={setRiskFilter}
-              isDarkMode={isDarkMode}
-            />
-            <FilterDropdown
-              label="Stage"
-              icon={Layers}
-              value={stageFilter}
-              options={stageOptions}
-              onChange={setStageFilter}
-              isDarkMode={isDarkMode}
-            />
-            <FilterDropdown
-              label="Year"
-              icon={Calendar}
-              value={yearFilter}
-              options={yearOptions}
-              onChange={setYearFilter}
-              isDarkMode={isDarkMode}
-            />
-          </div>
-          {/* Results summary */}
-          <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-slate-700/50' : 'border-slate-200/50'}`}>
-            <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Showing <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-700'}`}>{filtered.length}</span> of {worklets.length} worklets
-            </span>
+                <Grid3X3 size={15} />
+              </motion.button>
+              <motion.button
+                onClick={() => setViewMode('list')}
+                className={`px-2.5 py-2 text-sm font-medium transition-colors ${
+                  viewMode === 'list'
+                    ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
+                    : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <List size={15} />
+              </motion.button>
+            </div>
           </div>
         </div>
 
