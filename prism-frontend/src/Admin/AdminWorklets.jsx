@@ -152,7 +152,7 @@ const AdminWorklets = () => {
         setWorklets(res.data);
       } catch (err) {
         console.error('Failed to fetch worklets:', err);
-        setError('Failed to load worklets');
+        setError('Failed to load the worklets');
       } finally {
         setLoading(false);
       }
