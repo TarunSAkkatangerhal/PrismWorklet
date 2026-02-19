@@ -5,9 +5,10 @@ import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
   ArrowLeft, User, Mail, Phone, Building2, Calendar, Clock, 
-  CheckCircle, XCircle, FileText, Award, TrendingUp, MessageCircle,
+  CheckCircle, XCircle, FileText, Award, TrendingUp,
   Download, Edit, BarChart3, Target, MapPin, GraduationCap,
-  Loader2, AlertCircle, ExternalLink, Share2, BookOpen, Users
+  Loader2, AlertCircle, ExternalLink, Share2, BookOpen, Users,
+  Briefcase, Trophy, Lightbulb, DollarSign, Newspaper, Scale
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -24,6 +25,7 @@ const UserProfileView = () => {
   const [user, setUser] = useState(null);
   const [worklets, setWorklets] = useState([]);
   const [stats, setStats] = useState(null);
+  const [portfolio, setPortfolio] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   // Fetch user data
@@ -50,6 +52,21 @@ const UserProfileView = () => {
 
         setUser(userData);
         setWorklets(workletsData);
+
+        // Fetch portfolio data based on role
+        try {
+          let portfolioEndpoint;
+          if (userData.role === 'Mentor' || userData.role === 'Professor') {
+            portfolioEndpoint = `/api/portfolio/mentor/${userId}?include_worklets=false`;
+          } else {
+            portfolioEndpoint = `/api/portfolio/student/${userId}?include_worklets=false`;
+          }
+          const portfolioRes = await API.get(portfolioEndpoint);
+          setPortfolio(portfolioRes.data);
+        } catch (portfolioErr) {
+          console.error('Failed to fetch portfolio:', portfolioErr);
+          // Don't fail the entire page if portfolio fails
+        }
 
         // Calculate statistics
         const totalWorklets = workletsData.length;
@@ -122,6 +139,7 @@ const UserProfileView = () => {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'worklets', label: 'Worklets', icon: BookOpen },
+    { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
 
@@ -239,9 +257,13 @@ const UserProfileView = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
-                    <MessageCircle className="w-4 h-4" />
-                    Message
+                  <button 
+                    onClick={() => window.location.href = `mailto:${user?.email}`}
+                    disabled={!user?.email}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
                   </button>
                 </div>
               </div>
@@ -464,6 +486,289 @@ const UserProfileView = () => {
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+
+          {/* Portfolio Tab */}
+          {activeTab === 'portfolio' && (
+            <motion.div
+              key="portfolio"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              {!portfolio ? (
+                <div className="text-center py-12">
+                  <Briefcase className={`w-12 h-12 mx-auto mb-3 ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`} />
+                  <p className={`text-lg font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>No portfolio data available</p>
+                  <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Portfolio information could not be loaded.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Portfolio Stats */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Newspaper className="w-5 h-5 text-blue-500" />
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Publications</span>
+                      </div>
+                      <p className={`text-3xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                        {portfolio.stats?.papers_count || 0}
+                      </p>
+                    </div>
+                    
+                    <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Scale className="w-5 h-5 text-purple-500" />
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Patents</span>
+                      </div>
+                      <p className={`text-3xl font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+                        {portfolio.stats?.patents_count || 0}
+                      </p>
+                    </div>
+                    
+                    {user?.role === 'Mentor' && (
+                      <>
+                        <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Trophy className="w-5 h-5 text-amber-500" />
+                            <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Achievements</span>
+                          </div>
+                          <p className={`text-3xl font-bold ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`}>
+                            {portfolio.stats?.achievements_count || 0}
+                          </p>
+                        </div>
+                        
+                        <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <DollarSign className="w-5 h-5 text-green-500" />
+                            <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Commercialization</span>
+                          </div>
+                          <p className={`text-3xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+                            {portfolio.stats?.commercializations_count || 0}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Publications */}
+                  {portfolio.papers && portfolio.papers.length > 0 && (
+                    <div className={`${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} rounded-xl border p-6`}>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Newspaper className="w-5 h-5 text-blue-500" />
+                        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                          Publications ({portfolio.papers.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-4">
+                        {portfolio.papers.map((paper, index) => (
+                          <div key={paper.id || index} className={`p-4 rounded-lg border ${isDarkMode ? 'bg-slate-700/30 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'} flex-1`}>
+                                {paper.title}
+                              </h4>
+                              {paper.publication_year && (
+                                <span className={`px-2 py-1 rounded-md text-xs font-medium ml-2 ${isDarkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                                  {paper.publication_year}
+                                </span>
+                              )}
+                            </div>
+                            {paper.journal && (
+                              <p className={`text-sm mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'} italic`}>
+                                {paper.journal}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-4 text-xs">
+                              {paper.doi && (
+                                <span className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>DOI: {paper.doi}</span>
+                              )}
+                              {paper.link && (
+                                <a href={paper.link} target="_blank" rel="noopener noreferrer" 
+                                   className="flex items-center gap-1 text-blue-500 hover:text-blue-600">
+                                  <ExternalLink className="w-3 h-3" />
+                                  View Document
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Patents */}
+                  {portfolio.patents && portfolio.patents.length > 0 && (
+                    <div className={`${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} rounded-xl border p-6`}>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Scale className="w-5 h-5 text-purple-500" />
+                        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                          Patents ({portfolio.patents.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-4">
+                        {portfolio.patents.map((patent, index) => (
+                          <div key={patent.id || index} className={`p-4 rounded-lg border ${isDarkMode ? 'bg-slate-700/30 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'} flex-1`}>
+                                {patent.title}
+                              </h4>
+                              <div className="flex items-center gap-2 ml-2">
+                                {patent.filing_year && (
+                                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${isDarkMode ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
+                                    {patent.filing_year}
+                                  </span>
+                                )}
+                                {patent.status && (
+                                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                                    patent.status === 'Granted' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                    patent.status === 'Filed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                  }`}>
+                                    {patent.status}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs">
+                              {patent.application_number && (
+                                <span className={`font-mono ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  App. No: {patent.application_number}
+                                </span>
+                              )}
+                              {patent.link && (
+                                <a href={patent.link} target="_blank" rel="noopener noreferrer" 
+                                   className="flex items-center gap-1 text-blue-500 hover:text-blue-600">
+                                  <ExternalLink className="w-3 h-3" />
+                                  View Details
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Achievements - Only for Mentors */}
+                  {user?.role === 'Mentor' && portfolio.achievements && portfolio.achievements.length > 0 && (
+                    <div className={`${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} rounded-xl border p-6`}>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Trophy className="w-5 h-5 text-amber-500" />
+                        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                          Achievements ({portfolio.achievements.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-4">
+                        {portfolio.achievements.map((achievement, index) => (
+                          <div key={achievement.id || index} className={`p-4 rounded-lg border ${isDarkMode ? 'bg-slate-700/30 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'} flex-1`}>
+                                {achievement.title}
+                              </h4>
+                              <div className="flex items-center gap-2 ml-2">
+                                {achievement.year && (
+                                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${isDarkMode ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-100 text-amber-700'}`}>
+                                    {achievement.year}
+                                  </span>
+                                )}
+                                {achievement.type && (
+                                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${isDarkMode ? 'bg-slate-600 text-slate-200' : 'bg-slate-200 text-slate-700'}`}>
+                                    {achievement.type}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {achievement.description && (
+                              <p className={`text-sm mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                {achievement.description}
+                              </p>
+                            )}
+                            {achievement.link && (
+                              <a href={achievement.link} target="_blank" rel="noopener noreferrer" 
+                                 className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600">
+                                <ExternalLink className="w-3 h-3" />
+                                View Details
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Commercializations - Only for Mentors */}
+                  {user?.role === 'Mentor' && portfolio.commercializations && portfolio.commercializations.length > 0 && (
+                    <div className={`${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} rounded-xl border p-6`}>
+                      <div className="flex items-center gap-2 mb-4">
+                        <DollarSign className="w-5 h-5 text-green-500" />
+                        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                          Commercializations ({portfolio.commercializations.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-4">
+                        {portfolio.commercializations.map((commercialization, index) => (
+                          <div key={commercialization.id || index} className={`p-4 rounded-lg border ${isDarkMode ? 'bg-slate-700/30 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'} flex-1`}>
+                                {commercialization.title}
+                              </h4>
+                              {commercialization.year && (
+                                <span className={`px-2 py-1 rounded-md text-xs font-medium ml-2 ${isDarkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700'}`}>
+                                  {commercialization.year}
+                                </span>
+                              )}
+                            </div>
+                            {commercialization.description && (
+                              <p className={`text-sm mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                {commercialization.description}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-4">
+                                {commercialization.company && (
+                                  <span className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    Company: {commercialization.company}
+                                  </span>
+                                )}
+                                {commercialization.revenue && (
+                                  <span className={`font-semibold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+                                    Revenue: ₹{commercialization.revenue.toLocaleString('en-IN')}
+                                  </span>
+                                )}
+                              </div>
+                              {commercialization.link && (
+                                <a href={commercialization.link} target="_blank" rel="noopener noreferrer" 
+                                   className="flex items-center gap-1 text-blue-500 hover:text-blue-600">
+                                  <ExternalLink className="w-3 h-3" />
+                                  View Details
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {(!portfolio.papers || portfolio.papers.length === 0) && 
+                   (!portfolio.patents || portfolio.patents.length === 0) &&
+                   (user?.role !== 'Mentor' || (!portfolio.achievements || portfolio.achievements.length === 0)) &&
+                   (user?.role !== 'Mentor' || (!portfolio.commercializations || portfolio.commercializations.length === 0)) && (
+                    <div className={`${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} rounded-xl border p-12 text-center`}>
+                      <Briefcase className={`w-16 h-16 mx-auto mb-4 ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`} />
+                      <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                        No Portfolio Items
+                      </h3>
+                      <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        This user hasn't added any publications, patents, or achievements yet.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </motion.div>
           )}
 
