@@ -32,6 +32,7 @@ import AdminDashboard from "./Admin/AdminDashboard";
 import AdminWorklets from "./Admin/AdminWorklets";
 import AdminWorkletDetail from "./Admin/AdminWorkletDetail";
 import AdminUsers from "./Admin/AdminUsers";
+import UserProfileView from "./Admin/UserProfileView";
 
 
 
@@ -83,6 +84,7 @@ export default function App() {
         <Route path="/admin-worklets" element={<ProtectedRoute><AdminRoute><AdminWorklets /></AdminRoute></ProtectedRoute>} />
         <Route path="/admin-worklet/:id" element={<ProtectedRoute><AdminRoute><AdminWorkletDetail /></AdminRoute></ProtectedRoute>} />
         <Route path="/admin-users" element={<ProtectedRoute><AdminRoute><AdminUsers /></AdminRoute></ProtectedRoute>} />
+        <Route path="/student-profile/:userId" element={<ProtectedRoute><AdminRoute><UserProfileView /></AdminRoute></ProtectedRoute>} />
         {/*--------------------------------  Admin Routing End-------------------------------- */}
 
 

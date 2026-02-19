@@ -9,7 +9,7 @@ from sqlalchemy import func, or_
 from typing import Optional, List
 
 from app.database import get_db
-from app.models import User, UserProfile, UserWorkletAssociation, College
+from app.models import User, UserProfile, UserWorkletAssociation, College, Worklet
 from app.auth import oauth2_scheme, decode_token
 from app.core.config import settings
 
@@ -227,6 +227,77 @@ def get_user_by_id(
     
     logger.info(f"Returning user data: {response_data}")
     return response_data
+
+
+# ─── GET /users/{user_id}/worklets ───────────────────────────────────
+
+@router.get("/users/{user_id}/worklets")
+def get_user_worklets(
+    user_id: int,
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Get all worklets associated with a specific user."""
+    logger.info(f"Fetching worklets for user_id: {user_id}")
+    
+    # Check if user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        logger.error(f"User not found with ID: {user_id}")
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get worklet associations with worklet details
+    worklet_associations = (
+        db.query(UserWorkletAssociation, Worklet)
+        .join(Worklet, UserWorkletAssociation.worklet_id == Worklet.id)
+        .filter(UserWorkletAssociation.user_id == user_id)
+        .order_by(Worklet.created_on.desc())
+        .all()
+    )
+    
+    worklets = []
+    for association, worklet in worklet_associations:
+        # Get mentor information if available
+        mentor_name = None
+        if worklet.created_mentor_id:
+            mentor = db.query(User).filter(User.id == worklet.created_mentor_id).first()
+            if mentor:
+                mentor_name = mentor.name
+        
+        # Determine status based on worklet progress and dates
+        status = "Pending"
+        if worklet.worklet_progress >= 100:
+            status = "Completed"
+        elif worklet.worklet_progress > 0:
+            status = "In Progress"
+        
+        # Format certificate ID
+        certificate_id = worklet.cert_id or f"WL-{worklet.id:04d}"
+        
+        worklet_data = {
+            "id": worklet.id,
+            "title": worklet.title,
+            "worklet_name": worklet.title,  # Alias for compatibility
+            "description": worklet.problem_statement or worklet.expectation,
+            "certificate_id": certificate_id,
+            "status": status,
+            "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
+            "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
+            "mentor_id": worklet.created_mentor_id,
+            "mentor_name": mentor_name,
+            "evaluation_score": 0,  # Default since not in current schema
+            "progress": worklet.worklet_progress or 0,
+            "created_at": worklet.created_on.isoformat() if worklet.created_on else None,
+            "role_in_worklet": association.role_in_worklet,
+            "tech_domain_id": worklet.tech_domain_id,
+            "github_url": worklet.github_url,
+            "prerequisites": worklet.prerequisites,
+            "expectations": worklet.expectation,
+        }
+        worklets.append(worklet_data)
+    
+    logger.info(f"Found {len(worklets)} worklets for user {user_id}")
+    return {"worklets": worklets, "total": len(worklets)}
 
 
 # ─── PATCH /users/{user_id}/toggle-active ────────────────────────────

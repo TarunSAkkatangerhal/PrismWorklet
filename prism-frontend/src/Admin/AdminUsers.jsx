@@ -6,7 +6,9 @@ import API from '../api';
 import {
   Search, Users, GraduationCap, BookOpen, ChevronRight, ChevronLeft,
   Download, AlertCircle, UserCheck, UserX, Shield, Award,
-  CheckCircle, XCircle, Loader2, Building2, FileText, X
+  CheckCircle, XCircle, Loader2, Building2, FileText, X, Calendar,
+  Clock, TrendingUp, Mail, Phone, MapPin, ExternalLink, User,
+  BarChart3, Target, MessageCircle, Plus, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -45,6 +47,9 @@ const AdminUsers = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileUser, setProfileUser] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [userWorklets, setUserWorklets] = useState([]);
+  const [expandedWorklets, setExpandedWorklets] = useState(false);
+  const [workletStats, setWorkletStats] = useState(null);
 
   /* Dynamically generate role tabs from stats */
   const roleTabs = useMemo(() => {
@@ -115,10 +120,35 @@ const AdminUsers = () => {
     try {
       setProfileLoading(true);
       setShowProfileModal(true);
+      setUserWorklets([]);
+      setWorkletStats(null);
       console.log('Fetching profile for user ID:', userId);
-      const res = await API.get(`/api/admin/users/${userId}`);
-      console.log('Profile data received:', res.data);
-      setProfileUser(res.data);
+      
+      // Parallel API calls for user data and worklets
+      const [profileRes, workletsRes] = await Promise.all([
+        API.get(`/api/admin/users/${userId}`),
+        API.get(`/api/admin/users/${userId}/worklets`).catch(() => ({ data: [] }))
+      ]);
+      
+      console.log('Profile data received:', profileRes.data);
+      console.log('Worklets data received:', workletsRes.data);
+      
+      setProfileUser(profileRes.data);
+      
+      // Process worklets data
+      const worklets = Array.isArray(workletsRes.data) ? workletsRes.data : workletsRes.data.worklets || [];
+      setUserWorklets(worklets);
+      
+      // Calculate worklet statistics
+      const stats = {
+        total: worklets.length,
+        completed: worklets.filter(w => w.status === 'Completed').length,
+        inProgress: worklets.filter(w => w.status === 'In Progress').length,
+        pending: worklets.filter(w => w.status === 'Pending').length,
+        avgScore: worklets.length > 0 ? (worklets.reduce((sum, w) => sum + (w.evaluation_score || 0), 0) / worklets.length).toFixed(1) : 0
+      };
+      setWorkletStats(stats);
+      
     } catch (err) {
       console.error('Failed to fetch user profile:', err);
       console.error('Error response:', err.response?.data);
@@ -127,6 +157,12 @@ const AdminUsers = () => {
     } finally {
       setProfileLoading(false);
     }
+  };
+
+  /* Open full profile in new tab */
+  const handleShowMore = (userId) => {
+    const url = `/student-profile/${userId}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   /* toggle activate / deactivate */
@@ -571,33 +607,88 @@ const AdminUsers = () => {
                   </div>
                 ) : profileUser ? (
                   <div className="space-y-6">
+                    {/* User Avatar & Quick Stats */}
+                    <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-lg font-bold ${getAvatarColor(profileUser.id)}`}>
+                        {initials(profileUser.name)}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{profileUser.name}</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">{profileUser.email}</p>
+                        {workletStats && (
+                          <div className="flex items-center gap-4">
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{workletStats.total}</div>
+                              <div className="text-xs text-slate-500">Total Worklets</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-green-600 dark:text-green-400">{workletStats.completed}</div>
+                              <div className="text-xs text-slate-500">Completed</div>
+                            </div>
+                            {workletStats.avgScore > 0 && (
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{workletStats.avgScore}</div>
+                                <div className="text-xs text-slate-500">Avg Score</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleShowMore(profileUser.id)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Show More
+                      </button>
+                    </div>
                     {/* Basic Info */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="col-span-2 sm:col-span-1">
-                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Full Name</label>
-                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                          <p className="text-sm font-semibold text-slate-800 dark:text-white">{profileUser.name || '—'}</p>
-                        </div>
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Role</label>
-                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Role & Status</label>
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl flex items-center gap-2">
                           <span className="inline-block px-3 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
                             {profileUser.role || '—'}
                           </span>
+                          {profileUser.is_active ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                              <CheckCircle className="w-3 h-3" /> Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                              <XCircle className="w-3 h-3" /> Inactive
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Contact</label>
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-3 h-3 text-slate-400" />
+                            <p className="text-xs text-slate-700 dark:text-slate-300 truncate">{profileUser.email || '—'}</p>
+                          </div>
+                          {profileUser.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-3 h-3 text-slate-400" />
+                              <p className="text-xs text-slate-700 dark:text-slate-300">{profileUser.phone}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="col-span-2">
-                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Email Address</label>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Institution & Program</label>
                         <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                          <p className="text-sm text-slate-700 dark:text-slate-300">{profileUser.email || '—'}</p>
-                        </div>
-                      </div>
-                      <div className="col-span-2">
-                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">College</label>
-                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-slate-400" />
-                          <p className="text-sm text-slate-700 dark:text-slate-300">{profileUser.college || profileUser.college_name || '—'}</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Building2 className="w-4 h-4 text-slate-400" />
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{profileUser.college || profileUser.college_name || '—'}</p>
+                          </div>
+                          {profileUser.department && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 ml-6">{profileUser.department}</p>
+                          )}
+                          {profileUser.academic_year && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 ml-6">Year: {profileUser.academic_year}</p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -612,28 +703,154 @@ const AdminUsers = () => {
                       </div>
                     )}
 
-                    {/* Worklet Involvement */}
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Worklet Summary</label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="px-4 py-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                          <div className="flex items-center gap-2 mb-1">
-                            <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Total Worklets</span>
+                    {/* Worklet Performance Stats */}
+                    {workletStats && workletStats.total > 0 && (
+                      <div>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Performance Analytics</label>
+                        <div className="grid grid-cols-4 gap-3">
+                          <div className="px-3 py-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Target className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Total</span>
+                            </div>
+                            <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{workletStats.total}</p>
                           </div>
-                          <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{profileUser.worklet_count || 0}</p>
-                        </div>
-                        <div className="px-4 py-3 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl border border-green-200 dark:border-green-800">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                            <span className="text-xs font-medium text-green-600 dark:text-green-400">Status</span>
+                          <div className="px-3 py-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl border border-green-200 dark:border-green-800">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              <span className="text-xs font-medium text-green-600 dark:text-green-400">Completed</span>
+                            </div>
+                            <p className="text-xl font-bold text-green-700 dark:text-green-300">{workletStats.completed}</p>
                           </div>
-                          <p className="text-sm font-bold text-green-700 dark:text-green-300">
-                            {profileUser.is_active ? 'Active' : 'Inactive'}
-                          </p>
+                          <div className="px-3 py-4 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                              <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">In Progress</span>
+                            </div>
+                            <p className="text-xl font-bold text-yellow-700 dark:text-yellow-300">{workletStats.inProgress}</p>
+                          </div>
+                          <div className="px-3 py-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                            <div className="flex items-center gap-2 mb-1">
+                              <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                              <span className="text-xs font-medium text-purple-600 dark:text-purple-400">Avg Score</span>
+                            </div>
+                            <p className="text-xl font-bold text-purple-700 dark:text-purple-300">{workletStats.avgScore}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Worklet Details */}
+                    {userWorklets && userWorklets.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Worklet Details</label>
+                          <button
+                            onClick={() => setExpandedWorklets(!expandedWorklets)}
+                            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                          >
+                            {expandedWorklets ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {expandedWorklets ? 'Collapse' : 'Expand'} ({userWorklets.length})
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {(expandedWorklets ? userWorklets : userWorklets.slice(0, 3)).map((worklet, index) => (
+                            <motion.div
+                              key={worklet.id || index}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                              className="p-4 bg-white dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-slate-800 dark:text-white text-sm mb-1">
+                                    {worklet.title || worklet.worklet_name || `Worklet ${index + 1}`}
+                                  </h4>
+                                  {worklet.certificate_id && (
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">ID: {worklet.certificate_id}</p>
+                                  )}
+                                </div>
+                                <div className="ml-3">
+                                  {worklet.status === 'Completed' ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                      <CheckCircle className="w-3 h-3" /> Completed
+                                    </span>
+                                  ) : worklet.status === 'In Progress' ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                      <Clock className="w-3 h-3" /> In Progress
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300">
+                                      <AlertCircle className="w-3 h-3" /> {worklet.status || 'Pending'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {worklet.description && (
+                                <p className="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+                                  {worklet.description.length > 120 
+                                    ? `${worklet.description.slice(0, 120)}...` 
+                                    : worklet.description
+                                  }
+                                </p>
+                              )}
+
+                              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                                <div className="flex items-center gap-4">
+                                  {worklet.start_date && (
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      <span>Started: {new Date(worklet.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                                    </div>
+                                  )}
+                                  {worklet.mentor_name && (
+                                    <div className="flex items-center gap-1">
+                                      <User className="w-3 h-3" />
+                                      <span>Mentor: {worklet.mentor_name}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {worklet.evaluation_score > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <BarChart3 className="w-3 h-3" />
+                                    <span className="font-medium text-indigo-600 dark:text-indigo-400">{worklet.evaluation_score}/100</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {worklet.progress && (
+                                <div className="mt-3">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs text-slate-500 dark:text-slate-400">Progress</span>
+                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{worklet.progress}%</span>
+                                  </div>
+                                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
+                                    <div 
+                                      className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" 
+                                      style={{ width: `${Math.min(worklet.progress || 0, 100)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </motion.div>
+                          ))}
+                          
+                          {!expandedWorklets && userWorklets.length > 3 && (
+                            <div className="text-center py-2">
+                              <button
+                                onClick={() => setExpandedWorklets(true)}
+                                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium"
+                              >
+                                Show {userWorklets.length - 3} more worklets...
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Account Details */}
                     <div>
@@ -676,7 +893,26 @@ const AdminUsers = () => {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {profileUser && (
+                    <>
+                      <button
+                        onClick={() => handleShowMore(profileUser.id)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        View Full Profile
+                      </button>
+                      {profileUser.role === 'Student' && (
+                        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors">
+                          <MessageCircle className="w-4 h-4" />
+                          Message
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
                 <button
                   onClick={() => setShowProfileModal(false)}
                   className="px-5 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
