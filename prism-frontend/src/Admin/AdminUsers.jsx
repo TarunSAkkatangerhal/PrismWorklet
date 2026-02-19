@@ -42,6 +42,7 @@ const AdminUsers = () => {
   const [total, setTotal] = useState(0);
   const [togglingId, setTogglingId] = useState(null);
   const [pageSize, setPageSize] = useState(50);
+  const [isExporting, setIsExporting] = useState(false);
   
   /* Profile modal state */
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -182,23 +183,107 @@ const AdminUsers = () => {
   };
 
   /* export to CSV */
-  const handleExport = () => {
-    if (!users.length) return;
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const headers = ['Name', 'Involved Worklets', 'Email', 'College', 'Created On', 'Status', 'UID'];
-    const rows = users.map(u => [
-      u.name, u.involved_worklets, u.email,
-      u.college_name || '', u.created_at ? new Date(u.created_at).toLocaleDateString() : '',
-      u.is_active ? 'Active' : 'Inactive', u.id,
-    ]);
-    const csv = [headers, ...rows].map(r => r.map(c => '"' + c + '"').join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'prism_users_' + activeRole.toLowerCase() + '_' + timestamp + '.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    if (isExporting) return; // Prevent double clicks
+    
+    try {
+      setIsExporting(true);
+
+      // Fetch ALL users with current filters by making multiple API calls
+      const maxPageSize = 200; // Backend limit
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+
+      const baseParams = {};
+      if (activeRole !== 'all') baseParams.role = activeRole;
+      if (statusFilter !== 'all') baseParams.status = statusFilter;
+      if (collegeFilter) baseParams.college_id = collegeFilter;
+      if (search.trim()) baseParams.search = search.trim();
+
+      console.log('Fetching all users for export with filters:', baseParams);
+
+      // Fetch users in batches until we get all of them
+      while (hasMore) {
+        const params = {
+          ...baseParams,
+          page: page,
+          page_size: maxPageSize
+        };
+
+        try {
+          const res = await API.get('/api/admin/users', { params });
+          const batchUsers = res.data.users || [];
+          const totalCount = res.data.total || 0;
+          
+          allUsers = [...allUsers, ...batchUsers];
+          
+          // Check if we have more pages
+          hasMore = batchUsers.length === maxPageSize && allUsers.length < totalCount;
+          page++;
+          
+          console.log(`Fetched ${batchUsers.length} users in batch ${page - 1}, total so far: ${allUsers.length}`);
+          
+        } catch (batchError) {
+          console.error(`Error fetching batch ${page}:`, batchError);
+          break;
+        }
+      }
+      
+      if (allUsers.length === 0) {
+        alert('No users found to export');
+        return;
+      }
+
+      // Generate CSV with comprehensive data
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const headers = [
+        'User ID', 'Name', 'Email', 'Role', 'College', 'Student ID', 
+        'Involved Worklets', 'Status', 'Profile Completed', 'Created On'
+      ];
+      
+      const rows = allUsers.map(u => [
+        u.id || '',
+        u.name || '',
+        u.email || '',
+        u.role || '',
+        u.college_name || '',
+        u.student_id || '',
+        u.involved_worklets || 0,
+        u.is_active ? 'Active' : 'Inactive',
+        u.profile_completed ? 'Yes' : 'No',
+        u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+      ]);
+
+      // Create CSV content with proper escaping
+      const csv = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      // Create and download file
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Generate descriptive filename
+      const roleText = activeRole === 'all' ? 'all_roles' : activeRole.toLowerCase();
+      const filterText = search ? '_filtered' : '';
+      a.download = `prism_users_${roleText}${filterText}_${allUsers.length}_records_${timestamp}.csv`;
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      console.log(`Successfully exported ${allUsers.length} users to CSV`);
+      
+    } catch (err) {
+      console.error('Failed to export users:', err);
+      alert('Failed to export users. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -336,16 +421,28 @@ const AdminUsers = () => {
             {/* Export */}
             <motion.button
               onClick={handleExport}
+              disabled={isExporting}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                isDarkMode
-                  ? 'bg-green-600/80 hover:bg-green-500 text-white'
-                  : 'bg-green-500 hover:bg-green-600 text-white'
+                isExporting 
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : isDarkMode
+                    ? 'bg-green-600/80 hover:bg-green-500 text-white'
+                    : 'bg-green-500 hover:bg-green-600 text-white'
               } shadow-sm`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={isExporting ? {} : { scale: 1.02 }}
+              whileTap={isExporting ? {} : { scale: 0.98 }}
             >
-              <Download size={15} />
-              <span>Export</span>
+              {isExporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Exporting...</span>
+                </>
+              ) : (
+                <>
+                  <Download size={15} />
+                  <span>Export All</span>
+                </>
+              )}
             </motion.button>
           </div>
 
