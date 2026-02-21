@@ -232,7 +232,11 @@ const DateSeparator = ({ date }) => {
 // Message Bubble Component - WhatsApp style
 const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, setEditModal, userRole }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const menuRef = useRef(null);
+
+  // Character limit for truncating messages (similar to WhatsApp)
+  const CHAR_LIMIT = 200;
 
   // Check if message is within 20 minutes of being sent
   const isWithin20Minutes = () => {
@@ -243,6 +247,16 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, s
   };
 
   const canEdit = isOwnMessage && isWithin20Minutes();
+
+  // Check if message is too long
+  const isLongMessage = message.message_text && message.message_text.length > CHAR_LIMIT;
+
+  // Get display text based on expansion state
+  const getDisplayText = () => {
+    if (!message.message_text) return '';
+    if (!isLongMessage || isExpanded) return message.message_text;
+    return message.message_text.substring(0, CHAR_LIMIT) + '...';
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -307,21 +321,43 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, s
             </span>
           </p>
         )}
-        <div className="relative group">
+        <div className="relative group max-w-full">
           <div
-            className={`rounded-lg ${bubbleStyle.roundedStyle} px-3 py-2 shadow-sm ${
+            className={`rounded-lg ${bubbleStyle.roundedStyle} px-3 py-2 shadow-sm overflow-hidden ${
               isOwnMessage
                 ? 'bg-blue-500 dark:bg-blue-600 text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
             }`}
           >
-            <div className="flex items-start gap-2">
+            <div className="flex items-start gap-2 min-w-0">
               {message.included_in_email && (
                 <CheckCheck className="w-3 h-3 text-green-500 flex-shrink-0 mt-1" title="Included in email" />
               )}
-              <div className="flex-1">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 {message.message_text && message.message_text !== '(file attachment)' && (
-                  <p className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
+                  <div className="max-w-full overflow-hidden">
+                    <p 
+                      className="text-[14.2px] leading-[19px] break-words overflow-wrap-anywhere" 
+                      style={{ 
+                        wordBreak: 'break-word',
+                        overflowWrap: 'anywhere',
+                        whiteSpace: 'pre-wrap'
+                      }}
+                      dangerouslySetInnerHTML={{ __html: formatMessageText(getDisplayText()) }}
+                    ></p>
+                    {isLongMessage && (
+                      <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className={`text-[13px] font-medium mt-1 underline hover:no-underline transition-all ${
+                          isOwnMessage 
+                            ? 'text-blue-100 hover:text-white' 
+                            : 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'
+                        }`}
+                      >
+                        {isExpanded ? 'Read less' : 'Read more'}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {/* Attachments - WhatsApp Style */}
                 {message.attachments && message.attachments.length > 0 && (
@@ -520,11 +556,19 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const isFirstLoadRef = useRef(true);
 
   // Scroll to bottom
   const scrollToBottom = (instant = false) => {
     messagesEndRef.current?.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
+  };
+
+  // Reset textarea height
+  const resetTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '44px';
+    }
   };
 
   useEffect(() => {
@@ -715,6 +759,43 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
     setAttachments(attachments.filter((_, i) => i !== index));
   };
 
+  // Handle message input change with automatic word wrapping
+  const handleMessageInputChange = (e) => {
+    const text = e.target.value;
+    const MAX_LINE_LENGTH = 50; // Maximum characters per line without spaces
+    
+    // Split text into lines
+    const lines = text.split('\n');
+    const processedLines = lines.map(line => {
+      // If line has spaces, it's fine - natural word wrapping will handle it
+      if (line.includes(' ')) {
+        return line;
+      }
+      
+      // If line is longer than MAX_LINE_LENGTH and has no spaces, break it
+      if (line.length > MAX_LINE_LENGTH) {
+        const chunks = [];
+        for (let i = 0; i < line.length; i += MAX_LINE_LENGTH) {
+          chunks.push(line.substring(i, i + MAX_LINE_LENGTH));
+        }
+        return chunks.join('\n');
+      }
+      
+      return line;
+    });
+    
+    const processedText = processedLines.join('\n');
+    setNewMessage(processedText);
+    
+    // Auto-resize textarea immediately after state update
+    setTimeout(() => {
+      const textarea = e.target;
+      textarea.style.height = '44px';
+      const newHeight = Math.min(textarea.scrollHeight, 200);
+      textarea.style.height = newHeight + 'px';
+    }, 0);
+  };
+
   // Select a room
   const handleSelectRoom = async (room) => {
     setSelectedRoom(room);
@@ -745,6 +826,7 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
         ));
         setNewMessage('');
         setEditingMessage(null);
+        resetTextareaHeight();
       } catch (error) {
         console.error('Error editing message:', error);
         alert('Failed to edit message');
@@ -770,6 +852,7 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage('');
     setAttachments([]);
+    resetTextareaHeight();
 
     try {
       const message = await chatService.sendGroupMessage(selectedRoom.worklet_id, messageText, attachments.length > 0 ? attachments : null);
@@ -804,6 +887,7 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
   const handleCancelEdit = () => {
     setEditingMessage(null);
     setNewMessage('');
+    resetTextareaHeight();
   };
 
   // Delete message handler
@@ -1134,7 +1218,7 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
                     })}
                   </div>
                 )}
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-end">
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -1147,7 +1231,7 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingFile}
-                      className="p-2.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                      className="p-2.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50 mb-0.5"
                       title="Attach file"
                     >
                       {uploadingFile ? (
@@ -1157,10 +1241,10 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
                       )}
                     </button>
                   )}
-                  <input
-                    type="text"
+                  <textarea
+                    ref={textareaRef}
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={handleMessageInputChange}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -1168,12 +1252,26 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
                       }
                     }}
                     placeholder={editingMessage ? "Edit your message" : "Type a message"}
-                    className="flex-1 px-4 py-2.5 border-0 rounded-lg bg-white dark:bg-[#2A3942] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-0 text-[15px]"
+                    rows="1"
+                    className="flex-1 px-4 py-3 border-0 rounded-xl bg-white dark:bg-[#2A3942] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-0 text-[15px] resize-none overflow-y-auto transition-all"
+                    style={{
+                      wordBreak: 'break-word',
+                      overflowWrap: 'anywhere',
+                      minHeight: '44px',
+                      maxHeight: '200px',
+                      lineHeight: '1.5'
+                    }}
+                    onInput={(e) => {
+                      // Auto-resize textarea based on content
+                      e.target.style.height = '44px'; // Reset to minimum
+                      const newHeight = Math.min(e.target.scrollHeight, 200);
+                      e.target.style.height = newHeight + 'px';
+                    }}
                   />
                   <button
                     onClick={handleSendMessage}
                     disabled={!newMessage.trim() && attachments.length === 0}
-                    className="bg-[#25D366] hover:bg-[#20BD5A] disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-full p-3 transition-colors flex items-center justify-center"
+                    className="bg-[#25D366] hover:bg-[#20BD5A] disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-full p-3 transition-colors flex items-center justify-center mb-0.5"
                   >
                     {editingMessage ? <Check className="w-5 h-5" /> : <Send className="w-5 h-5" />}
                   </button>
