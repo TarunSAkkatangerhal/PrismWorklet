@@ -1,15 +1,37 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Check, MoreVertical, CheckCheck, Image as ImageIcon, File, Download, FileText, Mail } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { MessageCircle, Send, Search, X, Info, Edit2, Trash2, Check, MoreVertical, CheckCheck, Paperclip, Image as ImageIcon, File, Download, FileText, Mail, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import secureAPI from '../services/secureAPI';
-import { chatService } from '../services/chat';
+import chatService from '../services/chat';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import LeftSidebar from '../components/Left';
 import EmailNotification from '../components/EmailNotification';
 import MessageActionModal from '../components/MessageActionModal';
 
-// Helper to format timestamps
+/**
+ * RoleBasedChatPage - Unified chat component for all user roles
+ * 
+ * @param {Object} props
+ * @param {string} props.userRole - Optional: User role ('student', 'mentor', 'professor'). If not provided, will be fetched from auth context.
+ * @param {string} props.pageTitle - Optional: Custom page title. Defaults to 'Messages - PRISM'
+ * @param {string} props.redirectPath - Optional: Path to redirect to after closing chat. Defaults based on role.
+ * 
+ * Features:
+ * - Real-time messaging with WebSocket support
+ * - Group chat support for worklets
+ * - File attachments (images and documents)
+ * - Message editing and deletion (within 20 minutes)
+ * - Email notifications to all worklet members
+ * - Dark mode support
+ * - Role-based UI customization
+ */
+
+// ================================
+// HELPER FUNCTIONS
+// ================================
+
+// Format timestamps
 const formatTime = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();
@@ -92,6 +114,10 @@ const formatMessageText = (text) => {
   
   return text;
 };
+
+// ================================
+// WEBSOCKET HOOK
+// ================================
 
 // WebSocket connection hook
 const useChatWebSocket = (onMessage) => {
@@ -186,6 +212,10 @@ const useChatWebSocket = (onMessage) => {
   return { isConnected, sendMessage };
 };
 
+// ================================
+// SUB-COMPONENTS
+// ================================
+
 // Date Separator Component
 const DateSeparator = ({ date }) => {
   return (
@@ -199,20 +229,34 @@ const DateSeparator = ({ date }) => {
   );
 };
 
-// Message Bubble Component
-const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, setEditModal }) => {
+// Message Bubble Component - WhatsApp style
+const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, setEditModal, userRole }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const menuRef = useRef(null);
+
+  // Character limit for truncating messages (similar to WhatsApp)
+  const CHAR_LIMIT = 200;
 
   // Check if message is within 20 minutes of being sent
   const isWithin20Minutes = () => {
     const sentTime = new Date(message.sent_at);
     const currentTime = new Date();
-    const diffInMinutes = (currentTime - sentTime) / (1000 * 60); // Convert milliseconds to minutes
+    const diffInMinutes = (currentTime - sentTime) / (1000 * 60);
     return diffInMinutes <= 20;
   };
 
   const canEdit = isOwnMessage && isWithin20Minutes();
+
+  // Check if message is too long
+  const isLongMessage = message.message_text && message.message_text.length > CHAR_LIMIT;
+
+  // Get display text based on expansion state
+  const getDisplayText = () => {
+    if (!message.message_text) return '';
+    if (!isLongMessage || isExpanded) return message.message_text;
+    return message.message_text.substring(0, CHAR_LIMIT) + '...';
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -243,48 +287,88 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, s
     setShowMenu(false);
   };
 
+  // Role-based styling for message bubbles
+  const getRoleBubbleStyle = () => {
+    if (userRole === 'mentor') {
+      return {
+        containerClass: `flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2`,
+        maxWidth: 'max-w-[75%]',
+        roundedStyle: isOwnMessage ? 'rounded-tr-none' : 'rounded-tl-none'
+      };
+    }
+    // Default style for student and professor (same design)
+    return {
+      containerClass: `flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-3`,
+      maxWidth: 'max-w-[65%]',
+      roundedStyle: isOwnMessage ? 'rounded-br-sm' : 'rounded-bl-sm'
+    };
+  };
+
+  const bubbleStyle = getRoleBubbleStyle();
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.2 }}
-      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={bubbleStyle.containerClass}
     >
-      <div className={`max-w-[75%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-        {!isOwnMessage && (
-          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 ml-3">
+      <div className={`${bubbleStyle.maxWidth} ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+        {!isOwnMessage && message.sender_name && (
+          <p className="text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1 ml-2">
             {message.sender_name}
             <span className="ml-2 text-[10px] font-normal bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded-full">
               {message.sender_role}
             </span>
           </p>
         )}
-        <div className="relative group">
+        <div className="relative group max-w-full">
           <div
-            className={`rounded-lg px-3 py-2 shadow-sm ${
+            className={`rounded-lg ${bubbleStyle.roundedStyle} px-3 py-2 shadow-sm overflow-hidden ${
               isOwnMessage
-                ? 'bg-blue-500 dark:bg-blue-600 text-white rounded-tr-none'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-tl-none'
+                ? 'bg-blue-500 dark:bg-blue-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
             }`}
           >
-            <div className="flex items-start gap-2">
+            <div className="flex items-start gap-2 min-w-0">
               {message.included_in_email && (
                 <CheckCheck className="w-3 h-3 text-green-500 flex-shrink-0 mt-1" title="Included in email" />
               )}
-              <div className="flex-1">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 {message.message_text && message.message_text !== '(file attachment)' && (
-                  <p className="text-[14px] leading-5 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatMessageText(message.message_text) }}></p>
+                  <div className="max-w-full overflow-hidden">
+                    <p 
+                      className="text-[14.2px] leading-[19px] break-words overflow-wrap-anywhere" 
+                      style={{ 
+                        wordBreak: 'break-word',
+                        overflowWrap: 'anywhere',
+                        whiteSpace: 'pre-wrap'
+                      }}
+                      dangerouslySetInnerHTML={{ __html: formatMessageText(getDisplayText()) }}
+                    ></p>
+                    {isLongMessage && (
+                      <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className={`text-[13px] font-medium mt-1 underline hover:no-underline transition-all ${
+                          isOwnMessage 
+                            ? 'text-blue-100 hover:text-white' 
+                            : 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'
+                        }`}
+                      >
+                        {isExpanded ? 'Read less' : 'Read more'}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {/* Attachments - WhatsApp Style */}
                 {message.attachments && message.attachments.length > 0 && (
                   <div className="mt-2">
-                    {/* Images - Grid Layout */}
                     {(() => {
                       const images = message.attachments.filter(a => a.content_type?.startsWith('image/'));
                       const files = message.attachments.filter(a => !a.content_type?.startsWith('image/'));
                       
                       return (
                         <>
+                          {/* Images - Grid Layout */}
                           {images.length > 0 && (
                             <div className={`grid gap-1 ${
                               images.length === 1 ? 'grid-cols-1' : 
@@ -335,7 +419,6 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, s
                                   <a 
                                     key={idx}
                                     href={`http://localhost:8000${attachment.url}`}
-                                    // download={attachment.original_filename}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
@@ -380,13 +463,13 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, s
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-1 justify-end mt-1">
+            <div className={`flex items-center gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
               {message.is_edited && (
-                <span className={`text-[10px] italic ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                <span className={`text-[10px] italic ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-600 dark:text-gray-400'}`}>
                   edited
                 </span>
               )}
-              <span className={`text-[11px] ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
+              <span className={`text-[11px] ${isOwnMessage ? 'text-blue-100 dark:text-blue-200' : 'text-gray-600 dark:text-gray-400'}`}>
                 {new Date(message.sent_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
               </span>
             </div>
@@ -432,24 +515,30 @@ const MessageBubble = ({ message, isOwnMessage, currentUserId, setDeleteModal, s
   );
 };
 
-// Mentor Chat Page Component
-export default function MentorChatPage() {
-  useDocumentTitle('Messages - PRISM');
+// ================================
+// MAIN COMPONENT
+// ================================
+
+export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 'Messages - PRISM', redirectPath }) {
+  useDocumentTitle(pageTitle);
   const navigate = useNavigate();
   const location = useLocation();
-  const [groupChats, setGroupChats] = useState([]);
+  
+  // State
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [chatType, setChatType] = useState('group'); // 'group' only
+  const [userRole, setUserRole] = useState(propUserRole || null);
+  const [groupChats, setGroupChats] = useState([]);
   const [showGroupProfile, setShowGroupProfile] = useState(false);
   const [groupProfile, setGroupProfile] = useState(null);
-  const [pollingInterval, setPollingInterval] = useState(5000); // Start at 5s
+  const [pollingInterval, setPollingInterval] = useState(5000);
   const [editingMessage, setEditingMessage] = useState(null);
   const [attachments, setAttachments] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [emailStatus, setEmailStatus] = useState({ can_send: true, email_sent_today: false });
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailNotification, setEmailNotification] = useState({
@@ -462,21 +551,31 @@ export default function MentorChatPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, messageId: null });
   const [editModal, setEditModal] = useState({ isOpen: false, messageId: null, currentText: '' });
+  
+  // Refs
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const isFirstLoadRef = useRef(true);
 
+  // Scroll to bottom
   const scrollToBottom = (instant = false) => {
     messagesEndRef.current?.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
   };
 
+  // Reset textarea height
+  const resetTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '44px';
+    }
+  };
+
   useEffect(() => {
     if (isFirstLoadRef.current && messages.length > 0) {
-      // Instant scroll on first load to prevent wave effect
       scrollToBottom(true);
       isFirstLoadRef.current = false;
     } else if (messages.length > 0) {
-      // Smooth scroll for new messages
       scrollToBottom(false);
     }
   }, [messages]);
@@ -486,40 +585,34 @@ export default function MentorChatPage() {
     isFirstLoadRef.current = true;
   }, [selectedRoom]);
 
-  // Get current user
+  // Get current user and role
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
         const userResponse = await secureAPI.get('/auth/me');
         if (userResponse.data && userResponse.data.id) {
           setCurrentUserId(userResponse.data.id);
+          // Set user role if not provided as prop
+          if (!propUserRole && userResponse.data.role) {
+            setUserRole(userResponse.data.role.toLowerCase());
+          }
         }
       } catch (error) {
         console.error('Error fetching current user:', error);
       }
     };
     fetchCurrentUser();
-  }, []);
+  }, [propUserRole]);
 
   // WebSocket message handler
   const handleWebSocketMessage = (data) => {
-    console.log('WebSocket message received:', data);
-    
     if (data.type === 'new_group_message') {
       const message = data.data;
-      console.log('New group message received:', message);
-      console.log('Current room:', selectedRoom);
       
-      // Only add if not already in messages (to avoid duplicates)
       if (selectedRoom?.isGroup && message.worklet_id === selectedRoom.worklet_id) {
-        console.log('Adding group message to current room');
         setMessages((prev) => {
           const exists = prev.some(m => m.message_id === message.group_message_id || m.sending);
-          if (exists) {
-            console.log('Group message already exists, skipping');
-            return prev;
-          }
-          console.log('Adding new group message to messages array');
+          if (exists) return prev;
           return [...prev, {
             message_id: message.group_message_id,
             worklet_id: message.worklet_id,
@@ -530,13 +623,10 @@ export default function MentorChatPage() {
             is_read: true
           }];
         });
-      } else {
-        console.log('Group message not for current room or room not selected');
       }
       
       fetchGroupChats();
     } else if (data.type === 'message_edited' || data.type === 'group_message_edited') {
-      // Update edited message in current view
       const editData = data.data;
       setMessages((prev) => prev.map(msg => 
         msg.message_id === editData.message_id 
@@ -544,7 +634,6 @@ export default function MentorChatPage() {
           : msg
       ));
     } else if (data.type === 'message_deleted' || data.type === 'group_message_deleted') {
-      // Remove deleted message from current view
       const deleteData = data.data;
       setMessages((prev) => prev.filter(msg => msg.message_id !== deleteData.message_id));
     }
@@ -562,45 +651,27 @@ export default function MentorChatPage() {
     }
   };
 
-  // Fetch messages for a group
-  const fetchMessages = async (roomId, isGroup = true) => {
+  // Fetch group messages
+  const fetchGroupMessages = async (groupId) => {
     try {
       setLoading(true);
-      const endpoint = `/api/chat/groups/${roomId}/messages?limit=100`;
-      const response = await secureAPI.get(endpoint);
-      setMessages(response.data);
+      const msgs = await chatService.getGroupMessages(groupId, 100);
+      setMessages(msgs);
       
-      // Track last message ID for smart syncing
-      if (response.data.length > 0) {
-        lastMessageIdRef.current = response.data[response.data.length - 1].message_id;
+      if (msgs.length > 0) {
+        lastMessageIdRef.current = msgs[msgs.length - 1].message_id;
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('Error fetching group messages:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Select a room
-  const handleSelectRoom = async (room, isGroup = true) => {
-    setSelectedRoom({ ...room, isGroup });
-    setShowGroupProfile(false);
-    setGroupProfile(null);
-    await fetchMessages(room.worklet_id, isGroup);
-    await checkEmailStatus(room.worklet_id);
-    
-    // Mark room as read and refresh to clear unread dot
-    setTimeout(() => {
-      fetchGroupChats();
-    }, 500);
-  };
-
   // View group profile
-  const handleViewGroupProfile = async () => {
-    if (!selectedRoom?.isGroup) return;
-    
+  const handleViewGroupProfile = async (groupId) => {
     try {
-      const profile = await chatService.getGroupProfile(selectedRoom.worklet_id);
+      const profile = await chatService.getGroupProfile(groupId);
       setGroupProfile(profile);
       setShowGroupProfile(true);
     } catch (error) {
@@ -623,6 +694,15 @@ export default function MentorChatPage() {
     if (!selectedRoom) return;
     setShowConfirmModal(false);
     setSendingEmail(true);
+    
+    // Show immediate "Sending..." notification
+    setEmailNotification({
+      isOpen: true,
+      type: 'info',
+      title: 'Sending Email... ⏳',
+      message: 'Please wait while we send email notifications to all worklet members.',
+      recipientCount: undefined
+    });
     
     try {
       const result = await chatService.sendNotificationEmail(selectedRoom.worklet_id);
@@ -648,15 +728,88 @@ export default function MentorChatPage() {
     }
   };
 
+  // Handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploadingFile(true);
+    try {
+      const response = await secureAPI.post('/api/chat/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setAttachments([...attachments, response.data]);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert(error.response?.data?.detail || 'Failed to upload file');
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   // Remove attachment
   const handleRemoveAttachment = (index) => {
     setAttachments(attachments.filter((_, i) => i !== index));
   };
 
+  // Handle message input change with automatic word wrapping
+  const handleMessageInputChange = (e) => {
+    const text = e.target.value;
+    const MAX_LINE_LENGTH = 50; // Maximum characters per line without spaces
+    
+    // Split text into lines
+    const lines = text.split('\n');
+    const processedLines = lines.map(line => {
+      // If line has spaces, it's fine - natural word wrapping will handle it
+      if (line.includes(' ')) {
+        return line;
+      }
+      
+      // If line is longer than MAX_LINE_LENGTH and has no spaces, break it
+      if (line.length > MAX_LINE_LENGTH) {
+        const chunks = [];
+        for (let i = 0; i < line.length; i += MAX_LINE_LENGTH) {
+          chunks.push(line.substring(i, i + MAX_LINE_LENGTH));
+        }
+        return chunks.join('\n');
+      }
+      
+      return line;
+    });
+    
+    const processedText = processedLines.join('\n');
+    setNewMessage(processedText);
+    
+    // Auto-resize textarea immediately after state update
+    setTimeout(() => {
+      const textarea = e.target;
+      textarea.style.height = '44px';
+      const newHeight = Math.min(textarea.scrollHeight, 200);
+      textarea.style.height = newHeight + 'px';
+    }, 0);
+  };
+
+  // Select a room
+  const handleSelectRoom = async (room) => {
+    setSelectedRoom(room);
+    await fetchGroupMessages(room.worklet_id);
+    await checkEmailStatus(room.worklet_id);
+    
+    setTimeout(() => {
+      fetchGroupChats();
+    }, 500);
+  };
+
   // Send a message
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && attachments.length === 0) || !selectedRoom) {
-      console.log('Cannot send: empty message or no room selected');
       return;
     }
 
@@ -666,7 +819,6 @@ export default function MentorChatPage() {
     if (editingMessage) {
       try {
         await chatService.editMessage(editingMessage.message_id, messageText);
-        // Update message locally
         setMessages((prev) => prev.map(msg => 
           msg.message_id === editingMessage.message_id 
             ? { ...msg, message_text: messageText, is_edited: true }
@@ -674,6 +826,7 @@ export default function MentorChatPage() {
         ));
         setNewMessage('');
         setEditingMessage(null);
+        resetTextareaHeight();
       } catch (error) {
         console.error('Error editing message:', error);
         alert('Failed to edit message');
@@ -682,10 +835,6 @@ export default function MentorChatPage() {
     }
 
     const tempId = `temp-${Date.now()}`;
-    
-    console.log('Sending message:', messageText);
-    console.log('Selected room:', selectedRoom);
-    console.log('Attachments:', attachments);
     
     // Optimistic update - add message immediately
     const optimisticMessage = {
@@ -700,47 +849,18 @@ export default function MentorChatPage() {
       sending: true
     };
     
-    console.log('Adding optimistic message:', optimisticMessage);
-    setMessages((prev) => {
-      const newMessages = [...prev, optimisticMessage];
-      console.log('Messages after adding:', newMessages.length);
-      return newMessages;
-    });
+    setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage('');
     setAttachments([]);
+    resetTextareaHeight();
 
     try {
-      const endpoint = '/api/chat/groups/messages';
-      const payload = { 
-        worklet_id: selectedRoom.worklet_id, 
-        message_text: messageText,
-        attachments: attachments.length > 0 ? attachments : null
-      };
-
-      console.log('Posting to:', endpoint, 'with payload:', payload);
-      const response = await secureAPI.post(endpoint, payload);
-      
-      console.log('Message sent successfully:', response.data);
-
-      // Replace optimistic message with real one
-      setMessages((prev) => {
-        const updated = prev.map(msg => {
-          if (msg.message_id === tempId) {
-            console.log('Replacing temp message with real one:', response.data);
-            return { ...response.data, sending: false };
-          }
-          return msg;
-        });
-        return updated;
-      });
-      
+      const message = await chatService.sendGroupMessage(selectedRoom.worklet_id, messageText, attachments.length > 0 ? attachments : null);
+      setMessages((prev) => prev.map(msg => msg.message_id === tempId ? { ...message, sending: false } : msg));
       fetchGroupChats();
     } catch (error) {
       console.error('Error sending message:', error);
-      console.error('Error details:', error.response?.data);
-      // Remove failed message
       setMessages((prev) => prev.filter(msg => msg.message_id !== tempId));
-      // Restore the message text
       setNewMessage(messageText === '(file attachment)' ? '' : messageText);
       setAttachments(attachments);
       alert('Failed to send message: ' + (error.response?.data?.detail || error.message));
@@ -763,10 +883,11 @@ export default function MentorChatPage() {
     }
   };
 
-  // Cancel edit handler
+  // Cancel edit
   const handleCancelEdit = () => {
     setEditingMessage(null);
     setNewMessage('');
+    resetTextareaHeight();
   };
 
   // Delete message handler
@@ -781,26 +902,30 @@ export default function MentorChatPage() {
     }
   };
 
-  // Load group chats on mount
+  // Load groups on mount
   useEffect(() => {
     if (currentUserId) {
       fetchGroupChats();
     }
-  }, [currentUserId]); // Only fetch Ongoing worklet chats
+  }, [currentUserId]);
 
   // Auto-select worklet chat room when navigating from worklet details page
   useEffect(() => {
     if (location.state?.workletId && groupChats.length > 0 && !selectedRoom) {
       const targetChat = groupChats.find(chat => chat.worklet_id === location.state.workletId);
       if (targetChat) {
-        // Add displayName property for UI rendering
         const chatWithDisplayName = {
           ...targetChat,
           displayName: targetChat.group_name
         };
-        handleSelectRoom(chatWithDisplayName, true);
-        // Clear navigation state after selection
-        navigate('/mentor-chat', { replace: true, state: {} });
+        handleSelectRoom(chatWithDisplayName);
+        
+        // Clear navigation state and use role-specific redirect
+        const defaultRedirectPath = redirectPath || 
+          (userRole === 'student' ? '/student-chat' : 
+           userRole === 'mentor' ? '/mentor-chat' : 
+           '/professor-chat');
+        navigate(defaultRedirectPath, { replace: true, state: {} });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -810,152 +935,145 @@ export default function MentorChatPage() {
   useEffect(() => {
     if (!currentUserId) return;
 
-    // Only poll if WebSocket is NOT connected
     if (!isConnected) {
       const interval = setInterval(() => {
-        console.log('⚠️ WebSocket disconnected, polling at', pollingInterval + 'ms');
         fetchGroupChats();
-        
-        // Increase interval with exponential backoff: 5s → 10s → 30s → 60s
         setPollingInterval((prev) => Math.min(prev * 2, 60000));
       }, pollingInterval);
       
       return () => clearInterval(interval);
     } else {
-      // WebSocket connected - reset polling interval for next disconnect
-      console.log('✅ WebSocket connected, polling disabled');
       setPollingInterval(5000);
     }
   }, [currentUserId, isConnected, pollingInterval]);
 
-  // Filter and sort group chats by search and latest message
-  const allConversations = [
-    ...groupChats.map(g => ({ ...g, isGroup: true, displayName: g.group_name, chatId: g.worklet_id }))
-  ].sort((a, b) => {
-    const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-    const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-    return timeB - timeA; // Most recent first
-  });
+  // Filter groups by search
+  const filteredGroups = groupChats
+    .filter(group =>
+      group.group_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.worklet_title?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+      const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+      return timeB - timeA;
+    });
 
-  const filteredRooms = allConversations.filter(conv => {
-    const matchesSearch = conv.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (conv.worklet_title && conv.worklet_title.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    // Only show group chats
-    const matchesType = conv.isGroup;
-    
-    return matchesSearch && matchesType;
-  });
+  // ================================
+  // RENDER
+  // ================================
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Left Sidebar */}
       <LeftSidebar />
-      
-      <div className="flex-1 flex">
-        {/* Chat List Sidebar */}
-        <div className="w-96 bg-white dark:bg-[#111B21] border-r border-gray-200 dark:border-gray-800 flex flex-col">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <MessageCircle className="w-7 h-7 text-blue-500" />
-                My Messages
-              </h1>
-              <div className="flex items-center gap-2">
-                {!isConnected && (
-                  <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
-                    Connecting...
-                  </span>
-                )}
-              </div>
-            </div>
 
-            {/* Chat Type Filter - Showing only Groups (Ongoing worklets) */}
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setChatType('group')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  chatType === 'group'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                Groups
-              </button>
-            </div>
+      {/* Main Chat Container */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Chat List Sidebar */}
+        <div className="w-80 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111B21] flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+            <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+              <MessageCircle className="w-7 h-7 text-blue-500" />
+              Messages
+            </h1>
             
             {/* Search */}
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search students or worklets..."
+                placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-[#202C33] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-[#202C33] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            {/* WebSocket Status Indicator */}
+            <div className="mt-3 flex items-center gap-2 text-xs">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-gray-600 dark:text-gray-400">
+                {isConnected ? 'Connected' : 'Reconnecting...'}
+              </span>
             </div>
           </div>
 
-          {/* Room List */}
-          <div className="flex-1 overflow-y-auto relative">
-            {filteredRooms.length === 0 ? (
+          {/* Chat List */}
+          <div className="flex-1 overflow-y-auto">
+            {loading && groupChats.length === 0 ? (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <p>Loading chats...</p>
+              </div>
+            ) : groupChats.length === 0 ? (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                 <MessageCircle className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No group conversations yet</p>
-                <p className="text-sm mt-1">Group chats will appear here</p>
+                <p>No conversations yet</p>
+                <p className="text-sm mt-1">Your worklet chats will appear here</p>
               </div>
             ) : (
               <>
-                <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                {filteredRooms.map((conv) => (
-                  <motion.div
-                    key={conv.chatId}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    onClick={() => handleSelectRoom(conv, conv.isGroup)}
-                    className={`p-4 cursor-pointer transition-colors border-l-4 ${
-                      selectedRoom?.chatId === conv.chatId
-                        ? 'bg-blue-50 dark:bg-[#2A3942] border-blue-500 dark:border-blue-400'
-                        : 'border-transparent hover:bg-gray-50 dark:hover:bg-[#202C33] hover:border-blue-200 dark:hover:border-blue-800'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                            {conv.displayName}
-                          </h3>
-                          {conv.isGroup && (
-                            <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 text-xs px-2 py-0.5 rounded font-medium">
-                              Group
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                          {conv.worklet_title || 'Worklet Chat'}
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {/* Group Chats Section */}
+                  {filteredGroups.length > 0 && (
+                    <>
+                      <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/50">
+                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                          <MessageCircle className="w-3 h-3" />
+                          Team Chats ({filteredGroups.length})
                         </p>
                       </div>
-                      <div className="flex flex-col items-end gap-1 ml-2">
-                        {conv.last_message_at && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatTime(conv.last_message_at)}
-                          </span>
-                        )}
-                        {conv.unread_count > 0 && (
-                          <span className="w-3 h-3 bg-blue-500 rounded-full" title="Unread messages"></span>
-                        )}
-                      </div>
-                    </div>
-                    {conv.last_message && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                        {conv.last_message}
-                      </p>
-                    )}
-                  </motion.div>
-                ))}
-              </div>
-            </>
+                      {filteredGroups.map((group) => (
+                        <motion.div
+                          key={group.worklet_id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          onClick={() => handleSelectRoom({ ...group, isGroup: true, displayName: group.group_name })}
+                          className={`p-4 cursor-pointer transition-colors border-l-4 ${
+                            selectedRoom?.worklet_id === group.worklet_id
+                              ? 'bg-blue-50 dark:bg-[#2A3942] border-blue-500 dark:border-blue-400'
+                              : 'border-transparent hover:bg-gray-50 dark:hover:bg-[#202C33] hover:border-blue-200 dark:hover:border-blue-800'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                                  {group.group_name}
+                                </h3>
+                                <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 text-[10px] px-1.5 py-0.5 rounded font-medium">
+                                  Group
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                {group.worklet_title || 'Worklet Team'}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 ml-2">
+                              {group.last_message_at && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatTime(group.last_message_at)}
+                                </span>
+                              )}
+                              {group.unread_count > 0 && (
+                                <span className="w-3 h-3 bg-blue-500 rounded-full" title="Unread messages"></span>
+                              )}
+                            </div>
+                          </div>
+                          {group.last_message && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                              <span className="font-medium">{group.last_sender_name}: </span>
+                              {group.last_message}
+                            </p>
+                          )}
+                        </motion.div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -969,21 +1087,17 @@ export default function MentorChatPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
                     {/* Avatar */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
-                      selectedRoom.isGroup ? 'bg-blue-500' : 'bg-blue-500'
-                    }`}>
-                      {selectedRoom.displayName.charAt(0).toUpperCase()}
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold bg-blue-500">
+                      {(selectedRoom.displayName || selectedRoom.group_name).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h2 className="text-[16px] font-medium text-gray-900 dark:text-white">
-                          {selectedRoom.displayName}
+                          {selectedRoom.displayName || selectedRoom.group_name}
                         </h2>
-                        {selectedRoom.isGroup && (
-                          <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 text-[10px] px-1.5 py-0.5 rounded font-medium">
-                            Group
-                          </span>
-                        )}
+                        <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 text-[10px] px-1.5 py-0.5 rounded font-medium">
+                          Group
+                        </span>
                       </div>
                       <p className="text-[13px] text-gray-600 dark:text-gray-400">
                         {selectedRoom.worklet_title || 'Worklet Chat'}
@@ -991,35 +1105,37 @@ export default function MentorChatPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedRoom.isGroup && (
-                      <>
-                        <button
-                          onClick={() => handleViewGroupProfile(selectedRoom.group_id)}
-                          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                          title="View group info"
-                        >
-                          <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                        </button>
-                        <button
-                          onClick={() => setShowConfirmModal(true)}
-                          disabled={!emailStatus.can_send || sendingEmail}
-                          className={`p-2 rounded-lg transition-colors ${
-                            !emailStatus.can_send || sendingEmail
-                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                              : 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
-                          }`}
-                          title={
-                            sendingEmail
-                              ? 'Sending email...'
-                              : emailStatus.email_sent_today
-                              ? 'Email already sent today'
-                              : 'Send email notification to all members'
-                          }
-                        >
-                          <Mail className="w-5 h-5" />
-                        </button>
-                      </>
-                    )}
+                    <button
+                      onClick={() => handleViewGroupProfile(selectedRoom.worklet_id)}
+                      className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                      title="View group info"
+                    >
+                      <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    </button>
+                    <button
+                      onClick={() => setShowConfirmModal(true)}
+                      disabled={!emailStatus.can_send || sendingEmail}
+                      className={`p-2 rounded-lg transition-all duration-300 relative ${
+                        sendingEmail
+                          ? 'bg-indigo-200 text-indigo-600 cursor-wait'
+                          : !emailStatus.can_send
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
+                      }`}
+                      title={
+                        sendingEmail
+                          ? 'Sending email...'
+                          : emailStatus.email_sent_today
+                          ? 'Email already sent today'
+                          : 'Send email notification to all members'
+                      }
+                    >
+                      {sendingEmail ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Mail className="w-5 h-5" />
+                      )}
+                    </button>
                     <button
                       onClick={() => setSelectedRoom(null)}
                       className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
@@ -1032,34 +1148,36 @@ export default function MentorChatPage() {
 
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-4 bg-[#EFEAE2] dark:bg-[#0B141A]">
-                <div className="min-h-full p-2">{loading ? (
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                    Loading messages...
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                    <MessageCircle className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                    <p>No messages yet</p>
-                    <p className="text-sm mt-1">Start the conversation!</p>
-                  </div>
-                ) : (
-                  groupMessagesByDate(messages).map((group, groupIndex) => (
-                    <div key={groupIndex}>
-                      <DateSeparator date={group.messages[0].sent_at} />
-                      {group.messages.map((message) => (
-                        <MessageBubble
-                          key={message.message_id}
-                          message={message}
-                          isOwnMessage={message.sender_id === currentUserId}
-                          currentUserId={currentUserId}
-                          setDeleteModal={setDeleteModal}
-                          setEditModal={setEditModal}
-                        />
-                      ))}
+                <div className="min-h-full p-2">
+                  {loading ? (
+                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                      Loading messages...
                     </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
+                  ) : messages.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                      <MessageCircle className="w-16 h-16 mx-auto mb-3 opacity-30" />
+                      <p>No messages yet</p>
+                      <p className="text-sm mt-1">Start the conversation!</p>
+                    </div>
+                  ) : (
+                    groupMessagesByDate(messages).map((group, groupIndex) => (
+                      <div key={groupIndex}>
+                        <DateSeparator date={group.messages[0].sent_at} />
+                        {group.messages.map((message) => (
+                          <MessageBubble
+                            key={message.message_id || message.group_message_id}
+                            message={message}
+                            isOwnMessage={message.sender_id === currentUserId}
+                            currentUserId={currentUserId}
+                            setDeleteModal={setDeleteModal}
+                            setEditModal={setEditModal}
+                            userRole={userRole}
+                          />
+                        ))}
+                      </div>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
               </div>
 
@@ -1100,31 +1218,33 @@ export default function MentorChatPage() {
                     })}
                   </div>
                 )}
-                <div className="flex gap-2 items-center">
-                  {/* Attachment button disabled for mentors */}
-                  {/* <input
+                <div className="flex gap-2 items-end">
+                  <input
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileUpload}
                     className="hidden"
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                   />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingFile}
-                    className="p-2.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
-                    title="Attach file"
-                  >
-                    {uploadingFile ? (
-                      <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-                    ) : (
-                      <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                    )}
-                  </button> */}
-                  <input
-                    type="text"
+                  {/* Attachment button - disabled for mentors */}
+                  {userRole !== 'mentor' && (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingFile}
+                      className="p-2.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50 mb-0.5"
+                      title="Attach file"
+                    >
+                      {uploadingFile ? (
+                        <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                      ) : (
+                        <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                      )}
+                    </button>
+                  )}
+                  <textarea
+                    ref={textareaRef}
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={handleMessageInputChange}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -1132,12 +1252,26 @@ export default function MentorChatPage() {
                       }
                     }}
                     placeholder={editingMessage ? "Edit your message" : "Type a message"}
-                    className="flex-1 px-4 py-2.5 border-0 rounded-lg bg-white dark:bg-[#2A3942] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-0 text-[15px]"
+                    rows="1"
+                    className="flex-1 px-4 py-3 border-0 rounded-xl bg-white dark:bg-[#2A3942] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-0 text-[15px] resize-none overflow-y-auto transition-all"
+                    style={{
+                      wordBreak: 'break-word',
+                      overflowWrap: 'anywhere',
+                      minHeight: '44px',
+                      maxHeight: '200px',
+                      lineHeight: '1.5'
+                    }}
+                    onInput={(e) => {
+                      // Auto-resize textarea based on content
+                      e.target.style.height = '44px'; // Reset to minimum
+                      const newHeight = Math.min(e.target.scrollHeight, 200);
+                      e.target.style.height = newHeight + 'px';
+                    }}
                   />
                   <button
                     onClick={handleSendMessage}
                     disabled={!newMessage.trim() && attachments.length === 0}
-                    className="bg-[#25D366] hover:bg-[#20BD5A] disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-full p-3 transition-colors flex items-center justify-center"
+                    className="bg-[#25D366] hover:bg-[#20BD5A] disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-full p-3 transition-colors flex items-center justify-center mb-0.5"
                   >
                     {editingMessage ? <Check className="w-5 h-5" /> : <Send className="w-5 h-5" />}
                   </button>
@@ -1149,7 +1283,7 @@ export default function MentorChatPage() {
               <div className="text-center">
                 <MessageCircle className="w-24 h-24 mx-auto mb-4 opacity-20 text-gray-400" />
                 <h3 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">Select a conversation</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Choose a student from the list to start chatting</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Choose a chat from the list to start messaging</p>
               </div>
             </div>
           )}
