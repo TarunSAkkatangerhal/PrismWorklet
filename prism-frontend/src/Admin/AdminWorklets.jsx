@@ -132,14 +132,14 @@ const AdminWorklets = () => {
   // Filter states
   const [statusFilter, setStatusFilter] = useState('all');
   const [collegeFilter, setCollegeFilter] = useState('all');
-  const [groupFilter, setGroupFilter] = useState('all');
+  const [teamFilter, setTeamFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
   const [stageFilter, setStageFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
 
   // Filter options from API
   const [colleges, setColleges] = useState([]);
-  const [groups, setGroups] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [stages, setStages] = useState([]);
   const [years, setYears] = useState([]);
 
@@ -169,10 +169,7 @@ const AdminWorklets = () => {
           setColleges(res.data || []);
         }).catch(() => setColleges([]));
 
-        // Fetch groups
-        API.get('/worklets/groups').then(res => {
-          setGroups(res.data || []);
-        }).catch(() => setGroups([]));
+        // Teams will be derived from worklets data
 
         // Fetch stages
         API.get('/worklets/stages').then(res => {
@@ -185,11 +182,13 @@ const AdminWorklets = () => {
     fetchFilterOptions();
   }, []);
 
-  // Derive years from worklets data
+  // Derive years and teams from worklets data
   useEffect(() => {
     if (worklets.length > 0) {
       const uniqueYears = [...new Set(worklets.map(w => w.year).filter(Boolean))].sort((a, b) => b - a);
       setYears(uniqueYears);
+      const uniqueTeams = [...new Set(worklets.map(w => w.team).filter(Boolean))].sort();
+      setTeams(uniqueTeams);
     }
   }, [worklets]);
 
@@ -199,10 +198,10 @@ const AdminWorklets = () => {
     ...colleges.map(c => ({ value: c.name, label: c.name }))
   ], [colleges]);
 
-  const groupOptions = useMemo(() => [
-    { value: 'all', label: 'All Groups' },
-    ...groups.map(g => ({ value: g.group_id?.toString(), label: g.label }))
-  ], [groups]);
+  const teamOptions = useMemo(() => [
+    { value: 'all', label: 'All Teams' },
+    ...teams.map(t => ({ value: t, label: t }))
+  ], [teams]);
 
   const stageOptions = useMemo(() => [
     { value: 'all', label: 'All Stages' },
@@ -230,9 +229,9 @@ const AdminWorklets = () => {
       list = list.filter(w => w.college === collegeFilter);
     }
 
-    // Group filter (by group_mg_id)
-    if (groupFilter !== 'all') {
-      list = list.filter(w => w.group_mg_id?.toString() === groupFilter);
+    // Team filter
+    if (teamFilter !== 'all') {
+      list = list.filter(w => w.team === teamFilter);
     }
 
     // Risk filter
@@ -266,7 +265,7 @@ const AdminWorklets = () => {
       );
     }
     return list;
-  }, [worklets, statusFilter, collegeFilter, groupFilter, riskFilter, stageFilter, yearFilter, search]);
+  }, [worklets, statusFilter, collegeFilter, teamFilter, riskFilter, stageFilter, yearFilter, search]);
 
   // Excel export function
   const handleExportToExcel = () => {
@@ -311,7 +310,7 @@ const AdminWorklets = () => {
         ['Search Term', search || 'None'],
         ['Status', statusFilter === 'all' ? 'All Statuses' : statusFilter],
         ['College', collegeFilter === 'all' ? 'All Colleges' : collegeFilter],
-        ['Group', groupFilter === 'all' ? 'All Groups' : groupFilter],
+        ['Team', teamFilter === 'all' ? 'All Teams' : teamFilter],
         ['Risk Status', riskFilter === 'all' ? 'All Risk Levels' : riskFilter],
         ['Stage', stageFilter === 'all' ? 'All Stages' : stageFilter],
         ['Year', yearFilter === 'all' ? 'All Years' : yearFilter]
@@ -385,7 +384,7 @@ const AdminWorklets = () => {
   const clearFilters = () => {
     setStatusFilter('all');
     setCollegeFilter('all');
-    setGroupFilter('all');
+    setTeamFilter('all');
     setRiskFilter('all');
     setStageFilter('all');
     setYearFilter('all');
@@ -393,7 +392,7 @@ const AdminWorklets = () => {
   };
 
   const hasActiveFilters = statusFilter !== 'all' || collegeFilter !== 'all' || 
-    groupFilter !== 'all' || riskFilter !== 'all' || stageFilter !== 'all' || 
+    teamFilter !== 'all' || riskFilter !== 'all' || stageFilter !== 'all' || 
     yearFilter !== 'all' || search.trim();
 
   return (
@@ -457,11 +456,11 @@ const AdminWorklets = () => {
           </div>
 
           <FilterDropdown
-            label="Group"
+            label="Team"
             icon={Users}
-            value={groupFilter}
-            options={groupOptions}
-            onChange={setGroupFilter}
+            value={teamFilter}
+            options={teamOptions}
+            onChange={setTeamFilter}
             isDarkMode={isDarkMode}
           />
           <FilterDropdown

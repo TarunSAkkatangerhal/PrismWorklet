@@ -110,6 +110,9 @@ const AdminWorkletDetail = () => {
   const [profileUser, setProfileUser] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // Delete confirmation modal state
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, userId: null, userName: '' });
+
   // Modify form state
   const [form, setForm] = useState({});
   const [modalityOpen, setModalityOpen] = useState(false);
@@ -273,8 +276,14 @@ const AdminWorkletDetail = () => {
     }
   };
 
-  /* ─── remove user from worklet ─── */
-  const handleRemoveUser = async (userId) => {
+  /* ─── remove user from worklet (with confirmation) ─── */
+  const confirmRemoveUser = (userId, userName = 'this user') => {
+    setDeleteConfirm({ show: true, userId, userName });
+  };
+
+  const handleRemoveUser = async () => {
+    const { userId } = deleteConfirm;
+    setDeleteConfirm({ show: false, userId: null, userName: '' });
     try {
       await API.delete(`/api/associations/${userId}/${worklet.id}`);
       showToast('User removed');
@@ -282,6 +291,10 @@ const AdminWorkletDetail = () => {
     } catch (err) {
       showToast('Failed to remove', 'error');
     }
+  };
+
+  const cancelRemoveUser = () => {
+    setDeleteConfirm({ show: false, userId: null, userName: '' });
   };
 
   /* ─── view user profile ─── */
@@ -379,6 +392,52 @@ const AdminWorkletDetail = () => {
               className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}
             >
               {toast.msg}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {deleteConfirm.show && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+              onClick={cancelRemoveUser}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', duration: 0.3 }}
+                className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
+                    <Trash2 className="w-5 h-5 text-red-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Confirm Removal</h3>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+                  Are you sure you want to remove <span className="font-semibold text-slate-800 dark:text-slate-200">{deleteConfirm.userName}</span> from this worklet? This action cannot be undone.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={cancelRemoveUser}
+                    className="px-4 py-2 text-sm font-medium rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                  >
+                    No, Cancel
+                  </button>
+                  <button
+                    onClick={handleRemoveUser}
+                    className="px-4 py-2 text-sm font-medium rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg transition"
+                  >
+                    Yes, Remove
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -559,8 +618,7 @@ const AdminWorkletDetail = () => {
 
                   {/* Table header */}
                   <div className="grid grid-cols-12 gap-2 px-4 py-2 rounded-t-xl bg-indigo-50 dark:bg-indigo-900/20 text-xs font-semibold text-slate-500 uppercase">
-                    <div className="col-span-1" />
-                    <div className="col-span-4">Name</div>
+                    <div className="col-span-5">Name</div>
                     <div className="col-span-2">Eligible</div>
                     <div className="col-span-4">College</div>
                     <div className="col-span-1" />
@@ -582,9 +640,8 @@ const AdminWorkletDetail = () => {
                         
                         return (
                           <div key={professorId || `prof-${idx}`} className="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                            <div className="col-span-1"><input type="checkbox" defaultChecked className="rounded text-indigo-600" /></div>
                             <div 
-                              className={`col-span-4 text-sm font-medium ${
+                              className={`col-span-5 text-sm font-medium ${
                                 professorId 
                                   ? 'text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline' 
                                   : 'text-slate-600 dark:text-slate-400'
@@ -598,7 +655,7 @@ const AdminWorkletDetail = () => {
                             <div className="col-span-4 text-xs text-slate-500">{professorCollege}</div>
                             <div className="col-span-1">
                               {professorId && (
-                                <button onClick={() => handleRemoveUser(professorId)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => confirmRemoveUser(professorId, professorName)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
                               )}
                             </div>
                           </div>
@@ -623,9 +680,8 @@ const AdminWorkletDetail = () => {
                         
                         return (
                           <div key={studentId || `student-${idx}`} className="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                            <div className="col-span-1"><input type="checkbox" defaultChecked className="rounded text-indigo-600" /></div>
                             <div 
-                              className={`col-span-4 text-sm font-medium ${
+                              className={`col-span-5 text-sm font-medium ${
                                 studentId 
                                   ? 'text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline' 
                                   : 'text-slate-600 dark:text-slate-400'
@@ -639,7 +695,7 @@ const AdminWorkletDetail = () => {
                             <div className="col-span-4 text-xs text-slate-500">{studentCollege}</div>
                             <div className="col-span-1">
                               {studentId && (
-                                <button onClick={() => handleRemoveUser(studentId)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => confirmRemoveUser(studentId, studentName)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
                               )}
                             </div>
                           </div>
