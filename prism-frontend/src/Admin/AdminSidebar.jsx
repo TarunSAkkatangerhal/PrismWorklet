@@ -144,6 +144,7 @@ export const AdminLeftSidebar = () => {
         <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard" onClick={() => navigate('/admin-dashboard')} isActive={isActivePath('/admin-dashboard')} />
         <SidebarItem icon={<Briefcase size={20} />} label="Worklet" onClick={() => navigate('/admin-worklets')} isActive={isActivePath('/admin-worklets')} />
         <SidebarItem icon={<Users size={20} />} label="Users" onClick={() => navigate('/admin-users')} isActive={isActivePath('/admin-users')} />
+        <SidebarItem icon={<Sparkles size={20} />} label="Excellent" onClick={() => navigate('/admin-excellent')} isActive={isActivePath('/admin-excellent')} />
 
         {/* Separator */}
         <div className="w-[75%] mx-auto my-[1.2vh]">
