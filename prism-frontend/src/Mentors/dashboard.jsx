@@ -195,7 +195,8 @@ const generatePerformanceDistribution = (totalsData, isDark) => {
   ]
 }
 // Modern Statistics Dashboard component
-const ModernStatisticsDashboard = () => {
+// SidebarComponent prop allows reusing this dashboard with different sidebars (e.g., Admin)
+const ModernStatisticsDashboard = ({ SidebarComponent = LeftSidebar }) => {
   useDocumentTitle('Performance Analytics Dashboard');
   const navigate = useNavigate()
   
@@ -683,7 +684,7 @@ const ModernStatisticsDashboard = () => {
       className={`flex h-screen w-full overflow-hidden ${
         isDarkMode ? 'dark bg-slate-900 text-slate-200' : 'bg-slate-100 text-slate-800'
       }`}>
-      <LeftSidebar />
+      <SidebarComponent />
 
       <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 ">
         <header className="flex justify-between items-center mb-[3vh]">
