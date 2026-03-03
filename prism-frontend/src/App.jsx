@@ -32,6 +32,8 @@ import AdminWorkletDetail from "./Admin/AdminWorkletDetail";
 import AdminUsers from "./Admin/AdminUsers";
 import UserProfileView from "./Admin/UserProfileView";
 import Excellent from "./Admin/Excellent";
+import AddCollege from "./Admin/college";
+import AllColleges from "./Admin/AllColleges";
 
 
 
@@ -84,6 +86,8 @@ export default function App() {
         <Route path="/admin-worklet/:id" element={<ProtectedRoute><AdminRoute><AdminWorkletDetail /></AdminRoute></ProtectedRoute>} />
         <Route path="/admin-users" element={<ProtectedRoute><AdminRoute><AdminUsers /></AdminRoute></ProtectedRoute>} />
         <Route path="/admin-excellent" element={<ProtectedRoute><AdminRoute><Excellent /></AdminRoute></ProtectedRoute>} />
+        <Route path="/admin-add-college" element={<ProtectedRoute><AdminRoute><AddCollege /></AdminRoute></ProtectedRoute>} />
+        <Route path="/admin-colleges" element={<ProtectedRoute><AdminRoute><AllColleges /></AdminRoute></ProtectedRoute>} />
         <Route path="/student-profile/:userId" element={<ProtectedRoute><AdminRoute><UserProfileView /></AdminRoute></ProtectedRoute>} />
         {/*--------------------------------  Admin Routing End-------------------------------- */}
 

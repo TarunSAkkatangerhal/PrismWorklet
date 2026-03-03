@@ -3,6 +3,13 @@ from typing import Optional, List, Any
 from datetime import datetime, date
 from enum import Enum
 # --- College Dashboard Schemas ---
+class CollegeCreate(BaseModel):
+    college_name: str
+    location: Optional[str] = None
+    established: Optional[int] = None
+    infrastructure: Optional[str] = None
+    area_of_expertise: Optional[str] = None
+
 class CollegeOut(BaseModel):
     college_id: int
     college_name: str
@@ -20,6 +27,7 @@ class CollegeOut(BaseModel):
     onHoldCount: int = 0
     terminatedCount: int = 0
     totalStudents: int = 0
+    totalProfessors: int = 0
     class Config:
         from_attributes = True
 

@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from app.database import get_db
 from app.models import College, Worklet, User, UserWorkletAssociation, Evaluation
-from app.schemas import CollegeOut, WorkletOut, StudentOut
+from app.schemas import CollegeOut, CollegeCreate, WorkletOut, StudentOut
 from app.core.constants import WORKLET_STATUS_MAP, normalize_status_text, normalize_performance
 
 router = APIRouter(
@@ -68,6 +68,10 @@ def get_college_stats(college: College, db: Session):
     # Count all students in the college using User.college_id
     total_students = db.query(User).filter(User.college_id == college.college_id, User.role == "Student").count()
     stats["totalStudents"] = total_students
+
+    # Count professors in the college
+    total_professors = db.query(User).filter(User.college_id == college.college_id, User.role == "Professor").count()
+    stats["totalProfessors"] = total_professors
     return stats
 
 @router.get("", response_model=List[CollegeOut])
@@ -187,5 +191,43 @@ def get_college_students(college_id: int, db: Session = Depends(get_db)):
     # Return all students whose User.college_id matches
     students = db.query(User).filter(User.college_id == college_id, User.role == "Student").all()
     return students
+
+@router.post("", response_model=CollegeOut)
+@router.post("/", response_model=CollegeOut)
+def create_college(college_data: CollegeCreate, db: Session = Depends(get_db)):
+    """Create a new college."""
+    # Check for duplicate name
+    existing = db.query(College).filter(
+        func.lower(College.college_name) == func.lower(college_data.college_name)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="A college with this name already exists.")
+
+    new_college = College(
+        college_name=college_data.college_name,
+        location=college_data.location,
+        established=college_data.established,
+        infrastructure=college_data.infrastructure,
+        area_of_expertise=college_data.area_of_expertise,
+    )
+    db.add(new_college)
+    db.commit()
+    db.refresh(new_college)
+
+    stats = get_college_stats(new_college, db)
+    college_dict = new_college.__dict__.copy()
+    college_dict.update(stats)
+    return college_dict
+
+
+@router.delete("/{college_id}")
+def delete_college(college_id: int, db: Session = Depends(get_db)):
+    """Delete a college by ID."""
+    college = db.query(College).filter(College.college_id == college_id).first()
+    if not college:
+        raise HTTPException(status_code=404, detail="College not found")
+    db.delete(college)
+    db.commit()
+    return {"message": "College deleted successfully"}
 
 # Add more routes as needed for create/update/delete colleges, worklets, etc.
