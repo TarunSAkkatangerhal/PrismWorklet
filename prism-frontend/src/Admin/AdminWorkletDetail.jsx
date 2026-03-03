@@ -468,30 +468,32 @@ const AdminWorkletDetail = () => {
               <div className="flex justify-between"><span className="text-slate-500">WorkletID</span><span className="font-semibold text-blue-600 dark:text-blue-400">{worklet.cert_id || `#${worklet.id}`}</span></div>
             </div>
 
-            {/* Separator */}
-            <div className="w-full h-0.5 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full my-5" />
+            {/* About Worklet Section */}
+            <div className="mt-6 bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">About Worklet</h4>
 
-            <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-3">About Worklet</h4>
-
-            <div className="space-y-4 text-sm">
-              <InfoItem icon={<Building2 className="w-4 h-4" />} label="Colleges" value={worklet.college || '—'} />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="Stream" badge={worklet.stream || 'Any'} badgeColor="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="POC" badge={worklet.poc ? 'Yes' : 'No'} badgeColor={worklet.poc ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="Degree Type" badge={worklet.degree || 'Any'} badgeColor="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="Complexity Type" badge={worklet.complexity || 'Medium'} badgeColor="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="Research" badge={worklet.research ? 'Yes' : 'No'} badgeColor={worklet.research ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} />
-              <InfoItem icon={<Database className="w-4 h-4" />} label="DataCollection" badge={worklet.data_collection ? 'Yes' : 'No'} badgeColor={worklet.data_collection ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} />
-              <InfoItem icon={<Link2 className="w-4 h-4" />} label="LinkedProject" badge={worklet.linked_project ? 'Yes' : 'No'} badgeColor={worklet.linked_project ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} />
-              {worklet.attachments && worklet.attachments.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-1">
-                    <Paperclip className="w-4 h-4" /> Attachment
+              <div className="space-y-3">
+                <InfoItem icon={<Building2 className="w-4 h-4" />} label="Colleges" value={worklet.college || '—'} />
+                <InfoItem icon={<Tag className="w-4 h-4" />} label="Stream" badge={worklet.stream || 'Any'} badgeColor="green" />
+                <InfoItem icon={<UserCheck className="w-4 h-4" />} label="POC" badge={worklet.poc ? 'Yes' : 'No'} badgeColor={worklet.poc ? 'green' : 'red'} />
+                <InfoItem icon={<GraduationCap className="w-4 h-4" />} label="Degree Type" badge={worklet.degree || 'Any'} badgeColor="green" />
+                <InfoItem icon={<BarChart3 className="w-4 h-4" />} label="Complexity Type" badge={worklet.complexity || 'Medium'} badgeColor="yellow" />
+                <InfoItem icon={<Award className="w-4 h-4" />} label="Research" badge={worklet.research ? 'Yes' : 'No'} badgeColor={worklet.research ? 'green' : 'red'} />
+                <InfoItem icon={<Database className="w-4 h-4" />} label="DataCollection" badge={worklet.data_collection ? 'Yes' : 'No'} badgeColor={worklet.data_collection ? 'green' : 'red'} />
+                <InfoItem icon={<Link2 className="w-4 h-4" />} label="LinkedProject" badge={worklet.linked_project ? 'Yes' : 'No'} badgeColor={worklet.linked_project ? 'green' : 'red'} />
+                {worklet.attachments && worklet.attachments.length > 0 && (
+                  <div className="flex items-center justify-between py-2 border-t border-slate-200 dark:border-slate-600">
+                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                      <Paperclip className="w-4 h-4" /> <span className="text-xs font-medium">Attachments</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {worklet.attachments.map((a, i) => (
+                        <span key={i} className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-2 py-0.5 rounded-full font-medium">{a.name || `File ${i + 1}`}</span>
+                      ))}
+                    </div>
                   </div>
-                  {worklet.attachments.map((a, i) => (
-                    <span key={i} className="inline-block text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 px-2 py-0.5 rounded mr-1 mb-1">{a.name || `Attachment${i + 1}`}</span>
-                  ))}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
@@ -1139,15 +1141,23 @@ const AdminWorkletDetail = () => {
 };
 
 /* ─── Small helper component ─── */
+const badgeStyles = {
+  green: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  yellow: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+};
+
 const InfoItem = ({ icon, label, value, badge, badgeColor }) => (
-  <div>
-    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-0.5">
-      {icon} <span className="text-xs font-medium">{label}</span>
+  <div className="flex items-center justify-between py-2 border-b border-slate-200/60 dark:border-slate-600/40 last:border-0">
+    <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
+      <span className="text-slate-400 dark:text-slate-500">{icon}</span>
+      <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</span>
     </div>
     {badge ? (
-      <span className={`text-xs font-bold px-2 py-0.5 rounded ${badgeColor}`}>{badge}</span>
+      <span className={`text-xs font-semibold px-2.5 py-1 rounded-md ${badgeStyles[badgeColor] || badgeColor}`}>{badge}</span>
     ) : (
-      <p className="text-sm text-slate-700 dark:text-slate-300 pl-6">{value}</p>
+      <p className="text-sm font-medium text-slate-800 dark:text-white">{value}</p>
     )}
   </div>
 );
