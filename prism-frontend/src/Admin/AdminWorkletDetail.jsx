@@ -473,7 +473,16 @@ const AdminWorkletDetail = () => {
               <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">About Worklet</h4>
 
               <div className="space-y-3">
-                <InfoItem icon={<Building2 className="w-4 h-4" />} label="Colleges" value={worklet.college || '—'} />
+                {/* College - special handling for long names */}
+                <div className="py-2 border-b border-slate-200/60 dark:border-slate-600/40">
+                  <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400 mb-1.5">
+                    <span className="text-slate-400 dark:text-slate-500"><Building2 className="w-4 h-4" /></span>
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300">College</span>
+                  </div>
+                  <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 pl-6 truncate" title={worklet.college || '—'}>
+                    {worklet.college || '—'}
+                  </p>
+                </div>
                 <InfoItem icon={<Tag className="w-4 h-4" />} label="Stream" badge={worklet.stream || 'Any'} badgeColor="green" />
                 <InfoItem icon={<UserCheck className="w-4 h-4" />} label="POC" badge={worklet.poc ? 'Yes' : 'No'} badgeColor={worklet.poc ? 'green' : 'red'} />
                 <InfoItem icon={<GraduationCap className="w-4 h-4" />} label="Degree Type" badge={worklet.degree || 'Any'} badgeColor="green" />
