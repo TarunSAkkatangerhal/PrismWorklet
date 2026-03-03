@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Clock, Briefcase, Users, Award, Database,
   GraduationCap, UserCheck, CalendarDays, FileText, Mic,
   Tag, Sparkles, Newspaper, Moon, Sun, Info,
-  LogOut, Settings, ChevronDown, Plus, List, FileCheck
+  LogOut, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
@@ -74,70 +74,6 @@ function ActivityButton({ icon, label, onClick, isActive }) {
       {icon}
       <span className="whitespace-nowrap">{label}</span>
     </button>
-  );
-}
-
-// ─── COLLEGE EXPANDABLE SUB-MENU ────────────────────────────────────────
-function CollegeExpandable({ navigate, location }) {
-  const [isExpanded, setIsExpanded] = useState(
-    ['/admin-colleges', '/admin-add-college', '/admin-mou-details'].includes(location.pathname)
-  );
-  const isCollegeActive = ['/admin-colleges', '/admin-add-college', '/admin-mou-details'].includes(location.pathname);
-
-  const subItems = [
-    { label: 'All College', path: '/admin-colleges', icon: <List size={12} /> },
-    { label: 'Add College', path: '/admin-add-college', icon: <Plus size={12} /> },
-    { label: 'MOU Details', path: '/admin-mou-details', icon: <FileCheck size={12} /> },
-  ];
-
-  return (
-    <div className="w-full flex flex-col items-center">
-      <div
-        className={`flex flex-col items-center px-[clamp(0.75rem,1.5vw,1rem)] rounded-2xl cursor-pointer
-                   transition-all duration-200 transform relative w-full
-                   ${isCollegeActive
-                     ? 'bg-white text-purple-700 shadow-md dark:bg-slate-700 dark:text-purple-400'
-                     : 'text-gray-600 hover:scale-105 hover:shadow-md hover:bg-white hover:text-purple-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-purple-400'
-                   }`}
-        onClick={() => setIsExpanded(prev => !prev)}
-      >
-        <div className="p-[clamp(0.5rem,1vw,0.75rem)] flex items-center gap-1">
-          <GraduationCap size={20} />
-          <ChevronDown size={12} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-        </div>
-        <span className="text-[clamp(0.65rem,0.85vw,0.75rem)] font-semibold mt-[clamp(0.15rem,0.3vh,0.25rem)] text-center leading-tight">College</span>
-      </div>
-
-      {/* Sub-items */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="overflow-hidden w-full"
-          >
-            <div className="flex flex-col items-center gap-[0.3vh] mt-[0.5vh] px-1">
-              {subItems.map(item => (
-                <button
-                  key={item.path}
-                  onClick={() => navigate(item.path)}
-                  className={`w-full flex items-center justify-center gap-1 py-[0.4vh] px-2 rounded-lg text-[clamp(0.55rem,0.7vw,0.65rem)] font-medium transition-all duration-150
-                    ${location.pathname === item.path
-                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
-                      : 'text-gray-500 hover:bg-white/80 hover:text-purple-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-purple-300'
-                    }`}
-                >
-                  {item.icon}
-                  <span className="whitespace-nowrap">{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
   );
 }
 
@@ -215,7 +151,7 @@ export const AdminLeftSidebar = () => {
           <hr className="h-1 rounded-full border-0 bg-gradient-to-r from-indigo-500 via-purple-400 to-blue-400 dark:from-indigo-700 dark:via-purple-800 dark:to-blue-700 shadow-md opacity-95" />
         </div>
         <div className="flex flex-col gap-[1vh] items-center bg-white/60 dark:bg-slate-800/60 rounded-xl py-[0.7vh] shadow-sm border border-slate-200 dark:border-slate-700 w-[90%] mx-auto">
-          <CollegeExpandable navigate={navigate} location={location} />
+          <SidebarItem icon={<GraduationCap size={20} />} label="College" onClick={() => navigate('/admin-colleges')} isActive={['/admin-colleges', '/admin-add-college', '/admin-mou-details'].includes(location.pathname)} />
           <SidebarItem icon={<UserCheck size={20} />} label="Mentors" onClick={() => navigate('/admin-mentors')} isActive={isActivePath('/admin-mentors')} />
         </div>
         </nav>

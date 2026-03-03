@@ -209,6 +209,7 @@ def create_college(college_data: CollegeCreate, db: Session = Depends(get_db)):
         established=college_data.established,
         infrastructure=college_data.infrastructure,
         area_of_expertise=college_data.area_of_expertise,
+        logo=college_data.logo,
     )
     db.add(new_college)
     db.commit()
@@ -229,5 +230,36 @@ def delete_college(college_id: int, db: Session = Depends(get_db)):
     db.delete(college)
     db.commit()
     return {"message": "College deleted successfully"}
+
+
+@router.put("/{college_id}", response_model=CollegeOut)
+def update_college(college_id: int, college_data: CollegeCreate, db: Session = Depends(get_db)):
+    """Update an existing college by ID."""
+    college = db.query(College).filter(College.college_id == college_id).first()
+    if not college:
+        raise HTTPException(status_code=404, detail="College not found")
+
+    # Check for duplicate name (excluding current college)
+    existing = db.query(College).filter(
+        func.lower(College.college_name) == func.lower(college_data.college_name),
+        College.college_id != college_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="A college with this name already exists.")
+
+    college.college_name = college_data.college_name
+    college.location = college_data.location
+    college.established = college_data.established
+    college.infrastructure = college_data.infrastructure
+    college.area_of_expertise = college_data.area_of_expertise
+    college.logo = college_data.logo
+
+    db.commit()
+    db.refresh(college)
+
+    stats = get_college_stats(college, db)
+    college_dict = college.__dict__.copy()
+    college_dict.update(stats)
+    return college_dict
 
 # Add more routes as needed for create/update/delete colleges, worklets, etc.

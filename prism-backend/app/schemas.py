@@ -9,6 +9,7 @@ class CollegeCreate(BaseModel):
     established: Optional[int] = None
     infrastructure: Optional[str] = None
     area_of_expertise: Optional[str] = None
+    logo: Optional[str] = None
 
 class CollegeOut(BaseModel):
     college_id: int
@@ -17,6 +18,7 @@ class CollegeOut(BaseModel):
     established: Optional[int] = None
     infrastructure: Optional[str] = None
     area_of_expertise: Optional[Any] = None  # can be list or str
+    logo: Optional[str] = None
     workletCount: int = 0
     veryGoodCount: int = 0
     goodCount: int = 0
