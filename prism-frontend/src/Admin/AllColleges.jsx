@@ -15,91 +15,55 @@ const filterOptions = [
   { key: 'all', label: 'All Colleges', icon: Building2, color: 'blue' },
 ];
 
-// ─── Accent colors for cards ──────────────────────────────────────────
-const accentColors = [
-  { bg: 'bg-teal-500', gradient: 'from-teal-500 to-emerald-500' },
-  { bg: 'bg-blue-500', gradient: 'from-blue-500 to-indigo-500' },
-  { bg: 'bg-indigo-500', gradient: 'from-indigo-500 to-purple-500' },
-  { bg: 'bg-cyan-500', gradient: 'from-cyan-500 to-blue-500' },
-  { bg: 'bg-emerald-500', gradient: 'from-emerald-500 to-teal-500' },
-];
-const getAccent = (name) => accentColors[(name || '').charCodeAt(0) % accentColors.length];
-
 // ─── College Card (Grid View) ─────────────────────────────────────────
 const CollegeCard = ({ college, isDarkMode, onClick, index }) => {
-  const accent = getAccent(college.college_name);
   const initial = (college.college_name || 'C').charAt(0).toUpperCase();
 
   return (
-    <div
+    <motion.div
       onClick={onClick}
-      className="h-[240px] flex flex-col bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-xl border border-white/20 dark:border-slate-700/50 
-                cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:border-purple-300/50 dark:hover:border-purple-600/50 
-                group hover:-translate-y-1 transform-gpu"
-      style={{ animationDelay: `${index * 100}ms` }}
+      className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/70 dark:bg-slate-800/60 backdrop-blur-xl shadow-md p-5 cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.01] group"
+      whileHover={{ y: -2 }}
     >
-      {/* Gradient Accent */}
-      <div className={`h-1 bg-gradient-to-r ${accent.gradient} rounded-t-xl flex-shrink-0`} />
-
-      {/* Card Body */}
-      <div className="flex-1 p-4 flex flex-col">
-        {/* College icon + name */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className={`w-11 h-11 rounded-full ${accent.bg} flex items-center justify-center text-white font-bold text-lg shadow-sm flex-shrink-0`}>
+      {/* College icon/logo + name */}
+      <div className="flex items-center gap-3 mb-4">
+        {college.logo ? (
+          <img src={college.logo} alt="" className="w-10 h-10 rounded-full object-cover shadow-sm flex-shrink-0 border border-slate-200 dark:border-slate-600" />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-base shadow-sm flex-shrink-0">
             {initial}
           </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight truncate">
-              {college.college_name}
-            </h3>
-            <p className="text-xs mt-0.5 text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
-              <MapPin size={10} />
-              {college.location || 'Location not specified'}
-            </p>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="space-y-2 flex-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-              <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-md"><Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" /></div>
-              Worklets
-            </span>
-            <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full text-xs font-bold text-white bg-teal-500">
-              {college.workletCount || 0}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-              <div className="p-1 bg-purple-100 dark:bg-purple-900/30 rounded-md"><GraduationCap className="w-3 h-3 text-purple-600 dark:text-purple-400" /></div>
-              Professors
-            </span>
-            <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full text-xs font-bold text-white bg-purple-500">
-              {college.totalProfessors || 0}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-              <div className="p-1 bg-indigo-100 dark:bg-indigo-900/30 rounded-md"><Users className="w-3 h-3 text-indigo-600 dark:text-indigo-400" /></div>
-              Students
-            </span>
-            <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full text-xs font-bold text-white bg-indigo-500">
-              {college.totalStudents || 0}
-            </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-bold text-slate-800 dark:text-white line-clamp-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+            {college.college_name}
+          </h3>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <MapPin className="w-3.5 h-3.5" />
+            {college.location || 'Location not specified'}
           </div>
         </div>
       </div>
 
-      {/* Card Footer */}
-      <div className="flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-slate-50/80 to-white/80 dark:from-slate-700/30 dark:to-slate-800/50 
-                    border-t border-slate-200/50 dark:border-slate-600/50 rounded-b-xl backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">View Details</span>
-          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors" />
+      {/* Stats */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <Briefcase className="w-3.5 h-3.5" /> {college.workletCount || 0} Worklets
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <GraduationCap className="w-3.5 h-3.5" /> {college.totalProfessors || 0} Professors
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <Users className="w-3.5 h-3.5" /> {college.totalStudents || 0} Students
         </div>
       </div>
-    </div>
+
+      {/* View Details footer */}
+      <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-200/50 dark:border-slate-600/50">
+        <span className="text-xs font-medium text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">View Details</span>
+        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-purple-500 transition-colors" />
+      </div>
+    </motion.div>
   );
 };
 
@@ -332,17 +296,21 @@ const AllColleges = () => {
           } rounded-2xl shadow-lg border overflow-hidden p-6`}>
 
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[clamp(0.75rem,1.5vw,1.25rem)]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
                 {filtered.map((college, idx) => (
                   <CollegeCard
                     key={college.college_id}
                     college={college}
                     isDarkMode={isDarkMode}
                     index={idx}
-                    onClick={() => navigate(`/academia_details?collegeId=${college.college_id}`)}
+                    onClick={() => {}}
                   />
                 ))}
-              </div>
+              </motion.div>
             ) : (
               /* ─── List / Table View ─── */
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
@@ -359,21 +327,23 @@ const AllColleges = () => {
                     </thead>
                     <tbody className="divide-y divide-slate-200/50 dark:divide-slate-600/50">
                       {filtered.map((college, idx) => {
-                        const accent = getAccent(college.college_name);
                         const initial = (college.college_name || 'C').charAt(0).toUpperCase();
 
                         return (
                           <tr
                             key={college.college_id}
-                            onClick={() => navigate(`/academia_details?collegeId=${college.college_id}`)}
-                            className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 dark:hover:from-slate-700/50 dark:hover:to-slate-600/50 transition-all duration-300 cursor-pointer group"
+                            className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 dark:hover:from-slate-700/50 dark:hover:to-slate-600/50 transition-all duration-300 group"
                             style={{ animationDelay: `${idx * 50}ms` }}
                           >
                             <td className="px-6 py-5">
                               <div className="flex items-center gap-3">
-                                <div className={`w-9 h-9 rounded-full ${accent.bg} flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0`}>
-                                  {initial}
-                                </div>
+                                {college.logo ? (
+                                  <img src={college.logo} alt="" className="w-9 h-9 rounded-full object-cover shadow-sm flex-shrink-0 border border-slate-200 dark:border-slate-600" />
+                                ) : (
+                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0">
+                                    {initial}
+                                  </div>
+                                )}
                                 <span className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                                   {college.college_name}
                                 </span>

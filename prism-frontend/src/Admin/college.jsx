@@ -179,6 +179,7 @@ const AddCollege = () => {
       coordinator_contact: '',
       nirf_ranking: '',
       mou_completed: false,
+      _existingLogo: null,
     });
     setLogoFile(null);
     setLogoPreview(null);
