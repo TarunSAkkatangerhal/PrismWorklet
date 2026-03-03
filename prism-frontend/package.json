@@ -79,6 +79,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.3.1",
     "autoprefixer": "^10.4.14",
+    "baseline-browser-mapping": "^2.10.0",
     "customize-cra": "1.0.0",
     "customize-cra-react-refresh": "1.1.0",
     "postcss": "^8.4.31",

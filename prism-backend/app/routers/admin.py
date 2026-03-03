@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import Optional, List
+from pydantic import BaseModel, EmailStr
 
 from app.database import get_db
 from app.models import User, UserProfile, UserWorkletAssociation, College, Worklet
-from app.auth import oauth2_scheme, decode_token
+from app.auth import oauth2_scheme, decode_token, get_password_hash
 from app.core.config import settings
 
 import logging
@@ -18,6 +19,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ─── Pydantic schemas for request bodies ─────────────────────────────
+
+class CreateMentorRequest(BaseModel):
+    name: str
+    email: EmailStr
+    college_id: Optional[int] = None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────
@@ -54,6 +63,50 @@ def get_user_stats(
         "professors": counts.get("Professor", 0),
         "mentors": counts.get("Mentor", 0),
         "admins": counts.get("Admin", 0),
+    }
+
+
+# ─── POST /mentors ───────────────────────────────────────────────────
+
+@router.post("/mentors")
+def create_mentor(
+    data: CreateMentorRequest,
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Create a new mentor user."""
+    # Check if email already exists
+    existing = db.query(User).filter(User.email == data.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="A user with this email already exists")
+    
+    # Create new mentor with default password (they can reset it later)
+    import secrets
+    temp_password = secrets.token_urlsafe(12)
+    
+    new_mentor = User(
+        name=data.name,
+        email=data.email,
+        password_hash=get_password_hash(temp_password),
+        role="Mentor",
+        college_id=data.college_id,
+        is_active=True,
+        profile_completed=False,
+    )
+    
+    db.add(new_mentor)
+    db.commit()
+    db.refresh(new_mentor)
+    
+    logger.info(f"Admin {admin.email} created mentor: {new_mentor.email}")
+    
+    return {
+        "id": new_mentor.id,
+        "name": new_mentor.name,
+        "email": new_mentor.email,
+        "role": new_mentor.role,
+        "is_active": new_mentor.is_active,
+        "message": "Mentor created successfully",
     }
 
 

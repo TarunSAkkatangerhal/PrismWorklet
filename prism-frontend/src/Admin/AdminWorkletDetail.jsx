@@ -110,6 +110,9 @@ const AdminWorkletDetail = () => {
   const [profileUser, setProfileUser] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // Delete confirmation modal state
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, userId: null, userName: '' });
+
   // Modify form state
   const [form, setForm] = useState({});
   const [modalityOpen, setModalityOpen] = useState(false);
@@ -273,8 +276,14 @@ const AdminWorkletDetail = () => {
     }
   };
 
-  /* ─── remove user from worklet ─── */
-  const handleRemoveUser = async (userId) => {
+  /* ─── remove user from worklet (with confirmation) ─── */
+  const confirmRemoveUser = (userId, userName = 'this user') => {
+    setDeleteConfirm({ show: true, userId, userName });
+  };
+
+  const handleRemoveUser = async () => {
+    const { userId } = deleteConfirm;
+    setDeleteConfirm({ show: false, userId: null, userName: '' });
     try {
       await API.delete(`/api/associations/${userId}/${worklet.id}`);
       showToast('User removed');
@@ -282,6 +291,10 @@ const AdminWorkletDetail = () => {
     } catch (err) {
       showToast('Failed to remove', 'error');
     }
+  };
+
+  const cancelRemoveUser = () => {
+    setDeleteConfirm({ show: false, userId: null, userName: '' });
   };
 
   /* ─── view user profile ─── */
@@ -383,6 +396,52 @@ const AdminWorkletDetail = () => {
           )}
         </AnimatePresence>
 
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {deleteConfirm.show && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+              onClick={cancelRemoveUser}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', duration: 0.3 }}
+                className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
+                    <Trash2 className="w-5 h-5 text-red-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Confirm Removal</h3>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+                  Are you sure you want to remove <span className="font-semibold text-slate-800 dark:text-slate-200">{deleteConfirm.userName}</span> from this worklet? This action cannot be undone.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={cancelRemoveUser}
+                    className="px-4 py-2 text-sm font-medium rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                  >
+                    No, Cancel
+                  </button>
+                  <button
+                    onClick={handleRemoveUser}
+                    className="px-4 py-2 text-sm font-medium rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg transition"
+                  >
+                    Yes, Remove
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex h-full">
           {/* ─────── LEFT INFO PANEL ─────── */}
           <div className="w-[clamp(16rem,22vw,20rem)] border-r border-slate-200 dark:border-slate-700 bg-white/40 dark:bg-slate-800/30 p-5 overflow-y-auto flex-shrink-0 [&::-webkit-scrollbar]:w-0" style={{ scrollbarWidth: 'none' }}>
@@ -409,30 +468,41 @@ const AdminWorkletDetail = () => {
               <div className="flex justify-between"><span className="text-slate-500">WorkletID</span><span className="font-semibold text-blue-600 dark:text-blue-400">{worklet.cert_id || `#${worklet.id}`}</span></div>
             </div>
 
-            {/* Separator */}
-            <div className="w-full h-0.5 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full my-5" />
+            {/* About Worklet Section */}
+            <div className="mt-6 bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">About Worklet</h4>
 
-            <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-3">About Worklet</h4>
-
-            <div className="space-y-4 text-sm">
-              <InfoItem icon={<Building2 className="w-4 h-4" />} label="Colleges" value={worklet.college || '—'} />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="Stream" badge={worklet.stream || 'Any'} badgeColor="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="POC" badge={worklet.poc ? 'Yes' : 'No'} badgeColor={worklet.poc ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="Degree Type" badge={worklet.degree || 'Any'} badgeColor="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="Complexity Type" badge={worklet.complexity || 'Medium'} badgeColor="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" />
-              <InfoItem icon={<FileText className="w-4 h-4" />} label="Research" badge={worklet.research ? 'Yes' : 'No'} badgeColor={worklet.research ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} />
-              <InfoItem icon={<Database className="w-4 h-4" />} label="DataCollection" badge={worklet.data_collection ? 'Yes' : 'No'} badgeColor={worklet.data_collection ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} />
-              <InfoItem icon={<Link2 className="w-4 h-4" />} label="LinkedProject" badge={worklet.linked_project ? 'Yes' : 'No'} badgeColor={worklet.linked_project ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} />
-              {worklet.attachments && worklet.attachments.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-1">
-                    <Paperclip className="w-4 h-4" /> Attachment
+              <div className="space-y-3">
+                {/* College - special handling for long names */}
+                <div className="py-2 border-b border-slate-200/60 dark:border-slate-600/40">
+                  <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400 mb-1.5">
+                    <span className="text-slate-400 dark:text-slate-500"><Building2 className="w-4 h-4" /></span>
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300">College</span>
                   </div>
-                  {worklet.attachments.map((a, i) => (
-                    <span key={i} className="inline-block text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 px-2 py-0.5 rounded mr-1 mb-1">{a.name || `Attachment${i + 1}`}</span>
-                  ))}
+                  <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 pl-6 truncate" title={worklet.college || '—'}>
+                    {worklet.college || '—'}
+                  </p>
                 </div>
-              )}
+                <InfoItem icon={<Tag className="w-4 h-4" />} label="Stream" badge={worklet.stream || 'Any'} badgeColor="green" />
+                <InfoItem icon={<UserCheck className="w-4 h-4" />} label="POC" badge={worklet.poc ? 'Yes' : 'No'} badgeColor={worklet.poc ? 'green' : 'red'} />
+                <InfoItem icon={<GraduationCap className="w-4 h-4" />} label="Degree Type" badge={worklet.degree || 'Any'} badgeColor="green" />
+                <InfoItem icon={<BarChart3 className="w-4 h-4" />} label="Complexity Type" badge={worklet.complexity || 'Medium'} badgeColor="yellow" />
+                <InfoItem icon={<Award className="w-4 h-4" />} label="Research" badge={worklet.research ? 'Yes' : 'No'} badgeColor={worklet.research ? 'green' : 'red'} />
+                <InfoItem icon={<Database className="w-4 h-4" />} label="DataCollection" badge={worklet.data_collection ? 'Yes' : 'No'} badgeColor={worklet.data_collection ? 'green' : 'red'} />
+                <InfoItem icon={<Link2 className="w-4 h-4" />} label="LinkedProject" badge={worklet.linked_project ? 'Yes' : 'No'} badgeColor={worklet.linked_project ? 'green' : 'red'} />
+                {worklet.attachments && worklet.attachments.length > 0 && (
+                  <div className="flex items-center justify-between py-2 border-t border-slate-200 dark:border-slate-600">
+                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                      <Paperclip className="w-4 h-4" /> <span className="text-xs font-medium">Attachments</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {worklet.attachments.map((a, i) => (
+                        <span key={i} className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-2 py-0.5 rounded-full font-medium">{a.name || `File ${i + 1}`}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -559,8 +629,7 @@ const AdminWorkletDetail = () => {
 
                   {/* Table header */}
                   <div className="grid grid-cols-12 gap-2 px-4 py-2 rounded-t-xl bg-indigo-50 dark:bg-indigo-900/20 text-xs font-semibold text-slate-500 uppercase">
-                    <div className="col-span-1" />
-                    <div className="col-span-4">Name</div>
+                    <div className="col-span-5">Name</div>
                     <div className="col-span-2">Eligible</div>
                     <div className="col-span-4">College</div>
                     <div className="col-span-1" />
@@ -582,9 +651,8 @@ const AdminWorkletDetail = () => {
                         
                         return (
                           <div key={professorId || `prof-${idx}`} className="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                            <div className="col-span-1"><input type="checkbox" defaultChecked className="rounded text-indigo-600" /></div>
                             <div 
-                              className={`col-span-4 text-sm font-medium ${
+                              className={`col-span-5 text-sm font-medium ${
                                 professorId 
                                   ? 'text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline' 
                                   : 'text-slate-600 dark:text-slate-400'
@@ -598,7 +666,7 @@ const AdminWorkletDetail = () => {
                             <div className="col-span-4 text-xs text-slate-500">{professorCollege}</div>
                             <div className="col-span-1">
                               {professorId && (
-                                <button onClick={() => handleRemoveUser(professorId)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => confirmRemoveUser(professorId, professorName)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
                               )}
                             </div>
                           </div>
@@ -623,9 +691,8 @@ const AdminWorkletDetail = () => {
                         
                         return (
                           <div key={studentId || `student-${idx}`} className="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                            <div className="col-span-1"><input type="checkbox" defaultChecked className="rounded text-indigo-600" /></div>
                             <div 
-                              className={`col-span-4 text-sm font-medium ${
+                              className={`col-span-5 text-sm font-medium ${
                                 studentId 
                                   ? 'text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline' 
                                   : 'text-slate-600 dark:text-slate-400'
@@ -639,7 +706,7 @@ const AdminWorkletDetail = () => {
                             <div className="col-span-4 text-xs text-slate-500">{studentCollege}</div>
                             <div className="col-span-1">
                               {studentId && (
-                                <button onClick={() => handleRemoveUser(studentId)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => confirmRemoveUser(studentId, studentName)} className="text-red-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4" /></button>
                               )}
                             </div>
                           </div>
@@ -1083,15 +1150,23 @@ const AdminWorkletDetail = () => {
 };
 
 /* ─── Small helper component ─── */
+const badgeStyles = {
+  green: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  yellow: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+};
+
 const InfoItem = ({ icon, label, value, badge, badgeColor }) => (
-  <div>
-    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-0.5">
-      {icon} <span className="text-xs font-medium">{label}</span>
+  <div className="flex items-center justify-between py-2 border-b border-slate-200/60 dark:border-slate-600/40 last:border-0">
+    <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
+      <span className="text-slate-400 dark:text-slate-500">{icon}</span>
+      <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</span>
     </div>
     {badge ? (
-      <span className={`text-xs font-bold px-2 py-0.5 rounded ${badgeColor}`}>{badge}</span>
+      <span className={`text-xs font-semibold px-2.5 py-1 rounded-md ${badgeStyles[badgeColor] || badgeColor}`}>{badge}</span>
     ) : (
-      <p className="text-sm text-slate-700 dark:text-slate-300 pl-6">{value}</p>
+      <p className="text-sm font-medium text-slate-800 dark:text-white">{value}</p>
     )}
   </div>
 );
