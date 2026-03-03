@@ -151,7 +151,7 @@ export const AdminLeftSidebar = () => {
           <hr className="h-1 rounded-full border-0 bg-gradient-to-r from-indigo-500 via-purple-400 to-blue-400 dark:from-indigo-700 dark:via-purple-800 dark:to-blue-700 shadow-md opacity-95" />
         </div>
         <div className="flex flex-col gap-[1vh] items-center bg-white/60 dark:bg-slate-800/60 rounded-xl py-[0.7vh] shadow-sm border border-slate-200 dark:border-slate-700 w-[90%] mx-auto">
-          <SidebarItem icon={<GraduationCap size={20} />} label="College" onClick={() => navigate('/admin-colleges')} isActive={isActivePath('/admin-colleges')} />
+          <SidebarItem icon={<GraduationCap size={20} />} label="College" onClick={() => navigate('/admin-colleges')} isActive={['/admin-colleges', '/admin-add-college', '/admin-mou-details'].includes(location.pathname)} />
           <SidebarItem icon={<UserCheck size={20} />} label="Mentors" onClick={() => navigate('/admin-mentors')} isActive={isActivePath('/admin-mentors')} />
         </div>
         </nav>

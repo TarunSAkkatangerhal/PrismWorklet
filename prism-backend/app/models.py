@@ -27,6 +27,7 @@ class College(Base):
     established = Column(Integer, nullable=True)
     infrastructure = Column(String(255), nullable=True)
     area_of_expertise = Column(String(255), nullable=True)
+    logo = Column(Text, nullable=True)
 
     # Relationships
     users = relationship("User", back_populates="college_rel")
