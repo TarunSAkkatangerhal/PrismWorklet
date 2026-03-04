@@ -6,7 +6,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import * as XLSX from 'xlsx';
 import {
-  FileSpreadsheet, AlertCircle, Sparkles, Edit3, Search, Building2, Calendar, ChevronDown
+  Download, AlertCircle, Sparkles, Edit3, Search, Building2, Calendar, ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -281,20 +281,20 @@ const Excellent = () => {
               ? 'bg-slate-800/80 border-slate-700/50'
               : 'bg-white/60 border-slate-200/50'
           } border shadow-sm`}>
-            <div className="relative w-64">
-              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-              <input
-                type="text"
-                placeholder="Search With name"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className={`w-full pl-10 pr-3 py-2 rounded-lg border transition-all duration-200 text-sm ${
-                  isDarkMode
-                    ? 'bg-slate-800/50 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
-                    : 'bg-white/70 border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
-                } backdrop-blur-sm`}
-              />
-            </div>
+            <div className="relative flex-1 min-w-[200px]">
+                          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                          <input
+                            type="text"
+                            placeholder="Search with name or email..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-all ${
+                              isDarkMode
+                                ? 'bg-slate-700/60 border-gray-600/40 text-white placeholder-gray-400/60'
+                                : 'bg-white border-gray-300/60 text-slate-700 placeholder-gray-500/60'
+                            }`}
+                          />
+                        </div>
 
             <FilterDropdown
               label="College"
@@ -332,11 +332,15 @@ const Excellent = () => {
             <div className="ml-auto">
               <motion.button
                 onClick={handleExportToExcel}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-green-600 text-white hover:bg-green-700 transition-all shadow-sm"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                  isDarkMode
+                    ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
+                    : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
+                }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <FileSpreadsheet size={16} />
+                <Download size={16} />
                 <span>Export</span>
               </motion.button>
             </div>
