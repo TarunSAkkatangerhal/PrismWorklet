@@ -228,15 +228,17 @@ export const getCurrentUserFromToken = () => {
 };
 
 
-// Request OTP for sign-up (backend currently only requires email; extra fields ignored)
-export const requestOtp = async (email) => {
-  const response = await axios.post(`${BASE}/auth/request-otp`, { email });
+// Request OTP for sign-up (requires email and role for email+role uniqueness check)
+export const requestOtp = async (email, role) => {
+  const response = await axios.post(`${BASE}/auth/request-otp`, { email, role });
   return response.data;
 };
 
-// Verify OTP
-export const verifyOtp = async (email, otp_code) => {
-  const response = await axios.post(`${BASE}/auth/verify-otp`, { email, otp_code });
+// Verify OTP (with optional role for email+role keying)
+export const verifyOtp = async (email, otp_code, role) => {
+  const payload = { email, otp_code };
+  if (role) payload.role = role;
+  const response = await axios.post(`${BASE}/auth/verify-otp`, payload);
   return response.data;
 };
 
@@ -246,30 +248,32 @@ export const setPassword = async (email, name, role, password) => {
   return response.data;
 };
 
-// Forgot password: request reset OTP
-export const forgotPassword = async (email) => {
-  const response = await axios.post(`${BASE}/auth/forgot-password`, { email });
+// Forgot password: request reset OTP (requires email and role)
+export const forgotPassword = async (email, role) => {
+  const response = await axios.post(`${BASE}/auth/forgot-password`, { email, role });
   return response.data;
 };
 
-// Reset password: submit email + OTP + new password
-export const resetPassword = async (payloadOrEmail, maybeOtp, maybeNewPassword) => {
+// Reset password: submit email + role + OTP + new password
+export const resetPassword = async (payloadOrEmail, maybeOtp, maybeNewPassword, maybeRole) => {
   // Support both signatures:
-  // 1) resetPassword({ email, otp_code, new_password })
-  // 2) resetPassword(email, otp_code, new_password)
+  // 1) resetPassword({ email, role, otp_code, new_password })
+  // 2) resetPassword(email, otp_code, new_password, role)
   let payload = {};
   if (typeof payloadOrEmail === 'object' && payloadOrEmail !== null) {
     payload = payloadOrEmail;
   } else {
-    payload = { email: payloadOrEmail, otp_code: maybeOtp, new_password: maybeNewPassword };
+    payload = { email: payloadOrEmail, otp_code: maybeOtp, new_password: maybeNewPassword, role: maybeRole };
   }
   const response = await axios.post(`${BASE}/auth/reset-password`, payload);
   return response.data;
 };
 
-// Verify reset OTP before setting new password
-export const resetPasswordOtp = async (email, otp_code) => {
-  const response = await axios.post(`${BASE}/auth/reset-password-otp`, { email, otp_code });
+// Verify reset OTP before setting new password (with optional role)
+export const resetPasswordOtp = async (email, otp_code, role) => {
+  const payload = { email, otp_code };
+  if (role) payload.role = role;
+  const response = await axios.post(`${BASE}/auth/reset-password-otp`, payload);
   return response.data;
 };
 

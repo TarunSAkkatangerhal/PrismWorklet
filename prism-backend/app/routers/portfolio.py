@@ -151,8 +151,12 @@ def get_mentor_portfolio(mentor_id: int, db: Session = Depends(get_db), include_
 def get_my_portfolio(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db), request: Request = None):
     """Return portfolio for the authenticated user (works for students too)."""
     payload = require_access_token(token)
-    user_email = payload.get("sub")
-    user = db.query(User).filter(User.email == user_email).first()
+    user_id_from_token = payload.get("user_id")
+    if user_id_from_token:
+        user = db.query(User).filter(User.id == user_id_from_token).first()
+    else:
+        user_email = payload.get("sub")
+        user = db.query(User).filter(User.email == user_email, User.role == payload.get("role")).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return get_student_portfolio(student_id=user.id, db=db, request=request)
@@ -256,8 +260,12 @@ def get_student_portfolio(student_id: int, db: Session = Depends(get_db), includ
 
 def _current_user(db: Session, token: str):
     payload = require_access_token(token)
-    user_email = payload.get("sub")
-    user = db.query(User).filter(User.email == user_email).first()
+    user_id_from_token = payload.get("user_id")
+    if user_id_from_token:
+        user = db.query(User).filter(User.id == user_id_from_token).first()
+    else:
+        user_email = payload.get("sub")
+        user = db.query(User).filter(User.email == user_email, User.role == payload.get("role")).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user

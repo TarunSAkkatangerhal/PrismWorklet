@@ -19,11 +19,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     """Get current user from JWT token"""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("user_id")
         email: str = payload.get("sub")
-        if email is None:
+        if not user_id and email is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
         
-        user = db.query(User).filter(User.email == email).first()
+        if user_id:
+            user = db.query(User).filter(User.id == user_id).first()
+        else:
+            role = payload.get("role")
+            user = db.query(User).filter(User.email == email, User.role == role).first() if role else db.query(User).filter(User.email == email).first()
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         return user

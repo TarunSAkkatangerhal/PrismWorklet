@@ -40,7 +40,11 @@ def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme
         payload = require_access_token(token)
         user_email = payload.get("sub")
         if user_email:
-            user = db.query(User).filter(User.email == user_email).first()
+            user_id_from_token = payload.get("user_id")
+            if user_id_from_token:
+                user = db.query(User).filter(User.id == user_id_from_token).first()
+            else:
+                user = db.query(User).filter(User.email == user_email, User.role == payload.get("role")).first()
             creator_id = user.id if user else None
     except Exception:
         creator_id = None
@@ -291,7 +295,11 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
         if not user_email:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        student = db.query(User).filter(User.email == user_email).first()
+        user_id_from_token = payload.get("user_id")
+        if user_id_from_token:
+            student = db.query(User).filter(User.id == user_id_from_token).first()
+        else:
+            student = db.query(User).filter(User.email == user_email, User.role == payload.get("role")).first()
         if not student:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -318,7 +326,11 @@ def get_professor_worklets_me(token: str = Depends(oauth2_scheme), db: Session =
         if not user_email:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        professor = db.query(User).filter(User.email == user_email).first()
+        user_id_from_token = payload.get("user_id")
+        if user_id_from_token:
+            professor = db.query(User).filter(User.id == user_id_from_token).first()
+        else:
+            professor = db.query(User).filter(User.email == user_email, User.role == payload.get("role")).first()
         if not professor:
             raise HTTPException(status_code=404, detail="User not found")
 

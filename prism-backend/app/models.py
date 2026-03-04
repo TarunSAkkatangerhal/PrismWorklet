@@ -43,7 +43,7 @@ class User(Base):
     # Keep attribute 'id' for backward compatibility; map to column 'user_id'
     id = Column("user_id", Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
-    email = Column(String(150), unique=True, nullable=False)
+    email = Column(String(150), nullable=False)  # Uniqueness enforced by (email, role) composite constraint
     password_hash = Column(String(255), nullable=False)
     role = Column(SAEnum("Admin", "Mentor", "Professor", "Student", name="user_role_enum"), nullable=False)
     college_id = Column(Integer, ForeignKey("colleges.college_id"), nullable=True)
@@ -52,6 +52,10 @@ class User(Base):
     active_till = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     profile_completed = Column(Boolean, default=False, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('email', 'role', name='uq_users_email_role'),
+    )
 
 
     # Relationships

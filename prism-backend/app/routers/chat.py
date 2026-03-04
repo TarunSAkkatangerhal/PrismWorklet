@@ -25,7 +25,11 @@ router = APIRouter(tags=["chat"])
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """Get current user from JWT token"""
     payload = require_access_token(token)
-    user = db.query(User).filter(User.email == payload.get("sub")).first()
+    user_id = payload.get("user_id")
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+    else:
+        user = db.query(User).filter(User.email == payload.get("sub"), User.role == payload.get("role")).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
@@ -184,7 +188,11 @@ async def websocket_endpoint(
     try:
         # Validate token and get user
         payload = require_access_token(token)
-        user = db.query(User).filter(User.email == payload.get("sub")).first()
+        user_id_from_token = payload.get("user_id")
+        if user_id_from_token:
+            user = db.query(User).filter(User.id == user_id_from_token).first()
+        else:
+            user = db.query(User).filter(User.email == payload.get("sub"), User.role == payload.get("role")).first()
         if not user:
             print(f"WebSocket: User not found for token")
             await websocket.close(code=4001)
