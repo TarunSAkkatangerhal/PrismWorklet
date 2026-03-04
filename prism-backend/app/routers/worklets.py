@@ -116,6 +116,13 @@ def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team
     
     worklets = query.all()
     
+    # Batch fetch TechDomain names for all worklets to avoid N+1 queries
+    tech_domain_ids = list(set(w.tech_domain_id for w in worklets if w.tech_domain_id is not None))
+    domain_name_map = {}
+    if tech_domain_ids:
+        tech_domains = db.query(TechDomain).filter(TechDomain.id.in_(tech_domain_ids)).all()
+        domain_name_map = {td.id: td.domain_name for td in tech_domains}
+    
     # Batch fetch all student associations to avoid N+1 queries
     worklet_ids = [w.id for w in worklets]
     student_associations = {}
@@ -228,7 +235,7 @@ def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team
             'created_at': w.created_at,
             'updated_at': w.updated_at,
             'year': derived_year if derived_year is not None else datetime.utcnow().year,
-            'domain': getattr(w, 'domain', None),
+            'domain': domain_name_map.get(w.tech_domain_id) if w.tech_domain_id else None,
             'status': status_text,
             'worklet_progress': progress,
             'college_id': college_id,
