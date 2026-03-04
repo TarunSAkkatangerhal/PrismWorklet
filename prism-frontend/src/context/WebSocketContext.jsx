@@ -36,11 +36,9 @@ export const WebSocketProvider = ({ children }) => {
 
     try {
       const wsUrl = `ws://localhost:8000/api/chat/ws?token=${token}`;
-      console.log('Connecting to WebSocket:', wsUrl);
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('✅ Global WebSocket connected');
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
 
@@ -57,7 +55,6 @@ export const WebSocketProvider = ({ children }) => {
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('📨 Global WebSocket message:', data);
 
           // Handle unread count updates
           if (data.type === 'unread_count_update') {

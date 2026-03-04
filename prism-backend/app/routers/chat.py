@@ -1036,8 +1036,10 @@ async def upload_file(
 
 
 @router.get("/files/{filename}")
-async def get_file(filename: str):
-    """Serve uploaded files"""
+async def get_file(
+    filename: str
+):
+    """Serve uploaded files (public access)"""
     
     file_path = Path(settings.UPLOAD_DIR) / filename
     
@@ -1050,7 +1052,12 @@ async def get_file(filename: str):
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    return FileResponse(file_path)
+    # Return file with proper headers for download
+    return FileResponse(
+        file_path,
+        media_type='application/octet-stream',
+        filename=filename
+    )
 
 
 @router.delete("/cleanup-old-messages")

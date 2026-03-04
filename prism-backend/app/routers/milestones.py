@@ -1,7 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 from datetime import datetime, timedelta
+from pathlib import Path
+import uuid
+import shutil
 
 from app.database import get_db
 from app.models import Milestone, MilestoneFeedback, Worklet, User, UserWorkletAssociation
@@ -9,6 +13,7 @@ from app.schemas import MilestoneCreate, MilestoneOut, MilestoneFeedbackCreate, 
 from app.auth import oauth2_scheme, require_access_token
 from app.core.email_utils import send_milestone_notification, send_activity_email
 from app.services.worklet_service import WorkletService
+from app.core.config import settings
 
 router = APIRouter(
     prefix="/milestones",
@@ -416,3 +421,87 @@ def delete_milestone(
     db.commit()
     
     return None
+
+
+# Upload file for milestone
+@router.post("/upload")
+async def upload_milestone_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload a file for milestone attachment.
+    Only authenticated users can upload files.
+    """
+    
+    # Validate file type
+    allowed_types = settings.ALLOWED_FILE_TYPES.split(",")
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File type '{file.content_type}' not allowed. Allowed types: {', '.join(allowed_types)}"
+        )
+    
+    # Validate file size
+    file.file.seek(0, 2)
+    file_size = file.file.tell()
+    file.file.seek(0)
+    
+    max_size_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    if file_size > max_size_bytes:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File too large. Max size: {settings.MAX_FILE_SIZE_MB}MB"
+        )
+    
+    # Generate unique filename
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = Path(settings.UPLOAD_DIR) / unique_filename
+    
+    # Create upload directory if it doesn't exist
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Save file
+    try:
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    return {
+        "filename": unique_filename,
+        "original_filename": file.filename,
+        "url": f"/milestones/files/{unique_filename}",
+        "content_type": file.content_type,
+        "size": file_size
+    }
+
+
+# Download milestone file
+@router.get("/files/{filename}")
+async def get_milestone_file(
+    filename: str
+):
+    """
+    Serve milestone attachment files (public access).
+    Files are accessible to anyone with the filename.
+    """
+    
+    file_path = Path(settings.UPLOAD_DIR) / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Security check: ensure file is within upload directory
+    try:
+        file_path.resolve().relative_to(Path(settings.UPLOAD_DIR).resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Return file with proper headers for download/viewing
+    return FileResponse(
+        file_path,
+        filename=filename
+    )
