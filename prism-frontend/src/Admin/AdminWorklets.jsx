@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import {
   Search, ChevronRight, Target, Activity, CheckCircle, X, Clock,
   Users, Grid3X3, List, Building2, Briefcase, AlertCircle, Folder,
-  TrendingUp, Filter, ChevronDown, Calendar, Layers, Shield, FileSpreadsheet
+  TrendingUp, Filter, ChevronDown, Calendar, Layers, Shield, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -63,15 +63,15 @@ const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMod
     <div className="relative flex-shrink-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-md border transition-all duration-200 text-[13px] ${
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200 text-sm ${
           isDarkMode
             ? 'bg-slate-800/50 border-slate-600/50 text-slate-200 hover:bg-slate-700/50'
             : 'bg-white/80 border-slate-300/50 text-slate-700 hover:bg-slate-50'
         }`}
       >
-        <Icon size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+        <Icon size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
         <span className="font-medium whitespace-nowrap">{selectedOption.label}</span>
-        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       <AnimatePresence>
@@ -82,7 +82,7 @@ const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMod
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className={`absolute top-full left-0 mt-1 z-20 min-w-full rounded-md border shadow-lg overflow-hidden ${
+              className={`absolute top-full left-0 mt-1 z-20 min-w-full rounded-lg border shadow-lg overflow-hidden ${
                 isDarkMode
                   ? 'bg-slate-800 border-slate-600'
                   : 'bg-white border-slate-200'
@@ -96,7 +96,7 @@ const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMod
                       onChange(opt.value);
                       setIsOpen(false);
                     }}
-                    className={`w-full px-3 py-2 text-[13px] text-left transition-colors whitespace-nowrap ${
+                    className={`w-full px-4 py-2.5 text-sm text-left transition-colors whitespace-nowrap ${
                       value === opt.value
                         ? isDarkMode
                           ? 'bg-purple-600/30 text-purple-300'
@@ -485,15 +485,15 @@ const AdminWorklets = () => {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <div className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'} ${statusFilter === 'all' ? 'ring-2 ring-blue-400' : ''}`}>
+              <div className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'}`}>
                 <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>{counts.all}</div>
                 <div className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Total</div>
               </div>
-              <div className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'} ${statusFilter === 'ongoing' ? 'ring-2 ring-yellow-400' : ''}`}>
+              <div className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'}`}>
                 <div className={`text-2xl font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>{counts.ongoing}</div>
                 <div className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Active</div>
               </div>
-              <div className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'} ${statusFilter === 'completed' ? 'ring-2 ring-green-400' : ''}`}>
+              <div className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'}`}>
                 <div className={`text-2xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>{counts.completed}</div>
                 <div className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Completed</div>
               </div>
@@ -502,23 +502,37 @@ const AdminWorklets = () => {
         </div>
 
         {/* Search + Filters inline */}
-        <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-lg overflow-x-auto ${
+        <div className={`flex items-center gap-3 mb-4 px-4 py-3 rounded-lg relative z-30 flex-wrap ${
           isDarkMode
             ? 'bg-slate-800/80 border-slate-700/50'
             : 'bg-white/60 border-slate-200/50'
         } border shadow-sm`}>
-          <div className="relative flex-shrink-0 w-52">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => {
+                const el = document.getElementById('worklet-search-input');
+                if (el) { el.classList.toggle('hidden'); if (!el.classList.contains('hidden')) el.focus(); }
+              }}
+              className={`p-2.5 rounded-lg border transition-all duration-200 ${
+                isDarkMode
+                  ? 'bg-slate-800/50 border-slate-600/50 text-slate-200 hover:bg-slate-700/50'
+                  : 'bg-white/80 border-slate-300/50 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Search size={18} />
+            </button>
             <input
+              id="worklet-search-input"
               type="text"
               placeholder="Search worklets..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className={`w-full pl-9 pr-3 py-1.5 rounded-md border transition-all duration-200 text-[13px] ${
+              onBlur={e => { if (!e.target.value) e.target.classList.add('hidden'); }}
+              className={`hidden absolute left-0 top-full mt-1 w-72 pl-4 pr-4 py-2.5 rounded-lg border transition-all duration-200 text-sm z-40 ${
                 isDarkMode
-                  ? 'bg-slate-800/50 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
-                  : 'bg-white/70 border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
-              } backdrop-blur-sm`}
+                  ? 'bg-slate-800 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
+                  : 'bg-white border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
+              } shadow-lg`}
             />
           </div>
 
@@ -595,17 +609,16 @@ const AdminWorklets = () => {
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
             <motion.button
               onClick={handleExportToExcel}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md font-medium transition-all shadow-sm text-[13px] ${
+              className={`flex items-center p-2.5 rounded-xl font-medium transition-all duration-200 ${
                 isDarkMode
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-green-600 text-white hover:bg-green-700'
+                  ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
+                  : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
               }`}
               title="Export filtered worklets to Excel"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <FileSpreadsheet size={14} />
-              <span>Export</span>
+              <Download size={16} />
             </motion.button>
 
             <div className={`flex rounded-md overflow-hidden border ${isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'}`}>

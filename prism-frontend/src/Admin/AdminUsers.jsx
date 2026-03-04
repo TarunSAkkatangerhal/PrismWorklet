@@ -422,13 +422,13 @@ const AdminUsers = () => {
             <motion.button
               onClick={handleExport}
               disabled={isExporting}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isExporting 
                   ? 'bg-gray-400 cursor-not-allowed'
                   : isDarkMode
-                    ? 'bg-green-600/80 hover:bg-green-500 text-white'
-                    : 'bg-green-500 hover:bg-green-600 text-white'
-              } shadow-sm`}
+                    ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
+                    : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
+              }`}
               whileHover={isExporting ? {} : { scale: 1.02 }}
               whileTap={isExporting ? {} : { scale: 0.98 }}
             >
@@ -440,7 +440,7 @@ const AdminUsers = () => {
               ) : (
                 <>
                   <Download size={15} />
-                  <span>Export All</span>
+                  <span>Export </span>
                 </>
               )}
             </motion.button>
@@ -565,9 +565,9 @@ const AdminUsers = () => {
                                 {initials(u.name)}
                               </div>
                               <span
-                                className={`text-sm font-medium truncate max-w-[160px] ${
-                                  isDarkMode ? 'text-blue-300 hover:text-blue-200 hover:underline' : 'text-blue-600 hover:text-blue-700 hover:underline'
-                                } cursor-pointer`}
+                                className={`text-sm font-semibold truncate max-w-[160px] ${
+                                  isDarkMode ? 'text-white hover:text-purple-400' : 'text-slate-800 hover:text-purple-600'
+                                } cursor-pointer transition-colors`}
                                 onClick={() => handleViewProfile(u.id, u.name)}
                                 title="Click to view profile"
                               >
@@ -616,7 +616,7 @@ const AdminUsers = () => {
                             <motion.button
                               onClick={() => handleToggleActive(u.id)}
                               disabled={togglingId === u.id}
-                              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              className={`inline-flex items-center justify-center gap-1 min-w-[110px] px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                                 u.is_active
                                   ? isDarkMode
                                     ? 'bg-red-600/70 hover:bg-red-500 text-white'
