@@ -3,13 +3,26 @@ from typing import Optional, List, Any
 from datetime import datetime, date
 from enum import Enum
 # --- College Dashboard Schemas ---
+class MOUUpdate(BaseModel):
+    poc: Optional[str] = None
+    mou_start: Optional[date] = None
+    mou_end: Optional[date] = None
+    mou_active: Optional[bool] = False
+    mou_attachments: Optional[List[Any]] = None
+
 class CollegeCreate(BaseModel):
     college_name: str
     location: Optional[str] = None
     established: Optional[int] = None
     infrastructure: Optional[str] = None
+    ownership_type: Optional[str] = None
     area_of_expertise: Optional[str] = None
     logo: Optional[str] = None
+    poc: Optional[str] = None
+    mou_start: Optional[date] = None
+    mou_end: Optional[date] = None
+    mou_active: Optional[bool] = False
+    mou_attachments: Optional[List[Any]] = None
 
 class CollegeOut(BaseModel):
     college_id: int
@@ -17,8 +30,14 @@ class CollegeOut(BaseModel):
     location: Optional[str] = None
     established: Optional[int] = None
     infrastructure: Optional[str] = None
+    ownership_type: Optional[str] = None
     area_of_expertise: Optional[Any] = None  # can be list or str
     logo: Optional[str] = None
+    poc: Optional[str] = None
+    mou_start: Optional[date] = None
+    mou_end: Optional[date] = None
+    mou_active: Optional[bool] = False
+    mou_attachments: Optional[List[Any]] = None
     workletCount: int = 0
     veryGoodCount: int = 0
     goodCount: int = 0

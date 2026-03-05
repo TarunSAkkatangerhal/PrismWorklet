@@ -6,9 +6,9 @@ import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import * as XLSX from 'xlsx';
 import {
-  Search, ChevronRight, Target, Activity, CheckCircle, X, Clock,
+  Search, ChevronRight, ChevronLeft, Target, Activity, CheckCircle, X, Clock,
   Users, Grid3X3, List, Building2, Briefcase, AlertCircle, Folder,
-  TrendingUp, Filter, ChevronDown, Calendar, Layers, Shield, Download
+  TrendingUp, Filter, ChevronDown, Calendar, Layers, Shield, Download, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -63,15 +63,15 @@ const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMod
     <div className="relative flex-shrink-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200 text-sm ${
+        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all duration-200 text-sm w-[150px] ${
           isDarkMode
             ? 'bg-slate-800/50 border-slate-600/50 text-slate-200 hover:bg-slate-700/50'
             : 'bg-white/80 border-slate-300/50 text-slate-700 hover:bg-slate-50'
         }`}
       >
-        <Icon size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-        <span className="font-medium whitespace-nowrap">{selectedOption.label}</span>
-        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <Icon size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+        <span className="font-medium truncate flex-1 text-left">{selectedOption.label}</span>
+        <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       <AnimatePresence>
@@ -135,6 +135,8 @@ const AdminWorklets = () => {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('list');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 12;
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
@@ -305,6 +307,14 @@ const AdminWorklets = () => {
     }
     return list;
   }, [worklets, statusFilter, collegeFilter, teamFilter, domainFilter, riskFilter, stageFilter, yearFilter, search]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, collegeFilter, teamFilter, domainFilter, riskFilter, stageFilter, yearFilter, search]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginatedWorklets = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Excel export function
   const handleExportToExcel = () => {
@@ -596,59 +606,109 @@ const AdminWorklets = () => {
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className={`flex-shrink-0 text-[13px] px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+              className={`flex-shrink-0 p-2 rounded-full transition-colors ${
                 isDarkMode
-                  ? 'text-purple-400 hover:bg-purple-600/20'
-                  : 'text-purple-600 hover:bg-purple-100'
+                  ? 'text-red-400 hover:bg-red-600/20'
+                  : 'text-red-500 hover:bg-red-100'
               }`}
+              title="Reset all filters"
             >
-              Clear
+              <RotateCcw size={16} />
             </button>
           )}
 
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
             <motion.button
               onClick={handleExportToExcel}
-              className={`flex items-center p-2.5 rounded-xl font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isDarkMode
-                  ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
-                  : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
+                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg border border-green-500/50'
+                  : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg border border-green-400/50'
               }`}
               title="Export filtered worklets to Excel"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Download size={16} />
+              <Download size={15} />
+              <span>Export</span>
             </motion.button>
-
-            <div className={`flex rounded-md overflow-hidden border ${isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'}`}>
-              <motion.button
-                onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1.5 font-medium transition-colors ${
-                  viewMode === 'grid'
-                    ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
-                    : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Grid3X3 size={15} />
-              </motion.button>
-              <motion.button
-                onClick={() => setViewMode('list')}
-                className={`px-2.5 py-1.5 font-medium transition-colors ${
-                  viewMode === 'list'
-                    ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
-                    : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <List size={15} />
-              </motion.button>
-            </div>
           </div>
         </div>
+
+        {/* Showing count + View toggle + Pagination */}
+        {!loading && !error && filtered.length > 0 && (
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </span>
+              <div className={`flex rounded-md overflow-hidden border ${isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'}`}>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`px-2.5 py-1.5 transition-colors ${
+                    viewMode === 'grid'
+                      ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
+                      : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Grid3X3 size={16} />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-2.5 py-1.5 transition-colors ${
+                    viewMode === 'list'
+                      ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
+                      : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <List size={16} />
+                </button>
+              </div>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`p-1 rounded-md transition-colors ${currentPage === 1 ? 'opacity-30 cursor-not-allowed' : isDarkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .reduce((acc, p, i, arr) => {
+                    if (i > 0 && p - arr[i - 1] > 1) acc.push('...');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    p === '...' ? (
+                      <span key={`dots-${i}`} className={`px-1 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>...</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`min-w-[28px] h-7 rounded-md text-xs font-medium transition-colors ${
+                          currentPage === p
+                            ? 'bg-purple-600 text-white'
+                            : isDarkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`p-1 rounded-md transition-colors ${currentPage === totalPages ? 'opacity-30 cursor-not-allowed' : isDarkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         {loading ? (
@@ -672,7 +732,7 @@ const AdminWorklets = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            {filtered.map(w => {
+            {paginatedWorklets.map(w => {
               const sc = statusColor(w.status);
               return (
                 <motion.div
@@ -744,7 +804,7 @@ const AdminWorklets = () => {
               <div className="col-span-1">Risk</div>
               <div className="col-span-2">Progress</div>
             </div>
-            {filtered.map(w => {
+            {paginatedWorklets.map(w => {
               const sc = statusColor(w.status);
               return (
                 <motion.div

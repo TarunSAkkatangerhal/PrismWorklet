@@ -8,7 +8,8 @@ import {
   ArrowLeft, Building2, Users, GraduationCap, UserCheck, Calendar,
   FileText, GitBranch, Link2, Tag, CheckCircle, AlertCircle,
   Clock, Shield, BarChart3, Award, Database, Paperclip, Plus,
-  Save, Upload, Trash2, ChevronDown, ChevronUp, X, ExternalLink
+  Save, Upload, Trash2, ChevronDown, ChevronUp, X, ExternalLink,
+  Settings, MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -60,8 +61,8 @@ const YesNo = ({ value }) => (
 
 /* ───────── Reusable section card ───────── */
 const Section = ({ title, children, className = '' }) => (
-  <fieldset className={`rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/50 backdrop-blur-sm p-5 ${className}`}>
-    <legend className="px-3 text-sm font-semibold text-slate-500 dark:text-slate-400">{title}</legend>
+  <fieldset className={`rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/60 backdrop-blur-sm p-5 shadow-sm ${className}`}>
+    <legend className="px-3 text-sm font-bold text-indigo-600 dark:text-indigo-400">{title}</legend>
     {children}
   </fieldset>
 );
@@ -324,11 +325,11 @@ const AdminWorkletDetail = () => {
   };
 
   const tabs = [
-    { key: 'description',  label: 'Description'      },
-    { key: 'profiles',     label: 'Profiles'          },
-    { key: 'feedback',     label: 'Feedback'          },
-    { key: 'certificates', label: 'Certificates'      },
-    { key: 'modify',       label: 'Modify Worklet'    },
+    { key: 'description',  label: 'Description',   icon: <FileText className="w-4 h-4" /> },
+    { key: 'profiles',     label: 'Profiles',       icon: <Users className="w-4 h-4" /> },
+    { key: 'feedback',     label: 'Feedback',       icon: <MessageCircle className="w-4 h-4" /> },
+    { key: 'certificates', label: 'Certificates',   icon: <Award className="w-4 h-4" /> },
+    { key: 'modify',       label: 'Modify Worklet', icon: <Settings className="w-4 h-4" /> },
   ];
 
   if (loading) {
@@ -381,7 +382,47 @@ const AdminWorkletDetail = () => {
     <div className="flex h-screen w-full bg-slate-100 text-slate-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200">
       <AdminLeftSidebar />
 
-      <main className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-0" style={{ scrollbarWidth: 'none' }}>
+      <main className="wdf flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-0" style={{ scrollbarWidth: 'none' }}>
+        <style>{`
+          .wdf select,
+          .wdf textarea,
+          .wdf input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+            border-radius: 0.75rem;
+            padding: 0.625rem 0.875rem;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            transition: all 0.2s;
+            outline: none;
+          }
+          .wdf select:hover,
+          .wdf textarea:hover,
+          .wdf input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):hover {
+            border-color: #a5b4fc;
+          }
+          .dark .wdf select:hover,
+          .dark .wdf textarea:hover,
+          .dark .wdf input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):hover {
+            border-color: rgba(99, 102, 241, 0.5);
+          }
+          .wdf select:focus,
+          .wdf textarea:focus,
+          .wdf input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus {
+            border-color: #818cf8;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+          }
+          .wdf select {
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.25em 1.25em;
+            padding-right: 2.5rem;
+          }
+          .dark .wdf select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+          }
+        `}</style>
         {/* Toast */}
         <AnimatePresence>
           {toast && (
@@ -444,33 +485,57 @@ const AdminWorkletDetail = () => {
 
         <div className="flex h-full">
           {/* ─────── LEFT INFO PANEL ─────── */}
-          <div className="w-[clamp(16rem,22vw,20rem)] border-r border-slate-200 dark:border-slate-700 bg-white/40 dark:bg-slate-800/30 p-5 overflow-y-auto flex-shrink-0 [&::-webkit-scrollbar]:w-0" style={{ scrollbarWidth: 'none' }}>
-            {/* Back */}
-            <button onClick={() => navigate('/admin-worklets')} className="flex items-center gap-1.5 text-sm text-purple-600 dark:text-purple-400 hover:underline mb-4">
-              <ArrowLeft className="w-4 h-4" /> Back to Worklets
-            </button>
+          <div className="w-[clamp(16rem,22vw,20rem)] border-r border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-b from-white/60 to-slate-50/40 dark:from-slate-800/50 dark:to-slate-900/30 overflow-y-auto flex-shrink-0 [&::-webkit-scrollbar]:w-0" style={{ scrollbarWidth: 'none' }}>
+            <div className="p-5 pb-4">
+              <button onClick={() => navigate('/admin-worklets')} className="flex items-center gap-1.5 text-sm text-purple-600 dark:text-purple-400 hover:underline mb-4">
+                <ArrowLeft className="w-4 h-4" /> Back to Worklets
+              </button>
+              <h3 className="text-base font-bold text-slate-800 dark:text-white leading-snug mb-2 line-clamp-2">{worklet.title}</h3>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>{fmtFull(worklet.created_at)}</span>
+              </div>
+              {worklet.created_by && (
+                <p className="text-xs text-slate-400 mt-1">by {worklet.created_by}</p>
+              )}
+              <div className="w-12 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 mt-3" />
+            </div>
 
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Worklet Details</h2>
-            <div className="w-12 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 mb-4" />
-
-            <h3 className="text-base font-bold text-slate-800 dark:text-white leading-snug mb-2">{worklet.title}</h3>
-
-            <p className="text-xs text-slate-400 mb-1">Created by: {worklet.created_by || '—'}</p>
-            <p className="text-xs text-slate-400 mb-4">Created on: {fmtFull(worklet.created_at)}</p>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Professor involved</span><span className="font-semibold">{professors.length}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Student involved</span><span className="font-semibold">{students.length}</span></div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Status</span>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-2.5 px-4 pt-4">
+              <div className="bg-white dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Users className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Professors</span>
+                </div>
+                <span className="text-lg font-bold text-slate-800 dark:text-white">{professors.length}</span>
+              </div>
+              <div className="bg-white dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <GraduationCap className="w-3.5 h-3.5 text-purple-500" />
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Students</span>
+                </div>
+                <span className="text-lg font-bold text-slate-800 dark:text-white">{students.length}</span>
+              </div>
+              <div className="bg-white dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Status</span>
+                </div>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusColor(worklet.status)}`}>{worklet.status || 'To Start'}</span>
               </div>
-              <div className="flex justify-between"><span className="text-slate-500">WorkletID</span><span className="font-semibold text-blue-600 dark:text-blue-400">{worklet.cert_id || `#${worklet.id}`}</span></div>
+              <div className="bg-white dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Tag className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Worklet ID</span>
+                </div>
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 truncate block">{worklet.cert_id || `#${worklet.id}`}</span>
+              </div>
             </div>
 
             {/* About Worklet Section */}
-            <div className="mt-6 bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4">
-              <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">About Worklet</h4>
+            <div className="mx-4 my-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4">
+              <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-4">About Worklet</h4>
 
               <div className="space-y-3">
                 {/* College - special handling for long names */}
@@ -509,18 +574,26 @@ const AdminWorkletDetail = () => {
           {/* ─────── RIGHT CONTENT AREA ─────── */}
           <div className="flex-1 p-5 overflow-y-auto [&::-webkit-scrollbar]:w-0" style={{ scrollbarWidth: 'none' }}>
             {/* Tabs */}
-            <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6">
+            <div className="relative flex border-b border-slate-200 dark:border-slate-700 mb-6">
               {tabs.map(t => (
                 <button
                   key={t.key}
                   onClick={() => setActiveTab(t.key)}
-                  className={`px-5 py-3 text-sm font-semibold transition-all duration-200 border-b-2 -mb-px
+                  className={`relative px-5 py-3 text-sm font-semibold transition-colors duration-200 flex items-center gap-2
                     ${activeTab === t.key
-                      ? 'text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400'
-                      : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-300'
+                      ? 'text-indigo-600 dark:text-indigo-400'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
                     }`}
                 >
+                  {t.icon}
                   {t.label}
+                  {activeTab === t.key && (
+                    <motion.div
+                      layoutId="workletDetailTab"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
+                  )}
                 </button>
               ))}
             </div>

@@ -6,14 +6,9 @@ import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
   Search, Building2, Loader2, Grid3X3, List, Plus, FileCheck,
-  Briefcase, GraduationCap, Users, AlertCircle, ChevronRight, MapPin
+  Briefcase, GraduationCap, Users, AlertCircle, ChevronRight, ChevronLeft, MapPin
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-// ─── Filter options ───────────────────────────────────────────────────
-const filterOptions = [
-  { key: 'all', label: 'All Colleges', icon: Building2, color: 'blue' },
-];
 
 // ─── College Card (Grid View) ─────────────────────────────────────────
 const CollegeCard = ({ college, isDarkMode, onClick, index }) => {
@@ -78,7 +73,8 @@ const AllColleges = () => {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('grid');
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 12;
 
   useEffect(() => {
     const fetchColleges = async () => {
@@ -109,12 +105,13 @@ const AllColleges = () => {
     }
 
     return result;
-  }, [colleges, search, activeFilter]);
+  }, [colleges, search]);
 
-  const getFilteredCount = (key) => {
-    if (key === 'all') return colleges.length;
-    return 0;
-  };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedColleges = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset to page 1 when search changes
+  useEffect(() => { setCurrentPage(1); }, [search]);
 
   const totalWorklets = colleges.reduce((sum, c) => sum + (c.workletCount || 0), 0);
   const totalStudents = colleges.reduce((sum, c) => sum + (c.totalStudents || 0), 0);
@@ -218,21 +215,6 @@ const AllColleges = () => {
 
             {/* Action Buttons */}
             <motion.button
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                isDarkMode
-                  ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
-                  : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Building2 size={16} />
-              <span className="whitespace-nowrap">All Colleges</span>
-              <span className="px-2 py-0.5 text-xs rounded-full bg-white/20 text-white">
-                {colleges.length}
-              </span>
-            </motion.button>
-            <motion.button
               onClick={() => navigate('/admin-add-college')}
               className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isDarkMode
@@ -295,13 +277,51 @@ const AllColleges = () => {
               : 'bg-gradient-to-br from-white/80 via-purple-50/30 to-indigo-50/20 backdrop-blur-sm border-purple-200/30'
           } rounded-2xl shadow-lg border overflow-hidden p-6`}>
 
+            {/* Pagination Header */}
+            {totalPages > 1 && (
+              <div className={`flex items-center justify-between mb-4 pb-3 border-b ${isDarkMode ? 'border-slate-700/40' : 'border-slate-200/60'}`}>
+                <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className={`p-1 rounded-md transition-all duration-150 ${currentPage === 1 ? 'opacity-30 cursor-not-allowed' : isDarkMode ? 'hover:bg-slate-700/50 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-6 h-6 rounded-md text-xs font-semibold transition-all duration-150 ${
+                        page === currentPage
+                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm'
+                          : isDarkMode ? 'text-slate-400 hover:bg-slate-700/50' : 'text-slate-500 hover:bg-slate-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`p-1 rounded-md transition-all duration-150 ${currentPage === totalPages ? 'opacity-30 cursor-not-allowed' : isDarkMode ? 'hover:bg-slate-700/50 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {viewMode === 'grid' ? (
               <motion.div
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[clamp(0.75rem,1.5vw,1.25rem)]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
-                {filtered.map((college, idx) => (
+                {paginatedColleges.map((college, idx) => (
                   <CollegeCard
                     key={college.college_id}
                     college={college}
@@ -309,6 +329,7 @@ const AllColleges = () => {
                     index={idx}
                     onClick={() => {}}
                   />
+                ))}
                 ))}
               </motion.div>
             ) : (
@@ -326,7 +347,7 @@ const AllColleges = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200/50 dark:divide-slate-600/50">
-                      {filtered.map((college, idx) => {
+                      {paginatedColleges.map((college, idx) => {
                         const initial = (college.college_name || 'C').charAt(0).toUpperCase();
 
                         return (
@@ -405,7 +426,7 @@ const AllColleges = () => {
                   {search.trim() ? 'Try adjusting your search criteria.' : 'No colleges have been added yet.'}
                 </p>
                 <button
-                  onClick={() => { setSearch(''); setActiveFilter('all'); }}
+                  onClick={() => { setSearch(''); }}
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-xl 
                            hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105"
                 >

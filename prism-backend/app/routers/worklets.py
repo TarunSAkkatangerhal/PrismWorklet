@@ -280,6 +280,99 @@ def get_worklet_stages(db: Session = Depends(get_db)):
         logger.error(f"Error fetching stages: {e}")
         return []
 
+# ----------------- Excellent Worklets -----------------
+@router.get("/excellent", tags=["worklets"])
+def list_excellent_worklets(db: Session = Depends(get_db)):
+    """Return worklets where IsExcellent = 1 from Prism_Worklet table."""
+    from app.models import TechDomain, TeamMG
+
+    query = db.query(Worklet).options(
+        joinedload(Worklet.college_rel),
+        joinedload(Worklet.team_rel),
+        joinedload(Worklet.stage_rel)
+    ).filter(Worklet.is_excellent == 1)
+
+    worklets_list = query.all()
+
+    # Batch fetch domain names
+    tech_domain_ids = list(set(w.tech_domain_id for w in worklets_list if w.tech_domain_id is not None))
+    domain_name_map = {}
+    if tech_domain_ids:
+        tech_domains = db.query(TechDomain).filter(TechDomain.id.in_(tech_domain_ids)).all()
+        domain_name_map = {td.id: td.domain_name for td in tech_domains}
+
+    # Batch fetch student associations
+    worklet_ids = [w.id for w in worklets_list]
+    student_associations = {}
+    if worklet_ids:
+        assocs = (
+            db.query(UserWorkletAssociation.worklet_id, User)
+            .join(User, User.id == UserWorkletAssociation.user_id)
+            .filter(
+                UserWorkletAssociation.worklet_id.in_(worklet_ids),
+                UserWorkletAssociation.role_in_worklet == "Student",
+            )
+            .all()
+        )
+        for worklet_id, user in assocs:
+            if worklet_id not in student_associations:
+                student_associations[worklet_id] = []
+            student_associations[worklet_id].append(user)
+
+    response = []
+    for w in worklets_list:
+        progress = getattr(w, 'worklet_progress', 0) or 0
+
+        assoc_students = student_associations.get(w.id, [])
+        student_count = len(assoc_students)
+
+        college_name = w.college_rel.college_name if getattr(w, 'college_rel', None) else None
+        college_id = getattr(w, 'college_id', None)
+        if college_name is None:
+            for stu in assoc_students:
+                if getattr(stu, "college", None):
+                    college_name = stu.college
+                    college_id = getattr(stu, "college_id", None)
+                    break
+
+        status_text = map_status_text(getattr(w, 'status_id', None))
+
+        derived_year = None
+        try:
+            if getattr(w, "start_date", None):
+                derived_year = w.start_date.year
+            elif getattr(w, "end_date", None):
+                derived_year = w.end_date.year
+        except Exception:
+            derived_year = None
+
+        team_name = w.team_rel.team_name if w.team_rel else None
+        stage_name = w.stage_rel.stage if w.stage_rel else None
+
+        response.append({
+            'id': w.id,
+            'cert_id': str(w.cert_id) if getattr(w, 'cert_id', None) is not None else str(w.id),
+            'title': w.title,
+            'description': getattr(w, 'problem_statement', None),
+            'start_date': w.start_date,
+            'end_date': w.end_date,
+            'created_at': w.created_at,
+            'updated_at': w.updated_at,
+            'year': derived_year if derived_year is not None else datetime.utcnow().year,
+            'domain': domain_name_map.get(w.tech_domain_id) if w.tech_domain_id else None,
+            'status': status_text,
+            'worklet_progress': progress,
+            'college_id': college_id,
+            'college': college_name,
+            'student_count': student_count,
+            'team': team_name,
+            'stage_id': getattr(w, 'stage_id', None),
+            'stage': stage_name,
+            'performance': normalize_performance(getattr(w, 'Performance', None)),
+            'riskStatus': normalize_risk_status(getattr(w, 'RiskStatus', None)),
+        })
+    return response
+
 # ----------------- Student Worklets (Authenticated) -----------------
 @router.get("/student/me", tags=["worklets"])
 def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):

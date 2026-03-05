@@ -4,10 +4,13 @@ All endpoints require an authenticated user with role='Admin'.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr
+import csv
+import io
 
 from app.database import get_db
 from app.models import User, UserProfile, UserWorkletAssociation, College, Worklet
@@ -204,6 +207,53 @@ def list_users(
         "page_size": page_size,
         "users": result,
     }
+
+
+# ─── GET /users/export ───────────────────────────────────────────────
+
+@router.get("/users/export")
+def export_users(
+    role: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Export users as CSV file."""
+    query = (
+        db.query(User, College.college_name)
+        .outerjoin(College, User.college_id == College.college_id)
+    )
+
+    if role:
+        query = query.filter(User.role == role)
+    if status == "active":
+        query = query.filter(User.is_active == True)
+    elif status == "inactive":
+        query = query.filter(User.is_active == False)
+
+    users = query.order_by(User.name).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Name", "Email", "Role", "College", "Status", "Created At"])
+
+    for user, college_name in users:
+        writer.writerow([
+            user.name,
+            user.email,
+            user.role,
+            college_name or "",
+            "Active" if user.is_active else "Inactive",
+            user.created_at.strftime("%Y-%m-%d %H:%M") if user.created_at else "",
+        ])
+
+    output.seek(0)
+    filename = f"{role.lower() + 's' if role else 'users'}_export.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 # ─── GET /colleges (for filter dropdowns) ────────────────────────────

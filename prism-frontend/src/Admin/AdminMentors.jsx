@@ -4,8 +4,8 @@ import { AdminLeftSidebar } from './AdminSidebar';
 import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
-  Download, User, Mail, Users, ChevronLeft, ChevronRight, ChevronDown,
-  Home, Loader2, AlertCircle, Plus, X, Search, CheckCircle, Building2, Award,
+  Download, User, Mail, Users, ChevronLeft, ChevronRight,
+  Home, Loader2, AlertCircle, Plus, X, Search, CheckCircle, Award,
   UserCheck, UserX, XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +16,6 @@ const AdminMentors = () => {
 
   // State
   const [mentors, setMentors] = useState([]);
-  const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -27,29 +26,15 @@ const AdminMentors = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [collegeFilter, setCollegeFilter] = useState('');
 
   // Add Mentor form state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    college_id: ''
+    group_name: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' });
-
-  // Fetch colleges for dropdown
-  useEffect(() => {
-    const fetchColleges = async () => {
-      try {
-        const res = await API.get('/api/admin/colleges');
-        setColleges(res.data || []);
-      } catch (err) {
-        console.error('Failed to fetch colleges:', err);
-      }
-    };
-    fetchColleges();
-  }, []);
 
   // Fetch mentors
   const fetchMentors = useCallback(async () => {
@@ -58,7 +43,6 @@ const AdminMentors = () => {
       setError(null);
       const params = { page, page_size: pageSize, role: 'Mentor' };
       if (statusFilter !== 'all') params.status = statusFilter;
-      if (collegeFilter) params.college_id = collegeFilter;
       if (search.trim()) params.search = search.trim();
       const res = await API.get('/api/admin/users', { params });
       setMentors(res.data.users || []);
@@ -69,7 +53,7 @@ const AdminMentors = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, statusFilter, collegeFilter]);
+  }, [page, pageSize, search, statusFilter]);
 
   useEffect(() => {
     fetchMentors();
@@ -88,7 +72,7 @@ const AdminMentors = () => {
   // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.email.trim() || !formData.college_id) {
+    if (!formData.name.trim() || !formData.email.trim()) {
       setSubmitMessage({ type: 'error', text: 'Please fill in all required fields' });
       return;
     }
@@ -107,10 +91,10 @@ const AdminMentors = () => {
       await API.post('/api/admin/mentors', {
         name: formData.name.trim(),
         email: formData.email.trim(),
-        college_id: formData.college_id ? parseInt(formData.college_id) : null
+        group_name: formData.group_name.trim() || null
       });
       setSubmitMessage({ type: 'success', text: 'Mentor added successfully!' });
-      setFormData({ name: '', email: '', college_id: '' });
+      setFormData({ name: '', email: '', group_name: '' });
       fetchMentors();
       setTimeout(() => { setShowAddModal(false); setSubmitMessage({ type: '', text: '' }); }, 1200);
     } catch (err) {
@@ -218,49 +202,56 @@ const AdminMentors = () => {
           <div className={`flex items-center flex-wrap gap-3 mb-4 p-3 rounded-lg ${
             isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white/60 border-slate-200/50'
           } border shadow-sm`}>
-              {/* Status dropdown */}
-              <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm ${
-                isDarkMode ? 'bg-slate-700/60 border-gray-600/40' : 'bg-white border-gray-300/60'
+              {/* Status sliding tabs */}
+              <div className={`flex items-center rounded-xl p-1 ${
+                isDarkMode ? 'bg-slate-700/60' : 'bg-slate-100'
               }`}>
-                <CheckCircle size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-                <select
-                  value={statusFilter}
-                  onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-                  className={`bg-transparent outline-none text-sm ${
-                    isDarkMode ? 'text-white' : 'text-slate-700'
-                  }`}
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-
-              {/* College dropdown */}
-              <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm max-w-[240px] ${
-                isDarkMode ? 'bg-slate-700/60 border-gray-600/40' : 'bg-white border-gray-300/60'
-              }`}>
-                <Building2 size={14} className={`shrink-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} />
-                <select
-                  value={collegeFilter}
-                  onChange={e => { setCollegeFilter(e.target.value); setPage(1); }}
-                  className={`bg-transparent outline-none text-sm truncate ${
-                    isDarkMode ? 'text-white' : 'text-slate-700'
-                  }`}
-                >
-                  <option value="">All Colleges</option>
-                  {colleges.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setStatusFilter(opt.value); setPage(1); }}
+                    className={`relative px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      statusFilter === opt.value
+                        ? isDarkMode
+                          ? 'text-white'
+                          : 'text-white'
+                        : isDarkMode
+                          ? 'text-slate-400 hover:text-slate-200'
+                          : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {statusFilter === opt.value && (
+                      <motion.div
+                        layoutId="mentorStatusTab"
+                        className={`absolute inset-0 rounded-lg ${
+                          opt.value === 'active'
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                            : opt.value === 'inactive'
+                              ? 'bg-gradient-to-r from-red-500 to-rose-500'
+                              : 'bg-gradient-to-r from-indigo-500 to-purple-500'
+                        } shadow-md`}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      {opt.value === 'active' && <CheckCircle size={13} />}
+                      {opt.value === 'inactive' && <XCircle size={13} />}
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
               </div>
 
               {/* Search */}
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative w-64">
                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                 <input
                   type="text"
-                  placeholder="Search with name or email..."
+                  placeholder="Search by name or email..."
                   value={search}
                   onChange={e => { setSearch(e.target.value); setPage(1); }}
                   className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-all ${
@@ -271,6 +262,7 @@ const AdminMentors = () => {
                 />
               </div>
 
+              <div className="flex items-center gap-3 ml-auto">
               {/* Add Mentor */}
               <motion.button
                 onClick={() => { setShowAddModal(true); setSubmitMessage({ type: '', text: '' }); }}
@@ -294,8 +286,8 @@ const AdminMentors = () => {
                   isExporting
                     ? 'bg-gray-400 cursor-not-allowed'
                     : isDarkMode
-                      ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
-                      : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg border border-green-500/50'
+                      : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg border border-green-400/50'
                 }`}
                 whileHover={isExporting ? {} : { scale: 1.02 }}
                 whileTap={isExporting ? {} : { scale: 0.98 }}
@@ -312,6 +304,7 @@ const AdminMentors = () => {
                   </>
                 )}
               </motion.button>
+              </div>
           </div>
 
           {/* Showing count + Pagination */}
@@ -555,29 +548,25 @@ const AdminMentors = () => {
                     </div>
                   </div>
 
-                  {/* College Field */}
+                  {/* Group Name Field */}
                   <div>
                     <label className={`block text-sm font-medium mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>
-                      Colleges <span className="text-red-400">*</span>
+                      Group Name
                     </label>
                     <div className="relative">
                       <Users className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`} />
-                      <select
-                        name="college_id"
-                        value={formData.college_id}
+                      <input
+                        type="text"
+                        name="group_name"
+                        value={formData.group_name}
                         onChange={handleInputChange}
-                        className={`w-full pl-10 pr-10 py-2.5 rounded-lg border appearance-none text-sm ${
+                        placeholder="Enter group name"
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${
                           isDarkMode
-                            ? 'bg-slate-700 border-slate-600 text-white'
-                            : 'bg-white border-gray-300 text-gray-900'
-                        } focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all`}
-                      >
-                        <option value="">Select College</option>
-                        {colleges.map(college => (
-                          <option key={college.id} value={college.id}>{college.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDarkMode ? 'text-slate-400' : 'text-gray-400'}`} />
+                            ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400'
+                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                        } focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-sm`}
+                      />
                     </div>
                   </div>
                 </div>

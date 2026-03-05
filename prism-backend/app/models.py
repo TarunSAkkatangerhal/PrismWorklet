@@ -26,8 +26,14 @@ class College(Base):
     location = Column(String(255), nullable=True)
     established = Column(Integer, nullable=True)
     infrastructure = Column(String(255), nullable=True)
+    ownership_type = Column(String(100), nullable=True)
     area_of_expertise = Column(String(255), nullable=True)
     logo = Column(Text, nullable=True)
+    poc = Column(String(255), nullable=True)
+    mou_start = Column(Date, nullable=True)
+    mou_end = Column(Date, nullable=True)
+    mou_active = Column(Boolean, default=False, nullable=True)
+    mou_attachments = Column(JSON, nullable=True)
 
     # Relationships
     users = relationship("User", back_populates="college_rel")
@@ -184,6 +190,8 @@ class Worklet(Base):
     Performance = Column("Performance", String(45), nullable=True)
     # Risk status column (0=NA/Grey, 1=High/Red, 2=Medium/Amber, 3=Safe/Green)
     RiskStatus = Column("RiskStatus", Integer, nullable=True)
+    # Excellent worklet flag
+    is_excellent = Column("IsExcellent", Integer, nullable=True, server_default="0")
     # New FK to colleges
     college_id = Column("CollegeID", Integer, ForeignKey("colleges.college_id", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
 

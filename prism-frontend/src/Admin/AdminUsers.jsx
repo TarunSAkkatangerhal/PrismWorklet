@@ -8,7 +8,7 @@ import {
   Download, AlertCircle, UserCheck, UserX, Shield, Award,
   CheckCircle, XCircle, Loader2, Building2, FileText, X, Calendar,
   Clock, TrendingUp, Mail, Phone, MapPin, ExternalLink, User,
-  BarChart3, Target, MessageCircle, Plus, ChevronDown, ChevronUp
+  BarChart3, Target, MessageCircle, Plus, ChevronDown, ChevronUp, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -34,7 +34,7 @@ const AdminUsers = () => {
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeRole, setActiveRole] = useState('all');
+  const [activeRole, setActiveRole] = useState('Student');
   const [statusFilter, setStatusFilter] = useState('all');
   const [collegeFilter, setCollegeFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -43,6 +43,8 @@ const AdminUsers = () => {
   const [togglingId, setTogglingId] = useState(null);
   const [pageSize, setPageSize] = useState(50);
   const [isExporting, setIsExporting] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [collegeDropdownOpen, setCollegeDropdownOpen] = useState(false);
   
   /* Profile modal state */
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -54,7 +56,7 @@ const AdminUsers = () => {
 
   /* Dynamically generate role tabs from stats */
   const roleTabs = useMemo(() => {
-    const managedRoles = ['Student', 'Professor', 'Mentor']; // Exclude Admin from management
+    const managedRoles = ['Student', 'Professor']; // Only Students and Professors
     return managedRoles
       .filter(role => stats[role.toLowerCase() + 's'] !== undefined)
       .map(role => ({
@@ -295,14 +297,8 @@ const AdminUsers = () => {
     return parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name[0].toUpperCase();
   };
 
-  /* Generate avatar color based on user ID for consistency */
-  const getAvatarColor = (userId) => {
-    const colors = [
-      'bg-purple-500', 'bg-blue-500', 'bg-green-500', 'bg-rose-500',
-      'bg-amber-500', 'bg-teal-500', 'bg-indigo-500', 'bg-cyan-500',
-    ];
-    return colors[userId % colors.length];
-  };
+  /* Uniform avatar color matching the UI theme */
+  const getAvatarColor = () => 'bg-indigo-500';
 
   return (
     <div className="flex h-screen w-full bg-slate-100 text-slate-800 overflow-hidden dark:bg-slate-900 dark:text-slate-200">
@@ -344,63 +340,220 @@ const AdminUsers = () => {
           </div>
 
           {/* ─── Filters bar ────────────────────────────────────── */}
-          <div className={`flex items-center flex-wrap gap-3 mb-4 p-3 rounded-lg ${
-            isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white/60 border-slate-200/50'
-          } border shadow-sm`}>
-            {/* Role dropdown */}
-            <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm ${
-              isDarkMode ? 'bg-slate-700/60 border-gray-600/40' : 'bg-white border-gray-300/60'
+          <div className={`flex items-center flex-wrap gap-3 mb-4 p-3 rounded-xl ${
+            isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white/70 border-slate-200/50'
+          } border shadow-sm backdrop-blur-sm`}>
+            {/* Role toggle pills */}
+            <div className={`flex items-center gap-1 p-1 rounded-xl ${
+              isDarkMode ? 'bg-slate-700/60' : 'bg-slate-100'
             }`}>
-              <Users size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-              <select
-                value={activeRole}
-                onChange={e => setActiveRole(e.target.value)}
-                className={`bg-transparent outline-none text-sm ${
-                  isDarkMode ? 'text-white' : 'text-slate-700'
-                }`}
-              >
-                <option value="all">All Users ({stats.total})</option>
-                {roleTabs.map(tab => (
-                  <option key={tab.key} value={tab.key}>{tab.label} ({tab.count})</option>
-                ))}
-              </select>
+              {roleTabs.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeRole === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveRole(tab.key)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? isDarkMode
+                          ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/25'
+                          : 'bg-white text-indigo-700 shadow-md'
+                        : isDarkMode
+                          ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-600/50'
+                          : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                    }`}
+                  >
+                    <Icon size={14} />
+                    <span>{tab.label}</span>
+                    <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                      isActive
+                        ? isDarkMode
+                          ? 'bg-white/20 text-white'
+                          : 'bg-indigo-100 text-indigo-600'
+                        : isDarkMode
+                          ? 'bg-slate-600 text-slate-400'
+                          : 'bg-slate-200 text-slate-500'
+                    }`}>{tab.count}</span>
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Divider */}
+            <div className={`h-8 w-px ${isDarkMode ? 'bg-slate-600/50' : 'bg-slate-200'}`} />
+
             {/* Status dropdown */}
-            <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm ${
-              isDarkMode ? 'bg-slate-700/60 border-gray-600/40' : 'bg-white border-gray-300/60'
-            }`}>
-              <CheckCircle size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-              <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                className={`bg-transparent outline-none text-sm ${
-                  isDarkMode ? 'text-white' : 'text-slate-700'
+            <div className="relative">
+              <button
+                onClick={() => { setStatusDropdownOpen(!statusDropdownOpen); setCollegeDropdownOpen(false); }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-200 ${
+                  statusFilter !== 'all'
+                    ? isDarkMode
+                      ? 'bg-indigo-500/15 border border-indigo-500/30 text-indigo-300'
+                      : 'bg-indigo-50 border border-indigo-200 text-indigo-700'
+                    : isDarkMode
+                      ? 'bg-slate-700/50 border border-slate-600/40 text-slate-300 hover:border-slate-500'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm'
                 }`}
               >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+                {statusFilter === 'active' ? (
+                  <CheckCircle size={14} className="text-green-500" />
+                ) : statusFilter === 'inactive' ? (
+                  <XCircle size={14} className="text-red-400" />
+                ) : (
+                  <CheckCircle size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-400'} />
+                )}
+                <span className="text-sm font-medium">
+                  {statusFilter === 'all' ? 'All Status' : statusFilter === 'active' ? 'Active' : 'Inactive'}
+                </span>
+                <ChevronDown size={13} className={`transition-transform duration-200 ${statusDropdownOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+              </button>
+              <AnimatePresence>
+                {statusDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setStatusDropdownOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className={`absolute top-full left-0 mt-2 z-20 min-w-[160px] rounded-xl border shadow-xl overflow-hidden ${
+                        isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      {[
+                        { value: 'all', label: 'All Status', icon: CheckCircle, iconColor: isDarkMode ? 'text-slate-400' : 'text-slate-400' },
+                        { value: 'active', label: 'Active', icon: CheckCircle, iconColor: 'text-green-500' },
+                        { value: 'inactive', label: 'Inactive', icon: XCircle, iconColor: 'text-red-400' },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => { setStatusFilter(opt.value); setStatusDropdownOpen(false); }}
+                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${
+                            statusFilter === opt.value
+                              ? isDarkMode
+                                ? 'bg-indigo-500/20 text-indigo-300'
+                                : 'bg-indigo-50 text-indigo-700'
+                              : isDarkMode
+                                ? 'text-slate-300 hover:bg-slate-700/80'
+                                : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <opt.icon size={14} className={opt.iconColor} />
+                          <span className="font-medium">{opt.label}</span>
+                          {statusFilter === opt.value && (
+                            <CheckCircle size={12} className="ml-auto text-indigo-500" />
+                          )}
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* College dropdown */}
-            <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm max-w-[240px] ${
-              isDarkMode ? 'bg-slate-700/60 border-gray-600/40' : 'bg-white border-gray-300/60'
-            }`}>
-              <Building2 size={14} className={`shrink-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} />
-              <select
-                value={collegeFilter}
-                onChange={e => setCollegeFilter(e.target.value)}
-                className={`bg-transparent outline-none text-sm truncate ${
-                  isDarkMode ? 'text-white' : 'text-slate-700'
+            <div className="relative">
+              <button
+                onClick={() => { setCollegeDropdownOpen(!collegeDropdownOpen); setStatusDropdownOpen(false); }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-200 max-w-[220px] ${
+                  collegeFilter
+                    ? isDarkMode
+                      ? 'bg-indigo-500/15 border border-indigo-500/30 text-indigo-300'
+                      : 'bg-indigo-50 border border-indigo-200 text-indigo-700'
+                    : isDarkMode
+                      ? 'bg-slate-700/50 border border-slate-600/40 text-slate-300 hover:border-slate-500'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm'
                 }`}
               >
-                <option value="">All Colleges</option>
-                {colleges.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                <Building2 size={14} className={`shrink-0 ${
+                  collegeFilter
+                    ? isDarkMode ? 'text-indigo-400' : 'text-indigo-500'
+                    : isDarkMode ? 'text-slate-400' : 'text-slate-400'
+                }`} />
+                <span className="text-sm font-medium truncate">
+                  {collegeFilter
+                    ? (colleges.find(c => String(c.id) === String(collegeFilter))?.name || 'College')
+                    : 'All Colleges'}
+                </span>
+                <ChevronDown size={13} className={`shrink-0 transition-transform duration-200 ${collegeDropdownOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+              </button>
+              <AnimatePresence>
+                {collegeDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setCollegeDropdownOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className={`absolute top-full left-0 mt-2 z-20 min-w-[220px] max-w-[300px] rounded-xl border shadow-xl overflow-hidden ${
+                        isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <div className="max-h-[280px] overflow-y-auto scrollbar-thin">
+                        <button
+                          onClick={() => { setCollegeFilter(''); setCollegeDropdownOpen(false); }}
+                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${
+                            !collegeFilter
+                              ? isDarkMode
+                                ? 'bg-indigo-500/20 text-indigo-300'
+                                : 'bg-indigo-50 text-indigo-700'
+                              : isDarkMode
+                                ? 'text-slate-300 hover:bg-slate-700/80'
+                                : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <Building2 size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-400'} />
+                          <span className="font-medium">All Colleges</span>
+                          {!collegeFilter && <CheckCircle size={12} className="ml-auto text-indigo-500" />}
+                        </button>
+                        <div className={`mx-3 border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`} />
+                        {colleges.map(c => (
+                          <button
+                            key={c.id}
+                            onClick={() => { setCollegeFilter(String(c.id)); setCollegeDropdownOpen(false); }}
+                            className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${
+                              String(collegeFilter) === String(c.id)
+                                ? isDarkMode
+                                  ? 'bg-indigo-500/20 text-indigo-300'
+                                  : 'bg-indigo-50 text-indigo-700'
+                                : isDarkMode
+                                  ? 'text-slate-300 hover:bg-slate-700/80'
+                                  : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="font-medium truncate">{c.name}</span>
+                            {String(collegeFilter) === String(c.id) && (
+                              <CheckCircle size={12} className="ml-auto shrink-0 text-indigo-500" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
+
+            {/* Reset filters icon */}
+            {(statusFilter !== 'all' || collegeFilter) && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                onClick={() => { setStatusFilter('all'); setCollegeFilter(''); }}
+                title="Reset filters"
+                className={`p-2 rounded-lg transition-colors ${
+                  isDarkMode
+                    ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/60'
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <RotateCcw size={15} />
+              </motion.button>
+            )}
 
             {/* Search */}
             <div className="relative flex-1 min-w-[200px]">
@@ -410,10 +563,10 @@ const AdminUsers = () => {
                 placeholder="Search with name or email..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-all ${
+                className={`w-full pl-10 pr-4 py-2 rounded-xl border text-sm transition-all focus:ring-2 focus:ring-indigo-500/20 ${
                   isDarkMode
-                    ? 'bg-slate-700/60 border-gray-600/40 text-white placeholder-gray-400/60'
-                    : 'bg-white border-gray-300/60 text-slate-700 placeholder-gray-500/60'
+                    ? 'bg-slate-700/50 border-slate-600/40 text-white placeholder-gray-400/60 focus:border-indigo-500/50'
+                    : 'bg-white border-slate-200 text-slate-700 placeholder-gray-500/60 focus:border-indigo-300 shadow-sm'
                 }`}
               />
             </div>
@@ -426,8 +579,8 @@ const AdminUsers = () => {
                 isExporting 
                   ? 'bg-gray-400 cursor-not-allowed'
                   : isDarkMode
-                    ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
-                    : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg border border-green-400/50'
+                    : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg border border-green-400/50'
               }`}
               whileHover={isExporting ? {} : { scale: 1.02 }}
               whileTap={isExporting ? {} : { scale: 0.98 }}

@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from app.database import get_db
 from app.models import College, Worklet, User, UserWorkletAssociation, Evaluation
-from app.schemas import CollegeOut, CollegeCreate, WorkletOut, StudentOut
+from app.schemas import CollegeOut, CollegeCreate, WorkletOut, StudentOut, MOUUpdate
 from app.core.constants import WORKLET_STATUS_MAP, normalize_status_text, normalize_performance
 
 router = APIRouter(
@@ -208,8 +208,14 @@ def create_college(college_data: CollegeCreate, db: Session = Depends(get_db)):
         location=college_data.location,
         established=college_data.established,
         infrastructure=college_data.infrastructure,
+        ownership_type=college_data.ownership_type,
         area_of_expertise=college_data.area_of_expertise,
         logo=college_data.logo,
+        poc=college_data.poc,
+        mou_start=college_data.mou_start,
+        mou_end=college_data.mou_end,
+        mou_active=college_data.mou_active,
+        mou_attachments=college_data.mou_attachments,
     )
     db.add(new_college)
     db.commit()
@@ -251,8 +257,35 @@ def update_college(college_id: int, college_data: CollegeCreate, db: Session = D
     college.location = college_data.location
     college.established = college_data.established
     college.infrastructure = college_data.infrastructure
+    college.ownership_type = college_data.ownership_type
     college.area_of_expertise = college_data.area_of_expertise
     college.logo = college_data.logo
+    college.poc = college_data.poc
+    college.mou_start = college_data.mou_start
+    college.mou_end = college_data.mou_end
+    college.mou_active = college_data.mou_active
+    college.mou_attachments = college_data.mou_attachments
+
+    db.commit()
+    db.refresh(college)
+
+    stats = get_college_stats(college, db)
+    college_dict = college.__dict__.copy()
+    college_dict.update(stats)
+    return college_dict
+
+@router.patch("/{college_id}/mou", response_model=CollegeOut)
+def update_college_mou(college_id: int, mou_data: MOUUpdate, db: Session = Depends(get_db)):
+    """Update MOU details for a college."""
+    college = db.query(College).filter(College.college_id == college_id).first()
+    if not college:
+        raise HTTPException(status_code=404, detail="College not found")
+
+    college.poc = mou_data.poc
+    college.mou_start = mou_data.mou_start
+    college.mou_end = mou_data.mou_end
+    college.mou_active = mou_data.mou_active
+    college.mou_attachments = mou_data.mou_attachments
 
     db.commit()
     db.refresh(college)

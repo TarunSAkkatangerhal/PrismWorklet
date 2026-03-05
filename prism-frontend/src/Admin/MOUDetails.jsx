@@ -21,65 +21,59 @@ const fmtDisplay = (d) => {
   try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return '—'; }
 };
 
-// ─── MOU Storage (localStorage until backend is ready) ────────────────
-const MOU_STORAGE_KEY = 'prism_mou_details';
-
-const loadMOUData = () => {
-  try {
-    const saved = localStorage.getItem(MOU_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : {};
-  } catch { return {}; }
-};
-
-const saveMOUData = (data) => {
-  try { localStorage.setItem(MOU_STORAGE_KEY, JSON.stringify(data)); } catch {}
-};
 
 // ─── Edit Modal ───────────────────────────────────────────────────────
-const EditModal = ({ college, mouData, onSave, onClose, isDarkMode }) => {
+const EditModal = ({ college, onSave, onClose, isDarkMode }) => {
   const [form, setForm] = useState({
-    active: mouData?.active ?? true,
-    mou_start: mouData?.mou_start || '',
-    mou_end: mouData?.mou_end || '',
-    poc: mouData?.poc || '',
-    attachment_name: mouData?.attachment_name || '',
-    attachment_data: mouData?.attachment_data || '',
+    active: college.mou_active ?? false,
+    mou_start: fmtDate(college.mou_start) || '',
+    mou_end: fmtDate(college.mou_end) || '',
+    poc: college.poc || '',
+    attachments: college.mou_attachments || [],
   });
+  const [saving, setSaving] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = React.useRef(null);
 
   const handleFileRead = (file) => {
     if (!file) return;
-    // Limit to 10 MB for localStorage
     if (file.size > 10 * 1024 * 1024) {
       alert('File size must be under 10 MB');
       return;
     }
     const reader = new FileReader();
     reader.onload = (e) => {
-      setForm(f => ({ ...f, attachment_name: file.name, attachment_data: e.target.result }));
+      setForm(f => ({ ...f, attachments: [...f.attachments, { name: file.name, data: e.target.result }] }));
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFilesRead = (files) => {
+    Array.from(files).forEach(file => handleFileRead(file));
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files?.[0]) handleFileRead(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files?.length) handleFilesRead(e.dataTransfer.files);
   };
 
   const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); };
   const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); };
 
-  const handleRemoveFile = () => {
-    setForm(f => ({ ...f, attachment_name: '', attachment_data: '' }));
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const handleRemoveFile = (index) => {
+    setForm(f => ({ ...f, attachments: f.attachments.filter((_, i) => i !== index) }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(college.college_id, form);
+    setSaving(true);
+    try {
+      await onSave(college.college_id, form);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -160,72 +154,78 @@ const EditModal = ({ college, mouData, onSave, onClose, isDarkMode }) => {
             />
           </div>
 
-          {/* Attachment Upload */}
+          {/* Attachments Upload (Multiple) */}
           <div>
-            <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Attachment</label>
-            {form.attachment_name ? (
-              /* File preview */
-              <div className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border ${
-                isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-50 border-slate-200'
-              }`}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <File size={16} className="text-purple-500 flex-shrink-0" />
-                  <span className={`text-sm truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                    {form.attachment_name}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {form.attachment_data && (
-                    <a
-                      href={form.attachment_data}
-                      download={form.attachment_name}
-                      className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500 transition-colors"
-                      title="Download"
-                    >
-                      <Download size={14} />
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleRemoveFile}
-                    className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 transition-colors"
-                    title="Remove"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Drop zone */
-              <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={() => fileInputRef.current?.click()}
-                className={`relative cursor-pointer rounded-lg border-2 border-dashed p-5 text-center transition-all ${
-                  dragActive
-                    ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20'
-                    : isDarkMode
-                      ? 'border-slate-600 hover:border-slate-500 bg-slate-700/30'
-                      : 'border-slate-300 hover:border-slate-400 bg-white'
-                }`}
-              >
-                <Upload size={20} className={`mx-auto mb-2 ${
-                  dragActive ? 'text-purple-500' : isDarkMode ? 'text-slate-500' : 'text-slate-400'
-                }`} />
-                <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  <span className="font-medium text-purple-500">Click to upload</span> or drag & drop
-                </p>
-                <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>PDF, DOC, DOCX, images — max 10 MB</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xls,.xlsx"
-                  className="hidden"
-                  onChange={(e) => handleFileRead(e.target.files?.[0])}
-                />
+            <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Attachments</label>
+
+            {/* Existing files */}
+            {form.attachments.length > 0 && (
+              <div className="space-y-1.5 mb-2">
+                {form.attachments.map((att, i) => (
+                  <div key={i} className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border ${
+                    isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <File size={14} className="text-purple-500 flex-shrink-0" />
+                      <span className={`text-sm truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                        {att.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {att.data && (
+                        <a
+                          href={att.data}
+                          download={att.name}
+                          className="p-1 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500 transition-colors"
+                          title="Download"
+                        >
+                          <Download size={13} />
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(i)}
+                        className="p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
+
+            {/* Drop zone — always visible so user can add more */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative cursor-pointer rounded-lg border-2 border-dashed p-4 text-center transition-all ${
+                dragActive
+                  ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20'
+                  : isDarkMode
+                    ? 'border-slate-600 hover:border-slate-500 bg-slate-700/30'
+                    : 'border-slate-300 hover:border-slate-400 bg-white'
+              }`}
+            >
+              <Upload size={18} className={`mx-auto mb-1.5 ${
+                dragActive ? 'text-purple-500' : isDarkMode ? 'text-slate-500' : 'text-slate-400'
+              }`} />
+              <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                <span className="font-medium text-purple-500">Click to upload</span> or drag & drop
+              </p>
+              <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>PDF, DOC, DOCX, images — max 10 MB each</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xls,.xlsx"
+                multiple
+                className="hidden"
+                onChange={(e) => { handleFilesRead(e.target.files); e.target.value = ''; }}
+              />
+            </div>
           </div>
 
           {/* Actions */}
@@ -241,9 +241,10 @@ const EditModal = ({ college, mouData, onSave, onClose, isDarkMode }) => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:shadow-lg transition-all"
+              disabled={saving}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:shadow-lg transition-all disabled:opacity-50"
             >
-              Save Changes
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
@@ -259,43 +260,54 @@ const MOUDetails = () => {
   const { isDarkMode } = useContext(ThemeContext);
 
   const [colleges, setColleges] = useState([]);
-  const [mouMap, setMouMap] = useState(loadMOUData());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [editingCollege, setEditingCollege] = useState(null);
 
+  const fetchColleges = async () => {
+    try {
+      setLoading(true);
+      const res = await API.get('/colleges');
+      setColleges(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch colleges:', err);
+      setError('Failed to load colleges');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchColleges = async () => {
-      try {
-        setLoading(true);
-        const res = await API.get('/colleges');
-        setColleges(res.data || []);
-      } catch (err) {
-        console.error('Failed to fetch colleges:', err);
-        setError('Failed to load colleges');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchColleges();
   }, []);
 
-  const handleSaveMOU = (collegeId, formData) => {
-    const updated = { ...mouMap, [collegeId]: formData };
-    setMouMap(updated);
-    saveMOUData(updated);
-    setEditingCollege(null);
+  const handleSaveMOU = async (collegeId, formData) => {
+    try {
+      await API.patch(`/colleges/${collegeId}/mou`, {
+        poc: formData.poc || null,
+        mou_start: formData.mou_start || null,
+        mou_end: formData.mou_end || null,
+        mou_active: formData.active,
+        mou_attachments: formData.attachments.length > 0 ? formData.attachments : null,
+      });
+      await fetchColleges();
+      setEditingCollege(null);
+    } catch (err) {
+      console.error('Failed to save MOU:', err);
+      setError('Failed to save MOU details');
+    }
   };
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return colleges;
+    const sorted = [...colleges].sort((a, b) => (a.college_name || '').localeCompare(b.college_name || ''));
+    if (!search.trim()) return sorted;
     const q = search.toLowerCase();
-    return colleges.filter(c =>
+    return sorted.filter(c =>
       (c.college_name || '').toLowerCase().includes(q) ||
-      (mouMap[c.college_id]?.poc || '').toLowerCase().includes(q)
+      (c.poc || '').toLowerCase().includes(q)
     );
-  }, [colleges, search, mouMap]);
+  }, [colleges, search]);
 
   if (loading) {
     return (
@@ -344,13 +356,13 @@ const MOUDetails = () => {
                 </div>
                 <div className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'}`}>
                   <div className={`text-2xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
-                    {colleges.filter(c => mouMap[c.college_id]?.active).length}
+                    {colleges.filter(c => c.mou_active).length}
                   </div>
                   <div className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Active</div>
                 </div>
                 <div className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-slate-700/50' : 'bg-white/60'}`}>
                   <div className={`text-2xl font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                    {colleges.filter(c => mouMap[c.college_id]?.attachment_name).length}
+                    {colleges.filter(c => c.mou_attachments?.length > 0).length}
                   </div>
                   <div className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>With MOU</div>
                 </div>
@@ -415,8 +427,8 @@ const MOUDetails = () => {
             <motion.button
               className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isDarkMode
-                  ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
-                  : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-500/50'
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-400/50'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -442,18 +454,16 @@ const MOUDetails = () => {
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">College Name</th>
-                      <th className="px-6 py-4 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Active</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">MOU Start</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">MOU End</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">POC</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Attachment</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Attachments</th>
                       <th className="px-6 py-4 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Edit</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/50 dark:divide-slate-600/50">
                     {filtered.map((college, idx) => {
-                      const mou = mouMap[college.college_id] || {};
-                      const isActive = mou.active ?? false;
+                      const attachments = college.mou_attachments || [];
 
                       return (
                         <tr
@@ -472,60 +482,53 @@ const MOUDetails = () => {
                             </div>
                           </td>
 
-                          {/* Active Status */}
-                          <td className="px-6 py-4 text-center">
-                            {isActive ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                <Check size={12} /> Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-                                <X size={12} /> Inactive
-                              </span>
-                            )}
-                          </td>
-
                           {/* MOU Start */}
                           <td className="px-6 py-4">
                             <span className={`text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                              {fmtDisplay(mou.mou_start)}
+                              {fmtDisplay(college.mou_start)}
                             </span>
                           </td>
 
                           {/* MOU End */}
                           <td className="px-6 py-4">
                             <span className={`text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                              {fmtDisplay(mou.mou_end)}
+                              {fmtDisplay(college.mou_end)}
                             </span>
                           </td>
 
                           {/* POC */}
                           <td className="px-6 py-4">
-                            <span className={`text-sm ${mou.poc ? (isDarkMode ? 'text-slate-300' : 'text-slate-700') : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}`}>
-                              {mou.poc || '—'}
+                            <span className={`text-sm ${college.poc ? (isDarkMode ? 'text-slate-300' : 'text-slate-700') : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}`}>
+                              {college.poc || '—'}
                             </span>
                           </td>
 
-                          {/* Attachment */}
+                          {/* Attachments */}
                           <td className="px-6 py-4">
-                            {mou.attachment_name ? (
-                              <div className="flex items-center gap-2">
-                                {mou.attachment_data ? (
-                                  <a
-                                    href={mou.attachment_data}
-                                    download={mou.attachment_name}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                                    title="Download file"
-                                  >
-                                    <Download size={12} />
-                                    {mou.attachment_name.length > 20 ? mou.attachment_name.slice(0, 20) + '...' : mou.attachment_name}
-                                  </a>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 text-slate-600 dark:bg-slate-700 dark:text-slate-400">
-                                    <Paperclip size={12} />
-                                    {mou.attachment_name.length > 20 ? mou.attachment_name.slice(0, 20) + '...' : mou.attachment_name}
-                                  </span>
-                                )}
+                            {attachments.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {attachments.map((att, i) => (
+                                  att.data ? (
+                                    <a
+                                      key={i}
+                                      href={att.data}
+                                      download={att.name}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                      title={att.name}
+                                    >
+                                      <Download size={11} />
+                                      {att.name.length > 15 ? att.name.slice(0, 15) + '...' : att.name}
+                                    </a>
+                                  ) : (
+                                    <span
+                                      key={i}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-50 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                                    >
+                                      <Paperclip size={11} />
+                                      {att.name.length > 15 ? att.name.slice(0, 15) + '...' : att.name}
+                                    </span>
+                                  )
+                                ))}
                               </div>
                             ) : (
                               <span className={`text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>—</span>
@@ -581,7 +584,6 @@ const MOUDetails = () => {
         {editingCollege && (
           <EditModal
             college={editingCollege}
-            mouData={mouMap[editingCollege.college_id]}
             onSave={handleSaveMOU}
             onClose={() => setEditingCollege(null)}
             isDarkMode={isDarkMode}
