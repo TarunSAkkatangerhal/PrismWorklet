@@ -17,11 +17,16 @@ router = APIRouter()
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     """Get current authenticated user from token"""
     payload = require_access_token(token)
+    user_id = payload.get("user_id")
     user_email = payload.get("sub")
-    if not user_email:
+    if not user_id and not user_email:
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     
-    user = db.query(User).filter(User.email == user_email).first()
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+    else:
+        role = payload.get("role")
+        user = db.query(User).filter(User.email == user_email, User.role == role).first() if role else db.query(User).filter(User.email == user_email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     

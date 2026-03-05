@@ -195,7 +195,9 @@ const generatePerformanceDistribution = (totalsData, isDark) => {
   ]
 }
 // Modern Statistics Dashboard component
-const ModernStatisticsDashboard = () => {
+// SidebarComponent prop allows reusing this dashboard with different sidebars (e.g., Admin)
+// isAdminMode prop enables admin-specific navigation routes
+const ModernStatisticsDashboard = ({ SidebarComponent = LeftSidebar, isAdminMode = false }) => {
   useDocumentTitle('Performance Analytics Dashboard');
   const navigate = useNavigate()
   
@@ -231,16 +233,44 @@ const ModernStatisticsDashboard = () => {
   }, [isDarkMode])
   
   // Navigation handlers for worklet cards
+  // Admin mode uses admin routes, mentor mode uses mentor routes
   const handleTotalWorkletsClick = () => {
-    navigate('/dashboard_details', { state: { filter: 'total', year: filters.year, domain: filters.domain, team: filters.team } })
+    if (isAdminMode) {
+      navigate('/admin-worklets', { state: { 
+        statusFilter: 'all',
+        yearFilter: filters.year === 'All' ? 'all' : filters.year?.toString(),
+        teamFilter: filters.team === 'All' ? 'all' : filters.team,
+        domainFilter: filters.domain === 'All' ? 'all' : filters.domain
+      }})
+    } else {
+      navigate('/dashboard_details', { state: { filter: 'total', year: filters.year, domain: filters.domain, team: filters.team } })
+    }
   }
   
   const handleOngoingWorkletsClick = () => {
-    navigate('/dashboard_details', { state: { filter: 'ongoing', year: filters.year, domain: filters.domain, team: filters.team } })
+    if (isAdminMode) {
+      navigate('/admin-worklets', { state: { 
+        statusFilter: 'ongoing',
+        yearFilter: filters.year === 'All' ? 'all' : filters.year?.toString(),
+        teamFilter: filters.team === 'All' ? 'all' : filters.team,
+        domainFilter: filters.domain === 'All' ? 'all' : filters.domain
+      }})
+    } else {
+      navigate('/dashboard_details', { state: { filter: 'ongoing', year: filters.year, domain: filters.domain, team: filters.team } })
+    }
   }
   
   const handleCompletedWorkletsClick = () => {
-    navigate('/dashboard_details', { state: { filter: 'completed', year: filters.year, domain: filters.domain, team: filters.team } })
+    if (isAdminMode) {
+      navigate('/admin-worklets', { state: { 
+        statusFilter: 'completed',
+        yearFilter: filters.year === 'All' ? 'all' : filters.year?.toString(),
+        teamFilter: filters.team === 'All' ? 'all' : filters.team,
+        domainFilter: filters.domain === 'All' ? 'all' : filters.domain
+      }})
+    } else {
+      navigate('/dashboard_details', { state: { filter: 'completed', year: filters.year, domain: filters.domain, team: filters.team } })
+    }
   }
   
   const [statisticsData, setStatisticsData] = useState(null)
@@ -669,11 +699,14 @@ const ModernStatisticsDashboard = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center 'dark bg-gray-900' : 'bg-gray-50'}`}>
-        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <Text className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>Loading modern analytics...</Text>
-        </motion.div>
+      <div className={`flex h-screen w-full overflow-hidden ${isDarkMode ? 'dark bg-slate-900 text-slate-200' : 'bg-slate-100 text-slate-800'}`}>
+        <SidebarComponent />
+        <div className="flex-1 flex items-center justify-center">
+          <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <Text className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>Loading modern analytics...</Text>
+          </motion.div>
+        </div>
       </div>
     )
   }
@@ -683,7 +716,7 @@ const ModernStatisticsDashboard = () => {
       className={`flex h-screen w-full overflow-hidden ${
         isDarkMode ? 'dark bg-slate-900 text-slate-200' : 'bg-slate-100 text-slate-800'
       }`}>
-      <LeftSidebar />
+      <SidebarComponent />
 
       <main className="flex-1 px-[2vw] py-[1.5vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-200 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-track]:bg-slate-800 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 ">
         <header className="flex justify-between items-center mb-[3vh]">

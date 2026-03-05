@@ -336,7 +336,8 @@ export default function Login() {
     setIsVerifyOtpDisabled(false);
     
     try {
-      const response = await apiRequestOtp(email);
+      const normalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+      const response = await apiRequestOtp(email, normalizedRole);
       setOtpSent(true);
       setOtpVerified(false);
       showMessage(response.message || "OTP sent to your email.");
@@ -422,7 +423,8 @@ export default function Login() {
     
     // Otherwise, verify with backend
     try {
-      const response = await apiVerifyOtp(email, otpString);
+      const normalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+      const response = await apiVerifyOtp(email, otpString, normalizedRole);
       setOtpVerified(true);
       showMessage(response.message || "OTP verified successfully! Please set your password.");
     } catch (error) {

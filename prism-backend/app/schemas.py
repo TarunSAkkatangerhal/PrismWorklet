@@ -3,6 +3,14 @@ from typing import Optional, List, Any
 from datetime import datetime, date
 from enum import Enum
 # --- College Dashboard Schemas ---
+class CollegeCreate(BaseModel):
+    college_name: str
+    location: Optional[str] = None
+    established: Optional[int] = None
+    infrastructure: Optional[str] = None
+    area_of_expertise: Optional[str] = None
+    logo: Optional[str] = None
+
 class CollegeOut(BaseModel):
     college_id: int
     college_name: str
@@ -10,6 +18,7 @@ class CollegeOut(BaseModel):
     established: Optional[int] = None
     infrastructure: Optional[str] = None
     area_of_expertise: Optional[Any] = None  # can be list or str
+    logo: Optional[str] = None
     workletCount: int = 0
     veryGoodCount: int = 0
     goodCount: int = 0
@@ -20,6 +29,7 @@ class CollegeOut(BaseModel):
     onHoldCount: int = 0
     terminatedCount: int = 0
     totalStudents: int = 0
+    totalProfessors: int = 0
     class Config:
         from_attributes = True
 
@@ -83,10 +93,12 @@ class UserResponse(UserBase):
 # Auth Schemas
 class RequestOTP(BaseModel):
     email: EmailStr
+    role: str  # Required: check uniqueness by email+role
 
 class VerifyOTP(BaseModel):
     email: EmailStr
     otp_code: str
+    role: Optional[str] = None  # Required for signup/reset flows with email+role keying
 
 class SetPassword(BaseModel):
     email: EmailStr
@@ -104,9 +116,11 @@ class TokenRefreshRequest(BaseModel):
 
 class ForgotPassword(BaseModel):
     email: EmailStr
+    role: str  # Required: identify which role's account to reset
 
 class ResetPassword(BaseModel):
     email: EmailStr
+    role: str  # Required: identify which role's account to reset
     otp_code: str
     new_password: str
 

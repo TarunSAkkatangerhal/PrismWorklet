@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import Optional, List
+from pydantic import BaseModel, EmailStr
 
 from app.database import get_db
-from app.models import User, UserProfile, UserWorkletAssociation, College
-from app.auth import oauth2_scheme, decode_token
+from app.models import User, UserProfile, UserWorkletAssociation, College, Worklet
+from app.auth import oauth2_scheme, decode_token, get_password_hash
 from app.core.config import settings
 
 import logging
@@ -20,12 +21,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+# ─── Pydantic schemas for request bodies ─────────────────────────────
+
+class CreateMentorRequest(BaseModel):
+    name: str
+    email: EmailStr
+    college_id: Optional[int] = None
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────
 
 def _get_admin_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """Verify the caller is an Admin."""
     payload = decode_token(token)
-    user = db.query(User).filter(User.email == payload.get("sub")).first()
+    user_id = payload.get("user_id")
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+    else:
+        user = db.query(User).filter(User.email == payload.get("sub"), User.role == payload.get("role")).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     if user.role != "Admin":
@@ -54,6 +67,50 @@ def get_user_stats(
         "professors": counts.get("Professor", 0),
         "mentors": counts.get("Mentor", 0),
         "admins": counts.get("Admin", 0),
+    }
+
+
+# ─── POST /mentors ───────────────────────────────────────────────────
+
+@router.post("/mentors")
+def create_mentor(
+    data: CreateMentorRequest,
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Create a new mentor user."""
+    # Check if email already exists with the same role
+    existing = db.query(User).filter(User.email == data.email, User.role == "Mentor").first()
+    if existing:
+        raise HTTPException(status_code=400, detail="A user with this email already exists as a Mentor")
+    
+    # Create new mentor with default password (they can reset it later)
+    import secrets
+    temp_password = secrets.token_urlsafe(12)
+    
+    new_mentor = User(
+        name=data.name,
+        email=data.email,
+        password_hash=get_password_hash(temp_password),
+        role="Mentor",
+        college_id=data.college_id,
+        is_active=True,
+        profile_completed=False,
+    )
+    
+    db.add(new_mentor)
+    db.commit()
+    db.refresh(new_mentor)
+    
+    logger.info(f"Admin {admin.email} created mentor: {new_mentor.email}")
+    
+    return {
+        "id": new_mentor.id,
+        "name": new_mentor.name,
+        "email": new_mentor.email,
+        "role": new_mentor.role,
+        "is_active": new_mentor.is_active,
+        "message": "Mentor created successfully",
     }
 
 
@@ -227,6 +284,77 @@ def get_user_by_id(
     
     logger.info(f"Returning user data: {response_data}")
     return response_data
+
+
+# ─── GET /users/{user_id}/worklets ───────────────────────────────────
+
+@router.get("/users/{user_id}/worklets")
+def get_user_worklets(
+    user_id: int,
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Get all worklets associated with a specific user."""
+    logger.info(f"Fetching worklets for user_id: {user_id}")
+    
+    # Check if user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        logger.error(f"User not found with ID: {user_id}")
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get worklet associations with worklet details
+    worklet_associations = (
+        db.query(UserWorkletAssociation, Worklet)
+        .join(Worklet, UserWorkletAssociation.worklet_id == Worklet.id)
+        .filter(UserWorkletAssociation.user_id == user_id)
+        .order_by(Worklet.created_on.desc())
+        .all()
+    )
+    
+    worklets = []
+    for association, worklet in worklet_associations:
+        # Get mentor information if available
+        mentor_name = None
+        if worklet.created_mentor_id:
+            mentor = db.query(User).filter(User.id == worklet.created_mentor_id).first()
+            if mentor:
+                mentor_name = mentor.name
+        
+        # Determine status based on worklet progress and dates
+        status = "Pending"
+        if worklet.worklet_progress >= 100:
+            status = "Completed"
+        elif worklet.worklet_progress > 0:
+            status = "In Progress"
+        
+        # Format certificate ID
+        certificate_id = worklet.cert_id or f"WL-{worklet.id:04d}"
+        
+        worklet_data = {
+            "id": worklet.id,
+            "title": worklet.title,
+            "worklet_name": worklet.title,  # Alias for compatibility
+            "description": worklet.problem_statement or worklet.expectation,
+            "certificate_id": certificate_id,
+            "status": status,
+            "start_date": worklet.start_date.isoformat() if worklet.start_date else None,
+            "end_date": worklet.end_date.isoformat() if worklet.end_date else None,
+            "mentor_id": worklet.created_mentor_id,
+            "mentor_name": mentor_name,
+            "evaluation_score": 0,  # Default since not in current schema
+            "progress": worklet.worklet_progress or 0,
+            "created_at": worklet.created_on.isoformat() if worklet.created_on else None,
+            "role_in_worklet": association.role_in_worklet,
+            "tech_domain_id": worklet.tech_domain_id,
+            "github_url": worklet.github_url,
+            "prerequisites": worklet.prerequisites,
+            "expectations": worklet.expectation,
+        }
+        worklets.append(worklet_data)
+    
+    logger.info(f"Found {len(worklets)} worklets for user {user_id}")
+    return {"worklets": worklets, "total": len(worklets)}
 
 
 # ─── PATCH /users/{user_id}/toggle-active ────────────────────────────

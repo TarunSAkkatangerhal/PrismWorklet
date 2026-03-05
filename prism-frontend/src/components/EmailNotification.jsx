@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, CheckCircle, XCircle, X, AlertCircle } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, X, AlertCircle, Loader2 } from 'lucide-react';
 
 const EmailNotification = ({ 
   isOpen, 
   onClose, 
-  type = 'success', // 'success', 'error', 'confirm'
+  type = 'success', // 'success', 'error', 'confirm', 'info'
   title,
   message,
   recipientCount,
@@ -20,6 +20,8 @@ const EmailNotification = ({
         return <XCircle className="w-12 h-12 text-red-500" />;
       case 'confirm':
         return <Mail className="w-12 h-12 text-indigo-500" />;
+      case 'info':
+        return <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />;
       default:
         return <AlertCircle className="w-12 h-12 text-blue-500" />;
     }
@@ -69,7 +71,7 @@ const EmailNotification = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={type === 'confirm' ? onCancel : onClose}
+            onClick={type === 'confirm' ? onCancel : (type === 'info' ? null : onClose)}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             {/* Modal */}
@@ -83,12 +85,14 @@ const EmailNotification = ({
             >
               {/* Header with icon */}
               <div className="relative p-6 pb-4">
-                <button
-                  onClick={type === 'confirm' ? onCancel : onClose}
-                  className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/50 transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-600" />
-                </button>
+                {type !== 'info' && (
+                  <button
+                    onClick={type === 'confirm' ? onCancel : onClose}
+                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/50 transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-600" />
+                  </button>
+                )}
                 
                 <div className="flex flex-col items-center text-center">
                   <motion.div
@@ -137,37 +141,39 @@ const EmailNotification = ({
               </div>
 
               {/* Footer with buttons */}
-              <div className="bg-white/40 backdrop-blur-sm p-6 pt-4">
-                {type === 'confirm' ? (
-                  <div className="flex gap-3">
+              {type !== 'info' && (
+                <div className="bg-white/40 backdrop-blur-sm p-6 pt-4">
+                  {type === 'confirm' ? (
+                    <div className="flex gap-3">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={onCancel}
+                        className="flex-1 px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold transition-colors"
+                      >
+                        Cancel
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={onConfirm}
+                        className={`flex-1 px-6 py-3 rounded-xl ${colors.button} text-white font-semibold transition-colors shadow-lg`}
+                      >
+                        Send Email
+                      </motion.button>
+                    </div>
+                  ) : (
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={onCancel}
-                      className="flex-1 px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold transition-colors"
+                      onClick={onClose}
+                      className={`w-full px-6 py-3 rounded-xl ${colors.button} text-white font-semibold transition-colors shadow-lg`}
                     >
-                      Cancel
+                      Got it!
                     </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={onConfirm}
-                      className={`flex-1 px-6 py-3 rounded-xl ${colors.button} text-white font-semibold transition-colors shadow-lg`}
-                    >
-                      Send Email
-                    </motion.button>
-                  </div>
-                ) : (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={onClose}
-                    className={`w-full px-6 py-3 rounded-xl ${colors.button} text-white font-semibold transition-colors shadow-lg`}
-                  >
-                    Got it!
-                  </motion.button>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         </>

@@ -466,7 +466,7 @@ export default function WorkletDetailPage() {
       formData.append('file', file)
 
       const uploadResponse = await axios.post(
-        'http://localhost:8000/api/chat/upload',
+        'http://localhost:8000/milestones/upload',
         formData,
         {
           headers: {
@@ -1183,7 +1183,7 @@ export default function WorkletDetailPage() {
           formData.append('file', selectedFile)
 
           const uploadResponse = await axios.post(
-            'http://localhost:8000/api/chat/upload',
+            'http://localhost:8000/milestones/upload',
             formData,
             {
               headers: {
@@ -1734,13 +1734,56 @@ export default function WorkletDetailPage() {
               {/* Attachment */}
               {selectedMilestoneForReview.attachment_name && (
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center gap-2 text-sm">
-                    <FileText size={16} className="text-blue-600 dark:text-blue-400" />
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{selectedMilestoneForReview.attachment_name}</span>
-                    {selectedMilestoneForReview.attachment_size && (
-                      <span className="text-gray-500 dark:text-gray-400">
-                        ({(selectedMilestoneForReview.attachment_size / 1024).toFixed(2)} KB)
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                      <FileText size={16} className="text-blue-600 dark:text-blue-400" />
+                      {selectedMilestoneForReview.attachment_url ? (
+                        <a 
+                          href={selectedMilestoneForReview.attachment_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        >
+                          {selectedMilestoneForReview.attachment_name}
+                        </a>
+                      ) : (
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{selectedMilestoneForReview.attachment_name}</span>
+                      )}
+                      {selectedMilestoneForReview.attachment_size && (
+                        <span className="text-gray-500 dark:text-gray-400">
+                          ({(selectedMilestoneForReview.attachment_size / 1024).toFixed(2)} KB)
+                        </span>
+                      )}
+                    </div>
+                    {selectedMilestoneForReview.attachment_url && (
+                      <button 
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(selectedMilestoneForReview.attachment_url)
+                            
+                            if (!response.ok) throw new Error('Download failed')
+                            
+                            const blob = await response.blob()
+                            const url = window.URL.createObjectURL(blob)
+                            const link = document.createElement('a')
+                            link.href = url
+                            link.download = selectedMilestoneForReview.attachment_name
+                            document.body.appendChild(link)
+                            link.click()
+                            document.body.removeChild(link)
+                            window.URL.revokeObjectURL(url)
+                          } catch (error) {
+                            console.error('Error downloading file:', error)
+                            alert('Failed to download file. Please try again.')
+                          }
+                        }}
+                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 
+                                 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                        title="Download attachment"
+                      >
+                        <Download size={16} />
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1872,13 +1915,55 @@ export default function WorkletDetailPage() {
                   {/* Attachment Display */}
                   {milestone.attachment_name && (
                     <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 text-xs">
-                        <FileText size={14} className="text-blue-600 dark:text-blue-400" />
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{milestone.attachment_name}</span>
-                        {milestone.attachment_size && (
-                          <span className="text-gray-500 dark:text-gray-400">
-                            ({(milestone.attachment_size / 1024).toFixed(2)} KB)
-                          </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs">
+                          <FileText size={14} className="text-blue-600 dark:text-blue-400" />
+                          {milestone.attachment_url ? (
+                            <a 
+                              href={milestone.attachment_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                            >
+                              {milestone.attachment_name}
+                            </a>
+                          ) : (
+                            <span className="font-medium text-gray-700 dark:text-gray-300">{milestone.attachment_name}</span>
+                          )}
+                          {milestone.attachment_size && (
+                            <span className="text-gray-500 dark:text-gray-400">
+                              ({(milestone.attachment_size / 1024).toFixed(2)} KB)
+                            </span>
+                          )}
+                        </div>
+                        {milestone.attachment_url && (
+                          <button 
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(milestone.attachment_url)
+                                
+                                if (!response.ok) throw new Error('Download failed')
+                                
+                                const blob = await response.blob()
+                                const url = window.URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = milestone.attachment_name
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                                window.URL.revokeObjectURL(url)
+                              } catch (error) {
+                                console.error('Error downloading file:', error)
+                                alert('Failed to download file. Please try again.')
+                              }
+                            }}
+                            className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 
+                                     dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                            title="Download attachment"
+                          >
+                            <Download size={14} />
+                          </button>
                         )}
                       </div>
                     </div>
@@ -2987,12 +3072,7 @@ export default function WorkletDetailPage() {
                                   document.body.removeChild(link)
                                 } else {
                                   // If it's a server URL, fetch and download
-                                  const token = localStorage.getItem('access_token')
-                                  const response = await fetch(file.url, {
-                                    headers: {
-                                      'Authorization': `Bearer ${token}`
-                                    }
-                                  })
+                                  const response = await fetch(file.url)
                                   
                                   if (!response.ok) throw new Error('Download failed')
                                   

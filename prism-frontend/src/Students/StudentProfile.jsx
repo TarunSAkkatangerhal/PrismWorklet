@@ -136,8 +136,9 @@ export default function StudentProfile() {
         return dateStr;
       };
       
-      // Send all editable fields except name and email
+      // Send all editable fields including name
       const updateData = {
+        name: formData.name,
         contact_number: formData.phone,
         program: formData.department,
         student_id: formData.studentId,
@@ -313,9 +314,20 @@ export default function StudentProfile() {
                 <label className="block text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">
                   Full Name
                 </label>
-                <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
-                  {formData.name || 'Not set'}
-                </p>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border-2 border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter full name"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-white font-medium px-4 py-3 bg-blue-50/50 dark:bg-slate-700/50 rounded-lg border border-blue-100/50 dark:border-slate-600">
+                    {formData.name || 'Not set'}
+                  </p>
+                )}
               </div>
 
               {/* Email */}

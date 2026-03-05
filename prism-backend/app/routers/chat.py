@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status, UploadFile, File, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, desc
@@ -14,6 +14,10 @@ from pathlib import Path
 import json
 import uuid
 import shutil
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["chat"])
 
@@ -21,7 +25,11 @@ router = APIRouter(tags=["chat"])
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """Get current user from JWT token"""
     payload = require_access_token(token)
-    user = db.query(User).filter(User.email == payload.get("sub")).first()
+    user_id = payload.get("user_id")
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+    else:
+        user = db.query(User).filter(User.email == payload.get("sub"), User.role == payload.get("role")).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
@@ -180,7 +188,11 @@ async def websocket_endpoint(
     try:
         # Validate token and get user
         payload = require_access_token(token)
-        user = db.query(User).filter(User.email == payload.get("sub")).first()
+        user_id_from_token = payload.get("user_id")
+        if user_id_from_token:
+            user = db.query(User).filter(User.id == user_id_from_token).first()
+        else:
+            user = db.query(User).filter(User.email == payload.get("sub"), User.role == payload.get("role")).first()
         if not user:
             print(f"WebSocket: User not found for token")
             await websocket.close(code=4001)
@@ -720,9 +732,73 @@ async def create_missing_group_chats(
 
 # ============= Email Notification Endpoint =============
 
+def send_single_email(member: dict, email_html: str, email_subject: str, plain_text_body: str) -> dict:
+    """
+    Send a single email and return the result.
+    Used for concurrent email sending.
+    """
+    try:
+        _send_email(
+            to_email=member['email'],
+            subject=email_subject,
+            body_html=email_html,
+            body_plain=plain_text_body
+        )
+        logger.info(f"✅ Email sent to {member['email']}")
+        return {"success": True, "email": member['email']}
+    except Exception as e:
+        logger.error(f"❌ Failed to send email to {member['email']}: {str(e)}")
+        return {"success": False, "email": member['email'], "error": str(e)}
+
+
+def send_notification_emails_background(
+    member_emails: List[dict],
+    email_html: str,
+    email_subject: str,
+    plain_text_body: str
+):
+    """
+    Background task to send notification emails to all worklet members.
+    Uses ThreadPoolExecutor to send emails concurrently (10 at a time).
+    This runs asynchronously so the API doesn't timeout.
+    """
+    emails_sent = 0
+    emails_failed = 0
+    failed_recipients = []
+    
+    try:
+        logger.info(f"📧 [Background] Sending notification emails to {len(member_emails)} members concurrently...")
+        
+        # Use ThreadPoolExecutor to send emails concurrently
+        # Max 10 workers to avoid overwhelming the SMTP server
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            # Submit all email tasks
+            future_to_member = {
+                executor.submit(send_single_email, member, email_html, email_subject, plain_text_body): member
+                for member in member_emails
+            }
+            
+            # Process results as they complete
+            for future in as_completed(future_to_member):
+                result = future.result()
+                if result['success']:
+                    emails_sent += 1
+                else:
+                    emails_failed += 1
+                    failed_recipients.append(result['email'])
+        
+        logger.info(f"✅ [Background] Email notifications complete: {emails_sent} sent, {emails_failed} failed")
+        if failed_recipients:
+            logger.warning(f"⚠️ Failed recipients: {', '.join(failed_recipients)}")
+        
+    except Exception as e:
+        logger.error(f"❌ [Background] Error in send_notification_emails_background: {str(e)}")
+
+
 @router.post("/groups/{worklet_id}/send-notification-email")
 async def send_notification_email(
     worklet_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -844,21 +920,7 @@ Samsung PRISM Worklet Platform
 This is an automated notification. Please do not reply to this email.
 """
     
-    # Send emails to all members
-    failed_emails = []
-    for member in members:
-        try:
-            _send_email(
-                to_email=member.email,
-                subject=email_subject,
-                body_html=email_html,
-                body_plain=plain_text_body
-            )
-        except Exception as e:
-            failed_emails.append(member.email)
-            print(f"Failed to send email to {member.email}: {str(e)}")
-    
-    # Record email trigger
+    # Record email trigger BEFORE sending emails (for instant response)
     email_trigger = EmailTrigger(
         worklet_id=worklet_id,
         user_id=current_user.id
@@ -866,11 +928,26 @@ This is an automated notification. Please do not reply to this email.
     db.add(email_trigger)
     db.commit()
     
+    # Prepare member data for background task
+    member_emails = [{"email": member.email, "name": member.name} for member in members]
+    
+    # Schedule emails to be sent in background (non-blocking)
+    logger.info(f"📧 Scheduling background task to send emails to {len(members)} members...")
+    background_tasks.add_task(
+        send_notification_emails_background,
+        member_emails=member_emails,
+        email_html=email_html,
+        email_subject=email_subject,
+        plain_text_body=plain_text_body
+    )
+    logger.info("✅ Email notification scheduled. Emails will be sent in background.")
+    
+    # Return immediately without waiting for emails to be sent
     return {
         "status": "success",
-        "message": "Notification email sent successfully",
-        "recipients_count": len(members) - len(failed_emails),
-        "failed_emails": failed_emails
+        "message": "Notification emails scheduled successfully",
+        "recipients_count": len(members),
+        "failed_emails": []  # We can't know failed emails yet since they're sent in background
     }
 
 
@@ -967,8 +1044,10 @@ async def upload_file(
 
 
 @router.get("/files/{filename}")
-async def get_file(filename: str):
-    """Serve uploaded files"""
+async def get_file(
+    filename: str
+):
+    """Serve uploaded files (public access)"""
     
     file_path = Path(settings.UPLOAD_DIR) / filename
     
@@ -981,7 +1060,12 @@ async def get_file(filename: str):
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    return FileResponse(file_path)
+    # Return file with proper headers for download
+    return FileResponse(
+        file_path,
+        media_type='application/octet-stream',
+        filename=filename
+    )
 
 
 @router.delete("/cleanup-old-messages")

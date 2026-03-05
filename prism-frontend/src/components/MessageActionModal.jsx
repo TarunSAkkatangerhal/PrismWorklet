@@ -11,14 +11,35 @@ const MessageActionModal = ({
 }) => {
   const [editedMessage, setEditedMessage] = useState(initialMessage);
 
+  // Update editedMessage when initialMessage changes (when modal opens)
+  React.useEffect(() => {
+    if (isOpen) {
+      setEditedMessage(initialMessage);
+    }
+  }, [isOpen, initialMessage]);
+
   const handleConfirm = () => {
     if (type === 'edit') {
-      onConfirm(editedMessage);
+      if (editedMessage.trim() && editedMessage.length <= 1000) {
+        onConfirm(editedMessage.trim());
+        onClose();
+      }
     } else {
       onConfirm();
+      onClose();
     }
-    onClose();
   };
+
+  const handleMessageChange = (e) => {
+    const newValue = e.target.value;
+    if (newValue.length <= 1000) {
+      setEditedMessage(newValue);
+    }
+  };
+
+  const isEditValid = editedMessage.trim() && 
+                       editedMessage.trim() !== initialMessage.trim() && 
+                       editedMessage.length <= 1000;
 
   const getConfig = () => {
     if (type === 'delete') {
@@ -115,12 +136,23 @@ const MessageActionModal = ({
                     >
                       <textarea
                         value={editedMessage}
-                        onChange={(e) => setEditedMessage(e.target.value)}
+                        onChange={handleMessageChange}
                         className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-400 focus:outline-none resize-none bg-white/60 backdrop-blur-sm"
-                        rows="4"
+                        rows="5"
                         placeholder="Type your message..."
                         autoFocus
+                        spellCheck={true}
+                        style={{ lineHeight: '1.6' }}
                       />
+                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                          Spell check enabled
+                        </span>
+                        <span className={editedMessage.length > 500 ? 'text-red-500 font-semibold' : ''}>
+                          {editedMessage.length} / 1000 characters
+                        </span>
+                      </div>
                     </motion.div>
                   )}
 
@@ -155,7 +187,7 @@ const MessageActionModal = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleConfirm}
-                    disabled={type === 'edit' && (!editedMessage.trim() || editedMessage === initialMessage)}
+                    disabled={type === 'edit' ? !isEditValid : false}
                     className={`flex-1 px-6 py-3 rounded-xl ${config.confirmButton} text-white font-semibold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {config.confirmText}

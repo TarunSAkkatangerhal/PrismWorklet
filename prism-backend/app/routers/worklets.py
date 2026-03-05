@@ -40,7 +40,11 @@ def create_worklet(worklet_in: WorkletCreate, token: str = Depends(oauth2_scheme
         payload = require_access_token(token)
         user_email = payload.get("sub")
         if user_email:
-            user = db.query(User).filter(User.email == user_email).first()
+            user_id_from_token = payload.get("user_id")
+            if user_id_from_token:
+                user = db.query(User).filter(User.id == user_id_from_token).first()
+            else:
+                user = db.query(User).filter(User.email == user_email, User.role == payload.get("role")).first()
             creator_id = user.id if user else None
     except Exception:
         creator_id = None
@@ -115,6 +119,13 @@ def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team
             query = query.filter(Worklet.team_mg_id == team_obj.id)
     
     worklets = query.all()
+    
+    # Batch fetch TechDomain names for all worklets to avoid N+1 queries
+    tech_domain_ids = list(set(w.tech_domain_id for w in worklets if w.tech_domain_id is not None))
+    domain_name_map = {}
+    if tech_domain_ids:
+        tech_domains = db.query(TechDomain).filter(TechDomain.id.in_(tech_domain_ids)).all()
+        domain_name_map = {td.id: td.domain_name for td in tech_domains}
     
     # Batch fetch all student associations to avoid N+1 queries
     worklet_ids = [w.id for w in worklets]
@@ -228,7 +239,7 @@ def list_worklets(year: Optional[int] = None, domain: Optional[str] = None, team
             'created_at': w.created_at,
             'updated_at': w.updated_at,
             'year': derived_year if derived_year is not None else datetime.utcnow().year,
-            'domain': getattr(w, 'domain', None),
+            'domain': domain_name_map.get(w.tech_domain_id) if w.tech_domain_id else None,
             'status': status_text,
             'worklet_progress': progress,
             'college_id': college_id,
@@ -284,7 +295,11 @@ def get_student_worklets_me(token: str = Depends(oauth2_scheme), db: Session = D
         if not user_email:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        student = db.query(User).filter(User.email == user_email).first()
+        user_id_from_token = payload.get("user_id")
+        if user_id_from_token:
+            student = db.query(User).filter(User.id == user_id_from_token).first()
+        else:
+            student = db.query(User).filter(User.email == user_email, User.role == payload.get("role")).first()
         if not student:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -311,7 +326,11 @@ def get_professor_worklets_me(token: str = Depends(oauth2_scheme), db: Session =
         if not user_email:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        professor = db.query(User).filter(User.email == user_email).first()
+        user_id_from_token = payload.get("user_id")
+        if user_id_from_token:
+            professor = db.query(User).filter(User.id == user_id_from_token).first()
+        else:
+            professor = db.query(User).filter(User.email == user_email, User.role == payload.get("role")).first()
         if not professor:
             raise HTTPException(status_code=404, detail="User not found")
 

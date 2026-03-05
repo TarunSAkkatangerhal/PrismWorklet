@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { AdminLeftSidebar } from './AdminSidebar';
 import { ThemeContext } from '../context/ThemeContext';
@@ -7,8 +7,8 @@ import API from '../api';
 import * as XLSX from 'xlsx';
 import {
   Search, ChevronRight, Target, Activity, CheckCircle, X, Clock,
-  Users, Grid3X3, List, Building2, Briefcase, AlertCircle,
-  TrendingUp, Filter, ChevronDown, Calendar, Layers, Shield, FileSpreadsheet
+  Users, Grid3X3, List, Building2, Briefcase, AlertCircle, Folder,
+  TrendingUp, Filter, ChevronDown, Calendar, Layers, Shield, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -60,18 +60,18 @@ const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMod
   const selectedOption = options.find(opt => opt.value === value) || options[0];
 
   return (
-    <div className="relative">
+    <div className="relative flex-shrink-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 min-w-[140px] ${
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200 text-sm ${
           isDarkMode
             ? 'bg-slate-800/50 border-slate-600/50 text-slate-200 hover:bg-slate-700/50'
             : 'bg-white/80 border-slate-300/50 text-slate-700 hover:bg-slate-50'
         }`}
       >
-        <Icon size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-        <span className="text-sm font-medium truncate flex-1 text-left">{selectedOption.label}</span>
-        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <Icon size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+        <span className="font-medium whitespace-nowrap">{selectedOption.label}</span>
+        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       <AnimatePresence>
@@ -88,7 +88,7 @@ const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMod
                   : 'bg-white border-slate-200'
               }`}
             >
-              <div className="max-h-60 overflow-y-auto">
+              <div className="max-h-56 overflow-y-auto">
                 {options.map(opt => (
                   <button
                     key={opt.value}
@@ -96,7 +96,7 @@ const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMod
                       onChange(opt.value);
                       setIsOpen(false);
                     }}
-                    className={`w-full px-3 py-2 text-sm text-left transition-colors ${
+                    className={`w-full px-4 py-2.5 text-sm text-left transition-colors whitespace-nowrap ${
                       value === opt.value
                         ? isDarkMode
                           ? 'bg-purple-600/30 text-purple-300'
@@ -121,7 +121,14 @@ const FilterDropdown = ({ label, icon: Icon, value, options, onChange, isDarkMod
 const AdminWorklets = () => {
   useDocumentTitle('PRISM Admin - Worklets');
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDarkMode } = useContext(ThemeContext);
+
+  // Get initial filters from navigation state (e.g., from dashboard tiles)
+  const initialStatusFilter = location.state?.statusFilter || 'all';
+  const initialYearFilter = location.state?.yearFilter || 'all';
+  const initialTeamFilter = location.state?.teamFilter || 'all';
+  const initialDomainFilter = location.state?.domainFilter || 'all';
 
   const [worklets, setWorklets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -130,18 +137,38 @@ const AdminWorklets = () => {
   const [viewMode, setViewMode] = useState('list');
 
   // Filter states
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [collegeFilter, setCollegeFilter] = useState('all');
-  const [groupFilter, setGroupFilter] = useState('all');
+  const [teamFilter, setTeamFilter] = useState(initialTeamFilter);
+  const [domainFilter, setDomainFilter] = useState(initialDomainFilter);
   const [riskFilter, setRiskFilter] = useState('all');
   const [stageFilter, setStageFilter] = useState('all');
-  const [yearFilter, setYearFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState(initialYearFilter);
 
   // Filter options from API
   const [colleges, setColleges] = useState([]);
-  const [groups, setGroups] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [domains, setDomains] = useState([]);
   const [stages, setStages] = useState([]);
   const [years, setYears] = useState([]);
+
+  // Update filters when navigating from dashboard tiles
+  useEffect(() => {
+    if (location.state) {
+      if (location.state.statusFilter !== undefined) {
+        setStatusFilter(location.state.statusFilter);
+      }
+      if (location.state.yearFilter !== undefined) {
+        setYearFilter(location.state.yearFilter);
+      }
+      if (location.state.teamFilter !== undefined) {
+        setTeamFilter(location.state.teamFilter);
+      }
+      if (location.state.domainFilter !== undefined) {
+        setDomainFilter(location.state.domainFilter);
+      }
+    }
+  }, [location.state]);
 
   // Fetch worklets
   useEffect(() => {
@@ -169,10 +196,7 @@ const AdminWorklets = () => {
           setColleges(res.data || []);
         }).catch(() => setColleges([]));
 
-        // Fetch groups
-        API.get('/worklets/groups').then(res => {
-          setGroups(res.data || []);
-        }).catch(() => setGroups([]));
+        // Teams will be derived from worklets data
 
         // Fetch stages
         API.get('/worklets/stages').then(res => {
@@ -185,11 +209,15 @@ const AdminWorklets = () => {
     fetchFilterOptions();
   }, []);
 
-  // Derive years from worklets data
+  // Derive years, teams, and domains from worklets data
   useEffect(() => {
     if (worklets.length > 0) {
       const uniqueYears = [...new Set(worklets.map(w => w.year).filter(Boolean))].sort((a, b) => b - a);
       setYears(uniqueYears);
+      const uniqueTeams = [...new Set(worklets.map(w => w.team).filter(Boolean))].sort();
+      setTeams(uniqueTeams);
+      const uniqueDomains = [...new Set(worklets.map(w => w.domain).filter(Boolean))].sort();
+      setDomains(uniqueDomains);
     }
   }, [worklets]);
 
@@ -199,10 +227,15 @@ const AdminWorklets = () => {
     ...colleges.map(c => ({ value: c.name, label: c.name }))
   ], [colleges]);
 
-  const groupOptions = useMemo(() => [
-    { value: 'all', label: 'All Groups' },
-    ...groups.map(g => ({ value: g.group_id?.toString(), label: g.label }))
-  ], [groups]);
+  const teamOptions = useMemo(() => [
+    { value: 'all', label: 'All Teams' },
+    ...teams.map(t => ({ value: t, label: t }))
+  ], [teams]);
+
+  const domainOptions = useMemo(() => [
+    { value: 'all', label: 'All Domains' },
+    ...domains.map(d => ({ value: d, label: d }))
+  ], [domains]);
 
   const stageOptions = useMemo(() => [
     { value: 'all', label: 'All Stages' },
@@ -230,9 +263,14 @@ const AdminWorklets = () => {
       list = list.filter(w => w.college === collegeFilter);
     }
 
-    // Group filter (by group_mg_id)
-    if (groupFilter !== 'all') {
-      list = list.filter(w => w.group_mg_id?.toString() === groupFilter);
+    // Team filter
+    if (teamFilter !== 'all') {
+      list = list.filter(w => w.team === teamFilter);
+    }
+
+    // Domain filter
+    if (domainFilter !== 'all') {
+      list = list.filter(w => w.domain === domainFilter);
     }
 
     // Risk filter
@@ -266,7 +304,7 @@ const AdminWorklets = () => {
       );
     }
     return list;
-  }, [worklets, statusFilter, collegeFilter, groupFilter, riskFilter, stageFilter, yearFilter, search]);
+  }, [worklets, statusFilter, collegeFilter, teamFilter, domainFilter, riskFilter, stageFilter, yearFilter, search]);
 
   // Excel export function
   const handleExportToExcel = () => {
@@ -311,7 +349,7 @@ const AdminWorklets = () => {
         ['Search Term', search || 'None'],
         ['Status', statusFilter === 'all' ? 'All Statuses' : statusFilter],
         ['College', collegeFilter === 'all' ? 'All Colleges' : collegeFilter],
-        ['Group', groupFilter === 'all' ? 'All Groups' : groupFilter],
+        ['Team', teamFilter === 'all' ? 'All Teams' : teamFilter],
         ['Risk Status', riskFilter === 'all' ? 'All Risk Levels' : riskFilter],
         ['Stage', stageFilter === 'all' ? 'All Stages' : stageFilter],
         ['Year', yearFilter === 'all' ? 'All Years' : yearFilter]
@@ -369,9 +407,32 @@ const AdminWorklets = () => {
     }
   };
 
+  // Base filtered list (year, team, and domain filters from navigation/dashboard)
+  const baseFiltered = useMemo(() => {
+    let list = worklets;
+    
+    // Apply year filter
+    if (yearFilter !== 'all') {
+      list = list.filter(w => w.year?.toString() === yearFilter);
+    }
+    
+    // Apply team filter
+    if (teamFilter !== 'all') {
+      list = list.filter(w => w.team === teamFilter);
+    }
+    
+    // Apply domain filter
+    if (domainFilter !== 'all') {
+      list = list.filter(w => w.domain === domainFilter);
+    }
+    
+    return list;
+  }, [worklets, yearFilter, teamFilter, domainFilter]);
+
+  // Counts based on base-filtered list (matches dashboard counts)
   const counts = useMemo(() => {
-    const c = { all: worklets.length, ongoing: 0, completed: 0, 'on hold': 0, dropped: 0 };
-    worklets.forEach(w => {
+    const c = { all: baseFiltered.length, ongoing: 0, completed: 0, 'on hold': 0, dropped: 0 };
+    baseFiltered.forEach(w => {
       const s = (w.status || '').toLowerCase();
       if (s.includes('ongoing'))   c.ongoing++;
       else if (s.includes('completed')) c.completed++;
@@ -379,13 +440,14 @@ const AdminWorklets = () => {
       else if (s.includes('dropped'))   c.dropped++;
     });
     return c;
-  }, [worklets]);
+  }, [baseFiltered]);
 
   // Clear all filters
   const clearFilters = () => {
     setStatusFilter('all');
     setCollegeFilter('all');
-    setGroupFilter('all');
+    setTeamFilter('all');
+    setDomainFilter('all');
     setRiskFilter('all');
     setStageFilter('all');
     setYearFilter('all');
@@ -393,7 +455,7 @@ const AdminWorklets = () => {
   };
 
   const hasActiveFilters = statusFilter !== 'all' || collegeFilter !== 'all' || 
-    groupFilter !== 'all' || riskFilter !== 'all' || stageFilter !== 'all' || 
+    teamFilter !== 'all' || domainFilter !== 'all' || riskFilter !== 'all' || stageFilter !== 'all' || 
     yearFilter !== 'all' || search.trim();
 
   return (
@@ -415,7 +477,11 @@ const AdminWorklets = () => {
                 Worklet Management
               </h1>
               <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                View and manage all worklets across the platform
+                {hasActiveFilters ? (
+                  <>Showing <span className="font-semibold">{filtered.length}</span> worklets {statusFilter !== 'all' && <span className="capitalize">({statusFilter})</span>} {yearFilter !== 'all' && <span>• Year: {yearFilter}</span>} {teamFilter !== 'all' && <span>• Team: {teamFilter}</span>} {domainFilter !== 'all' && <span>• Domain: {domainFilter}</span>}</>
+                ) : (
+                  'View and manage all worklets across the platform'
+                )}
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -436,32 +502,54 @@ const AdminWorklets = () => {
         </div>
 
         {/* Search + Filters inline */}
-        <div className={`flex items-center flex-wrap gap-2 mb-6 p-3 rounded-lg ${
+        <div className={`flex items-center gap-3 mb-4 px-4 py-3 rounded-lg relative z-30 flex-wrap ${
           isDarkMode
             ? 'bg-slate-800/80 border-slate-700/50'
             : 'bg-white/60 border-slate-200/50'
         } border shadow-sm`}>
-          <div className="relative w-64">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => {
+                const el = document.getElementById('worklet-search-input');
+                if (el) { el.classList.toggle('hidden'); if (!el.classList.contains('hidden')) el.focus(); }
+              }}
+              className={`p-2.5 rounded-lg border transition-all duration-200 ${
+                isDarkMode
+                  ? 'bg-slate-800/50 border-slate-600/50 text-slate-200 hover:bg-slate-700/50'
+                  : 'bg-white/80 border-slate-300/50 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Search size={18} />
+            </button>
             <input
+              id="worklet-search-input"
               type="text"
               placeholder="Search worklets..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className={`w-full pl-10 pr-3 py-2 rounded-lg border transition-all duration-200 text-sm ${
+              onBlur={e => { if (!e.target.value) e.target.classList.add('hidden'); }}
+              className={`hidden absolute left-0 top-full mt-1 w-72 pl-4 pr-4 py-2.5 rounded-lg border transition-all duration-200 text-sm z-40 ${
                 isDarkMode
-                  ? 'bg-slate-800/50 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
-                  : 'bg-white/70 border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
-              } backdrop-blur-sm`}
+                  ? 'bg-slate-800 border-gray-700/30 text-white placeholder-gray-400/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
+                  : 'bg-white border-gray-300/40 text-slate-800 placeholder-gray-500/60 focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20'
+              } shadow-lg`}
             />
           </div>
 
           <FilterDropdown
-            label="Group"
+            label="Team"
             icon={Users}
-            value={groupFilter}
-            options={groupOptions}
-            onChange={setGroupFilter}
+            value={teamFilter}
+            options={teamOptions}
+            onChange={setTeamFilter}
+            isDarkMode={isDarkMode}
+          />
+          <FilterDropdown
+            label="Domain"
+            icon={Folder}
+            value={domainFilter}
+            options={domainOptions}
+            onChange={setDomainFilter}
             isDarkMode={isDarkMode}
           />
           <FilterDropdown
@@ -508,36 +596,35 @@ const AdminWorklets = () => {
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className={`text-xs px-2 py-1 rounded-md transition-colors ${
+              className={`flex-shrink-0 text-[13px] px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
                 isDarkMode
                   ? 'text-purple-400 hover:bg-purple-600/20'
                   : 'text-purple-600 hover:bg-purple-100'
               }`}
             >
-              Clear all
+              Clear
             </button>
           )}
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
             <motion.button
               onClick={handleExportToExcel}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all shadow-sm text-sm ${
+              className={`flex items-center p-2.5 rounded-xl font-medium transition-all duration-200 ${
                 isDarkMode
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-green-600 text-white hover:bg-green-700'
+                  ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
+                  : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
               }`}
               title="Export filtered worklets to Excel"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <FileSpreadsheet size={14} />
-              <span>Export</span>
+              <Download size={16} />
             </motion.button>
 
-            <div className={`flex rounded-lg overflow-hidden border ${isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'}`}>
+            <div className={`flex rounded-md overflow-hidden border ${isDarkMode ? 'border-slate-600/50' : 'border-slate-300/50'}`}>
               <motion.button
                 onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-2 text-sm font-medium transition-colors ${
+                className={`px-2.5 py-1.5 font-medium transition-colors ${
                   viewMode === 'grid'
                     ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
                     : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
@@ -549,7 +636,7 @@ const AdminWorklets = () => {
               </motion.button>
               <motion.button
                 onClick={() => setViewMode('list')}
-                className={`px-2.5 py-2 text-sm font-medium transition-colors ${
+                className={`px-2.5 py-1.5 font-medium transition-colors ${
                   viewMode === 'list'
                     ? isDarkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
                     : isDarkMode ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' : 'bg-white/80 text-slate-600 hover:bg-slate-50'
