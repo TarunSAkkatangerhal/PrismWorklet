@@ -728,11 +728,57 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
     }
   };
 
-  // Handle file upload
+  // ---- File upload validation constants ----
+  const ALLOWED_EXTENSIONS = [
+    '.jpg', '.jpeg', '.png', '.gif', '.webp',       // images
+    '.pdf', '.txt', '.csv',                          // documents
+    '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx' // office
+  ];
+  const MAX_FILE_SIZE_MB = 10;
+  const DANGEROUS_EXTENSIONS = [
+    '.exe', '.bat', '.cmd', '.msi', '.scr',
+    '.ps1', '.vbs', '.js', '.sh', '.php', '.py',
+    '.jar', '.dll', '.html', '.htm', '.svg'
+  ];
+
+  // Handle file upload with client-side validation
   const handleFileUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // --- Client-side validation ---
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+    if (DANGEROUS_EXTENSIONS.includes(ext)) {
+      alert(`File type "${ext}" is blocked for security reasons.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      alert(
+        `File type "${ext}" is not supported.\nAllowed: ${ALLOWED_EXTENSIONS.join(', ')}`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > MAX_FILE_SIZE_MB) {
+      alert(
+        `File is too large (${fileSizeMB.toFixed(1)} MB).\nMaximum allowed: ${MAX_FILE_SIZE_MB} MB.`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    if (file.size === 0) {
+      alert('Empty files cannot be uploaded.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // --- Upload ---
     const formData = new FormData();
     formData.append('file', file);
 
@@ -1082,7 +1128,7 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
         <div className="flex-1 flex flex-col">
           {selectedRoom ? (
             <>
-              {/* Chat Header - WhatsApp style */}
+              {/* Chat Header  */}
               <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-[#F0F2F5] dark:bg-[#202C33]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
@@ -1224,7 +1270,7 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
                     ref={fileInputRef}
                     onChange={handleFileUpload}
                     className="hidden"
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                   />
                   {/* Attachment button - disabled for mentors */}
                   {userRole !== 'mentor' && (

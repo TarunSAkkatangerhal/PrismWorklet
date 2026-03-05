@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # File Upload Configuration
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE_MB: int = 10
-    ALLOWED_FILE_TYPES: str = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ALLOWED_FILE_TYPES: str = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/csv,application/csv"
     
     # CORS and Redis
     ALLOWED_ORIGINS: str = "http://localhost:3000"
