@@ -15,6 +15,7 @@ import json
 import uuid
 import shutil
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
@@ -989,6 +990,137 @@ async def check_email_notification_status(
     }
 
 
+# ============= File Upload Validation =============
+
+# Allowed extensions mapped to their valid MIME types
+ALLOWED_EXTENSIONS: dict[str, list[str]] = {
+    # Images
+    ".jpg":  ["image/jpeg"],
+    ".jpeg": ["image/jpeg"],
+    ".png":  ["image/png"],
+    ".gif":  ["image/gif"],
+    ".webp": ["image/webp"],
+    # Documents
+    ".pdf":  ["application/pdf"],
+    ".txt":  ["text/plain"],
+    ".doc":  ["application/msword"],
+    ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+    ".xls":  ["application/vnd.ms-excel"],
+    ".xlsx": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+    ".ppt":  ["application/vnd.ms-powerpoint"],
+    ".pptx": ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+    ".csv":  ["text/csv", "application/csv"],
+}
+
+# Magic bytes (file signatures) for content verification
+FILE_SIGNATURES: dict[str, list[bytes]] = {
+    ".jpg":  [b"\xff\xd8\xff"],
+    ".jpeg": [b"\xff\xd8\xff"],
+    ".png":  [b"\x89PNG\r\n\x1a\n"],
+    ".gif":  [b"GIF87a", b"GIF89a"],
+    ".webp": [b"RIFF"],  # full check: RIFF....WEBP
+    ".pdf":  [b"%PDF"],
+    ".doc":  [b"\xd0\xcf\x11\xe0"],  # OLE2 compound document
+    ".xls":  [b"\xd0\xcf\x11\xe0"],
+    ".ppt":  [b"\xd0\xcf\x11\xe0"],
+    ".docx": [b"PK\x03\x04"],  # ZIP-based Office formats
+    ".xlsx": [b"PK\x03\x04"],
+    ".pptx": [b"PK\x03\x04"],
+}
+
+# Extensions that should NEVER be uploadable (executable / script types)
+DANGEROUS_EXTENSIONS = {
+    ".exe", ".bat", ".cmd", ".com", ".msi", ".scr",
+    ".ps1", ".vbs", ".js", ".ws", ".wsf",
+    ".sh", ".bash", ".csh",
+    ".php", ".py", ".rb", ".pl",
+    ".jar", ".class",
+    ".dll", ".so", ".dylib",
+    ".html", ".htm", ".svg",  # can embed scripts
+}
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Remove path traversal chars and non-ASCII, keep only safe characters."""
+    # Strip directory components
+    name = Path(filename).name
+    # Replace any non-alphanumeric (except . - _) characters
+    name = re.sub(r"[^\w.\-]", "_", name)
+    # Collapse consecutive underscores / dots
+    name = re.sub(r"_{2,}", "_", name)
+    name = re.sub(r"\.{2,}", ".", name)
+    return name.strip("_") or "unnamed"
+
+
+def _validate_file(file: UploadFile) -> tuple[int, str]:
+    """
+    Comprehensive file validation. Returns (file_size, sanitized_original_name).
+    Raises HTTPException on any validation failure.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required.")
+
+    sanitized_name = _sanitize_filename(file.filename)
+    ext = Path(sanitized_name).suffix.lower()
+
+    # 1. Block dangerous extensions
+    if ext in DANGEROUS_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File extension '{ext}' is not allowed for security reasons.",
+        )
+
+    # 2. Extension whitelist check
+    if ext not in ALLOWED_EXTENSIONS:
+        allowed = ", ".join(sorted(ALLOWED_EXTENSIONS.keys()))
+        raise HTTPException(
+            status_code=400,
+            detail=f"File extension '{ext}' is not allowed. Allowed: {allowed}",
+        )
+
+    # 3. MIME type must match extension
+    allowed_mimes = ALLOWED_EXTENSIONS[ext]
+    if file.content_type and file.content_type not in allowed_mimes:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"MIME type '{file.content_type}' does not match extension '{ext}'. "
+                f"Expected: {', '.join(allowed_mimes)}"
+            ),
+        )
+
+    # 4. File size check
+    file.file.seek(0, 2)
+    file_size = file.file.tell()
+    file.file.seek(0)
+
+    if file_size == 0:
+        raise HTTPException(status_code=400, detail="Empty files are not allowed.")
+
+    max_size_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    if file_size > max_size_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large ({file_size / (1024*1024):.1f} MB). Maximum: {settings.MAX_FILE_SIZE_MB} MB.",
+        )
+
+    # 5. Magic-bytes verification (if signature is known)
+    signatures = FILE_SIGNATURES.get(ext)
+    if signatures:
+        header = file.file.read(16)
+        file.file.seek(0)
+        if not any(header.startswith(sig) for sig in signatures):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"File content does not match its extension '{ext}'. "
+                    "The file may be corrupted or disguised."
+                ),
+            )
+
+    return file_size, sanitized_name
+
+
 # ============= File Upload Endpoints =============
 
 @router.post("/upload")
@@ -997,46 +1129,33 @@ async def upload_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Upload a file for chat"""
-    
-    # Validate file type
-    allowed_types = settings.ALLOWED_FILE_TYPES.split(",")
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"File type '{file.content_type}' not allowed. Allowed types: {', '.join(allowed_types)}"
-        )
-    
-    # Validate file size
-    file.file.seek(0, 2)
-    file_size = file.file.tell()
-    file.file.seek(0)
-    
-    max_size_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
-    if file_size > max_size_bytes:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"File too large. Max size: {settings.MAX_FILE_SIZE_MB}MB"
-        )
-    
-    # Generate unique filename
-    file_extension = Path(file.filename).suffix
-    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    """Upload a file for chat with comprehensive validation."""
+
+    file_size, sanitized_name = _validate_file(file)
+
+    # Generate unique filename preserving the original extension
+    ext = Path(sanitized_name).suffix.lower()
+    unique_filename = f"{uuid.uuid4()}{ext}"
     file_path = Path(settings.UPLOAD_DIR) / unique_filename
-    
+
     # Create upload directory if it doesn't exist
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Save file
     try:
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
-    
+
+    logger.info(
+        "File uploaded by user %s: %s (%s, %d bytes)",
+        current_user.id, sanitized_name, file.content_type, file_size,
+    )
+
     return {
         "filename": unique_filename,
-        "original_filename": file.filename,
+        "original_filename": sanitized_name,
         "url": f"/api/chat/files/{unique_filename}",
         "content_type": file.content_type,
         "size": file_size
