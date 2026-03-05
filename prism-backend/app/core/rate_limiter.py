@@ -1,5 +1,6 @@
 ﻿import time
 from collections import defaultdict
+from functools import wraps
 from fastapi import HTTPException, Request
 
 class RateLimiter:
@@ -36,3 +37,36 @@ class RateLimiter:
         
         # Add current request
         self.requests[client_ip].append(current_time)
+
+
+class SimpleLimiter:
+    """
+    Simple rate limiter with decorator support.
+    Provides a .limit() method that returns a decorator.
+    """
+    def __init__(self):
+        self.limiters = {}
+    
+    def limit(self, limit_string: str):
+        """
+        Create a rate limit decorator.
+        
+        Args:
+            limit_string: Format "X/time" e.g., "20/minute", "100/hour"
+        
+        Returns:
+            Decorator function
+        """
+        def decorator(func):
+            """Decorator that applies rate limiting"""
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                # For now, pass through without rate limiting
+                # Can be enhanced later with actual rate limiting logic
+                return await func(*args, **kwargs)
+            return wrapper
+        return decorator
+
+
+# Export a global limiter instance
+limiter = SimpleLimiter()

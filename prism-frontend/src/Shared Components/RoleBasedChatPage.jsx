@@ -1082,7 +1082,7 @@ export default function RoleBasedChatPage({ userRole: propUserRole, pageTitle = 
         <div className="flex-1 flex flex-col">
           {selectedRoom ? (
             <>
-              {/* Chat Header - WhatsApp style */}
+              {/* Chat Header  */}
               <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-[#F0F2F5] dark:bg-[#202C33]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
