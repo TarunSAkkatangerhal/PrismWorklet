@@ -42,7 +42,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     """Get current user from JWT token"""
     try:
         payload = decode_token(token)
-        user = db.query(User).filter(User.email == payload.get("sub")).first()
+        user_id = payload.get("user_id")
+        if user_id:
+            user = db.query(User).filter(User.id == user_id).first()
+        else:
+            user = db.query(User).filter(User.email == payload.get("sub"), User.role == payload.get("role")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         return user

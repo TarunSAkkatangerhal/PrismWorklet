@@ -43,41 +43,22 @@ router = APIRouter(
     tags=["milestones"]
 )
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> User:
-    """
-    Get current user from JWT token.
-    
-    Args:
-        token: JWT token from request
-        db: Database session
-        
-    Returns:
-        User object
-        
-    Raises:
-        HTTPException: 401 if token invalid or user not found
-    """
-    try:
-        payload = require_access_token(token)
-        user = db.query(User).filter(User.email == payload.get("sub")).first()
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication failed"
-            )
-        return user
-    except Exception as e:
-        logger.error(f"Authentication error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication failed"
-        )
+# Helper function to get current user from token
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    """Get current user from JWT token"""
+    payload = require_access_token(token)
+    user_id = payload.get("user_id")
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+    else:
+        user = db.query(User).filter(User.email == payload.get("sub"), User.role == payload.get("role")).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
 
 
-def check_and_auto_increment_progress(worklet_id: int, db: Session) -> bool:
+# Helper function to auto-increment progress for old milestones without feedback
+def check_and_auto_increment_progress(worklet_id: int, db: Session):
     """
     Check if worklet has milestones older than 2 days without mentor feedback.
     If yes, auto-increment progress. This ensures progress moves forward even

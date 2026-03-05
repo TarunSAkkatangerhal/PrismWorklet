@@ -93,10 +93,12 @@ class UserResponse(UserBase):
 # Auth Schemas
 class RequestOTP(BaseModel):
     email: EmailStr
+    role: str  # Required: check uniqueness by email+role
 
 class VerifyOTP(BaseModel):
     email: EmailStr
     otp_code: str
+    role: Optional[str] = None  # Required for signup/reset flows with email+role keying
 
 class SetPassword(BaseModel):
     email: EmailStr
@@ -114,9 +116,11 @@ class TokenRefreshRequest(BaseModel):
 
 class ForgotPassword(BaseModel):
     email: EmailStr
+    role: str  # Required: identify which role's account to reset
 
 class ResetPassword(BaseModel):
     email: EmailStr
+    role: str  # Required: identify which role's account to reset
     otp_code: str
     new_password: str
 

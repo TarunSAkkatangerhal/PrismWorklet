@@ -34,7 +34,11 @@ class CreateMentorRequest(BaseModel):
 def _get_admin_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """Verify the caller is an Admin."""
     payload = decode_token(token)
-    user = db.query(User).filter(User.email == payload.get("sub")).first()
+    user_id = payload.get("user_id")
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+    else:
+        user = db.query(User).filter(User.email == payload.get("sub"), User.role == payload.get("role")).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     if user.role != "Admin":
@@ -75,10 +79,10 @@ def create_mentor(
     db: Session = Depends(get_db),
 ):
     """Create a new mentor user."""
-    # Check if email already exists
-    existing = db.query(User).filter(User.email == data.email).first()
+    # Check if email already exists with the same role
+    existing = db.query(User).filter(User.email == data.email, User.role == "Mentor").first()
     if existing:
-        raise HTTPException(status_code=400, detail="A user with this email already exists")
+        raise HTTPException(status_code=400, detail="A user with this email already exists as a Mentor")
     
     # Create new mentor with default password (they can reset it later)
     import secrets

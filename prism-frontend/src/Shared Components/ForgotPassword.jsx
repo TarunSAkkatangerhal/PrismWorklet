@@ -10,6 +10,7 @@ export default function ForgotPassword() {
   useDocumentTitle('Prism-Login');
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("student");  // Role selection for multi-role accounts
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
@@ -110,7 +111,7 @@ export default function ForgotPassword() {
     
     setIsLoading(true);
     try {
-      const response = await apiVerifyResetPasswordOtp(email, otp);
+      const response = await apiVerifyResetPasswordOtp(email, otp, role.charAt(0).toUpperCase() + role.slice(1).toLowerCase());
       setOtpVerified(true);
       showMessage(response.message || "OTP verified. Please enter your new password.");
     } catch (error) {
@@ -145,7 +146,8 @@ export default function ForgotPassword() {
     setOtpTimer(45);
     
     try {
-      const response = await apiForgotPassword(email);
+      const normalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+      const response = await apiForgotPassword(email, normalizedRole);
       setOtpSent(true);
       showMessage(response.message || "OTP sent to your email.");
     } catch (error) {
@@ -183,6 +185,7 @@ export default function ForgotPassword() {
     try {
       const payload = {
         email: email,
+        role: role.charAt(0).toUpperCase() + role.slice(1).toLowerCase(),
         otp_code: otp,
         new_password: password
       };
@@ -362,6 +365,26 @@ export default function ForgotPassword() {
                   </p>
                 )}
               </div>
+
+              {/* Role Selector */}
+              {!otpSent && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Account Role
+                  </label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  >
+                    <option value="student">Student</option>
+                    <option value="mentor">Mentor</option>
+                    <option value="professor">Professor</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <p className="text-slate-500 text-xs mt-1">Select the role associated with your account</p>
+                </div>
+              )}
 
               {/* OTP Field */}
               {otpSent && !otpVerified && (
