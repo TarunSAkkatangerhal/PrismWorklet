@@ -380,8 +380,8 @@ const NavStat = () => {
                     onClick={handleExport}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
                       isDarkMode
-                        ? 'bg-slate-700/50 text-gray-300 border border-gray-700/30 hover:bg-slate-700/70 hover:text-white'
-                        : 'bg-white/60 text-gray-700 border border-gray-300/40 hover:bg-white/80 hover:text-gray-800'
+                        ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
+                        : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
                     }`}
                     title="Export to CSV"
                   >
