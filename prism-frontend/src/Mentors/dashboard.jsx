@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import secureAPI from '../services/secureAPI'
+import { getCurrentUser } from '../services/auth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   Download,
@@ -103,16 +104,6 @@ const ChartContainer = ({ title, children, isDark, exportAction, previewAction }
     <div className="flex justify-between items-center mb-6">
       <Title className={isDark ? 'text-white' : 'text-gray-900'}>{title}</Title>
       <div className="flex gap-2">
-        {previewAction && (
-          <button
-            onClick={previewAction}
-            className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-              isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}>
-            <Maximize size={16} />
-            <span className="text-sm">Preview</span>
-          </button>
-        )}
         {exportAction && (
           <button
             onClick={exportAction}
@@ -278,6 +269,22 @@ const ModernStatisticsDashboard = ({ SidebarComponent = LeftSidebar, isAdminMode
   const [filters, setFilters] = useState({ year: new Date().getFullYear(), domain: 'All', team: 'All' })
   const [options, setOptions] = useState({ years: [], domains: [], teams: [] })
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [userName, setUserName] = useState('')
+
+  // Fetch logged-in user's name
+  useEffect(() => {
+    let cancelled = false
+    const loadUser = async () => {
+      try {
+        const me = await getCurrentUser()
+        if (!cancelled) setUserName(me.name || me.email?.split('@')[0] || '')
+      } catch (e) {
+        if (!cancelled) setUserName('')
+      }
+    }
+    loadUser()
+    return () => { cancelled = true }
+  }, [])
 
   // Load platform totals and trends from backend (driven by global year dropdown)
   useEffect(() => {
@@ -722,7 +729,15 @@ const ModernStatisticsDashboard = ({ SidebarComponent = LeftSidebar, isAdminMode
         <header className="flex justify-between items-center mb-[3vh]">
           <div>
             <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-bold text-black dark:text-white">
-              Performance Analytics
+              {isAdminMode
+                ? (userName ? (() => {
+                    const nameParts = userName.split(' ');
+                    if (nameParts.length > 1 && (nameParts[0].length === 1 || nameParts[0].endsWith('.'))) {
+                      return `Welcome, ${nameParts.slice(0, 2).join(' ')}`;
+                    }
+                    return `Welcome, ${nameParts[0]}`;
+                  })() : 'Welcome')
+                : 'Performance Analytics'}
             </h1>
             <p className="text-[clamp(0.875rem,1.2vw,1rem)] text-slate-500 dark:text-slate-400">
               Real-time insights with modern data visualizations

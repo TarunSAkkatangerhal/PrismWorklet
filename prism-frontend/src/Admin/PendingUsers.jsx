@@ -194,36 +194,53 @@ const PendingUsers = () => {
           <div className={`flex items-center flex-wrap gap-3 mb-4 p-3 rounded-lg ${
             isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white/60 border-slate-200/50'
           } border shadow-sm`}>
-            {/* Tabs inline */}
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                    isActive
-                      ? isDarkMode
-                        ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
-                        : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
-                      : isDarkMode
-                        ? 'text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-600/40'
-                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-gray-300/60'
-                  }`}
-                >
-                  <Icon size={14} />
-                  {tab.label}
-                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold ${
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : isDarkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
+            {/* Sliding tabs */}
+            <div className={`flex items-center rounded-xl p-1 ${
+              isDarkMode ? 'bg-slate-700/60' : 'bg-slate-100'
+            }`}>
+              {tabs.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`relative px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'text-white'
+                        : isDarkMode
+                          ? 'text-slate-400 hover:text-slate-200'
+                          : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="pendingStatusTab"
+                        className={`absolute inset-0 rounded-lg ${
+                          tab.key === 'pending'
+                            ? 'bg-gradient-to-r from-purple-400 to-indigo-500'
+                            : tab.key === 'rejected'
+                              ? 'bg-gradient-to-r from-indigo-500 to-blue-600'
+                              : 'bg-gradient-to-r from-blue-400 to-purple-300'
+                        } shadow-md`}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Icon size={13} />
+                      {tab.label}
+                      <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                        isActive
+                          ? 'bg-white/20 text-white'
+                          : isDarkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* College dropdown */}
             <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm max-w-[180px] ${

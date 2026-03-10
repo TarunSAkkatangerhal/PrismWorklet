@@ -203,7 +203,7 @@ const WorkletPerformanceChart = ({ data, onEnlarge, isEnlarged = false }) => {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Overall Worklet Performance</h3>
         <button
           onClick={handleExportPerformance}
-          className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-gradient-to-r from-purple-300 to-indigo-300 dark:from-purple-400 dark:to-indigo-400 text-white rounded-md shadow border border-purple-200/50 transition-colors"
           title="Export to CSV"
         >
           <Download className="w-3 h-3" />
@@ -342,7 +342,7 @@ const WorkletsPerCollegeChart = ({ data, onEnlarge, isEnlarged = false }) => {
         <div className="flex items-center space-x-2 text-xs">
            <button
              onClick={handleExportWorklets}
-             className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+             className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-300 to-indigo-300 dark:from-purple-400 dark:to-indigo-400 text-white rounded-md shadow border border-purple-200/50 transition-colors"
              title="Export to CSV"
            >
              <Download className="w-3 h-3" />
@@ -516,7 +516,7 @@ const StudentsPerWorkletChart = ({ data, onEnlarge, isEnlarged = false }) => {
         <div className="flex items-center gap-2 text-xs">
           <button
             onClick={handleExportStudents}
-            className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-300 to-indigo-300 dark:from-purple-400 dark:to-indigo-400 text-white rounded-md shadow border border-purple-200/50 transition-colors"
             title="Export to CSV"
           >
             <Download className="w-3 h-3" />
@@ -2071,7 +2071,7 @@ const Colleges = () => {
                 </button>
                 <button
                   onClick={handleExport}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm">
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-300 to-indigo-300 dark:from-purple-400 dark:to-indigo-400 text-white rounded-lg shadow-lg border border-purple-200/50 transition-colors text-sm">
                   <Download className="w-4 h-4" />
                   Export
                 </button>

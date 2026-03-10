@@ -579,8 +579,8 @@ const AdminUsers = () => {
                 isExporting 
                   ? 'bg-gray-400 cursor-not-allowed'
                   : isDarkMode
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg border border-green-400/50'
-                    : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg border border-green-400/50'
+                    ? 'bg-gradient-to-r from-purple-400 to-indigo-400 text-white shadow-lg border border-purple-200/50'
+                    : 'bg-gradient-to-r from-purple-300 to-indigo-300 text-white shadow-lg border border-purple-200/50'
               }`}
               whileHover={isExporting ? {} : { scale: 1.02 }}
               whileTap={isExporting ? {} : { scale: 0.98 }}
