@@ -431,3 +431,201 @@ def toggle_user_active(
         "is_active": user.is_active,
         "message": f"User {'activated' if user.is_active else 'deactivated'} successfully",
     }
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  Pending-Users management endpoints
+# ══════════════════════════════════════════════════════════════════════
+
+class PendingUserActionRequest(BaseModel):
+    action: str  # "approve", "reject", "skip"
+
+
+# ─── GET /pending-users/stats ─────────────────────────────────────────
+
+@router.get("/pending-users/stats")
+def pending_users_stats(
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Return counts of non-approved users by status."""
+    rows = (
+        db.query(User.status, func.count(User.id))
+        .filter(User.status.in_(["pending", "rejected", "skipped"]))
+        .group_by(User.status)
+        .all()
+    )
+    counts = {s: c for s, c in rows}
+    pending = counts.get("pending", 0)
+    rejected = counts.get("rejected", 0)
+    skipped = counts.get("skipped", 0)
+    return {
+        "total": pending + rejected + skipped,
+        "pending": pending,
+        "rejected": rejected,
+        "skipped": skipped,
+    }
+
+
+# ─── GET /pending-users/colleges ──────────────────────────────────────
+
+@router.get("/pending-users/colleges")
+def pending_users_colleges(
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Distinct colleges that have at least one pending/rejected/skipped user."""
+    rows = (
+        db.query(College.college_id, College.college_name)
+        .join(User, User.college_id == College.college_id)
+        .filter(User.status.in_(["pending", "rejected", "skipped"]))
+        .distinct()
+        .order_by(College.college_name)
+        .all()
+    )
+    return [{"id": r.college_id, "name": r.college_name} for r in rows]
+
+
+# ─── GET /pending-users/export ────────────────────────────────────────
+
+@router.get("/pending-users/export")
+def export_pending_users(
+    status: str = Query("pending"),
+    college_id: Optional[int] = Query(None),
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Export filtered pending/rejected/skipped users as CSV."""
+    allowed = {"pending", "rejected", "skipped"}
+    if status not in allowed:
+        raise HTTPException(status_code=400, detail=f"status must be one of {allowed}")
+
+    query = (
+        db.query(User, College.college_name)
+        .outerjoin(College, User.college_id == College.college_id)
+        .filter(User.status == status)
+    )
+    if college_id:
+        query = query.filter(User.college_id == college_id)
+
+    users = query.order_by(User.created_at.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Name", "Email", "Role", "College", "Date", "Status"])
+
+    for user, college_name in users:
+        writer.writerow([
+            user.name,
+            user.email,
+            user.role,
+            college_name or "",
+            user.created_at.strftime("%Y-%m-%d") if user.created_at else "",
+            user.status,
+        ])
+
+    output.seek(0)
+    filename = f"prism_{status}_users_{len(users)}_records.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ─── GET /pending-users ──────────────────────────────────────────────
+
+@router.get("/pending-users")
+def list_pending_users(
+    status: str = Query("pending"),
+    college_id: Optional[int] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """List users filtered by approval status tab."""
+    allowed = {"pending", "rejected", "skipped"}
+    if status not in allowed:
+        raise HTTPException(status_code=400, detail=f"status must be one of {allowed}")
+
+    query = (
+        db.query(User, College.college_name)
+        .outerjoin(College, User.college_id == College.college_id)
+        .filter(User.status == status)
+    )
+
+    if college_id:
+        query = query.filter(User.college_id == college_id)
+    if search:
+        q = f"%{search}%"
+        query = query.filter(or_(User.name.ilike(q), User.email.ilike(q)))
+
+    total = query.count()
+    rows = (
+        query.order_by(User.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    users = []
+    for user, college_name in rows:
+        users.append({
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "college_name": college_name,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "status": user.status,
+        })
+
+    return {"total": total, "page": page, "page_size": page_size, "users": users}
+
+
+# ─── PATCH /pending-users/{user_id}/status ────────────────────────────
+
+@router.patch("/pending-users/{user_id}/status")
+def update_pending_user_status(
+    user_id: int,
+    body: PendingUserActionRequest,
+    admin: User = Depends(_get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Approve, reject, or skip a user."""
+    allowed_actions = {"approve", "reject", "skip"}
+    if body.action not in allowed_actions:
+        raise HTTPException(status_code=400, detail=f"action must be one of {allowed_actions}")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if body.action == "approve":
+        user.status = "approved"
+        user.is_active = True
+    elif body.action == "reject":
+        user.status = "rejected"
+        user.is_active = False
+    elif body.action == "skip":
+        user.status = "skipped"
+
+    db.commit()
+    db.refresh(user)
+
+    college_name = None
+    if user.college_rel:
+        college_name = user.college_rel.college_name
+
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "college_name": college_name,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "status": user.status,
+        "is_active": user.is_active,
+    }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { AdminLeftSidebar } from './AdminSidebar';
 import { ThemeContext } from '../context/ThemeContext';
@@ -8,52 +8,88 @@ import {
   UserCheck, UserX, SkipForward
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-/* ─── Dummy data ──────────────────────────────────────────────── */
-const DUMMY_USERS = [
-  { id: 1, name: 'GAUTAM VINAY', email: 'gautamv2006@gmail.com', role: 'Student', college_name: 'SRM Institute of Technology', created_at: '2026-02-26T10:00:00', status: 'pending' },
-  { id: 2, name: 'Gaurika Malviya', email: 'gaurikamalviya@gmail.com', role: 'Student', college_name: 'SRM Institute of Technology', created_at: '2026-02-25T10:00:00', status: 'pending' },
-  { id: 3, name: 'Ashmeet Singh Sandhu', email: 'sandhuashmeet40@gmail.com', role: 'Student', college_name: 'IIT, Mandi', created_at: '2026-02-25T10:00:00', status: 'pending' },
-  { id: 4, name: 'ABHILASH CN', email: 'cnabhilash2@gmail.com', role: 'Professor', college_name: 'WorkletX', created_at: '2026-02-25T10:00:00', status: 'pending' },
-  { id: 5, name: 'Dhanushkanth Balasubramanian', email: 'danushkanth2006@gmail.com', role: 'Student', college_name: 'Vellore Institute Of Technology', created_at: '2026-02-25T10:00:00', status: 'pending' },
-  { id: 6, name: 'Sushree Sudipta', email: 'sushreeispresent@gmail.com', role: 'Student', college_name: 'ITER (SOA)', created_at: '2026-02-22T10:00:00', status: 'pending' },
-  { id: 7, name: 'Aditya Khanna', email: 'adityakhanna613@gmail.com', role: 'Student', college_name: 'Thapar Institute of Engineering And Technology', created_at: '2026-02-21T10:00:00', status: 'pending' },
-  { id: 8, name: 'Priya Sharma', email: 'ss3367@srmist.edu.in', role: 'Student', college_name: 'SRM Institute of Technology', created_at: '2026-02-21T10:00:00', status: 'pending' },
-  { id: 9, name: 'Rahul Verma', email: 'rahulverma@gmail.com', role: 'Student', college_name: 'IIT Delhi', created_at: '2026-02-20T10:00:00', status: 'pending' },
-  { id: 10, name: 'Neha Gupta', email: 'nehagupta@gmail.com', role: 'Student', college_name: 'NIT Trichy', created_at: '2026-02-19T10:00:00', status: 'pending' },
-  { id: 11, name: 'Arjun Reddy', email: 'arjunreddy@gmail.com', role: 'Student', college_name: 'BITS Pilani', created_at: '2026-02-18T10:00:00', status: 'rejected' },
-  { id: 12, name: 'Sneha Patel', email: 'snehapatel@gmail.com', role: 'Professor', college_name: 'IIT Bombay', created_at: '2026-02-17T10:00:00', status: 'rejected' },
-  { id: 13, name: 'Vikram Singh', email: 'vikram.s@gmail.com', role: 'Student', college_name: 'VIT Vellore', created_at: '2026-02-16T10:00:00', status: 'rejected' },
-  { id: 14, name: 'Meera Krishnan', email: 'meerak@gmail.com', role: 'Student', college_name: 'NIT Surathkal', created_at: '2026-02-15T10:00:00', status: 'skipped' },
-  { id: 15, name: 'Karthik R', email: 'karthikr@gmail.com', role: 'Student', college_name: 'PSG Tech', created_at: '2026-02-14T10:00:00', status: 'skipped' },
-  { id: 16, name: 'Ananya Joshi', email: 'ananyaj@gmail.com', role: 'Professor', college_name: 'IIIT Hyderabad', created_at: '2026-02-13T10:00:00', status: 'skipped' },
-];
+import API from '../api';
 
 const PendingUsers = () => {
   useDocumentTitle('PRISM Admin - Pending Users');
   const { isDarkMode } = useContext(ThemeContext);
 
-  const [allUsers, setAllUsers] = useState(DUMMY_USERS);
+  const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
   const [activeTab, setActiveTab] = useState('pending');
   const [collegeFilter, setCollegeFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [actionId, setActionId] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState({ total: 0, pending: 0, rejected: 0, skipped: 0 });
+  const [colleges, setColleges] = useState([]);
   const pageSize = 50;
 
-  /* Compute stats from current allUsers state */
-  const stats = useMemo(() => {
-    const pending = allUsers.filter(u => u.status === 'pending').length;
-    const rejected = allUsers.filter(u => u.status === 'rejected').length;
-    const skipped = allUsers.filter(u => u.status === 'skipped').length;
-    return { total: allUsers.length, pending, rejected, skipped };
-  }, [allUsers]);
+  const cancelRef = useRef(null);
 
-  /* Unique colleges for dropdown */
-  const colleges = useMemo(() => {
-    return [...new Set(allUsers.map(u => u.college_name))].sort().map((name, i) => ({ id: i + 1, name }));
-  }, [allUsers]);
+  /* ── Fetch stats ──────────────────────────────────────────────── */
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await API.get('/api/admin/pending-users/stats');
+      setStats(res.data);
+    } catch {
+      // silent — stats are supplementary
+    }
+  }, []);
+
+  /* ── Fetch colleges for dropdown ──────────────────────────────── */
+  const fetchColleges = useCallback(async () => {
+    try {
+      const res = await API.get('/api/admin/pending-users/colleges');
+      setColleges(res.data);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  /* ── Fetch users (main list) ──────────────────────────────────── */
+  const fetchUsers = useCallback(async () => {
+    if (cancelRef.current) cancelRef.current.abort();
+    const controller = new AbortController();
+    cancelRef.current = controller;
+
+    setLoading(true);
+    setError('');
+    try {
+      const params = { status: activeTab, page, page_size: pageSize };
+      if (collegeFilter) params.college_id = collegeFilter;
+      if (search.trim()) params.search = search.trim();
+      const res = await API.get('/api/admin/pending-users', { params, signal: controller.signal });
+      setUsers(res.data.users);
+      setTotal(res.data.total);
+    } catch (err) {
+      if (err?.code !== 'ERR_CANCELED') {
+        setError('Failed to load users. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, collegeFilter, search, page]);
+
+  /* ── Effects ──────────────────────────────────────────────────── */
+  useEffect(() => {
+    fetchStats();
+    fetchColleges();
+  }, [fetchStats, fetchColleges]);
+
+  useEffect(() => {
+    fetchUsers();
+    return () => { if (cancelRef.current) cancelRef.current.abort(); };
+  }, [fetchUsers]);
+
+  // Reset to page 1 when tab or filters change
+  useEffect(() => { setPage(1); }, [activeTab, collegeFilter, search]);
+
+  const totalPages = Math.ceil(total / pageSize);
+  const pagedUsers = users; // already paginated server-side
 
   const tabs = [
     { key: 'pending', label: 'Pending Users', count: stats.pending, icon: Clock, color: 'amber' },
@@ -61,59 +97,41 @@ const PendingUsers = () => {
     { key: 'skipped', label: 'Skipped Users', count: stats.skipped, icon: SkipForward, color: 'slate' },
   ];
 
-  /* Filter users */
-  const filteredUsers = useMemo(() => {
-    let list = allUsers.filter(u => u.status === activeTab);
-    if (collegeFilter) {
-      const collegeName = colleges.find(c => String(c.id) === String(collegeFilter))?.name;
-      if (collegeName) list = list.filter(u => u.college_name === collegeName);
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-    }
-    return list;
-  }, [allUsers, activeTab, collegeFilter, search, colleges]);
-
-  const total = filteredUsers.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const pagedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
-
-  /* Dummy export handler */
-  const handleExport = () => {
+  /* ── Export handler ───────────────────────────────────────────── */
+  const handleExport = async () => {
     if (isExporting) return;
     setIsExporting(true);
-    setTimeout(() => {
-      const headers = ['Name', 'Email', 'Role', 'College', 'Date', 'Status'];
-      const rows = filteredUsers.map(u => [
-        u.name, u.email, u.role, u.college_name || '',
-        u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN') : '', u.status
-      ]);
-      const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    try {
+      const params = { status: activeTab };
+      if (collegeFilter) params.college_id = collegeFilter;
+      const res = await API.get('/api/admin/pending-users/export', { params, responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `prism_${activeTab}_users_${filteredUsers.length}_records.csv`;
+      a.download = `prism_${activeTab}_users.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } catch {
+      setError('Export failed. Please try again.');
+    } finally {
       setIsExporting(false);
-    }, 500);
+    }
   };
 
-  /* Dummy action handler — moves user between statuses locally */
-  const handleAction = (userId, action) => {
+  /* ── Action handler (approve / reject / skip) ─────────────────── */
+  const handleAction = async (userId, action) => {
     setActionId(userId);
-    setTimeout(() => {
-      setAllUsers(prev => prev.map(u => {
-        if (u.id !== userId) return u;
-        const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'skipped';
-        return { ...u, status: newStatus };
-      }));
+    try {
+      await API.patch(`/api/admin/pending-users/${userId}/status`, { action });
+      await Promise.all([fetchUsers(), fetchStats(), fetchColleges()]);
+    } catch {
+      setError(`Failed to ${action} user. Please try again.`);
+    } finally {
       setActionId(null);
-    }, 400);
+    }
   };
 
   const initials = (name) => {
@@ -330,14 +348,31 @@ const PendingUsers = () => {
             </div>
           )}
 
+          {/* ─── Error banner ──────────────────────────────────── */}
+          {error && (
+            <div className="flex items-center gap-2 mb-3 p-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
+              <AlertCircle size={16} />
+              <span>{error}</span>
+              <button onClick={() => setError('')} className="ml-auto font-bold">&times;</button>
+            </div>
+          )}
+
+          {/* ─── Loading overlay ──────────────────────────────────── */}
+          {loading && (
+            <div className="flex items-center justify-center h-40 gap-2">
+              <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+              <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Loading users…</span>
+            </div>
+          )}
+
           {/* ─── Table ──────────────────────────────────────────── */}
-          {pagedUsers.length === 0 ? (
+          {!loading && pagedUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-2">
               <Users className="w-10 h-10" />
               <p className="text-lg font-medium">No {activeTab} users found</p>
               <p className="text-sm">Try adjusting your search or filters</p>
             </div>
-          ) : (
+          ) : !loading && (
             <div className={`rounded-xl overflow-hidden border shadow-sm ${
               isDarkMode ? 'border-slate-700/50' : 'border-slate-200/50'
             }`}>
