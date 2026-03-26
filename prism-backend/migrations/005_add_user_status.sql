@@ -1,8 +1,10 @@
 -- Migration 005: Add status column to users table for pending/approved/rejected/skipped workflow
+-- NOTE: Uses IF NOT EXISTS for safer re-runs on MySQL 8+
 
 ALTER TABLE users
-  ADD COLUMN status ENUM('pending','approved','rejected','skipped') NOT NULL DEFAULT 'pending';
+  ADD COLUMN IF NOT EXISTS status ENUM('pending','approved','rejected','skipped') NOT NULL DEFAULT 'pending';
 
--- Backfill: active users are approved, inactive remain pending
-UPDATE users SET  is_active = 1  WHERE is_active = 0;
-UPDATE users SET status = 'approved' WHERE is_active = 1;
+-- Backfill: mark currently active users as approved; others keep default pending.
+UPDATE users
+SET status = 'approved'
+WHERE is_active = 1;

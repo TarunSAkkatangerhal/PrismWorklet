@@ -151,10 +151,20 @@ export const login = async (email, password, role) => {
     
     if (error.response) {
       const status = error.response.status;
+      const detail = error.response?.data?.detail || '';
       if (status === 401) {
+        if (detail) {
+          throw new Error(detail);
+        }
         throw new Error('Invalid credentials');
       } else if (status === 403) {
-        throw new Error('You are not registered as the selected role. Please select the correct role.');
+        if (typeof detail === 'string' && detail.toLowerCase().includes('role mismatch')) {
+          throw new Error('You are not registered as the selected role. Please select the correct role.');
+        }
+        if (detail) {
+          throw new Error(detail);
+        }
+        throw new Error('Access denied.');
       } else if (status === 429) {
         throw new Error('Too many login attempts. Please try again later.');
       } else if (status >= 500) {

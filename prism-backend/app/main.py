@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 from app import auth
 from app.routers import worklets, health, dashboard, evaluations, associations, portfolio, suggestions, milestones, meetings, students, updates, admin
 from app.core.config import settings
@@ -156,6 +157,23 @@ async def startup_event():
     try:
         # Auto-create tables if not present
         Base.metadata.create_all(bind=engine)
+
+        # Backward-compatible schema patch: add users.status when DB is older than model.
+        inspector = inspect(engine)
+        user_columns = {col["name"] for col in inspector.get_columns("users")}
+        if "status" not in user_columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        """
+                        ALTER TABLE users
+                        ADD COLUMN status ENUM('pending','approved','rejected','skipped') NOT NULL DEFAULT 'pending'
+                        """
+                    )
+                )
+                conn.execute(text("UPDATE users SET status = 'approved' WHERE is_active = 1"))
+            logger.info("Added missing users.status column and backfilled active users")
+
         logger.info("Database tables initialized successfully")
         
         # Display configuration warnings

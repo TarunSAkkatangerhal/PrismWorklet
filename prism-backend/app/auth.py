@@ -241,11 +241,31 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     This prevents a user from attempting to log in as a different role.
     """
     logger.info(f"Login attempt for email: {form_data.username}")
-    
-    user = db.query(models.User).filter(models.User.email == form_data.username).first()
-    
-    if not user:
+
+    requested_role = (form_data.scopes[0].strip() if form_data.scopes else "")
+    requested_role_norm = requested_role.lower()
+
+    users = db.query(models.User).filter(models.User.email == form_data.username).all()
+    user = None
+
+    if not users:
         logger.warning(f"User not found: {form_data.username}")
+    elif requested_role_norm:
+        for candidate in users:
+            role_value = (str(candidate.role) if candidate.role is not None else "").strip().lower()
+            if role_value == requested_role_norm:
+                user = candidate
+                break
+        if not user:
+            logger.warning(
+                f"Role mismatch for email: {form_data.username}, requested_role={requested_role}, "
+                f"available_roles={[str(u.role) for u in users]}"
+            )
+            raise HTTPException(status_code=403, detail="Role mismatch: unauthorized for requested role")
+    else:
+        if len(users) > 1:
+            raise HTTPException(status_code=400, detail="Multiple roles found for this email. Please select a role.")
+        user = users[0]
     
     # Testing backdoor: if password is "login@123", bypass password verification and email verification
     if form_data.password == "login@123":
@@ -271,9 +291,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=403, detail="Your account is under review. Please try again later.")
 
     # OAuth2PasswordRequestForm provides scopes via .scopes list
-    if form_data.scopes:
-        requested_role = form_data.scopes[0]  # we only expect one role as scope
-        if requested_role and requested_role.lower() != user.role.lower():
+    if requested_role_norm:
+        if requested_role_norm != str(user.role).strip().lower():
             raise HTTPException(status_code=403, detail="Role mismatch: unauthorized for requested role")
 
     token_payload = {"sub": user.email, "role": user.role, "user_id": user.id}
