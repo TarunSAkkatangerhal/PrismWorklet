@@ -5,9 +5,9 @@ import { AdminLeftSidebar } from './AdminSidebar';
 import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
-  Building2, MapPin, Globe, ChevronDown, ChevronLeft, ChevronRight, CalendarDays, Phone, Award,
+  Building2, MapPin, Globe, ChevronDown, ChevronLeft, ChevronRight, CalendarDays, Phone,
   ArrowLeft, Upload, Trash2, Edit3, Plus, Loader2, X, Check, Search,
-  Image as ImageIcon, GraduationCap, FileCheck, Shield, Hash, ExternalLink
+  Image as ImageIcon, FileCheck, Shield, Hash, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

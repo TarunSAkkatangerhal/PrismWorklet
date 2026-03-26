@@ -5,7 +5,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
   Download, User, Mail, Users, ChevronLeft, ChevronRight,
-  Home, Loader2, AlertCircle, Plus, X, Search, CheckCircle, Award,
+  Loader2, AlertCircle, Plus, X, Search, CheckCircle, Award,
   UserCheck, UserX, XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

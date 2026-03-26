@@ -7,8 +7,8 @@ import API from '../api';
 import {
   ArrowLeft, Building2, Users, GraduationCap, UserCheck, Calendar,
   FileText, GitBranch, Link2, Tag, CheckCircle, AlertCircle,
-  Clock, Shield, BarChart3, Award, Database, Paperclip, Plus,
-  Save, Upload, Trash2, ChevronDown, ChevronUp, X, ExternalLink,
+  Clock, BarChart3, Award, Database, Paperclip, Plus,
+  Save, Trash2, ChevronUp, X, ExternalLink,
   Settings, MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,9 +19,6 @@ const stageOpts   = ['First Review', 'Second Review', 'Mid Review', 'Fourth Revi
 const perfOpts    = ['NA', 'Poor', 'Average', 'Good', 'Very Good'];
 const riskOpts    = ['NA', 'High', 'Medium', 'Safe'];
 const dataOpts    = ['Self-generated/Collected', 'Open Source', 'Not Applicable'];
-const degreeOpts  = ['Any', 'B.E', 'M.Tech', 'PhD'];
-const streamOpts  = ['Any', 'CS', 'IS', 'EC', 'ME', 'CV', 'EE', 'AI&ML'];
-const complexOpts = ['Low', 'Medium', 'High'];
 
 const fmt = (d) => {
   if (!d) return '—';
@@ -53,11 +50,6 @@ const statusColor = (s) => {
   return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
 };
 
-const YesNo = ({ value }) => (
-  <span className={`text-xs font-bold px-2 py-0.5 rounded ${value ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
-    {value ? 'Yes' : 'No'}
-  </span>
-);
 
 /* ───────── Reusable section card ───────── */
 const Section = ({ title, children, className = '' }) => (
@@ -85,7 +77,7 @@ const UpdateBtn = ({ onClick, loading, label = 'Update' }) => (
 const AdminWorkletDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isDarkMode } = useContext(ThemeContext);
+  useContext(ThemeContext);
   useDocumentTitle('PRISM Admin - Worklet Detail');
 
   const [worklet, setWorklet] = useState(null);
@@ -97,7 +89,6 @@ const AdminWorkletDetail = () => {
   const [colleges, setColleges] = useState([]);
 
   // Profiles state
-  const [allUsers, setAllUsers] = useState([]);
   const [addRole, setAddRole] = useState('Student');
   const [addCollege, setAddCollege] = useState('');
   const [addName, setAddName] = useState('');
@@ -375,7 +366,6 @@ const AdminWorkletDetail = () => {
 
   const professors = worklet.professors || [];
   const students   = worklet.students   || [];
-  const mentors    = worklet.mentors    || [];
 
   /* ═══════════════════ RENDER ═══════════════════ */
   return (

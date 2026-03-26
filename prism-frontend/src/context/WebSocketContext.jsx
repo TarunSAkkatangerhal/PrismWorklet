@@ -116,6 +116,7 @@ export const WebSocketProvider = ({ children }) => {
         wsRef.current.close();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = {

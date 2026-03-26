@@ -6,9 +6,9 @@ import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import * as XLSX from 'xlsx';
 import {
-  Search, ChevronRight, ChevronLeft, Target, Activity, CheckCircle, X, Clock,
+  Search, ChevronRight, ChevronLeft, Target, Activity,
   Users, Grid3X3, List, Building2, Briefcase, AlertCircle, Folder,
-  TrendingUp, Filter, ChevronDown, Calendar, Layers, Shield, Download, RotateCcw
+  ChevronDown, Calendar, Layers, Shield, Download, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

@@ -6,7 +6,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
   Search, Building2, Loader2, FileCheck, Plus,
-  Pencil, Check, X, Upload, Download, Trash2, ChevronRight, ExternalLink, File, Paperclip
+  Pencil, X, Upload, Download, Trash2, File, Paperclip
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

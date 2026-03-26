@@ -6,7 +6,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import API from '../api';
 import {
   Search, Building2, Loader2, Grid3X3, List, Plus, FileCheck,
-  Briefcase, GraduationCap, Users, AlertCircle, ChevronRight, ChevronLeft, MapPin
+  Briefcase, GraduationCap, Users, ChevronRight, ChevronLeft, MapPin
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
