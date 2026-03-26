@@ -143,6 +143,7 @@ export const AdminLeftSidebar = () => {
       <nav className="flex flex-col gap-[2vh] items-center">
         <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard" onClick={() => navigate('/admin-dashboard')} isActive={isActivePath('/admin-dashboard')} />
         <SidebarItem icon={<Briefcase size={20} />} label="Worklet" onClick={() => navigate('/admin-worklets')} isActive={isActivePath('/admin-worklets')} />
+        <SidebarItem icon={<Clock size={20} />} label="Pending" onClick={() => navigate('/admin-pending-users')} isActive={isActivePath('/admin-pending-users')} />
         <SidebarItem icon={<Users size={20} />} label="Users" onClick={() => navigate('/admin-users')} isActive={isActivePath('/admin-users')} />
         <SidebarItem icon={<Sparkles size={20} />} label="Excellent" onClick={() => navigate('/admin-excellent')} isActive={isActivePath('/admin-excellent')} />
 

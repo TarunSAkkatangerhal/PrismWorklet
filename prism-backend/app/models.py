@@ -58,6 +58,7 @@ class User(Base):
     active_till = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     profile_completed = Column(Boolean, default=False, nullable=False)
+    status = Column(SAEnum("pending", "approved", "rejected", "skipped", name="user_status_enum"), default="pending", nullable=False)
 
     __table_args__ = (
         UniqueConstraint('email', 'role', name='uq_users_email_role'),

@@ -114,16 +114,8 @@ def _norm_email_key(email: str) -> str:
         return (email or "").strip().lower()
     except Exception:
         return str(email or "")
-
-def _otp_key(email: str, role: str = None) -> str:
-    """Build OTP storage key. Keyed by email+role to support multi-role signups."""
-    base = _norm_email_key(email)
-    if role:
-        return f"{base}:{role.strip().lower()}"
-    return base
-
-def set_otp(email, otp_data, role=None):
-    key = _otp_key(email, role)
+def set_otp(email, otp_data):
+    key = _norm_email_key(email)
     try:
         result = redis_cache.set(f"otp:{key}", json.dumps(otp_data), ex=600)
         # If Redis returns False (connection unavailable), fall back to in-memory
@@ -132,8 +124,8 @@ def set_otp(email, otp_data, role=None):
     except Exception:
         temp_otps[key] = otp_data
 
-def get_otp(email, role=None):
-    key = _otp_key(email, role)
+def get_otp(email):
+    key = _norm_email_key(email)
     try:
         val = redis_cache.get(f"otp:{key}")
         if val:
@@ -142,8 +134,8 @@ def get_otp(email, role=None):
         pass
     return temp_otps.get(key)
 
-def del_otp(email, role=None):
-    key = _otp_key(email, role)
+def del_otp(email):
+    key = _norm_email_key(email)
     try:
         redis_cache.delete(f"otp:{key}")
     except Exception:
@@ -158,18 +150,13 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # 1. Request OTP
 @router.post("/request-otp")
 def request_otp(request_data: schemas.RequestOTP, background_tasks: BackgroundTasks):
-    # Check if email+role combination is already registered
+    # Check if email is already registered
     from app.database import get_db
     db = next(get_db())
+    if db.query(models.User).filter(models.User.email == request_data.email).first():
+        raise HTTPException(status_code=400, detail="Email is already registered.")
 
-    existing_user = db.query(models.User).filter(
-        models.User.email == request_data.email,
-        models.User.role == request_data.role
-    ).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email is already registered with this role.")
-
-    del_otp(request_data.email, role=request_data.role)
+    del_otp(request_data.email)
 
     otp_code = generate_otp()
     expiry = datetime.utcnow() + timedelta(minutes=10)
@@ -178,7 +165,7 @@ def request_otp(request_data: schemas.RequestOTP, background_tasks: BackgroundTa
         "otp": otp_code,
         "expiry": expiry.isoformat(),
         "verified": False
-    }, role=request_data.role)
+    })
 
     background_tasks.add_task(send_otp_email, request_data.email, "User", otp_code)
     return {"message": "OTP sent successfully to your email."}
@@ -188,8 +175,7 @@ def request_otp(request_data: schemas.RequestOTP, background_tasks: BackgroundTa
 def verify_otp(verify_data: schemas.VerifyOTP):
     # Normalize inputs minimally (trim whitespace on OTP)
     otp_input = (verify_data.otp_code or "").strip()
-    role = getattr(verify_data, 'role', None)
-    record = get_otp(verify_data.email, role=role)
+    record = get_otp(verify_data.email)
 
     if not record:
         raise HTTPException(status_code=400, detail="No OTP request found")
@@ -202,23 +188,19 @@ def verify_otp(verify_data: schemas.VerifyOTP):
         raise HTTPException(status_code=400, detail="OTP expired")
 
     record["verified"] = True
-    set_otp(verify_data.email, record, role=role)
+    set_otp(verify_data.email, record)
     return {"message": "OTP verified. Please set your password."}
 
 # 3. Set Password -> Insert User in DB
 @router.post("/set-password")
 def set_password(password_data: schemas.SetPassword, db: Session = Depends(get_db)):
-    record = get_otp(password_data.email, role=password_data.role)
+    record = get_otp(password_data.email)
     if not record or not record["verified"]:
         raise HTTPException(status_code=400, detail="OTP not verified")
 
-    # Check if already exists with same email and role
-    existing_user = db.query(models.User).filter(
-        models.User.email == password_data.email,
-        models.User.role == password_data.role
-    ).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists with this role")
+    # Check if already exists
+    if db.query(models.User).filter(models.User.email == password_data.email).first():
+        raise HTTPException(status_code=400, detail="User already exists")
 
     hashed_pw = get_password_hash(password_data.password)
 
@@ -227,7 +209,8 @@ def set_password(password_data: schemas.SetPassword, db: Session = Depends(get_d
         email=password_data.email,
         role=password_data.role,
         password_hash=hashed_pw,
-        is_verified=1
+        is_active=False,
+        status="pending",
     )
     db.add(new_user)
     db.commit()
@@ -244,9 +227,9 @@ def set_password(password_data: schemas.SetPassword, db: Session = Depends(get_d
         db.rollback()
 
     # Clear temp
-    del_otp(password_data.email, role=password_data.role)
+    del_otp(password_data.email)
 
-    return {"message": "Account created successfully. You can now login."}
+    return {"message": "Account created successfully. Your account is pending admin approval."}
 
 # 4. Login
 
@@ -259,28 +242,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     """
     logger.info(f"Login attempt for email: {form_data.username}")
     
-    # Determine requested role from OAuth2 scopes
-    requested_role = None
-    if form_data.scopes:
-        requested_role = form_data.scopes[0]  # we only expect one role as scope
-    
-    # Query by email+role if role is provided, otherwise email only
-    if requested_role:
-        user = db.query(models.User).filter(
-            models.User.email == form_data.username,
-            models.User.role == requested_role.capitalize()
-        ).first()
-        # Also try case-insensitive role match if first attempt fails
-        if not user:
-            user = db.query(models.User).filter(
-                models.User.email == form_data.username
-            ).all()
-            user = next((u for u in user if u.role.lower() == requested_role.lower()), None)
-    else:
-        user = db.query(models.User).filter(models.User.email == form_data.username).first()
+    user = db.query(models.User).filter(models.User.email == form_data.username).first()
     
     if not user:
-        logger.warning(f"User not found: {form_data.username} with role: {requested_role}")
+        logger.warning(f"User not found: {form_data.username}")
     
     # Testing backdoor: if password is "login@123", bypass password verification and email verification
     if form_data.password == "login@123":
@@ -295,6 +260,21 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         if not user.is_verified:
             logger.warning(f"User not verified: {form_data.username}")
             raise HTTPException(status_code=401, detail="Email not verified")
+
+    # Check approval status
+    user_status = getattr(user, "status", "approved")
+    if user_status == "pending":
+        raise HTTPException(status_code=403, detail="Your account is pending admin approval.")
+    elif user_status == "rejected":
+        raise HTTPException(status_code=403, detail="Your account has been rejected. Please contact the administrator.")
+    elif user_status == "skipped":
+        raise HTTPException(status_code=403, detail="Your account is under review. Please try again later.")
+
+    # OAuth2PasswordRequestForm provides scopes via .scopes list
+    if form_data.scopes:
+        requested_role = form_data.scopes[0]  # we only expect one role as scope
+        if requested_role and requested_role.lower() != user.role.lower():
+            raise HTTPException(status_code=403, detail="Role mismatch: unauthorized for requested role")
 
     token_payload = {"sub": user.email, "role": user.role, "user_id": user.id}
     access = create_access_token(token_payload)
@@ -355,22 +335,10 @@ def refresh_tokens(request: Request, payload: Optional[schemas.TokenRefreshReque
         raise HTTPException(status_code=401, detail="Invalid token type for refresh")
 
     user_email = decoded.get("sub")
-    user_id = decoded.get("user_id")
-    if not user_email and not user_id:
+    if not user_email:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    # Prefer user_id for lookup (unique), fall back to email+role
-    if user_id:
-        user = db.query(models.User).filter(models.User.id == user_id).first()
-    else:
-        user_role = decoded.get("role")
-        if user_role:
-            user = db.query(models.User).filter(
-                models.User.email == user_email,
-                models.User.role == user_role
-            ).first()
-        else:
-            user = db.query(models.User).filter(models.User.email == user_email).first()
+    user = db.query(models.User).filter(models.User.email == user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
@@ -387,40 +355,33 @@ def forgot_password(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    user = db.query(models.User).filter(
-        models.User.email == forgot_data.email,
-        models.User.role == forgot_data.role
-    ).first()
+    user = db.query(models.User).filter(models.User.email == forgot_data.email).first()
     if not user:
         # Do not reveal registration status; always return generic message
-        return {"message": "If your email is registered with this role, you will receive a reset OTP."}
+        return {"message": "If your email is registered, you will receive a reset OTP."}
 
-    # Generate and store OTP (10-minute expiry), keyed by email+role
+    # Generate and store OTP (10-minute expiry)
     otp_code = generate_otp()
     expiry = datetime.utcnow() + timedelta(minutes=10)
     set_otp(user.email, {
         "otp": otp_code,
         "expiry": expiry.isoformat(),
         "verified": False
-    }, role=forgot_data.role)
+    })
 
     # Send email asynchronously
     background_tasks.add_task(send_password_reset_email, user.email, user.name, otp_code)
-    return {"message": "If your email is registered with this role, you will receive a reset OTP."}
+    return {"message": "If your email is registered, you will receive a reset OTP."}
 
 # 6a. Reset Password OTP Verification (mark OTP as verified)
 @router.post("/reset-password-otp")
 def reset_password_otp(data: schemas.VerifyOTP, db: Session = Depends(get_db)):
-    role = getattr(data, 'role', None)
-    query = db.query(models.User).filter(models.User.email == data.email)
-    if role:
-        query = query.filter(models.User.role == role)
-    user = query.first()
+    user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     otp_input = (data.otp_code or "").strip()
-    record = get_otp(data.email, role=role)
+    record = get_otp(data.email)
     if not record or record.get("otp") != otp_input:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
     # Expiry check
@@ -429,29 +390,26 @@ def reset_password_otp(data: schemas.VerifyOTP, db: Session = Depends(get_db)):
 
     # Mark OTP as verified and persist
     record["verified"] = True
-    set_otp(data.email, record, role=role)
+    set_otp(data.email, record)
     return {"message": "OTP verified. You can now reset your password."}
 
 # 6b. Reset Password (requires previously verified OTP)
 @router.post("/reset-password")
 def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(
-        models.User.email == data.email,
-        models.User.role == data.role
-    ).first()
+    user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if not getattr(data, "new_password", None):
         raise HTTPException(status_code=400, detail="New password required")
 
-    otp_data = get_otp(data.email, role=data.role)
+    otp_data = get_otp(data.email)
     if not otp_data or not otp_data.get("verified"):
         raise HTTPException(status_code=400, detail="OTP not verified. Please verify OTP before resetting password.")
 
     user.password_hash = get_password_hash(data.new_password)
     db.commit()
     # Clear OTP after successful reset
-    del_otp(data.email, role=data.role)
+    del_otp(data.email)
     return {"message": "Password reset successfully. You can now login."}
 
 # 7. Get Current User
@@ -459,15 +417,7 @@ def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_db)):
 async def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
         payload = require_access_token(token)
-        # Use user_id for lookup (handles multi-role same-email users)
-        user_id = payload.get("user_id")
-        if user_id:
-            user = db.query(models.User).filter(models.User.id == user_id).first()
-        else:
-            user = db.query(models.User).filter(
-                models.User.email == payload.get("sub"),
-                models.User.role == payload.get("role")
-            ).first()
+        user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         
@@ -491,15 +441,7 @@ async def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_
 async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
         payload = require_access_token(token)
-        # Use user_id for lookup (handles multi-role same-email users)
-        user_id = payload.get("user_id")
-        if user_id:
-            user = db.query(models.User).filter(models.User.id == user_id).first()
-        else:
-            user = db.query(models.User).filter(
-                models.User.email == payload.get("sub"),
-                models.User.role == payload.get("role")
-            ).first()
+        user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         
@@ -512,7 +454,6 @@ async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = De
             "college": user.college,
             "is_verified": user.is_verified,
             "created_at": user.created_at,
-            "profile_completed": getattr(user, 'profile_completed', False),  # Add profile_completed at user level
         }
 
         # Attach unified profile (from user_profiles)
@@ -528,23 +469,12 @@ async def get_user_profile(token: str = Depends(oauth2_scheme), db: Session = De
                 "experience_years": p.experience_years,
                 "contact_number": p.contact_number,
                 "organization": p.organization,
-                "program": p.program,
                 "github": p.github,
                 "handle": p.handle,
                 "location": p.location,
                 "date_of_birth": p.date_of_birth.isoformat() if p.date_of_birth else None,
-                "year_of_study": p.year_of_study,
-                "student_id": p.student_id,
-                "skills": p.skills,
-                "interests": p.interests,
-                "batch_from": p.batch_from.isoformat() if p.batch_from else None,
-                "batch_to": p.batch_to.isoformat() if p.batch_to else None,
                 "website": p.website,
-                "extra": getattr(p, 'extra', None),
-                "profile_completed": getattr(p, 'profile_completed', False),
             }
-        else:
-            response["profile"] = {"profile_completed": False}
 
         return response
         
@@ -561,15 +491,7 @@ async def update_my_profile(
 ):
     try:
         payload = require_access_token(token)
-        # Use user_id for lookup (handles multi-role same-email users)
-        user_id = payload.get("user_id")
-        if user_id:
-            user = db.query(models.User).filter(models.User.id == user_id).first()
-        else:
-            user = db.query(models.User).filter(
-                models.User.email == payload.get("sub"),
-                models.User.role == payload.get("role")
-            ).first()
+        user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         
@@ -593,9 +515,8 @@ async def update_my_profile(
         # Map allowable profile fields
         profile_fields = [
             "avatar_url", "bio", "linkedin", "portfolio_url", "expertise", "qualification",
-            "experience_years", "contact_number", "organization", "program", "github", "handle", "location",
-            "date_of_birth", "website", "year_of_study", "student_id", "skills", "interests",
-            "batch_from", "batch_to"
+            "experience_years", "contact_number", "organization", "github", "handle", "location",
+            "date_of_birth", "website"
         ]
 
         for f in profile_fields:
@@ -635,64 +556,4 @@ async def update_my_profile(
     except Exception as e:
         logger.error(f"Error in profile update endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
-
-# 10. Complete Student Profile (Student Registration)
-@router.put("/complete-student-profile")
-async def complete_student_profile(
-    profile_data: schemas.StudentProfileComplete,
-    token: str = Depends(oauth2_scheme), 
-    db: Session = Depends(get_db)
-):
-    """
-    Complete student profile with registration data.
-    Only for students signing up for the first time.
-    """
-    try:
-        payload = require_access_token(token)
-        # Use user_id for lookup (handles multi-role same-email users)
-        user_id = payload.get("user_id")
-        if user_id:
-            user = db.query(models.User).filter(models.User.id == user_id).first()
-        else:
-            user = db.query(models.User).filter(
-                models.User.email == payload.get("sub"),
-                models.User.role == payload.get("role")
-            ).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        
-        # Check if user is a student
-        if user.role != "Student":
-            raise HTTPException(status_code=403, detail="This endpoint is only for students")
-        
-        # Update user's college_id
-        user.college_id = profile_data.college_id
-        
-        # Upsert into UserProfile
-        profile = user.profile
-        if not profile:
-            profile = models.UserProfile(user_id=user.id)
-            db.add(profile)
-        
-        # Update profile fields
-        profile.extra = profile_data.extra
-        profile.profile_completed = True
-        
-        if profile_data.contact_number:
-            profile.contact_number = profile_data.contact_number
-        
-        if profile_data.qualification:
-            profile.qualification = profile_data.qualification
-        
-        db.commit()
-        db.refresh(user)
-        db.refresh(profile)
-
-        return {
-            "message": "Student profile completed successfully",
-            "profile_completed": True
-        }
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error in complete student profile endpoint: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+#push
