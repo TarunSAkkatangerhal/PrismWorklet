@@ -1,0 +1,13 @@
+image: node:20-slim
+stages:
+  - build
+script:
+  - npm install && npm run build
+deploy:
+  docker:
+    build:
+      context: ./dist
+    push:
+      repository: tarunsakkatangerhal/prismworklet
+    tag:
+      name: latest
